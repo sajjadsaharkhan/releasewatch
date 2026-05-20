@@ -1,0 +1,35 @@
+# Development overrides — mount source, enable hot reload, expose all ports.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  api:
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      ENVIRONMENT: development
+
+  worker:
+    volumes:
+      - ./backend:/app
+    environment:
+      ENVIRONMENT: development
+
+  beat:
+    volumes:
+      - ./backend:/app
+    environment:
+      ENVIRONMENT: development
+
+  frontend:
+    build:
+      context: ./frontend
+      target: builder          # stop at the Node stage — skip nginx
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules      # preserve container's node_modules
+    environment:
+      VITE_API_TARGET: http://api:8000

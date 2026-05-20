@@ -1,0 +1,6 @@
+export { IssueTimeline } from './IssueTimeline'
+export { CommentComposer } from './CommentComposer'
+export { IssueDetail } from './IssueDetail'
+export { NewIssueModal } from './NewIssueModal'
+export { AttachmentTile } from './AttachmentTile'
+export { RegressionTimeline } from './RegressionTimeline'
