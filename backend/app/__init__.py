@@ -1,0 +1,1 @@
+"""Releasewatch FastAPI application package."""
