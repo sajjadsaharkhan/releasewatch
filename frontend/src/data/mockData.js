@@ -237,9 +237,9 @@ export const MOCK_TEAM = [
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 export const MOCK_PROJECTS = [
-  { id: 'proj-1', name: 'Core Platform', slug: 'core', color: '#6366f1' },
-  { id: 'proj-2', name: 'Mobile App', slug: 'mobile', color: '#f59e0b' },
-  { id: 'proj-3', name: 'Data Pipeline', slug: 'data', color: '#10b981' },
+  { id: 'proj-1', name: 'Core Platform', slug: 'core', color: '#6366f1', desc: 'Backend services, wallet, payments' },
+  { id: 'proj-2', name: 'Mobile App', slug: 'mobile', color: '#f59e0b', desc: 'iOS + Android consumer app' },
+  { id: 'proj-3', name: 'Data Pipeline', slug: 'data', color: '#10b981', desc: 'Internal operator tooling' },
 ]
 
 // ─── Releases ─────────────────────────────────────────────────────────────────
@@ -921,7 +921,7 @@ export function issueById(id) {
 }
 
 export function releaseById(id) {
-  return MOCK_RELEASES.find((r) => r.id === id) ?? null
+  return MOCK_RELEASES.find((r) => r.id === id) ?? MOCK_RELEASES[0]
 }
 
 export function issuesByRelease(releaseId) {

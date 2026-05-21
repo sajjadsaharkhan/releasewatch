@@ -4,7 +4,6 @@ import { AppProvider, useApp } from './context/AppContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
-import { TweaksPanel } from './components/dev/TweaksPanel'
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -12,8 +11,8 @@ const InboxPage = lazy(() => import('./pages/InboxPage'))
 const IssuesPage = lazy(() => import('./pages/IssuesPage'))
 const TriagePage = lazy(() => import('./pages/TriagePage'))
 const ReleasesPage = lazy(() => import('./pages/ReleasesPage'))
+const ReleaseDetailPage = lazy(() => import('./pages/ReleaseDetailPage'))
 const RegressionsPage = lazy(() => import('./pages/RegressionsPage'))
-const ReleaseReportsPage = lazy(() => import('./pages/ReleaseReportsPage'))
 const ContributionsPage = lazy(() => import('./pages/ContributionsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const TeamPage = lazy(() => import('./pages/TeamPage'))
@@ -69,8 +68,8 @@ function AppInner() {
             <Route path="triage" element={<TriagePage />} />
             <Route path="assigned" element={<IssuesPage filterAssigned />} />
             <Route path="releases" element={<ReleasesPage />} />
+            <Route path="releases/:id" element={<ReleaseDetailPage />} />
             <Route path="regressions" element={<RegressionsPage />} />
-            <Route path="release-reports" element={<ReleaseReportsPage />} />
             <Route path="contributions" element={<ContributionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="team" element={<TeamPage />} />
@@ -83,7 +82,6 @@ function AppInner() {
 
       {/* Global overlays */}
       <CommandPalette />
-      <TweaksPanel />
     </>
   )
 }

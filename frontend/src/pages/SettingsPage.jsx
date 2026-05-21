@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Trash2, Plus, Send, Webhook } from 'lucide-react'
+import { Trash2, Plus, Send, Webhook, Sun, Moon } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
@@ -8,6 +8,7 @@ import { Switch } from '../components/ui/Switch'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
 import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
+import { useApp } from '../hooks/useApp'
 import { MOCK_TEAM, MOCK_PROJECTS, MOCK_LABELS, ROLE } from '../data/mockData'
 
 const TAB_OPTIONS = [
@@ -54,6 +55,7 @@ function FieldRow({ label, description, children }) {
 }
 
 export default function SettingsPage() {
+  const { theme, toggleTheme } = useApp()
   const [activeTab, setActiveTab] = useState('general')
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
   const [labels, setLabels] = useState(MOCK_LABELS)
@@ -115,6 +117,37 @@ export default function SettingsPage() {
               ))}
             </select>
           </div>
+
+          <SectionTitle>Appearance</SectionTitle>
+          <div className="flex items-center justify-between py-3 border-b border-border">
+            <div>
+              <p className="text-sm font-medium">Theme</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Choose your preferred color scheme</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => theme !== 'light' && toggleTheme()}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                  theme === 'light' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
+                )}
+              >
+                <Sun className="h-4 w-4" />
+                Light
+              </button>
+              <button
+                onClick={() => theme !== 'dark' && toggleTheme()}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                  theme === 'dark' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
+                )}
+              >
+                <Moon className="h-4 w-4" />
+                Dark
+              </button>
+            </div>
+          </div>
+
           <Button>Save changes</Button>
         </div>
       )}

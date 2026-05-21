@@ -12,6 +12,7 @@ export function AppProvider({ children }) {
   const [activeReleaseId, setActiveReleaseId] = useState('rel-1')
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [newIssueOpen, setNewIssueOpen] = useState(false)
+  const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -39,6 +40,8 @@ export function AppProvider({ children }) {
     setCommandPaletteOpen,
     newIssueOpen,
     setNewIssueOpen,
+    createReleaseOpen,
+    setCreateReleaseOpen,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
@@ -49,5 +52,3 @@ export function useApp() {
   if (!ctx) throw new Error('useApp must be used within AppProvider')
   return ctx
 }
-
-export { AppContext }
