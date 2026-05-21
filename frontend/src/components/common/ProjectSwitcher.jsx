@@ -1,13 +1,17 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Check, Circle, Plus } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { Dropdown, DropdownItem } from '../ui/Dropdown'
+import { getContrastColor } from '../../lib/colors'
+import { Dropdown, DropdownItem, DropdownLabel, DropdownSep } from '../ui/Dropdown'
 
-export function ProjectSwitcher({ projects = [], activeProjectId, onChange, compact = false }) {
+export function ProjectSwitcher({ projects = [], activeProjectId, onChange, compact = false, width = null }) {
   const active = projects.find((p) => p.id === activeProjectId) ?? projects[0]
+  const initials = active?.name?.[0] || '?'
+  const contrastColor = getContrastColor(active?.color)
 
   return (
     <Dropdown
+      width={width}
       trigger={
         <button
           className={cn(
@@ -17,10 +21,12 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
           )}
         >
           {active && (
-            <span
-              className="h-2 w-2 rounded-full shrink-0"
-              style={{ backgroundColor: active.color }}
-            />
+            <div
+              className="h-6 w-6 rounded shrink-0 flex items-center justify-center text-[11px] font-bold"
+              style={{ backgroundColor: active.color, color: contrastColor }}
+            >
+              {initials}
+            </div>
           )}
           <span className={cn('truncate', compact ? 'max-w-[120px]' : 'flex-1 text-left')}>
             {active?.name ?? 'Select project'}
@@ -29,17 +35,34 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
         </button>
       }
     >
-      {projects.map((p) => (
-        <DropdownItem
-          key={p.id}
-          onClick={() => onChange?.(p.id)}
-        >
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-            {p.name}
-          </span>
-        </DropdownItem>
-      ))}
+      {({ close }) => (
+        <>
+          <DropdownLabel>Switch project</DropdownLabel>
+          {projects.map((p) => (
+            <DropdownItem
+              key={p.id}
+              onClick={() => {
+                onChange?.(p.id)
+                close()
+              }}
+            >
+              <span className="flex items-center gap-2">
+                {p.id === activeProjectId ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Circle className="h-4 w-4 shrink-0 opacity-70" />
+                )}
+                <div className="flex flex-col">
+                  <span>{p.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{p.desc}</span>
+                </div>
+              </span>
+            </DropdownItem>
+          ))}
+          <DropdownSep />
+          <DropdownItem icon={Plus}>New project…</DropdownItem>
+        </>
+      )}
     </Dropdown>
   )
 }

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { cn } from '../../lib/cn'
 
-export function Dropdown({ trigger, children, align = 'left', className }) {
+export function Dropdown({ trigger, children, align = 'left', className, width = null }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -33,14 +33,15 @@ export function Dropdown({ trigger, children, align = 'left', className }) {
       {open && (
         <div
           className={cn(
-            'absolute top-full z-50 mt-1 min-w-[160px] rounded-lg border border-border bg-card shadow-lg',
+            'absolute top-full z-50 mt-1 rounded-lg border border-border bg-card shadow-lg',
             'py-1 text-sm',
             align === 'right' ? 'right-0' : 'left-0',
             className
           )}
-          onClick={close}
+          style={width ? { width } : undefined}
+          onClick={(e) => e.stopPropagation()}
         >
-          {children}
+          {typeof children === 'function' ? children({ close }) : children}
         </div>
       )}
     </div>

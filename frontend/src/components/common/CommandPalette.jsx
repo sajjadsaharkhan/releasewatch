@@ -30,7 +30,6 @@ const PAGES = [
   { id: 'triage', label: 'Triage', icon: Tag, path: '/triage' },
   { id: 'releases', label: 'Releases', icon: Tag, path: '/releases' },
   { id: 'regressions', label: 'Regressions', icon: BarChart2, path: '/regressions' },
-  { id: 'release-reports', label: 'Release Reports', icon: BarChart2, path: '/release-reports' },
   { id: 'contributions', label: 'Contributions', icon: BarChart2, path: '/contributions' },
   { id: 'team', label: 'Team', icon: Users, path: '/team' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
