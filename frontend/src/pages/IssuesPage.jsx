@@ -1,127 +1,82 @@
 import React, { useState, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
-import { LayoutGrid, List, SlidersHorizontal } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Download, Plus } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
 import { Segmented } from '../components/ui/Segmented'
-import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { FilterDropdown } from '../components/common/FilterDropdown'
+import { FilterChipStatic } from '../components/ui/FilterChipStatic'
+import { NativeSelect } from '../components/ui/NativeSelect'
 import { IssueTable } from '../components/common/IssueTable'
 import { IssueBoard } from '../components/common/IssueBoard'
 import { NewIssueModal } from '../components/issues/NewIssueModal'
-import { IssueDetail } from '../components/issues/IssueDetail'
-import { MOCK_ISSUES, MOCK_LABELS, MOCK_TEAM, MOCK_RELEASES, SEVERITY, STATUS, issueById } from '../data/mockData'
+import { MOCK_ISSUES, MOCK_TEAM, SEVERITY, STATUS, userById } from '../data/mockData'
 import { useApp } from '../hooks/useApp'
-import { Plus } from 'lucide-react'
 
 const VIEW_OPTIONS = [
-  { value: 'table', label: '', icon: <List className="h-4 w-4" /> },
-  { value: 'board', label: '', icon: <LayoutGrid className="h-4 w-4" /> },
+  { value: 'table', label: 'Table' },
+  { value: 'board', label: 'Board' },
 ]
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
   { value: 'severity', label: 'Severity' },
-  { value: 'status', label: 'Status' },
+  { value: 'updated', label: 'Last updated' },
 ]
 
-const SEV_OPTIONS = Object.entries(SEVERITY).map(([k, v]) => ({ value: k, label: v.label }))
-const STATUS_OPTIONS = Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))
+const SEV_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(SEVERITY).map(k => ({ value: k, label: SEVERITY[k].label }))]
+const STATUS_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(STATUS).map(k => ({ value: k, label: STATUS[k].label }))]
+const ASSIGNEE_OPTIONS = [
+  { value: 'all', label: 'Any' },
+  { value: 'unassigned', label: 'Unassigned' },
+  ...MOCK_TEAM.map(u => ({ value: u.id, label: u.name }))
+]
 
 export default function IssuesPage({ filterAssigned = false }) {
-  const { newIssueOpen, setNewIssueOpen } = useApp()
-  const [view, setView] = useState('table')
-  const [search, setSearch] = useState('')
+  const { newIssueOpen, setNewIssueOpen, query } = useApp()
+  const navigate = useNavigate()
+  const [viewMode, setViewMode] = useState('table')
   const [sort, setSort] = useState('newest')
-  const [sevFilter, setSevFilter] = useState([])
-  const [statusFilter, setStatusFilter] = useState([])
-  const [openIssue, setOpenIssue] = useState(null)
+  const [filter, setFilter] = useState({ severity: 'all', status: 'all', assignee: 'all' })
 
-  const CURRENT_USER = 'u-1'
-
-  const issues = useMemo(() => {
-    let list = filterAssigned
-      ? MOCK_ISSUES.filter((i) => i.assignee === CURRENT_USER)
-      : MOCK_ISSUES
-
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(
-        (i) => i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q)
-      )
-    }
-    if (sevFilter.length > 0) list = list.filter((i) => sevFilter.includes(i.severity))
-    if (statusFilter.length > 0) list = list.filter((i) => statusFilter.includes(i.status))
-
-    list = [...list].sort((a, b) => {
-      if (sort === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt)
-      if (sort === 'severity') {
-        const ORDER = { blocker: 0, critical: 1, major: 2, minor: 3, enhancement: 4 }
-        return (ORDER[a.severity] ?? 9) - (ORDER[b.severity] ?? 9)
+  const filtered = useMemo(() => {
+    return MOCK_ISSUES.filter(i => {
+      if (filterAssigned && i.assignee !== 'u-1') return false
+      if (filter.severity !== 'all' && i.severity !== filter.severity) return false
+      if (filter.status !== 'all' && i.status !== filter.status) return false
+      if (filter.assignee !== 'all') {
+        if (filter.assignee === 'unassigned') { if (i.assignee) return false }
+        else if (i.assignee !== filter.assignee) return false
       }
-      if (sort === 'status') return a.status.localeCompare(b.status)
-      return new Date(b.createdAt) - new Date(a.createdAt)
+      if (query) {
+        const q = query.toLowerCase()
+        if (!i.title.toLowerCase().includes(q) && !i.id.toLowerCase().includes(q)) return false
+      }
+      return true
     })
+  }, [filter, query, filterAssigned])
 
-    return list
-  }, [search, sevFilter, statusFilter, sort, filterAssigned])
+  const openIssue = (issue) => {
+    navigate(`/issue/${issue.id}`)
+  }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border px-5 py-3 flex-wrap">
-        <h1 className="text-base font-semibold mr-2">
-          {filterAssigned ? 'Assigned to Me' : 'Issues'}
-        </h1>
-        <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-          {issues.length}
-        </span>
-
-        <div className="flex items-center gap-2 ml-2 flex-wrap">
-          <FilterDropdown
-            label="Severity"
-            options={SEV_OPTIONS}
-            selected={sevFilter}
-            onChange={setSevFilter}
-          />
-          <FilterDropdown
-            label="Status"
-            options={STATUS_OPTIONS}
-            selected={statusFilter}
-            onChange={setStatusFilter}
-          />
+      <div className="px-7 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            {filterAssigned ? 'My Assigned' : 'All Issues'}
+          </h1>
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{filtered.length} of {MOCK_ISSUES.length} issues</p>
         </div>
-
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search issues…"
-          className="w-48 h-8 text-xs"
-        />
-
-        <Dropdown
-          trigger={
-            <Button variant="outline" size="sm">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Sort
-            </Button>
-          }
-        >
-          {SORT_OPTIONS.map((o) => (
-            <DropdownItem key={o.value} onClick={() => setSort(o.value)}>
-              {o.label}
-            </DropdownItem>
-          ))}
-        </Dropdown>
-
-        <div className="ml-auto flex items-center gap-2">
-          <Segmented
-            value={view}
-            onValueChange={setView}
-            options={VIEW_OPTIONS}
-          />
+        <div className="flex items-center gap-2">
+          <Segmented size="sm" value={viewMode} onChange={setViewMode} options={VIEW_OPTIONS} />
+          <Button variant="outline" size="sm">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
           <Button size="sm" onClick={() => setNewIssueOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
             New Issue
@@ -129,48 +84,52 @@ export default function IssuesPage({ filterAssigned = false }) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className={cn('flex-1 overflow-auto', view === 'board' && 'flex')}>
-        {view === 'table' ? (
-          <IssueTable issues={issues} onOpen={setOpenIssue} />
-        ) : (
-          <IssueBoard issues={issues} onOpen={setOpenIssue} />
-        )}
+      {/* Filter Bar */}
+      <div className="px-7 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-2 bg-zinc-50/60 dark:bg-zinc-900/40">
+        <FilterDropdown
+          icon="alert-octagon"
+          label="Severity"
+          value={filter.severity === 'all' ? 'Any' : SEVERITY[filter.severity].label}
+          options={SEV_OPTIONS}
+          onChange={(v) => setFilter(f => ({ ...f, severity: v }))}
+        />
+        <FilterDropdown
+          icon="circle-dashed"
+          label="Status"
+          value={filter.status === 'all' ? 'Any' : STATUS[filter.status].label}
+          options={STATUS_OPTIONS}
+          onChange={(v) => setFilter(f => ({ ...f, status: v }))}
+        />
+        <FilterDropdown
+          icon="user"
+          label="Assignee"
+          value={filter.assignee === 'all' ? 'Any' : filter.assignee === 'unassigned' ? 'Unassigned' : userById(filter.assignee)?.name}
+          options={ASSIGNEE_OPTIONS}
+          onChange={(v) => setFilter(f => ({ ...f, assignee: v }))}
+        />
+        <FilterChipStatic icon="tag" label="Release" value="v2.4.1" />
+        <FilterChipStatic icon="hash" label="Labels" value="Any" />
+        <button className="text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 px-2">+ Add filter</button>
+        <div className="ml-auto flex items-center gap-2">
+          <NativeSelect
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="text-[12px]"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </NativeSelect>
+        </div>
       </div>
 
-      {/* Modals */}
-      <NewIssueModal open={newIssueOpen} onClose={() => setNewIssueOpen(false)} />
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        {viewMode === 'table' ? <IssueTable issues={filtered} onOpen={openIssue} /> : <IssueBoard issues={filtered} onOpen={openIssue} />}
+      </div>
 
-      {openIssue && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenIssue(null)} />
-          <div className="relative z-10 ml-auto flex flex-col w-full max-w-5xl bg-card border-l border-border shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3 shrink-0">
-              <span className="font-mono text-sm text-muted-foreground">{openIssue.id}</span>
-              <Button variant="ghost" size="sm" onClick={() => setOpenIssue(null)}>Close</Button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <IssueDetail issue={openIssue} onUpdate={setOpenIssue} />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* New Issue Modal */}
+      <NewIssueModal open={newIssueOpen} onClose={() => setNewIssueOpen(false)} />
     </div>
   )
-}
-
-// Wrapper for /issue/:id route
-export function IssueDetailWrapper() {
-  const { id } = useParams()
-  const issue = issueById(id)
-
-  if (!issue) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">Issue {id} not found.</p>
-      </div>
-    )
-  }
-
-  return <IssueDetail issue={issue} />
 }

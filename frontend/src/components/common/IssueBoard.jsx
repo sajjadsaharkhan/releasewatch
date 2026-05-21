@@ -1,85 +1,56 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Plus, RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { SEVERITY, STATUS } from '../../data/mockData'
-import { userById } from '../../data/mockData'
+import { userById, MOCK_LABELS } from '../../data/mockData'
 import { Avatar } from '../ui/Avatar'
+import { LabelChip } from './LabelChip'
+import { SeverityBadge, StatusBadge } from '../ui/Badge'
+import { Icon } from '../ui/Icon'
 
 const COLUMNS = ['new', 'triaged', 'in_progress', 'fixed', 'verified']
 
 export function IssueBoard({ issues = [], onOpen }) {
-  const navigate = useNavigate()
-
-  const byStatus = COLUMNS.reduce((acc, status) => {
-    acc[status] = issues.filter((i) => i.status === status)
-    return acc
-  }, {})
-
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 px-4 h-full scrollbar-thin">
-      {COLUMNS.map((status) => {
-        const colIssues = byStatus[status] ?? []
-        const token = STATUS[status]
-
+    <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(220px, 1fr))` }}>
+      {COLUMNS.map(s => {
+        const list = issues.filter(i => i.status === s)
         return (
-          <div key={status} className="flex flex-col gap-2 w-64 shrink-0">
-            {/* Column header */}
-            <div className="flex items-center gap-2 py-2 sticky top-0 bg-background z-10">
-              <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', token?.pill)}>
-                {token?.label ?? status}
-              </span>
-              <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-                {colIssues.length}
-              </span>
+          <div key={s} className="flex flex-col min-h-0">
+            <div className="px-1 pb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <StatusBadge status={s} size="sm" />
+                <span className="text-[11px] text-zinc-500 tabular-nums">{list.length}</span>
+              </div>
+              <button className="h-6 w-6 rounded text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center">
+                <Plus className="h-3 w-3" />
+              </button>
             </div>
-
-            {/* Cards */}
-            <div className="flex flex-col gap-2">
-              {colIssues.map((issue) => {
-                const assignee = userById(issue.assignee)
-                const sevToken = SEVERITY[issue.severity]
-
+            <div className="flex-1 space-y-2 min-h-[120px] rounded-lg bg-zinc-50 dark:bg-zinc-900/40 p-2">
+              {list.map(i => {
+                const a = userById(i.assignee)
+                const labels = (i.labels ?? []).map((lId) => MOCK_LABELS.find((l) => l.id === lId)).filter(Boolean);
                 return (
-                  <div
-                    key={issue.id}
-                    onClick={() => onOpen ? onOpen(issue) : navigate(`/issue/${issue.id}`)}
-                    className={cn(
-                      'rounded-lg border border-border bg-card p-3 cursor-pointer',
-                      'hover:border-primary/30 hover:shadow-sm transition-all',
-                      'flex flex-col gap-2'
-                    )}
-                  >
-                    {/* ID + severity dot */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs text-muted-foreground">{issue.id}</span>
-                      {sevToken && (
-                        <span className={cn('ml-auto h-2 w-2 rounded-full shrink-0', sevToken.dot)} />
-                      )}
+                  <button key={i.id} onClick={() => onOpen(i)}
+                    className="w-full text-left rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono text-[10.5px] text-zinc-500">{i.id}</span>
+                      <SeverityBadge severity={i.severity} size="sm" />
                     </div>
-                    {/* Title */}
-                    <p className="text-sm font-medium leading-snug line-clamp-2">{issue.title}</p>
-                    {/* Footer */}
-                    <div className="flex items-center justify-between mt-1">
-                      {issue.is_release_blocker && (
-                        <span className="text-xs text-red-500 dark:text-red-400 font-medium">Blocker</span>
-                      )}
-                      <div className="ml-auto">
-                        {assignee ? (
-                          <Avatar user={assignee} size={20} />
-                        ) : (
-                          <span className="inline-block h-5 w-5 rounded-full border-2 border-dashed border-border" />
-                        )}
+                    <div className="text-[12.5px] font-medium text-zinc-900 dark:text-zinc-100 leading-snug mb-2">{i.title}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {labels.slice(0, 2).map(l => <LabelChip key={l.id} label={l} />)}
                       </div>
+                      {a && <Avatar user={a} size={18} />}
                     </div>
-                  </div>
+                    {i.regressions > 0 && (
+                      <div className="mt-1.5 text-[10.5px] text-red-600 dark:text-red-400 inline-flex items-center gap-0.5">
+                        <Icon name="refresh-ccw" size={10} /> regressed {i.regressions}×
+                      </div>
+                    )}
+                  </button>
                 )
               })}
-
-              {colIssues.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
-                  Empty
-                </div>
-              )}
             </div>
           </div>
         )

@@ -105,3 +105,16 @@ export const labelsApi = {
   update: (id, data) => api.patch(`/labels/${id}`, data),
   remove: (id) => api.delete(`/labels/${id}`),
 }
+
+// ─── Attachments ─────────────────────────────────────────────────────────────
+export const attachmentsApi = {
+  presign: (issueId, data) => api.post(`/issues/${issueId}/attachments/presign`, data),
+  confirm: (issueId, data) => api.post(`/issues/${issueId}/attachments/confirm`, data),
+  list: (issueId) => api.get(`/issues/${issueId}/attachments`),
+  remove: (issueId, attachmentId) => api.delete(`/issues/${issueId}/attachments/${attachmentId}`),
+}
+
+// ─── Timeline ────────────────────────────────────────────────────────────────
+export const timelineApi = {
+  list: (issueId) => api.get(`/issues/${issueId}/timeline`),
+}

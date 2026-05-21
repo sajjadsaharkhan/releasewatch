@@ -19,7 +19,7 @@ const TeamPage = lazy(() => import('./pages/TeamPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 // Lazy import issue detail page
-const IssueDetailPage = lazy(() => import('./pages/IssuesPage').then((m) => ({ default: m.IssueDetailWrapper })))
+const IssuePage = lazy(() => import('./pages/IssuePage'))
 
 function PageFallback() {
   return (
@@ -74,7 +74,7 @@ function AppInner() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
-            <Route path="issue/:id" element={<IssueDetailPage />} />
+            <Route path="issue/:id" element={<IssuePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
