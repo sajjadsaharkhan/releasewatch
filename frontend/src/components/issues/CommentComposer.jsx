@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Bold, Italic, Strikethrough, Code, Link2, List, ListOrdered,
   Quote, AtSign, Image, Eye, Edit3
@@ -8,6 +8,8 @@ import { Button } from '../ui/Button'
 import { Textarea } from '../ui/Textarea'
 import { Switch } from '../ui/Switch'
 import { renderMarkdown } from '../../lib/markdown'
+import { MentionDropdown } from '../ui/MentionDropdown'
+import { MOCK_TEAM } from '../../data/mockData'
 
 function ToolbarBtn({ icon: Icon, label, onClick }) {
   return (
@@ -30,11 +32,26 @@ function wrapSelection(ta, before, after = before) {
   return { newVal, cursor: start + before.length + selected.length + after.length }
 }
 
-export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leave a comment…' }) {
+export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leave a comment…', initialValue = '', initialInternal = false, mode = 'create', onCancelEdit, showInternal = true, users = MOCK_TEAM }) {
   const [tab, setTab] = useState('write')
-  const [body, setBody] = useState('')
-  const [isInternal, setIsInternal] = useState(false)
+  const [body, setBody] = useState(initialValue)
+  const [isInternal, setIsInternal] = useState(initialInternal)
   const taRef = useRef(null)
+
+  // Mention state
+  const [mentionState, setMentionState] = useState({
+    open: false,
+    query: '',
+    triggerPos: 0,
+    cursorPos: { top: 0, left: 0 }
+  })
+  const dropdownRef = useRef(null)
+
+  // Reset form when initialValue changes (for edit mode)
+  useEffect(() => {
+    setBody(initialValue)
+    setIsInternal(initialInternal)
+  }, [initialValue, initialInternal])
 
   const insert = useCallback((before, after = before) => {
     const ta = taRef.current
@@ -47,6 +64,114 @@ export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leav
     }, 0)
   }, [])
 
+  // Get cursor coordinates for positioning dropdown
+  const getCursorCoords = useCallback(() => {
+    const ta = taRef.current
+    if (!ta) return { top: 0, left: 0 }
+
+    const { selectionStart } = ta
+    const textBefore = ta.value.substring(0, selectionStart)
+
+    // Create a mirror div to measure cursor position
+    const mirror = document.createElement('div')
+    const computedStyle = window.getComputedStyle(ta)
+
+    // Copy all relevant styles
+    const styleProps = [
+      'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+      'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch',
+      'fontSize', 'lineHeight', 'fontFamily', 'textAlign',
+      'textTransform', 'textIndent', 'textDecoration',
+      'letterSpacing', 'wordSpacing'
+    ]
+
+    styleProps.forEach(prop => {
+      mirror.style[prop] = computedStyle[prop]
+    })
+
+    mirror.style.position = 'absolute'
+    mirror.style.visibility = 'hidden'
+    mirror.style.whiteSpace = 'pre-wrap'
+    mirror.style.wordWrap = 'break-word'
+    mirror.textContent = textBefore
+
+    document.body.appendChild(mirror)
+
+    const coords = {
+      top: mirror.getBoundingClientRect().top + window.scrollY + parseInt(computedStyle.lineHeight),
+      left: mirror.getBoundingClientRect().left
+    }
+
+    document.body.removeChild(mirror)
+    return coords
+  }, [])
+
+  const closeMention = useCallback(() => {
+    setMentionState(prev => ({ ...prev, open: false, query: '' }))
+  }, [])
+
+  const handleMentionSelect = useCallback((user) => {
+    const ta = taRef.current
+    if (!ta) return
+
+    const { triggerPos } = mentionState
+    const textBefore = ta.value.slice(0, triggerPos)
+    const textAfter = ta.value.slice(ta.selectionStart)
+    const newVal = textBefore + `@${user.username}` + ' ' + textAfter
+
+    setBody(newVal)
+    closeMention()
+
+    const newCursorPos = triggerPos + user.username.length + 2 // @username + space
+    setTimeout(() => {
+      ta.focus()
+      ta.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
+  }, [mentionState, closeMention])
+
+  const handleInputChange = useCallback((e) => {
+    const ta = taRef.current
+    const value = e.target.value
+    setBody(value)
+
+    if (!ta) return
+
+    const { selectionStart } = ta
+    const textBeforeCursor = value.slice(0, selectionStart)
+
+    // Find @ symbol that triggers mention (not preceded by word char)
+    const mentionMatch = textBeforeCursor.match(/(^|\s)@(\w*)$/)
+
+    if (mentionMatch) {
+      const query = mentionMatch[2]
+      const triggerPos = selectionStart - query.length - 1
+      const coords = getCursorCoords()
+
+      setMentionState({
+        open: true,
+        query,
+        triggerPos,
+        cursorPos: coords
+      })
+    } else {
+      closeMention()
+    }
+  }, [getCursorCoords, closeMention])
+
+  // Handle clicks outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) && e.target !== taRef.current) {
+        closeMention()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [closeMention])
+
   function handleKey(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); insert('**') }
     if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); insert('_') }
@@ -56,13 +181,21 @@ export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leav
   function handleSubmit() {
     if (!body.trim()) return
     onSubmit?.(body, isInternal)
-    setBody('')
-    setIsInternal(false)
-    setTab('write')
+    if (mode === 'create') {
+      setBody('')
+      setIsInternal(false)
+      setTab('write')
+    }
+  }
+
+  function handleCancel() {
+    setBody(initialValue)
+    setIsInternal(initialInternal)
+    onCancelEdit?.()
   }
 
   return (
-    <div className={cn('rounded-xl border border-border overflow-hidden', isInternal && 'border-amber-300 dark:border-amber-700')}>
+    <div className={cn('rounded-xl border border-border overflow-hidden', showInternal && isInternal && 'border-amber-300 dark:border-amber-700')}>
       {/* Tab bar + toolbar */}
       <div className="flex items-center gap-1 border-b border-border bg-muted/50 px-2 py-1">
         <button
@@ -90,7 +223,21 @@ export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leav
             <ToolbarBtn icon={List} label="Unordered list" onClick={() => insert('- ', '')} />
             <ToolbarBtn icon={ListOrdered} label="Ordered list" onClick={() => insert('1. ', '')} />
             <ToolbarBtn icon={Quote} label="Blockquote" onClick={() => insert('> ', '')} />
-            <ToolbarBtn icon={AtSign} label="@Mention" onClick={() => insert('@')} />
+            <ToolbarBtn icon={AtSign} label="@Mention" onClick={() => {
+          const ta = taRef.current
+          if (!ta) return
+          insert('@')
+          setTimeout(() => {
+            const { selectionStart } = ta
+            const coords = getCursorCoords()
+            setMentionState({
+              open: true,
+              query: '',
+              triggerPos: selectionStart - 1,
+              cursorPos: coords
+            })
+          }, 0)
+        }} />
             <ToolbarBtn icon={Image} label="Image" onClick={() => insert('![alt](', ')')} />
           </div>
         )}
@@ -101,13 +248,13 @@ export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leav
         <Textarea
           ref={taRef}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKey}
           placeholder={placeholder}
           rows={5}
           className={cn(
             'rounded-none border-0 focus-visible:ring-0 resize-none',
-            isInternal && 'bg-amber-50 dark:bg-amber-900/10'
+            showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10'
           )}
         />
       ) : (
@@ -116,16 +263,36 @@ export function CommentComposer({ onSubmit, loading = false, placeholder = 'Leav
         </div>
       )}
 
+      {/* Mention Dropdown */}
+      <div ref={dropdownRef}>
+        <MentionDropdown
+          open={mentionState.open}
+          top={mentionState.cursorPos.top}
+          left={mentionState.cursorPos.left}
+          query={mentionState.query}
+          users={users}
+          onSelect={handleMentionSelect}
+          onClose={closeMention}
+        />
+      </div>
+
       {/* Footer */}
-      <div className={cn('flex items-center gap-3 border-t border-border px-3 py-2', isInternal && 'bg-amber-50 dark:bg-amber-900/10')}>
-        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none">
-          <Switch checked={isInternal} onCheckedChange={setIsInternal} />
-          Internal note
-        </label>
+      <div className={cn('flex items-center gap-3 border-t border-border px-3 py-2', showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10')}>
+        {showInternal && (
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none">
+            <Switch checked={isInternal} onCheckedChange={setIsInternal} />
+            Internal note
+          </label>
+        )}
         <div className="ml-auto flex items-center gap-2">
+          {mode === 'edit' && (
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+          )}
           <span className="hidden sm:block text-xs text-muted-foreground">⌘ + Enter to submit</span>
           <Button size="sm" onClick={handleSubmit} loading={loading} disabled={!body.trim()}>
-            {isInternal ? 'Add note' : 'Comment'}
+            {mode === 'edit' ? 'Save' : (showInternal && isInternal ? 'Add note' : 'Comment')}
           </Button>
         </div>
       </div>

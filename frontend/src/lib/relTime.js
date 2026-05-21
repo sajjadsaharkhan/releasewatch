@@ -46,3 +46,30 @@ export function formatDuration(hours) {
   const remaining = Math.round(hours % 24)
   return remaining > 0 ? `${days}d ${remaining}h` : `${days}d`
 }
+
+/**
+ * Returns exact time in HH:MM format for display alongside relative time.
+ */
+export function formatExactTime(date) {
+  const d = date instanceof Date ? date : new Date(date)
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+/**
+ * Returns event time in "May 18, 05:45 PM" format (year only if not current year).
+ */
+export function formatEventTime(dateStr) {
+  const d = dateStr instanceof Date ? dateStr : new Date(dateStr)
+  const now = new Date()
+  const isCurrentYear = d.getFullYear() === now.getFullYear()
+
+  const dateOpts = { month: 'short', day: 'numeric' }
+  if (!isCurrentYear) {
+    dateOpts.year = 'numeric'
+  }
+
+  const datePart = d.toLocaleDateString('en-US', dateOpts)
+  const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+  return `${datePart}, ${timePart}`
+}

@@ -312,6 +312,7 @@ export const MOCK_ISSUES = [
     reporter: 'u-2',
     assignee: 'u-3',
     labels: ['lbl-1'],
+    environmentName: 'staging',
     is_regression: false,
     is_release_blocker: true,
     createdAt: '2026-05-10T09:15:00Z',
@@ -333,12 +334,13 @@ export const MOCK_ISSUES = [
       'Observe redirect error in console',
     ],
     attachments: [
-      { id: 'att-1', name: 'safari-console.png', type: 'image', url: 'https://placehold.co/800x400/1e1e2e/cdd6f4?text=Console+Screenshot', size: 142000 },
-      { id: 'att-2', name: 'network-trace.log', type: 'log', url: '#', size: 8400 },
+      { id: 'att-1', name: 'safari-console.png', type: 'image', url: 'https://placehold.co/800x400/1e1e2e/cdd6f4?text=Console+Screenshot', size: 142000, createdAt: '2026-05-10T09:20:00Z' },
+      { id: 'att-2', name: 'network-trace.log', type: 'file', url: '#', size: 8400, createdAt: '2026-05-10T09:25:00Z' },
     ],
     comments: [
       { id: 'cmt-1', author: 'u-3', body: 'Investigating now. The issue seems related to the SameSite=None cookie requirement on Safari. Will push a fix today.', createdAt: '2026-05-10T14:00:00Z', isInternal: false },
       { id: 'cmt-2', author: 'u-2', body: 'Confirmed. Also affects iOS 17 Safari.', createdAt: '2026-05-10T15:30:00Z', isInternal: true },
+      { id: 'cmt-3', author: 'u-1', body: 'I can test this on my Mac once the fix is ready. Let me know when you have a staging build deployed.', createdAt: '2026-05-10T16:45:00Z', isInternal: false, editedAt: '2026-05-10T17:30:00Z' },
     ],
     events: [
       { id: 'evt-1', type: 'filed', actor: 'u-2', timestamp: '2026-05-10T09:15:00Z', detail: null },
@@ -357,6 +359,7 @@ export const MOCK_ISSUES = [
     reporter: 'u-4',
     assignee: 'u-5',
     labels: ['lbl-2', 'lbl-5'],
+    environmentName: 'production',
     is_regression: true,
     is_release_blocker: false,
     createdAt: '2026-05-12T10:00:00Z',
@@ -382,6 +385,7 @@ export const MOCK_ISSUES = [
       { id: 'evt-5', type: 'filed', actor: 'u-4', timestamp: '2026-05-12T10:00:00Z', detail: null },
       { id: 'evt-6', type: 'status_changed', actor: 'u-2', timestamp: '2026-05-12T12:00:00Z', detail: 'triaged' },
     ],
+    regressionCount: 1,
     regressionHistory: [
       { releaseId: 'rel-2', version: 'v2.4.1', status: 'fixed', date: '2026-04-10T09:00:00Z', actor: 'u-5', mrLink: 'https://github.com/org/repo/pull/142', note: 'Increased timeout to 60s' },
       { releaseId: 'rel-1', version: 'v2.5.0', status: 'regression', date: '2026-05-12T10:00:00Z', actor: 'u-4', mrLink: null, note: 'Regressed after queue refactor' },
@@ -397,6 +401,7 @@ export const MOCK_ISSUES = [
     reporter: 'u-7',
     assignee: null,
     labels: ['lbl-4'],
+    environmentName: 'development',
     is_regression: false,
     is_release_blocker: false,
     createdAt: '2026-05-14T08:30:00Z',
@@ -413,7 +418,7 @@ export const MOCK_ISSUES = [
     curlCommand: '',
     steps: ['Go to Dashboard', 'Click dark mode toggle', 'Observe chart flicker'],
     attachments: [
-      { id: 'att-3', name: 'flicker-recording.mp4', type: 'video', url: '#', size: 2400000 },
+      { id: 'att-3', name: 'flicker-recording.mp4', type: 'video', url: '#', size: 2400000, createdAt: '2026-05-14T08:35:00Z' },
     ],
     comments: [],
     events: [
@@ -430,6 +435,7 @@ export const MOCK_ISSUES = [
     reporter: 'u-4',
     assignee: 'u-8',
     labels: ['lbl-5'],
+    environmentName: 'qa',
     is_regression: false,
     is_release_blocker: false,
     createdAt: '2026-04-02T14:00:00Z',
@@ -515,7 +521,7 @@ export const MOCK_ISSUES = [
     curlCommand: '',
     steps: ['Background the app', 'Receive a push notification', 'Swipe to dismiss', 'Reopen app — crash'],
     attachments: [
-      { id: 'att-4', name: 'crash-report.log', type: 'log', url: '#', size: 24000 },
+      { id: 'att-4', name: 'crash-report.log', type: 'file', url: '#', size: 24000, createdAt: '2026-05-15T09:05:00Z' },
     ],
     comments: [],
     events: [
@@ -532,6 +538,7 @@ export const MOCK_ISSUES = [
     reporter: 'u-1',
     assignee: 'u-5',
     labels: ['lbl-3', 'lbl-5'],
+    environmentName: 'local',
     is_regression: false,
     is_release_blocker: false,
     createdAt: '2026-05-13T16:00:00Z',
@@ -650,6 +657,7 @@ export const MOCK_ISSUES = [
     events: [
       { id: 'evt-22', type: 'filed', actor: 'u-2', timestamp: '2026-05-18T07:45:00Z', detail: null },
     ],
+    regressionCount: 1,
     regressionHistory: [
       { releaseId: 'rel-2', version: 'v2.4.1', status: 'working', date: '2026-04-15T00:00:00Z', actor: 'u-5', mrLink: null, note: 'Working in v2.4.1' },
       { releaseId: 'rel-1', version: 'v2.5.0', status: 'regression', date: '2026-05-18T07:45:00Z', actor: 'u-2', mrLink: null, note: 'Broken after async worker refactor' },

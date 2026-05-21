@@ -1,16 +1,48 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../lib/cn'
 
 export function Dropdown({ trigger, children, align = 'left', className, width = null }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const triggerRef = useRef(null)
+  const dropdownRef = useRef(null)
 
   const close = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
+    if (!open || !triggerRef.current) return
+    const triggerRect = triggerRef.current.getBoundingClientRect()
+    const dropdownWidth = width || 140
+    const viewportWidth = window.innerWidth
+    const padding = 12
+
+    let left = triggerRect.left
+    if (align === 'right') {
+      left = triggerRect.right - dropdownWidth
+    }
+
+    // Ensure dropdown doesn't go off the right edge
+    if (left + dropdownWidth > viewportWidth - padding) {
+      left = viewportWidth - dropdownWidth - padding
+    }
+
+    // Ensure dropdown doesn't go off the left edge
+    if (left < padding) {
+      left = padding
+    }
+
+    setPosition({
+      top: triggerRect.bottom + 4,
+      left: left,
+    })
+  }, [open, align, width])
+
+  useEffect(() => {
     if (!open) return
     function handle(e) {
-      if (ref.current && !ref.current.contains(e.target)) close()
+      if (triggerRef.current?.contains(e.target) || dropdownRef.current?.contains(e.target)) return
+      close()
     }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
@@ -25,26 +57,24 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, close])
 
+  const dropdownContent = open ? (
+    <div
+      ref={dropdownRef}
+      className={cn('fixed z-[9999] mt-1 rounded-lg border border-border bg-card shadow-lg', 'py-1 text-sm', className)}
+      style={{ top: position.top, left: position.left, width: width || undefined }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {typeof children === 'function' ? children({ close }) : children}
+    </div>
+  ) : null
+
   return (
-    <div ref={ref} className="relative inline-flex">
-      <div onClick={() => setOpen((o) => !o)} className="cursor-pointer">
+    <>
+      <div ref={triggerRef} onClick={() => setOpen((o) => !o)} className="cursor-pointer inline-flex">
         {trigger}
       </div>
-      {open && (
-        <div
-          className={cn(
-            'absolute top-full z-50 mt-1 rounded-lg border border-border bg-card shadow-lg',
-            'py-1 text-sm',
-            align === 'right' ? 'right-0' : 'left-0',
-            className
-          )}
-          style={width ? { width } : undefined}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {typeof children === 'function' ? children({ close }) : children}
-        </div>
-      )}
-    </div>
+      {dropdownContent && createPortal(dropdownContent, document.body)}
+    </>
   )
 }
 
@@ -56,9 +86,7 @@ export function DropdownItem({ children, onClick, icon: Icon, destructive = fals
       className={cn(
         'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
         'focus-visible:outline-none',
-        destructive
-          ? 'text-destructive hover:bg-destructive/10'
-          : 'text-foreground hover:bg-accent',
+        destructive ? 'text-destructive hover:bg-destructive/10' : 'text-foreground hover:bg-accent',
         disabled && 'pointer-events-none opacity-50'
       )}
     >

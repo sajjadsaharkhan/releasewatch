@@ -1,13 +1,13 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { SeverityBadge, StatusBadge } from '../ui/Badge'
+import { SeverityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
-import { userById, releaseById, MOCK_LABELS } from '../../data/mockData'
+import { userById, releaseById, MOCK_LABELS, ROLE } from '../../data/mockData'
 
-export function IssueTable({ issues = [], onOpen, compact = false }) {
+export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRelease = false }) {
   if (issues.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-muted-foreground">
@@ -17,105 +17,80 @@ export function IssueTable({ issues = [], onOpen, compact = false }) {
   }
 
   return (
-    <div className="w-full overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left">
-            <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">ID</th>
-            <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Title</th>
-            {!compact && (
-              <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-28">Severity</th>
-            )}
-            <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-28">Status</th>
-            <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">Assignee</th>
-            {!compact && (
-              <>
-                <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">Reporter</th>
-                <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">Release</th>
-                <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-right">Filed</th>
-              </>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {issues.map((issue) => {
-            const assignee = userById(issue.assignee)
-            const reporter = userById(issue.reporter)
-            const release = releaseById(issue.releaseId)
-            const labels = (issue.labels ?? []).map((lId) => MOCK_LABELS.find((l) => l.id === lId)).filter(Boolean)
+    <table className="w-full text-[13px]">
+      <thead className="text-[10.5px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 bg-white/95 dark:bg-zinc-950/95 backdrop-blur">
+        <tr>
+          <th className="text-left font-medium px-7 py-2.5 w-[90px]">#</th>
+          <th className="text-left font-medium px-2 py-2.5">Title</th>
+          <th className="text-left font-medium px-2 py-2.5 w-[110px]">Severity</th>
+          <th className="text-left font-medium px-2 py-2.5 w-[120px]">Status</th>
+          <th className="text-left font-medium px-2 py-2.5 w-[140px]">Assignee</th>
+          {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[170px]">Reporter</th>}
+          {!hideRelease && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Release</th>}
+          <th className="text-left font-medium px-2 py-2.5 w-[64px]">Regr.</th>
+          <th className="text-right font-medium px-7 py-2.5 w-[80px]">Age</th>
+        </tr>
+      </thead>
+      <tbody>
+        {issues.map(i => {
+          const a = userById(i.assignee); const r = userById(i.reporter);
+          const release = releaseById(i.releaseId);
+          const labels = (i.labels ?? []).map((lId) => MOCK_LABELS.find((l) => l.id === lId)).filter(Boolean);
 
-            return (
-              <tr
-                key={issue.id}
-                className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => onOpen?.(issue)}
-              >
-                {/* ID */}
-                <td className="px-3 py-3">
-                  <Link
-                    to={`/issue/${issue.id}`}
-                    className="font-mono text-xs text-muted-foreground hover:text-primary transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {issue.id}
-                  </Link>
-                </td>
-                {/* Title */}
-                <td className="px-3 py-3 max-w-0">
-                  <div className="flex flex-col gap-1">
-                    <span className="truncate font-medium text-sm">{issue.title}</span>
-                    {!compact && labels.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {labels.map((l) => (
-                          <LabelChip key={l.id} label={l} />
-                        ))}
-                      </div>
-                    )}
+          return (
+            <tr key={i.id} onClick={() => onOpen(i)}
+              className="border-b border-zinc-100 dark:border-zinc-900 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
+              <td className="px-7 py-2 font-mono text-[11.5px] text-zinc-500">{i.id}</td>
+              <td className="px-2 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate max-w-[420px]">{i.title}</span>
+                  {labels.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
+                  {i.is_release_blocker && (
+                    <Badge tone="red">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                      Blocker
+                    </Badge>
+                  )}
+                </div>
+              </td>
+              <td className="px-2 py-2"><SeverityBadge severity={i.severity} dot /></td>
+              <td className="px-2 py-2"><StatusBadge status={i.status} /></td>
+              <td className="px-2 py-2">
+                {a ? (
+                  <div className="flex items-center gap-1.5">
+                    <Avatar user={a} size={20} />
+                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{a.name}</span>
+                  </div>
+                ) : <span className="text-[11px] text-zinc-400 italic">unassigned</span>}
+              </td>
+              {!hideReporter && (
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <Avatar user={r} size={20} />
+                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{r?.name}</span>
+                    {i.reporterRole && <RoleBadge role={i.reporterRole} />}
                   </div>
                 </td>
-                {/* Severity */}
-                {!compact && (
-                  <td className="px-3 py-3">
-                    <SeverityBadge severity={issue.severity} />
-                  </td>
-                )}
-                {/* Status */}
-                <td className="px-3 py-3">
-                  <StatusBadge status={issue.status} />
+              )}
+              {!hideRelease && (
+                <td className="px-2 py-2 font-mono text-zinc-600 dark:text-zinc-300">
+                  {release?.version ?? <span className="text-zinc-300">—</span>}
                 </td>
-                {/* Assignee */}
-                <td className="px-3 py-3">
-                  {assignee ? (
-                    <Avatar user={assignee} size={24} />
-                  ) : (
-                    <span className="inline-block h-6 w-6 rounded-full border-2 border-dashed border-border" />
-                  )}
-                </td>
-                {!compact && (
-                  <>
-                    {/* Reporter */}
-                    <td className="px-3 py-3">
-                      {reporter && <Avatar user={reporter} size={24} />}
-                    </td>
-                    {/* Release */}
-                    <td className="px-3 py-3">
-                      {release ? (
-                        <span className="font-mono text-xs text-muted-foreground">{release.version}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/40">—</span>
-                      )}
-                    </td>
-                    {/* Time */}
-                    <td className="px-3 py-3 text-right">
-                      <span className="text-xs text-muted-foreground">{relTime(issue.createdAt)}</span>
-                    </td>
-                  </>
-                )}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+              )}
+              <td className="px-2 py-2">
+                {i.regressions > 0
+                  ? (
+                      <span className="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 text-[12px] font-semibold">
+                        <RefreshCw className="h-3 w-3" />{i.regressions}
+                      </span>
+                    )
+                  : <span className="text-zinc-300">—</span>}
+              </td>
+              <td className="px-7 py-2 text-right tabular-nums text-zinc-500">{relTime(i.createdAt)}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
