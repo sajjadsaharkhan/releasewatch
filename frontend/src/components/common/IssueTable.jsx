@@ -26,7 +26,7 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
           {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Reporter</th>}
           {!hideRelease && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Release</th>}
           <th className="text-left font-medium px-2 py-2.5 w-[64px]">Regr.</th>
-          <th className="text-right font-medium px-7 py-2.5 w-[80px]">Age</th>
+          <th className="text-right font-medium px-7 py-2.5 w-[120px]">Age</th>
         </tr>
       </thead>
       <tbody>
