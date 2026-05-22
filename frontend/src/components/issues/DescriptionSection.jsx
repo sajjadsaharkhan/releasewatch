@@ -3,7 +3,7 @@ import { Copy, Check, Plus, Trash2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { renderMarkdown } from '../../lib/markdown'
-import { CommentComposer } from './CommentComposer'
+import { MarkdownComposer } from './MarkdownComposer'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 
@@ -82,13 +82,14 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
       </div>
 
       {isEditing ? (
-        <CommentComposer
+        <MarkdownComposer
           initialValue={issue?.description || ''}
           mode="edit"
           onSubmit={(value) => { onDescriptionUpdate?.(value); setIsEditing(false); }}
           onCancelEdit={() => setIsEditing(false)}
           placeholder="Describe the issue..."
           showInternal={false}
+          showMentions={false}
         />
       ) : (
         <div className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed md">
@@ -138,12 +139,11 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           <pre className="rounded-lg bg-zinc-900 dark:bg-black text-zinc-100 px-4 py-3 text-[12px] font-mono leading-relaxed overflow-x-auto whitespace-pre">{highlightCurl(curlSample)}</pre>
         </div>
       ) : (
-        <div className="mt-5 p-6 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
-          <Icon name="terminal" size={24} className="mx-auto mb-2 text-zinc-400" />
-          <p className="text-sm text-zinc-500">No cURL command provided</p>
-          <p className="text-xs text-zinc-400 mt-1">Add a reproduction command to help others reproduce the issue</p>
-          <button onClick={() => setIsEditingCurl(true)} className="mt-3 text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
-            <Icon name="plus" size={11} /> Add cURL
+        <div className="mt-5 flex items-center gap-3 py-3 px-4 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
+          <Icon name="terminal" size={16} className="text-zinc-400" />
+          <span className="text-sm text-zinc-500">No cURL command</span>
+          <button onClick={() => setIsEditingCurl(true)} className="ml-auto text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
+            <Icon name="plus" size={11} /> Add
           </button>
         </div>
       )}
@@ -201,12 +201,11 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           </ol>
         </div>
       ) : (
-        <div className="mt-5 p-6 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
-          <Icon name="list-ordered" size={24} className="mx-auto mb-2 text-zinc-400" />
-          <p className="text-sm text-zinc-500">No reproduction steps provided</p>
-          <p className="text-xs text-zinc-400 mt-1">Add steps to help others reproduce the issue</p>
-          <button onClick={() => { setEditedSteps(['']); setIsEditingSteps(true); }} className="mt-3 text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
-            <Icon name="plus" size={11} /> Add steps
+        <div className="mt-5 flex items-center gap-3 py-3 px-4 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
+          <Icon name="list-ordered" size={16} className="text-zinc-400" />
+          <span className="text-sm text-zinc-500">No reproduction steps</span>
+          <button onClick={() => { setEditedSteps(['']); setIsEditingSteps(true); }} className="ml-auto text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
+            <Icon name="plus" size={11} /> Add
           </button>
         </div>
       )}

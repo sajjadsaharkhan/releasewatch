@@ -47,7 +47,6 @@ export function Sidebar() {
             <div className="mt-0.5 space-y-0.5">
               <NavItem to="/issues" icon="list" label="All Issues" />
               <NavItem to="/triage" icon="filter" label="Triage" />
-              <NavItem to="/assigned" icon="user-check" label="Assigned to Me" />
             </div>
           )}
         </div>

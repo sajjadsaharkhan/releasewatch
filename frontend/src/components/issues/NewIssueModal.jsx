@@ -6,7 +6,7 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Segmented } from '../ui/Segmented'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
-import { CommentComposer } from './CommentComposer'
+import { MarkdownComposer } from './MarkdownComposer'
 import { MOCK_PROJECTS, MOCK_RELEASES, MOCK_LABELS, MOCK_TEAM } from '../../data/mockData'
 import { issuesApi } from '../../lib/api'
 
@@ -168,9 +168,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         {/* Description */}
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-          <CommentComposer
+          <MarkdownComposer
             onSubmit={(body) => set('description', body)}
             placeholder="Describe the issue, expected vs actual behavior…"
+            showMentions={false}
           />
         </div>
 

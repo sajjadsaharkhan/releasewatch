@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import { MessageSquare, MoreVertical, Trash2, Edit3 } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { Avatar } from '../ui/Avatar'
+import { Avatar, UserHoverCard } from '../ui'
 import { Icon } from '../ui/Icon'
 import { StatusBadge, RoleBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
 import { userById } from '../../data/mockData'
 import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
-import { CommentComposer } from './CommentComposer'
+import { MarkdownComposer } from './MarkdownComposer'
 
 // Current user ID - in a real app this would come from auth context
 const CURRENT_USER_ID = 'u-1'
@@ -76,12 +76,12 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
     ...comments.map((c) => ({ ...c, _kind: 'comment', type: 'comment' })),
   ].sort((a, b) => new Date(a.timestamp ?? a.createdAt) - new Date(b.timestamp ?? b.createdAt))
 
-  const handleSubmitComment = (body, isInternal) => {
-    onAddComment?.(body, isInternal)
+  const handleSubmitComment = (body, isInternal, mentionedUserIds) => {
+    onAddComment?.(body, isInternal, mentionedUserIds)
   }
 
-  const handleEditComment = (body, isInternal) => {
-    onUpdateComment?.(editingCommentId, body, isInternal, new Date().toISOString())
+  const handleEditComment = (body, isInternal, mentionedUserIds) => {
+    onUpdateComment?.(editingCommentId, body, isInternal, mentionedUserIds, new Date().toISOString())
     setEditingCommentId(null)
   }
 
@@ -121,13 +121,16 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
               return (
                 <li key={item.id ?? idx} className="relative pl-10 pr-2 py-2">
                   <div className="absolute left-0 top-2">
-                    <Avatar user={actor} size={30} />
+                    <UserHoverCard user={actor} size={30}>
+                      <Avatar user={actor} size={30} />
+                    </UserHoverCard>
                   </div>
 
                   {isEditing ? (
-                    <CommentComposer
+                    <MarkdownComposer
                       initialValue={item.body}
                       initialInternal={item.isInternal}
+                      initialMentionedUsers={item.mentionedUsers || []}
                       mode="edit"
                       onSubmit={handleEditComment}
                       onCancelEdit={() => setEditingCommentId(null)}
@@ -182,6 +185,25 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
                       <div className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed">
                         {renderMarkdown(item.body)}
                       </div>
+
+                      {/* Mentioned users */}
+                      {item.mentionedUsers && item.mentionedUsers.length > 0 && (
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs text-muted-foreground">Mentioned:</span>
+                          {item.mentionedUsers.map(userId => {
+                            const user = userById(userId)
+                            if (!user) return null
+                            return (
+                              <UserHoverCard key={userId} user={user} size={16}>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium cursor-pointer">
+                                  <Avatar user={user} size={16} />
+                                  {user.name}
+                                </span>
+                              </UserHoverCard>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>
@@ -208,9 +230,11 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
       {/* Comment composer */}
       <div className="relative pl-10 mt-4">
         <div className="absolute left-0 top-1">
-          <Avatar user={userById('u-1')} size={30} />
+          <UserHoverCard user={userById('u-1')} size={30}>
+            <Avatar user={userById('u-1')} size={30} />
+          </UserHoverCard>
         </div>
-        <CommentComposer
+        <MarkdownComposer
           onSubmit={handleSubmitComment}
           placeholder="Leave a comment… Use @ to mention someone."
         />
