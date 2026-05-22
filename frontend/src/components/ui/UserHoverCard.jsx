@@ -31,45 +31,57 @@ export function UserHoverCard({ user, size = 20, children, className, align = 'l
     const spaceLeft = triggerRect.left - padding
     const spaceRight = window.innerWidth - triggerRect.right - padding
 
-    // Determine vertical position (prefer downward if enough space)
-    let top
-    const shouldGoUp = spaceBelow < cardHeight && spaceAbove > spaceBelow
-    if (shouldGoUp) {
-      // Position above the trigger
-      top = triggerRect.top - cardHeight - gap
-    } else {
-      // Position below the trigger
-      top = triggerRect.bottom + gap
+    // STRATEGY: Try to position card to the LEFT or RIGHT of trigger first
+    // Only position ABOVE/BELOW if there's insufficient horizontal space
+    let top, left
+    let useHorizontalPosition = false
+
+    // Check if we have enough horizontal space to show card beside the trigger
+    if (spaceLeft >= cardWidth || spaceRight >= cardWidth) {
+      useHorizontalPosition = true
     }
 
-    // Determine horizontal position based on available space
-    // Try to align with trigger left, but shift if needed
-    let left
-    if (spaceLeft >= cardWidth) {
-      // Enough space to the left - align left edge with trigger left edge
-      left = Math.max(padding, triggerRect.left)
-    } else if (spaceRight >= cardWidth) {
-      // Enough space to the right
-      if (spaceLeft < padding && triggerRect.left + cardWidth > window.innerWidth - padding) {
-        // Trigger is near left edge but card would overflow right
-        left = padding
-      } else {
-        left = triggerRect.left
-      }
-    } else {
-      // Not enough space on either side - position with maximum available space
-      if (spaceLeft > spaceRight) {
-        // More space on left - align right edge
-        left = Math.max(padding, triggerRect.right - cardWidth)
-      } else {
-        // More space on right - align left edge
-        left = Math.min(triggerRect.left, window.innerWidth - cardWidth - padding)
-      }
-    }
+    if (useHorizontalPosition) {
+      // Position to the LEFT or RIGHT of trigger
+      // Vertically center with the trigger
+      top = Math.max(padding, Math.min(
+        triggerRect.top + (triggerRect.height / 2) - (cardHeight / 2),
+        window.innerHeight - cardHeight - padding
+      ))
 
-    // Final boundary checks
-    left = Math.max(padding, Math.min(left, window.innerWidth - cardWidth - padding))
-    top = Math.max(padding, Math.min(top, window.innerHeight - cardHeight - padding))
+      // Prefer the side with more space
+      if (spaceRight >= spaceLeft) {
+        // Position to the RIGHT
+        left = triggerRect.right + gap
+      } else {
+        // Position to the LEFT
+        left = triggerRect.left - cardWidth - gap
+      }
+
+      // Ensure the card stays within viewport horizontally
+      left = Math.max(padding, Math.min(left, window.innerWidth - cardWidth - padding))
+    } else {
+      // Position ABOVE or BELOW the trigger (fallback)
+      // Horizontally align with trigger
+      left = triggerRect.left
+
+      // Ensure card doesn't overflow right edge
+      if (left + cardWidth > window.innerWidth - padding) {
+        left = Math.max(padding, window.innerWidth - cardWidth - padding)
+      }
+
+      // Decide above or below based on available space
+      if (spaceBelow >= cardHeight || spaceBelow >= spaceAbove) {
+        // Position BELOW
+        top = triggerRect.bottom + gap
+      } else {
+        // Position ABOVE
+        top = triggerRect.top - cardHeight - gap
+      }
+
+      // Ensure card stays within viewport vertically
+      top = Math.max(padding, Math.min(top, window.innerHeight - cardHeight - padding))
+    }
 
     setPosition({ top, left })
   }, [align])
