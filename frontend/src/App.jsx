@@ -66,7 +66,6 @@ function AppInner() {
             <Route path="inbox" element={<InboxPage />} />
             <Route path="issues" element={<IssuesPage />} />
             <Route path="triage" element={<TriagePage />} />
-            <Route path="assigned" element={<IssuesPage filterAssigned />} />
             <Route path="releases" element={<ReleasesPage />} />
             <Route path="releases/:id" element={<ReleaseDetailPage />} />
             <Route path="regressions" element={<RegressionsPage />} />

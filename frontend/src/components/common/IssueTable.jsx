@@ -1,8 +1,7 @@
 import React from 'react'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { SeverityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
-import { Avatar } from '../ui/Avatar'
+import { SeverityBadge, StatusBadge, Badge, RoleBadge, Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
 import { userById, releaseById, MOCK_LABELS, ROLE } from '../../data/mockData'
@@ -22,10 +21,9 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
         <tr>
           <th className="text-left font-medium px-7 py-2.5 w-[90px]">#</th>
           <th className="text-left font-medium px-2 py-2.5">Title</th>
-          <th className="text-left font-medium px-2 py-2.5 w-[110px]">Severity</th>
-          <th className="text-left font-medium px-2 py-2.5 w-[120px]">Status</th>
-          <th className="text-left font-medium px-2 py-2.5 w-[140px]">Assignee</th>
-          {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[170px]">Reporter</th>}
+          <th className="text-left font-medium px-2 py-2.5 w-[150px]">Status</th>
+          <th className="text-left font-medium px-2 py-2.5 w-[55px]">Assignee</th>
+          {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Reporter</th>}
           {!hideRelease && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Release</th>}
           <th className="text-left font-medium px-2 py-2.5 w-[64px]">Regr.</th>
           <th className="text-right font-medium px-7 py-2.5 w-[80px]">Age</th>
@@ -43,6 +41,7 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
               <td className="px-7 py-2 font-mono text-[11.5px] text-zinc-500">{i.id}</td>
               <td className="px-2 py-2">
                 <div className="flex items-center gap-1.5">
+                  {!i.is_release_blocker && <SeverityBadge severity={i.severity} dot />}
                   <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate max-w-[420px]">{i.title}</span>
                   {labels.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                   {i.is_release_blocker && (
@@ -53,23 +52,24 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                   )}
                 </div>
               </td>
-              <td className="px-2 py-2"><SeverityBadge severity={i.severity} dot /></td>
               <td className="px-2 py-2"><StatusBadge status={i.status} /></td>
               <td className="px-2 py-2">
                 {a ? (
-                  <div className="flex items-center gap-1.5">
-                    <Avatar user={a} size={20} />
-                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{a.name}</span>
-                  </div>
+                  <UserHoverCard user={a} size={25}>
+                    <Avatar user={a} size={25} />
+                  </UserHoverCard>
                 ) : <span className="text-[11px] text-zinc-400 italic">unassigned</span>}
               </td>
               {!hideReporter && (
                 <td className="px-2 py-2">
-                  <div className="flex items-center gap-1.5">
-                    <Avatar user={r} size={20} />
-                    <span className="text-zinc-700 dark:text-zinc-300 truncate">{r?.name}</span>
-                    {i.reporterRole && <RoleBadge role={i.reporterRole} />}
-                  </div>
+                  {r ? (
+                    <UserHoverCard user={r} size={25}>
+                      <div className="flex items-center gap-1.5">
+                        <Avatar user={r} size={25} />
+                        {i.reporterRole && <RoleBadge role={i.reporterRole} />}
+                      </div>
+                    </UserHoverCard>
+                  ) : <span className="text-[11px] text-zinc-400 italic">—</span>}
                 </td>
               )}
               {!hideRelease && (

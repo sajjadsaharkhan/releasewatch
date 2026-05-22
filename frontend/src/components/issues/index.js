@@ -1,5 +1,5 @@
 export { IssueTimeline } from './IssueTimeline'
-export { CommentComposer } from './CommentComposer'
+export { MarkdownComposer } from './MarkdownComposer'
 export { IssueDetail } from './IssueDetail'
 export { NewIssueModal } from './NewIssueModal'
 export { AttachmentTile } from './AttachmentTile'

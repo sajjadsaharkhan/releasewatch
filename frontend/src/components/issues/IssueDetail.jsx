@@ -46,13 +46,14 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
     onUpdate?.(updated)
   }
 
-  const addComment = (body, isInternal) => {
+  const addComment = (body, isInternal, mentionedUserIds) => {
     const next = {
       id: 'c' + Math.random().toString(36).slice(2, 7),
       author: 'u-1', // Current user (Sajjad)
       body: body,
       createdAt: new Date().toISOString(),
       isInternal: isInternal,
+      mentionedUsers: mentionedUserIds || [],
     }
     setComments(c => [...c, next])
   }
@@ -168,7 +169,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
               onValueChange={setTab}
               options={[
                 { value: 'activity', label: 'Activity', icon: 'activity', badge: events.length + comments.length },
-                { value: 'evidence', label: 'Evidence', icon: 'paperclip', badge: localIssue.attachments?.length || null },
+                { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: localIssue.attachments?.length || null },
                 { value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: localIssue.regressionHistory?.length || null },
               ]}
             />
@@ -189,8 +190,8 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
                   comments={comments}
                   issue={localIssue}
                   onAddComment={addComment}
-                  onUpdateComment={(commentId, body, isInternal, editedAt) => {
-                    setComments(c => c.map(cm => cm.id === commentId ? { ...cm, body, isInternal, editedAt } : cm))
+                  onUpdateComment={(commentId, body, isInternal, mentionedUserIds, editedAt) => {
+                    setComments(c => c.map(cm => cm.id === commentId ? { ...cm, body, isInternal, mentionedUsers: mentionedUserIds || [], editedAt } : cm))
                   }}
                   onDeleteComment={(commentId) => {
                     setComments(c => c.filter(cm => cm.id !== commentId))
