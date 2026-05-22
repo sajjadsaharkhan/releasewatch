@@ -1,163 +1,299 @@
-import React from 'react'
-import { cn } from '../lib/cn'
-import { MetricCard } from '../components/common/MetricCard'
+import React, { useState, useEffect } from 'react'
+import { TrendingDown, Clock, Layers, Info } from 'lucide-react'
+import { reportsApi } from '../lib/api'
+import { MOCK_REGRESSION_DATA, MOCK_LABELS } from '../data/mockData'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts'
-import { MOCK_REGRESSION_DATA, MOCK_ISSUES } from '../data/mockData'
-import { AlertTriangle } from 'lucide-react'
-
-const RELEASES = ['v2.1', 'v2.2', 'v2.3', 'v2.4', 'v2.5']
-
-const CELL_STYLES = {
-  fixed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  regression: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  verified: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
-  in_progress: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-  open: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-  na: 'bg-transparent text-muted-foreground/30',
-  working: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-}
-
-const CELL_LABELS = {
-  fixed: 'Fixed',
-  regression: 'Regressed',
-  verified: 'Verified',
-  in_progress: 'In Progress',
-  open: 'Open',
-  na: 'N/A',
-  working: 'Working',
-}
+  RegressionFilters,
+  MetricCard,
+  RegressionRateLineChart,
+  RegressionTaxChart,
+  LabelTrendChart,
+  SeverityDistributionChart,
+  TeamTable,
+  RegressionIssueTable,
+} from '../components/common'
+import { InfoTooltip } from '../components/ui/InfoTooltip'
+import { UserHoverCard } from '../components/ui/UserHoverCard'
+import { Avatar } from '../components/ui/Avatar'
+import { cn } from '../lib/cn'
 
 export default function RegressionsPage() {
-  const regressionIssues = MOCK_ISSUES.filter((i) => i.is_regression)
-  const regressionRate = Math.round((regressionIssues.length / MOCK_ISSUES.length) * 100)
-  const affectedComponents = new Set(regressionIssues.flatMap((i) => i.labels ?? [])).size
+  const [filters, setFilters] = useState({
+    dateRange: { preset: '30d' },
+    selectedLabel: null,
+  })
+
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        // In production, replace with actual API call
+        // const response = await reportsApi.regressions({
+        //   project_id: filters.project === 'all' ? null : filters.project,
+        //   n_releases: 6
+        // })
+        // setData(response.data)
+
+        // For now, use mock data
+        setData(MOCK_REGRESSION_DATA)
+      } catch (err) {
+        setError(err)
+        // Fallback to mock data on error
+        setData(MOCK_REGRESSION_DATA)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [filters])
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading regression data...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+          <Info className="w-5 h-5" />
+          <span>Using demo data. API unavailable.</span>
+        </div>
+      </div>
+    )
+  }
+
+  const kpi = data || MOCK_REGRESSION_DATA
+
+  // Prepare team table columns
+  const detectorColumns = [
+    {
+      key: 'name',
+      label: 'Team Member',
+      render: (value, row) => (
+        <UserHoverCard user={row.user} size={28}>
+          <div className="flex items-center gap-2">
+            <Avatar user={row.user} size={28} />
+            <span className="font-medium">{row.user.name}</span>
+          </div>
+        </UserHoverCard>
+      ),
+    },
+    {
+      key: 'detected',
+      label: 'Regressions Detected',
+      sortable: true,
+      render: (value) => (
+        <span className="font-medium text-green-600 dark:text-green-400">{value}</span>
+      ),
+    },
+  ]
+
+  const reworkColumns = [
+    {
+      key: 'name',
+      label: 'Developer',
+      render: (value, row) => (
+        <UserHoverCard user={row.user} size={28}>
+          <div className="flex items-center gap-2">
+            <Avatar user={row.user} size={28} />
+            <span className="font-medium">{row.user.name}</span>
+          </div>
+        </UserHoverCard>
+      ),
+    },
+    {
+      key: 'reworkHours',
+      label: 'Rework Hours',
+      sortable: true,
+      render: (value) => (
+        <div className="flex items-center gap-1">
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
+          <span className="font-medium">{value}h</span>
+        </div>
+      ),
+    },
+    {
+      key: 'regressionCount',
+      label: 'Regressions',
+      sortable: true,
+      render: (value) => (
+        <span className={cn(
+          "px-2 py-0.5 rounded-md text-xs font-semibold",
+          value >= 4
+            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+            : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+        )}>
+          {value}
+        </span>
+      ),
+    },
+  ]
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold">Regressions</h1>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">Regression Analytics Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Analyze code fragility, rework costs, and team testing patterns
+          </p>
+        </div>
+        <RegressionFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          labels={MOCK_LABELS.map((l) => ({ value: l.id, label: l.name, color: l.color }))}
+        />
+      </div>
 
-      {/* Metrics */}
+      {/* Executive KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="Total Regressions"
-          value={regressionIssues.length}
+          label={
+            <span className="flex items-center gap-1.5">
+              Global Regression Rate
+              <InfoTooltip content="Percentage of verified issues that were regressions. Lower is better." />
+            </span>
+          }
+          value={`${kpi.globalRegressionRate}%`}
+          icon="percent"
+          tone="red"
+          description="Overall (Regressions / Total Verified) × 100"
+        />
+        <MetricCard
+          label={
+            <span className="flex items-center gap-1.5">
+              Total Regression Tax
+              <InfoTooltip content="Sum of time spent fixing regressions. This is rework that could have been avoided." />
+            </span>
+          }
+          value={`${kpi.totalRegressionTax}h`}
+          icon="clock"
+          tone="amber"
+          description="Total hours spent on regression rework"
+        />
+        <MetricCard
+          label={
+            <span className="flex items-center gap-1.5">
+              Most Fragile Component
+              <InfoTooltip content="The label with the highest historical regression count." />
+            </span>
+          }
+          value={kpi.mostFragileComponent}
+          icon="layers"
+          tone="orange"
+          description="Label with highest regression count"
+        />
+        <MetricCard
+          label={
+            <span className="flex items-center gap-1.5">
+              Chronic Regressions
+              <InfoTooltip content="Issues that have regressed 3 or more times. These indicate systemic problems where root causes were not addressed. Consider dedicated stability sprints for these issues." />
+            </span>
+          }
+          value={kpi.chronicRegressionCount}
           icon="trending-down"
           tone="red"
-          description="This sprint"
-        />
-        <MetricCard
-          label="Regression Rate"
-          value={`${regressionRate}%`}
-          icon="percent"
-          tone="amber"
-          description="Issues that regressed"
-        />
-        <MetricCard
-          label="Components Affected"
-          value={affectedComponents}
-          icon="layers"
-          tone="blue"
-          description="Unique label groups"
-        />
-        <MetricCard
-          label="Avg Regressions/Release"
-          value="2.1"
-          icon="refresh-cw"
-          tone="default"
-          description="Last 5 releases"
+          description="Issues with 3+ regressions"
         />
       </div>
 
-      {/* Recurrence matrix */}
+      {/* Section 1: Trends & Cost */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">Recurrence Matrix</h2>
-        <div className="rounded-xl border border-border bg-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-xs font-semibold text-muted-foreground w-48">Issue</th>
-                {RELEASES.map((v) => (
-                  <th key={v} className="px-3 py-3 text-xs font-semibold text-muted-foreground text-center font-mono">{v}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_REGRESSION_DATA.recurrenceMatrix.map((row) => (
-                <tr key={row.issueId} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">
-                    <div>
-                      <span className="font-mono text-xs text-muted-foreground">{row.issueId}</span>
-                      <p className="text-xs font-medium truncate max-w-44 mt-0.5">{row.title}</p>
-                    </div>
-                  </td>
-                  {['v21', 'v22', 'v23', 'v24', 'v25'].map((key) => {
-                    const status = row[key] ?? 'na'
-                    return (
-                      <td key={key} className="px-3 py-3 text-center">
-                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', CELL_STYLES[status] ?? CELL_STYLES.na)}>
-                          {CELL_LABELS[status] ?? status}
-                        </span>
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-red-500" />
+          Trends & Cost Over Time
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Global Regression Rate by Release</p>
+            <RegressionRateLineChart data={kpi.regressionRateByRelease} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs text-muted-foreground">Regression Tax (First-Time Fix vs Rework)</p>
+              <InfoTooltip content="Comparison of time spent on initial fixes vs. rework caused by regressions." />
+            </div>
+            <RegressionTaxChart data={kpi.regressionTaxByRelease} />
+            <div className="flex items-start gap-4 mt-3 px-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                <span><strong className="text-foreground">First-Time Fix:</strong> Hours spent fixing issues the first time</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <span><strong className="text-foreground">Regression Rework:</strong> Hours spent re-fixing issues that regressed</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Component fragility chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h2 className="text-sm font-semibold mb-3">Component Fragility</h2>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={MOCK_REGRESSION_DATA.componentFragility}
-                layout="vertical"
-                margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="component" tick={{ fontSize: 11 }} width={80} />
-                <Tooltip />
-                <Bar dataKey="regressions" fill="#ef4444" radius={[0, 4, 4, 0]} name="Regressions" />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Section 2: Component Fragility */}
+      <div>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Layers className="w-4 h-4 text-amber-500" />
+          Component Fragility Analysis
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Regression Rate by Label (Top 5)</p>
+            <LabelTrendChart data={kpi.labelRegressionRates} />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Severity Distribution by Release</p>
+            <SeverityDistributionChart data={kpi.severityByRelease} />
           </div>
         </div>
+      </div>
 
-        {/* Suggested action */}
-        <div>
-          <h2 className="text-sm font-semibold mb-3">Pattern Insights</h2>
-          <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800/30 p-5 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">High recurrence: payments module</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                  The payments module has regressed in 3 of the last 5 releases. The webhook timeout issue (BUG-002) shows a pattern of short-term fixes without addressing root cause. Consider a dedicated stability sprint.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Notifications regression spike in v2.5</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                  The async worker refactor in v2.5 broke Telegram notifications (BUG-010). Integration tests for the notification pipeline are recommended before future refactors.
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Section 3: Team Insights */}
+      <div>
+        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-500" />
+          Team Insights
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TeamTable
+            title="Top Regression Detectors"
+            description="QA team members who caught the most regressions. High numbers indicate thorough testing."
+            columns={detectorColumns}
+            data={kpi.topDetectors}
+          />
+          <TeamTable
+            title="Rework Distribution by Developer"
+            description="Developers whose fixes required the most rework. Use for coaching, not blame."
+            columns={reworkColumns}
+            data={kpi.reworkByDeveloper}
+          />
         </div>
+      </div>
+
+      {/* Section 4: Top Regression Issues */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <TrendingDown className="w-4 h-4 text-red-500" />
+            Top Regression Issues
+          </h2>
+          <InfoTooltip content="Issues ordered by regression count. High recurrence indicates systemic problems that require root cause analysis rather than quick fixes." />
+        </div>
+        <RegressionIssueTable
+          title="Chronic & Recurring Issues"
+          description="Issues that have regressed multiple times. These require focused attention to identify and fix the underlying root cause."
+          issues={kpi.topRegressionIssues}
+        />
       </div>
     </div>
   )

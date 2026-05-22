@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Calendar, AlertCircle, CheckCircle, Activity } from 'lucide-react'
+import { Calendar, AlertCircle, CheckCircle, Activity } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Avatar } from './Avatar'
 import { RoleBadge } from './Badge'
@@ -152,13 +152,6 @@ export function UserHoverCard({ user, size = 20, children, className, align = 'l
 
       {/* Info section */}
       <div className="p-4 space-y-2">
-        {user.location && (
-          <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-            <MapPin className="h-3.5 w-3.5" />
-            <span>{user.location}</span>
-          </div>
-        )}
-
         {user.joinedAt && (
           <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             <Calendar className="h-3.5 w-3.5" />

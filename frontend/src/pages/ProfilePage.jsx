@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Link2, MapPin, Send, Edit3 } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
@@ -8,15 +8,60 @@ import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Textarea } from '../components/ui/Textarea'
+import { ImageCropper } from '../components/ui/ImageCropper'
 import { MetricCard } from '../components/common/MetricCard'
 import { IssueTable } from '../components/common/IssueTable'
 import { MOCK_ISSUES, userByUsername } from '../data/mockData'
+import { userApi } from '../lib/api'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
 
 const SEV_COLORS = { blocker: '#ef4444', critical: '#f97316', major: '#f59e0b', minor: '#3b82f6', enhancement: '#8b5cf6' }
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// Extract dominant colors from an image URL
+function extractDominantColors(imageUrl, callback) {
+  const img = new Image()
+  img.crossOrigin = 'Anonymous'
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    canvas.width = 100
+    canvas.height = 100
+    ctx.drawImage(img, 0, 0, 100, 100)
+
+    const imageData = ctx.getImageData(0, 0, 100, 100).data
+    const colorCounts = {}
+
+    for (let i = 0; i < imageData.length; i += 4) {
+      const r = Math.round(imageData[i] / 32) * 32
+      const g = Math.round(imageData[i + 1] / 32) * 32
+      const b = Math.round(imageData[i + 2] / 32) * 32
+      const key = `${r},${g},${b}`
+      colorCounts[key] = (colorCounts[key] || 0) + 1
+    }
+
+    const sortedColors = Object.entries(colorCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([key]) => {
+        const [r, g, b] = key.split(',').map(Number)
+        return `rgb(${r}, ${g}, ${b})`
+      })
+
+    callback(sortedColors)
+  }
+  img.onerror = () => callback([])
+  img.src = imageUrl
+}
 
 // Generate mock activity data
 function generateActivity() {
@@ -37,10 +82,75 @@ export default function ProfilePage() {
     name: user.name,
     username: user.username,
     title: user.title,
-    location: user.location,
     bio: user.bio,
+    avatar_url: user.avatar_url,
   } : {})
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
+  const [cropperImage, setCropperImage] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || null)
+  const [headerColors, setHeaderColors] = useState([])
+  const fileInputRef = useRef(null)
+
+  const updateHeaderColors = (url) => {
+    if (url) {
+      extractDominantColors(url, (colors) => {
+        setHeaderColors(colors)
+      })
+    } else {
+      setHeaderColors([])
+    }
+  }
+
+  React.useEffect(() => {
+    updateHeaderColors(user?.avatar_url)
+  }, [user?.avatar_url])
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setCropperImage(event.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
+    e.target.value = ''
+  }
+
+  const handleCropSave = (blob) => {
+    const url = URL.createObjectURL(blob)
+    setAvatarPreview(url)
+    setEditForm((f) => ({ ...f, avatar_url: url }))
+    updateHeaderColors(url)
+    setCropperImage(null)
+  }
+
+  const handleCropCancel = () => {
+    setCropperImage(null)
+  }
+
+  const handleSave = async () => {
+    try {
+      const data = {}
+      if (editForm.name !== user.name) data.name = editForm.name
+      if (editForm.username !== user.username) data.username = editForm.username
+      if (editForm.title !== user.title) data.title = editForm.title
+      if (editForm.bio !== user.bio) data.bio = editForm.bio
+      if (editForm.avatar_url !== user.avatar_url) data.avatar_url = editForm.avatar_url
+
+      if (Object.keys(data).length > 0) {
+        await userApi.updateProfile(data)
+        alert('Profile updated successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error)
+      alert('Failed to update profile. Please try again.')
+    }
+  }
 
   if (!user) {
     return (
@@ -75,38 +185,36 @@ export default function ProfilePage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full">
       {/* Cover / header */}
-      <div className="h-24 bg-gradient-to-r from-primary/20 to-primary/5 dark:from-primary/10 dark:to-transparent" />
+      <div
+        className="h-32 bg-gradient-to-r dark:to-transparent"
+        style={
+          headerColors.length >= 2
+            ? { background: 'linear-gradient(to right, ' + headerColors[0].replace('rgb', 'rgba').replace(')', ', 0.3)') + ', ' + headerColors[1].replace('rgb', 'rgba').replace(')', ', 0.1)') + ')' }
+            : headerColors.length === 1
+              ? { backgroundColor: headerColors[0].replace('rgb', 'rgba').replace(')', ', 0.2)') }
+              : { background: 'linear-gradient(to right, ' + hexToRgba(user.avatar_color, 0.2) + ', ' + hexToRgba(user.avatar_color, 0.08) + ')' }
+          }
+      />
 
       <div className="px-6 pb-6">
         {/* Avatar row */}
-        <div className="flex items-end justify-between -mt-10 mb-4">
-          <Avatar user={user} size={80} ring className="border-4 border-background" />
-          <div className="flex items-center gap-2 mb-2">
-            {user.tgConnected && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                <Send className="h-3 w-3" />
-                Telegram
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href)
-              }}
+        <div className="flex items-end justify-between -mt-12 mb-4">
+          {isOwnProfile ? (
+            <div
+              className="relative group cursor-pointer"
+              onClick={handleAvatarClick}
             >
-              <Link2 className="h-3.5 w-3.5" />
-              Copy link
-            </Button>
-            {isOwnProfile && (
-              <Button variant="outline" size="sm" onClick={() => setActiveTab('edit')}>
-                <Edit3 className="h-3.5 w-3.5" />
-                Edit profile
-              </Button>
-            )}
-          </div>
+              <Avatar user={{ ...user, avatar_url: avatarPreview }} size={80} ring className="border-4 border-background" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                <Camera className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          ) : (
+            <Avatar user={user} size={80} ring className="border-4 border-background" />
+          )}
+          <div className="flex items-center gap-2 mb-2" />
         </div>
 
         {/* Name + info */}
@@ -117,63 +225,59 @@ export default function ProfilePage() {
           </div>
           <p className="text-sm text-muted-foreground">@{user.username}</p>
           {user.title && <p className="text-sm mt-1">{user.title}</p>}
-          {user.location && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <MapPin className="h-3 w-3" />
-              {user.location}
-            </p>
-          )}
           {user.bio && <p className="text-sm text-muted-foreground mt-2 max-w-lg">{user.bio}</p>}
         </div>
 
-        {/* Hero stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" />
-          <MetricCard label="Fixed" value={fixedIssues.length} icon="check-circle" tone="green" />
-          <MetricCard label="Avg fix time" value={user.avgFixTime ? `${user.avgFixTime}h` : '—'} icon="clock" tone="blue" />
-          <MetricCard label="Fix rate" value={`${fixRate}%`} icon="percent" tone={fixRate >= 85 ? 'green' : fixRate >= 60 ? 'amber' : 'red'} />
+        {/* Top section: cards (2/3) + severity breakdown (1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+          {/* Metric cards - 2 columns worth */}
+          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" description="Total issues reported by this user" />
+            <MetricCard label="Fixed" value={fixedIssues.length} icon="check-circle" tone="green" description="Issues resolved and verified" />
+            <MetricCard label="Regression Rate" value={`${user.regressionRate ?? 0}%`} icon="trending-down" tone="red" description="Percentage of fixed issues that regressed" />
+            <MetricCard label="Mean Time to Triage" value={`${user.mtt ?? 0}h`} icon="clock" tone="blue" description="Average time from report to triage" />
+            <MetricCard label="Mean Time to Verify" value={`${user.mtv ?? 0}h`} icon="shield-check" tone="green" description="Average time from fix to verification" />
+            <MetricCard label="Mean Time to Fix" value={`${user.mtf ?? 0}h`} icon="wrench" tone="amber" description="Average time from triage to fix" />
+          </div>
+          {/* Severity breakdown - 1 column */}
+          <div>
+            <div className="rounded-xl border border-border bg-card p-5 h-full min-h-[344px] flex flex-col">
+              <h3 className="text-sm font-semibold mb-3">Severity breakdown</h3>
+              {sevBreakdown.length === 0 ? (
+                <p className="text-center text-xs text-muted-foreground py-8">No issues reported</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={sevBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                      {sevBreakdown.map((d) => <Cell key={d.name} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend iconType="circle" iconSize={8} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} className="mb-5" />
 
         {/* Tab content */}
         {activeTab === 'public' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Activity chart */}
-            <div className="lg:col-span-2">
-              <h3 className="text-sm font-semibold mb-3">Activity (this year)</h3>
-              <div className="rounded-xl border border-border bg-card p-5">
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={activityData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend iconSize={8} />
-                    <Line type="monotone" dataKey="reported" stroke="#ef4444" strokeWidth={2} dot={false} name="Reported" />
-                    <Line type="monotone" dataKey="fixed" stroke="#10b981" strokeWidth={2} dot={false} name="Fixed" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            {/* Severity breakdown */}
-            <div>
-              <h3 className="text-sm font-semibold mb-3">Severity breakdown</h3>
-              <div className="rounded-xl border border-border bg-card p-5">
-                {sevBreakdown.length === 0 ? (
-                  <p className="text-center text-xs text-muted-foreground py-8">No issues reported</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={sevBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
-                        {sevBreakdown.map((d) => <Cell key={d.name} fill={d.color} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend iconType="circle" iconSize={8} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Activity (this year)</h3>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={activityData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend iconSize={8} />
+                  <Line type="monotone" dataKey="reported" stroke="#ef4444" strokeWidth={2} dot={false} name="Reported" />
+                  <Line type="monotone" dataKey="fixed" stroke="#10b981" strokeWidth={2} dot={false} name="Fixed" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
@@ -193,11 +297,11 @@ export default function ProfilePage() {
         {activeTab === 'edit' && isOwnProfile && (
           <div className="max-w-md space-y-4">
             <h3 className="text-sm font-semibold">Edit Profile</h3>
+
             {[
               ['name', 'Full name'],
               ['username', 'Username'],
               ['title', 'Title'],
-              ['location', 'Location'],
             ].map(([key, label]) => (
               <div key={key}>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
@@ -215,8 +319,17 @@ export default function ProfilePage() {
                 rows={3}
               />
             </div>
-            <Button>Save changes</Button>
+            <Button onClick={handleSave}>Save changes</Button>
           </div>
+        )}
+
+        {/* Cropper modal */}
+        {cropperImage && (
+          <ImageCropper
+            image={cropperImage}
+            onSave={handleCropSave}
+            onCancel={handleCropCancel}
+          />
         )}
 
         {activeTab === 'security' && isOwnProfile && (
@@ -240,6 +353,24 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Cropper modal */}
+      {cropperImage && (
+        <ImageCropper
+          image={cropperImage}
+          onSave={handleCropSave}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   )
 }

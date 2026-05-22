@@ -19,6 +19,7 @@ class TeamMemberResponse(BaseModel):
     username: str
     email: str
     role: UserRole
+    avatar_url: Optional[str] = None
     avatar_color: str
     telegram_handle: Optional[str] = None
     telegram_connected_at: Optional[datetime] = None

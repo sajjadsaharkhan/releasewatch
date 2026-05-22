@@ -103,6 +103,7 @@ export const MOCK_TEAM = [
     username: 'sajjad',
     role: 'admin',
     avatar_color: '#6366f1',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sajjad&backgroundColor=6366f1',
     tgConnected: true,
     tgHandle: '@sajjad_rw',
     title: 'Engineering Lead',
@@ -1046,11 +1047,202 @@ export const MOCK_CONTRIBUTIONS = {
 
 // ─── Regression chart data ─────────────────────────────────────────────────────
 export const MOCK_REGRESSION_DATA = {
+  // KPI metrics
+  globalRegressionRate: 18,        // (Regressions / Total Verified) * 100
+  totalRegressionTax: 147,         // Sum of time_to_fix_h for regressions
+  mostFragileComponent: 'payments', // Label with highest regression_count
+  chronicRegressionCount: 5,       // Issues with regression_count >= 3
+
+  // Chart A: Global Regression Rate Over Time
+  regressionRateByRelease: [
+    { release: 'v2.1', rate: 12 },
+    { release: 'v2.2', rate: 15 },
+    { release: 'v2.3', rate: 18 },
+    { release: 'v2.4', rate: 14 },
+    { release: 'v2.5', rate: 22 },
+  ],
+
+  // Chart B: Regression Tax (Stacked Bar)
+  regressionTaxByRelease: [
+    { release: 'v2.1', firstTimeFixHours: 45, regressionReworkHours: 12 },
+    { release: 'v2.2', firstTimeFixHours: 52, regressionReworkHours: 18 },
+    { release: 'v2.3', firstTimeFixHours: 38, regressionReworkHours: 25 },
+    { release: 'v2.4', firstTimeFixHours: 48, regressionReworkHours: 15 },
+    { release: 'v2.5', firstTimeFixHours: 42, regressionReworkHours: 35 },
+  ],
+
+  // Chart C: Regression Rate per Label (Top 5)
+  labelRegressionRates: [
+    { release: 'v2.1', auth: 8, payments: 25, notifications: 10, search: 5, reports: 3 },
+    { release: 'v2.2', auth: 10, payments: 28, notifications: 8, search: 7, reports: 5 },
+    { release: 'v2.3', auth: 12, payments: 32, notifications: 11, search: 6, reports: 4 },
+    { release: 'v2.4', auth: 9, payments: 30, notifications: 9, search: 8, reports: 6 },
+    { release: 'v2.5', auth: 11, payments: 35, notifications: 13, search: 5, reports: 5 },
+  ],
+
+  // Chart D: Severity Distribution
+  severityByRelease: [
+    { release: 'v2.1', blocker: 1, critical: 3, major: 5, minor: 2 },
+    { release: 'v2.2', blocker: 0, critical: 4, major: 6, minor: 3 },
+    { release: 'v2.3', blocker: 2, critical: 5, major: 4, minor: 2 },
+    { release: 'v2.4', blocker: 1, critical: 3, major: 7, minor: 4 },
+    { release: 'v2.5', blocker: 3, critical: 6, major: 5, minor: 3 },
+  ],
+
+  // Table: Top Regression Detectors (QA)
+  topDetectors: [
+    {
+      user: { id: 'u-4', name: 'Aisha Nkosi', username: 'aisha', role: 'qa', avatar_color: '#ec4899', title: 'QA Engineer', bio: 'Automated & exploratory testing. If it can break, I will find it.', location: 'Nairobi, Kenya', tgConnected: true, tgHandle: '@aisha_tests', reported: 41, fixed: 0 },
+      detected: 15,
+    },
+    {
+      user: { id: 'u-2', name: 'Priya Mehta', username: 'priya', role: 'triage_lead', avatar_color: '#f59e0b', title: 'Triage Lead', bio: 'QA process specialist. Love turning chaos into clear release signals.', location: 'Toronto, ON', tgConnected: true, tgHandle: '@priya_qa', reported: 34, fixed: 2 },
+      detected: 12,
+    },
+    {
+      user: { id: 'u-7', name: 'Ben Okafor', username: 'ben', role: 'qa', avatar_color: '#8b5cf6', title: 'QA Engineer', bio: 'Performance & regression testing specialist.', location: 'Lagos, Nigeria', tgConnected: false, tgHandle: null, reported: 19, fixed: 0 },
+      detected: 9,
+    },
+    {
+      user: { id: 'u-1', name: 'Sajjad Saharkhan', username: 'sajjad', role: 'admin', avatar_color: '#6366f1', title: 'Engineering Lead', bio: 'Building Releasewatch to make QA painless. Passionate about developer tooling and release engineering.', location: 'Vancouver, BC', tgConnected: true, tgHandle: '@sajjad_rw', reported: 12, fixed: 8 },
+      detected: 7,
+    },
+    {
+      user: { id: 'u-8', name: 'Chen Wei', username: 'chenwei', role: 'developer', avatar_color: '#14b8a6', title: 'Full-stack Engineer', bio: 'Generalist, fixes bugs across the whole stack.', location: 'Shanghai, China', tgConnected: true, tgHandle: '@cw_dev', reported: 4, fixed: 18 },
+      detected: 5,
+    },
+  ],
+
+  // Table: Rework Distribution by Developer
+  reworkByDeveloper: [
+    {
+      user: { id: 'u-3', name: 'Lucas Ferreira', username: 'lucas', role: 'developer', avatar_color: '#10b981', title: 'Senior Frontend Engineer', bio: 'React specialist, accessibility advocate.', location: 'São Paulo, Brazil', tgConnected: false, tgHandle: null, reported: 3, fixed: 28, fixRate: 94 },
+      reworkHours: 35,
+      regressionCount: 4,
+    },
+    {
+      user: { id: 'u-5', name: 'Marcus Tan', username: 'marcus', role: 'developer', avatar_color: '#3b82f6', title: 'Backend Engineer', bio: 'Python + FastAPI, loves clean APIs and fast queries.', location: 'Singapore', tgConnected: true, tgHandle: '@marcus_dev', reported: 5, fixed: 22, fixRate: 88 },
+      reworkHours: 28,
+      regressionCount: 3,
+    },
+    {
+      user: { id: 'u-8', name: 'Chen Wei', username: 'chenwei', role: 'developer', avatar_color: '#14b8a6', title: 'Full-stack Engineer', bio: 'Generalist, fixes bugs across the whole stack.', location: 'Shanghai, China', tgConnected: true, tgHandle: '@cw_dev', reported: 4, fixed: 18, fixRate: 82 },
+      reworkHours: 22,
+      regressionCount: 2,
+    },
+    {
+      user: { id: 'u-6', name: 'Elena Volkov', username: 'elena', role: 'cto', avatar_color: '#ef4444', title: 'CTO', bio: 'Setting technical vision, unblocking teams, approving releases.', location: 'Berlin, Germany', tgConnected: true, tgHandle: '@elena_cto', reported: 2, fixed: 1, fixRate: 100 },
+      reworkHours: 18,
+      regressionCount: 2,
+    },
+    {
+      user: { id: 'u-1', name: 'Sajjad Saharkhan', username: 'sajjad', role: 'admin', avatar_color: '#6366f1', title: 'Engineering Lead', bio: 'Building Releasewatch to make QA painless. Passionate about developer tooling and release engineering.', location: 'Vancouver, BC', tgConnected: true, tgHandle: '@sajjad_rw', reported: 12, fixed: 8, fixRate: 91 },
+      reworkHours: 15,
+      regressionCount: 1,
+    },
+  ],
+
+  // Chronic Recurrence List
+  chronicRegressions: [
+    { issueId: 'BUG-002', title: 'Payment webhook timeout', labels: ['payments', 'api'], reworkHours: 42, regressionCount: 4 },
+    { issueId: 'BUG-010', title: 'Telegram alerts stopped', labels: ['notifications', 'infra'], reworkHours: 28, regressionCount: 3 },
+    { issueId: 'BUG-018', title: 'Search returns stale results', labels: ['search', 'api'], reworkHours: 35, regressionCount: 3 },
+    { issueId: 'BUG-025', title: 'Auth session expires prematurely', labels: ['auth', 'security'], reworkHours: 22, regressionCount: 3 },
+    { issueId: 'BUG-031', title: 'Mobile offline sync loses data', labels: ['mobile', 'data'], reworkHours: 20, regressionCount: 3 },
+  ],
+
+  // Top Regression Issues (for table display)
+  topRegressionIssues: [
+    {
+      id: 'BUG-002',
+      title: 'Payment webhook timeout',
+      severity: 'critical',
+      status: 'open',
+      labels: ['payments', 'api'],
+      regressions: 4,
+      assignee: 'u-3',
+      createdAt: '2026-04-15T10:30:00Z',
+    },
+    {
+      id: 'BUG-018',
+      title: 'Search returns stale results',
+      severity: 'major',
+      status: 'regression',
+      labels: ['search', 'api'],
+      regressions: 3,
+      assignee: 'u-5',
+      createdAt: '2026-04-20T14:15:00Z',
+    },
+    {
+      id: 'BUG-010',
+      title: 'Telegram alerts stopped',
+      severity: 'blocker',
+      status: 'open',
+      labels: ['notifications', 'infra'],
+      regressions: 3,
+      assignee: 'u-8',
+      createdAt: '2026-05-10T09:00:00Z',
+    },
+    {
+      id: 'BUG-025',
+      title: 'Auth session expires prematurely',
+      severity: 'critical',
+      status: 'in_progress',
+      labels: ['auth', 'security'],
+      regressions: 3,
+      assignee: 'u-1',
+      createdAt: '2026-05-05T16:45:00Z',
+    },
+    {
+      id: 'BUG-031',
+      title: 'Mobile offline sync loses data',
+      severity: 'major',
+      status: 'open',
+      labels: ['mobile', 'data'],
+      regressions: 3,
+      assignee: null,
+      createdAt: '2026-05-12T11:20:00Z',
+    },
+    {
+      id: 'BUG-045',
+      title: 'Report export fails on large datasets',
+      severity: 'minor',
+      status: 'open',
+      labels: ['reports'],
+      regressions: 2,
+      assignee: 'u-6',
+      createdAt: '2026-05-08T13:00:00Z',
+    },
+    {
+      id: 'BUG-038',
+      title: 'UI lag on dashboard load',
+      severity: 'minor',
+      status: 'verified',
+      labels: ['uiux', 'performance'],
+      regressions: 2,
+      assignee: 'u-3',
+      createdAt: '2026-05-01T10:00:00Z',
+    },
+    {
+      id: 'BUG-052',
+      title: 'User profile image upload fails',
+      severity: 'major',
+      status: 'fixed',
+      labels: ['api', 'uiux'],
+      regressions: 2,
+      assignee: 'u-5',
+      createdAt: '2026-05-14T15:30:00Z',
+    },
+  ],
+
+  // Recurrence Matrix
   recurrenceMatrix: [
     { issueId: 'BUG-002', title: 'Payment webhook timeout', v21: 'fixed', v22: 'regression', v23: 'fixed', v24: 'fixed', v25: 'regression' },
     { issueId: 'BUG-010', title: 'Telegram alerts stopped', v21: 'na', v22: 'na', v23: 'fixed', v24: 'fixed', v25: 'regression' },
     { issueId: 'BUG-018', title: 'Search returns stale results', v21: 'fixed', v22: 'fixed', v23: 'regression', v24: 'fixed', v25: 'open' },
   ],
+
+  // Component Fragility
   componentFragility: [
     { component: 'auth', regressions: 4 },
     { component: 'payments', regressions: 8 },
