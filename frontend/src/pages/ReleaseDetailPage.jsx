@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
+import { EditReleaseModal } from '../components/releases/EditReleaseModal'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
@@ -278,6 +279,7 @@ export default function ReleaseDetailPage() {
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState('overview')
   const [localRelease, setLocalRelease] = useState(() => releaseById(id))
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const release = localRelease
   const issues = issuesByRelease(id)
@@ -610,9 +612,18 @@ export default function ReleaseDetailPage() {
         {/* Metrics and Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Release Status - Redesigned */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5 relative">
+            {/* Edit Button */}
+            <button
+              onClick={() => setEditModalOpen(true)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="Edit release details"
+            >
+              <Icon name="edit-2" size={14} />
+            </button>
+
             {/* Status Header with Icon and Description */}
-            <div className="flex items-start gap-4 mb-5">
+            <div className="flex items-start gap-4 mb-5 pr-8">
               <div className={cn(
                 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
                 release.goNoGo === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
@@ -1190,6 +1201,14 @@ export default function ReleaseDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Edit Release Modal */}
+        <EditReleaseModal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          release={release}
+          onSave={(updatedRelease) => setLocalRelease(updatedRelease)}
+        />
       </div>
     </div>
   )
