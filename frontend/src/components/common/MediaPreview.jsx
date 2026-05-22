@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
@@ -29,9 +30,9 @@ export function FullscreenMediaOverlay({ media, onClose, onDownload }) {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [onClose])
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -70,7 +71,8 @@ export function FullscreenMediaOverlay({ media, onClose, onDownload }) {
           Press ESC to close
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
