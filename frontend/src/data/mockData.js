@@ -291,14 +291,14 @@ export const MOCK_RELEASES = [
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 export const MOCK_LABELS = [
-  { id: 'lbl-1', name: 'auth', color: '#6366f1' },
-  { id: 'lbl-2', name: 'payments', color: '#f59e0b' },
-  { id: 'lbl-3', name: 'performance', color: '#ef4444' },
-  { id: 'lbl-4', name: 'UI/UX', color: '#8b5cf6' },
-  { id: 'lbl-5', name: 'api', color: '#3b82f6' },
-  { id: 'lbl-6', name: 'mobile', color: '#10b981' },
-  { id: 'lbl-7', name: 'data', color: '#ec4899' },
-  { id: 'lbl-8', name: 'infra', color: '#14b8a6' },
+  { id: 'lbl-1', name: 'auth', color: '#6366f1', issueCount: 8 },
+  { id: 'lbl-2', name: 'payments', color: '#f59e0b', issueCount: 12 },
+  { id: 'lbl-3', name: 'performance', color: '#ef4444', issueCount: 5 },
+  { id: 'lbl-4', name: 'UI/UX', color: '#8b5cf6', issueCount: 4 },
+  { id: 'lbl-5', name: 'api', color: '#3b82f6', issueCount: 6 },
+  { id: 'lbl-6', name: 'mobile', color: '#10b981', issueCount: 3 },
+  { id: 'lbl-7', name: 'data', color: '#ec4899', issueCount: 2 },
+  { id: 'lbl-8', name: 'infra', color: '#14b8a6', issueCount: 1 },
 ]
 
 // ─── Issues ───────────────────────────────────────────────────────────────────

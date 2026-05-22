@@ -23,36 +23,37 @@ export function Dialog({ open, onClose, title, children, size = 'md', className 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 !m-0" onClick={onClose}>
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       {/* Panel */}
       <div
-        className={cn(
-          'dialog-enter relative z-10 w-full rounded-xl border border-border bg-card shadow-2xl',
-          'max-h-[90vh] flex flex-col',
-          sizeClasses[size] ?? sizeClasses.md,
-          className
-        )}
+        className="absolute inset-0 flex items-center justify-center p-4"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 scrollbar-thin">
-          {children}
+        <div
+          className={cn(
+            'dialog-enter relative w-full rounded-xl border border-border bg-card shadow-2xl',
+            'max-h-[90vh] flex flex-col',
+            sizeClasses[size] ?? sizeClasses.md,
+            className
+          )}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
+            <h2 className="text-base font-semibold">{title}</h2>
+            <button
+              onClick={onClose}
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {/* Body */}
+          <div className="overflow-y-auto flex-1 scrollbar-thin">
+            {children}
+          </div>
         </div>
       </div>
     </div>

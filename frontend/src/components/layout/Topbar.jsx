@@ -11,7 +11,7 @@ import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
 import { MOCK_PROJECTS, MOCK_RELEASES, userById } from '../../data/mockData'
 
 export function Topbar() {
-  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId } = useApp()
+  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
   const currentUser = userById('u-1')
@@ -36,6 +36,7 @@ export function Topbar() {
           onChange={setActiveProjectId}
           compact
           width={260}
+          onCreateProject={() => setCreateProjectOpen(true)}
         />
         <ReleaseSwitcher
           releases={currentReleases}
@@ -99,6 +100,7 @@ export function Topbar() {
                 projects={MOCK_PROJECTS}
                 activeProjectId={activeProjectId}
                 onChange={setActiveProjectId}
+                onCreateProject={() => setCreateProjectOpen(true)}
               />
             </div>
             <div>

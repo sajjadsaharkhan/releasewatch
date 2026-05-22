@@ -1,9 +1,11 @@
-import React, { lazy, Suspense, useEffect } from 'react'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
+import { CreateProjectModal } from './components/project'
+import { MOCK_PROJECTS } from './data/mockData'
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -30,7 +32,16 @@ function PageFallback() {
 }
 
 function AppInner() {
-  const { setCommandPaletteOpen, setNewIssueOpen, newIssueOpen } = useApp()
+  const { setCommandPaletteOpen, setNewIssueOpen, newIssueOpen, createProjectOpen, setCreateProjectOpen } = useApp()
+  const [projects, setProjects] = useState(MOCK_PROJECTS)
+
+  function handleCreateProject(form) {
+    setProjects((p) => [...p, {
+      id: `proj-${Date.now()}`,
+      ...form
+    }])
+    setCreateProjectOpen(false)
+  }
 
   useEffect(() => {
     function handleKey(e) {
@@ -81,6 +92,11 @@ function AppInner() {
 
       {/* Global overlays */}
       <CommandPalette />
+      <CreateProjectModal
+        open={createProjectOpen}
+        onClose={() => setCreateProjectOpen(false)}
+        onCreate={handleCreateProject}
+      />
     </>
   )
 }

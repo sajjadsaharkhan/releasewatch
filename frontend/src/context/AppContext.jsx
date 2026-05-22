@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [newIssueOpen, setNewIssueOpen] = useState(false)
   const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
+  const [createProjectOpen, setCreateProjectOpen] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -42,6 +43,8 @@ export function AppProvider({ children }) {
     setNewIssueOpen,
     createReleaseOpen,
     setCreateReleaseOpen,
+    createProjectOpen,
+    setCreateProjectOpen,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

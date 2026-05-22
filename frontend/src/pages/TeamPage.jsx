@@ -1,13 +1,10 @@
-import React, { useState } from 'react'
-import { Send, UserPlus } from 'lucide-react'
+import React from 'react'
+import { Send } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Dialog } from '../components/ui/Dialog'
-import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
-import { MOCK_TEAM, MOCK_ISSUES, ROLE } from '../data/mockData'
+import { Tooltip } from '../components/ui/Tooltip'
+import { MOCK_TEAM, MOCK_ISSUES } from '../data/mockData'
 import { Link } from 'react-router-dom'
 
 function StatPill({ label, value, color }) {
@@ -20,28 +17,9 @@ function StatPill({ label, value, color }) {
 }
 
 export default function TeamPage() {
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteForm, setInviteForm] = useState({ name: '', username: '', email: '', role: 'qa' })
-  const [inviteLoading, setInviteLoading] = useState(false)
-
-  function set(k, v) { setInviteForm((f) => ({ ...f, [k]: v })) }
-
-  async function handleInvite() {
-    setInviteLoading(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setInviteOpen(false)
-    setInviteLoading(false)
-  }
-
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Team</h1>
-        <Button onClick={() => setInviteOpen(true)}>
-          <UserPlus className="h-4 w-4" />
-          Invite member
-        </Button>
-      </div>
+      <h1 className="text-xl font-bold">Team</h1>
 
       {/* Member grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -58,9 +36,11 @@ export default function TeamPage() {
               <div className="flex items-start justify-between mb-3">
                 <Avatar user={member} size={44} />
                 {member.tgConnected && (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                    <Send className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                  </span>
+                  <Tooltip content="Telegram notifications enabled">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                      <Send className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    </span>
+                  </Tooltip>
                 )}
               </div>
 
@@ -80,43 +60,6 @@ export default function TeamPage() {
           )
         })}
       </div>
-
-      {/* Invite dialog */}
-      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite team member" size="sm">
-        <div className="p-5 space-y-4">
-          {[['name', 'Full name'], ['username', 'Username'], ['email', 'Email address']].map(([key, label]) => (
-            <div key={key}>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
-              <Input
-                value={inviteForm[key]}
-                onChange={(e) => set(key, e.target.value)}
-                placeholder={label}
-                type={key === 'email' ? 'email' : 'text'}
-              />
-            </div>
-          ))}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Role</label>
-            <Dropdown
-              trigger={
-                <Button variant="outline" size="sm" className="w-full justify-between">
-                  {ROLE[inviteForm.role]?.label ?? inviteForm.role}
-                </Button>
-              }
-            >
-              {Object.entries(ROLE).map(([k, v]) => (
-                <DropdownItem key={k} onClick={() => set('role', k)}>{v.label}</DropdownItem>
-              ))}
-            </Dropdown>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite} loading={inviteLoading}>
-              Send Invite
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   )
 }
