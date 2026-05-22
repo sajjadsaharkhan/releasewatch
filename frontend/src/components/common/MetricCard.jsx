@@ -15,7 +15,7 @@ export function MetricCard({ label, value, icon, delta, tone = 'default', descri
   const colors = toneMap[tone] ?? toneMap.default
 
   return (
-    <div className={cn('rounded-xl border border-border bg-card p-5 flex flex-col gap-3', className)}>
+    <div className={cn('rounded-xl border border-border bg-card p-5 flex flex-col gap-3 min-h-[160px]', className)}>
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
         {icon && (
@@ -33,7 +33,7 @@ export function MetricCard({ label, value, icon, delta, tone = 'default', descri
         )}
       </div>
       {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
       )}
     </div>
   )

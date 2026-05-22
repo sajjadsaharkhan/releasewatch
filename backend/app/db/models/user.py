@@ -56,6 +56,18 @@ class User(Base):
     )
 
     # Display
+    title: Mapped[str | None] = mapped_column(
+        String(255), nullable=True,
+        doc="Job title or position"
+    )
+    bio: Mapped[str | None] = mapped_column(
+        String(2000), nullable=True,
+        doc="User biography"
+    )
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(500), nullable=True,
+        doc="S3 URL for uploaded profile image"
+    )
     avatar_color: Mapped[str] = mapped_column(
         String(7), nullable=False, default="#6366f1",
         doc="Hex colour used for the avatar fallback, e.g. #6366f1"

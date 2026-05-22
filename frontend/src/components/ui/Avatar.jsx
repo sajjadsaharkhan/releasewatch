@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { cn } from '../../lib/cn'
 
 function initials(name) {
@@ -8,29 +8,52 @@ function initials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function Avatar({ user, size = 32, ring = false, className }) {
+export function Avatar({ user, size = 32, ring = false, className, onClick }) {
+  const [imageError, setImageError] = useState(false)
+  const avatarUrl = user?.avatar_url
   const name = user?.name ?? '?'
   const color = user?.avatar_color ?? '#6366f1'
   const initStr = initials(name)
 
   const fontSize = size <= 24 ? size * 0.42 : size <= 32 ? size * 0.38 : size * 0.35
+  const hasImage = avatarUrl && !imageError
+
+  const wrapperProps = {
+    title: name,
+    className: cn(
+      'inline-flex items-center justify-center rounded-full shrink-0 select-none font-semibold text-white overflow-hidden',
+      ring && 'ring-2 ring-background',
+      onClick && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all',
+      className
+    ),
+    style: {
+      width: size,
+      height: size,
+      backgroundColor: hasImage ? 'transparent' : color,
+      fontSize,
+      lineHeight: 1,
+    },
+  }
+
+  if (onClick) {
+    wrapperProps.onClick = onClick
+  }
+
+  if (hasImage) {
+    return (
+      <span {...wrapperProps}>
+        <img
+          src={avatarUrl}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      </span>
+    )
+  }
 
   return (
-    <span
-      title={name}
-      className={cn(
-        'inline-flex items-center justify-center rounded-full shrink-0 select-none font-semibold text-white',
-        ring && 'ring-2 ring-background',
-        className
-      )}
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: color,
-        fontSize,
-        lineHeight: 1,
-      }}
-    >
+    <span {...wrapperProps}>
       {initStr}
     </span>
   )

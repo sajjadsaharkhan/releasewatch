@@ -19,6 +19,7 @@ from app.api.v1 import (
     team,
     settings as settings_router,
     telegram,
+    user,
     ws,
 )
 
@@ -35,6 +36,7 @@ api_router.include_router(attachments.router, prefix="/issues", tags=["attachmen
 api_router.include_router(inbox.router, prefix="/inbox", tags=["inbox"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(team.router, prefix="/team", tags=["team"])
+api_router.include_router(user.router, tags=["user"])
 api_router.include_router(settings_router.router, prefix="/settings", tags=["settings"])
 api_router.include_router(telegram.router, prefix="/telegram", tags=["telegram"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])

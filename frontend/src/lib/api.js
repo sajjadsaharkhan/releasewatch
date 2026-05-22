@@ -118,3 +118,10 @@ export const attachmentsApi = {
 export const timelineApi = {
   list: (issueId) => api.get(`/issues/${issueId}/timeline`),
 }
+
+// ─── User ────────────────────────────────────────────────────────────────────
+export const userApi = {
+  presignAvatar: (data) => api.post('/me/avatar/presign', data),
+  updateProfile: (data) => api.put('/me/profile', data),
+  deleteAvatar: () => api.delete('/me/avatar'),
+}
