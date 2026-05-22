@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
-import { Button } from '../components/ui/Button'
 import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
@@ -23,7 +22,7 @@ import {
   releaseById, issuesByRelease, userById
 } from '../data/mockData'
 import { relTime } from '../lib/relTime'
-import { ThumbsUp, ThumbsDown, CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Info } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Info } from 'lucide-react'
 
 const SEVERITY_COLORS = {
   blocker: '#ef4444',
@@ -278,7 +277,6 @@ function generateDiscoveryData(releaseId) {
 export default function ReleaseDetailPage() {
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState('overview')
-  const [goNoGoLoading, setGoNoGoLoading] = useState(false)
   const [localRelease, setLocalRelease] = useState(() => releaseById(id))
 
   const release = localRelease
@@ -465,13 +463,6 @@ export default function ReleaseDetailPage() {
     totalAssigned: issues.filter((i) => i.assignee === u.id).length,
   })).filter((c) => c.filed + c.fixed > 0)
 
-  async function handleGoNoGo(decision) {
-    setGoNoGoLoading(true)
-    await new Promise((r) => setTimeout(r, 600))
-    setLocalRelease((prev) => ({ ...prev, goNoGo: decision, goNoGoBy: 'u-6' }))
-    setGoNoGoLoading(false)
-  }
-
   // Beautiful release status indicator
   const getStatusIndicator = () => {
     if (release.goNoGo === 'approved') {
@@ -618,63 +609,105 @@ export default function ReleaseDetailPage() {
 
         {/* Metrics and Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Release Status */}
-          <div className="rounded-xl border border-border bg-card p-4">
-            {/* Status and Date Header */}
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
-              <div className="flex-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Release Status</span>
-                {getStatusInlineBadge()}
+          {/* Release Status - Redesigned */}
+          <div className="rounded-xl border border-border bg-card p-5">
+            {/* Status Header with Icon and Description */}
+            <div className="flex items-start gap-4 mb-5">
+              <div className={cn(
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                release.goNoGo === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
+                release.goNoGo === 'blocked' ? 'bg-red-100 dark:bg-red-900/30' :
+                release.blockers > 0 ? 'bg-red-100 dark:bg-red-900/30' :
+                release.openIssues > 0 ? 'bg-amber-100 dark:bg-amber-900/30' :
+                'bg-green-100 dark:bg-green-900/30'
+              )}>
+                {release.goNoGo === 'approved' ? (
+                  <Ship className="h-6 w-6 text-green-600 dark:text-green-400" />
+                ) : release.goNoGo === 'blocked' ? (
+                  <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                ) : release.blockers > 0 ? (
+                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                ) : release.openIssues > 0 ? (
+                  <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                ) : (
+                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                )}
               </div>
-              <div className="text-right">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Target Date</span>
-                <span className="text-sm font-medium text-foreground">
-                  {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold">Release Status</span>
+                  {getStatusInlineBadge()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {release.goNoGo === 'approved'
+                    ? `Approved by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Ready for deployment.`
+                    : release.goNoGo === 'blocked'
+                    ? `Blocked by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Critical issues must be resolved.`
+                    : release.blockers > 0
+                    ? `${release.blockers} critical issue${release.blockers > 1 ? 's' : ''} blocking release.`
+                    : release.openIssues > 0
+                    ? `${release.openIssues} open issue${release.openIssues > 1 ? 's' : ''} in progress.`
+                    : 'All issues resolved. Release is ready for review.'}
+                </p>
               </div>
             </div>
 
-            {/* Days Cards - Compact Row */}
-            <div className="flex gap-3">
+            {/* Timeline Progress Bar */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="text-muted-foreground">Timeline Progress</span>
+                <InfoTooltip
+                  content={`${daysInfo.daysSinceCreated} days elapsed since release creation`}
+                  side="top"
+                />
+              </div>
+              <div className="relative h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    'absolute top-0 left-0 h-full rounded-full transition-all duration-500',
+                    daysInfo.isDelayed
+                      ? 'bg-red-500'
+                      : daysInfo.isToday
+                      ? 'bg-amber-500'
+                      : 'bg-green-500'
+                  )}
+                  style={{
+                    width: `${Math.min(100, (daysInfo.daysSinceCreated / (daysInfo.daysSinceCreated + Math.max(0, daysInfo.daysUntilTarget))) * 100)}%`
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
+                <span>Created {new Date(release.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                <span>Target {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              </div>
+            </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-3">
               {/* Days Active */}
-              <div className="flex-1 rounded-lg border border-border bg-card p-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <InfoTooltip
-                    content="Number of days since this release was created"
-                    side="top"
-                  />
-                  <span className="text-[10.5px] text-muted-foreground uppercase tracking-wide">Days Active</span>
-                </div>
+              <div className="rounded-lg border border-border bg-card p-3 text-center">
+                <p className="text-[10.5px] text-muted-foreground uppercase tracking-wide mb-1">Days Active</p>
                 <p className="text-2xl font-bold tracking-tight">{daysInfo.daysSinceCreated}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Since creation</p>
               </div>
 
               {/* Days Left/Delayed */}
               <div className={cn(
-                'flex-1 rounded-lg border bg-card p-3',
+                'rounded-lg border bg-card p-3 text-center',
                 daysInfo.isDelayed
                   ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
                   : daysInfo.isToday
                   ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10'
                   : 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
               )}>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <InfoTooltip
-                    content={daysInfo.isDelayed
-                      ? "This release is overdue by the shown number of days"
-                      : daysInfo.isToday
-                      ? "This release is due today"
-                      : "Number of days remaining until the target release date"}
-                    side="top"
-                  />
-                  <span className={cn(
-                    'text-[10.5px] uppercase tracking-wide',
-                    daysInfo.isDelayed || daysInfo.isToday
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-600 dark:text-green-400'
-                  )}>
-                    {daysInfo.isDelayed ? 'Delayed' : daysInfo.isToday ? 'Due Today' : 'Days Left'}
-                  </span>
-                </div>
+                <p className={cn(
+                  'text-[10.5px] uppercase tracking-wide mb-1',
+                  daysInfo.isDelayed || daysInfo.isToday
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-green-600 dark:text-green-400'
+                )}>
+                  {daysInfo.isDelayed ? 'Delayed' : daysInfo.isToday ? 'Due Today' : 'Days Left'}
+                </p>
                 <p className={cn(
                   'text-2xl font-bold tracking-tight',
                   daysInfo.isDelayed
@@ -685,64 +718,23 @@ export default function ReleaseDetailPage() {
                 )}>
                   {daysInfo.isDelayed ? Math.abs(daysInfo.daysUntilTarget) : daysInfo.daysUntilTarget}
                 </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {daysInfo.isDelayed ? 'Days overdue' : daysInfo.isToday ? 'Today!' : 'Until target'}
+                </p>
               </div>
-            </div>
 
-            {/* Decision Section - Always occupies same space */}
-            <div className="pt-3 mt-3 border-t border-border">
-              {!release.goNoGo && release.status === 'active' ? (
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    {release.blockers > 0
-                      ? 'Resolve all blockers before approving this release'
-                      : 'Review the release status and make your decision'}
-                  </p>
-                  <div className="flex gap-3">
-                    <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-10"
-                      loading={goNoGoLoading}
-                      onClick={() => handleGoNoGo('approved')}
-                      disabled={release.blockers > 0}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <Ship className="h-4 w-4" />
-                        <div className="text-left">
-                          <div className="text-xs font-semibold">Approve Release</div>
-                          <div className="text-[10px] opacity-80">Ready to ship</div>
-                        </div>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="flex-1 h-10"
-                      loading={goNoGoLoading}
-                      onClick={() => handleGoNoGo('blocked')}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <XCircle className="h-4 w-4" />
-                        <div className="text-left">
-                          <div className="text-xs font-semibold">Block Release</div>
-                          <div className="text-[10px] opacity-80">Issues found</div>
-                        </div>
-                      </div>
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-[76px]">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {release.goNoGo === 'approved' && <Ship className="h-4 w-4 text-green-500" />}
-                    {release.goNoGo === 'blocked' && <XCircle className="h-4 w-4 text-red-500" />}
-                    <span>
-                      {release.goNoGo
-                        ? `Decided by ${userById(release.goNoGoBy)?.name ?? 'CTO'}`
-                        : release.status === 'released'
-                        ? 'Release has been shipped'
-                        : 'Release not yet active for decision'}
-                    </span>
-                  </div>
-                </div>
-              )}
+              {/* Completion Rate */}
+              <div className="rounded-lg border border-border bg-card p-3 text-center">
+                <p className="text-[10.5px] text-muted-foreground uppercase tracking-wide mb-1">Completion</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {release.totalIssues > 0
+                    ? Math.round((release.fixedIssues / release.totalIssues) * 100)
+                    : 0}%
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {release.fixedIssues} of {release.totalIssues} issues
+                </p>
+              </div>
             </div>
           </div>
 
