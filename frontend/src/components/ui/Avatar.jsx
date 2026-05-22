@@ -45,7 +45,6 @@ export function AvatarGroup({ users = [], max = 4, size = 28 }) {
       {shown.map((user, i) => (
         <span
           key={user.id}
-          style={{ marginLeft: i === 0 ? 0 : -(size * 0.3) }}
           className="relative"
           style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
         >

@@ -1086,6 +1086,150 @@ export const MOCK_DASHBOARD = {
   ],
 }
 
+// ─── Time-series metrics data (for bar charts) ────────────────────────────────────
+export const MOCK_USER_METRICS_TIME_SERIES = {
+  // Aggregated team data (when no user selected)
+  all: [
+    { date: '2026-04-20', regressionRate: 14, avgTimeToTriage: 2.2, avgTimeToVerify: 4.8, avgTimeToFix: 8.5 },
+    { date: '2026-04-27', regressionRate: 12, avgTimeToTriage: 2.0, avgTimeToVerify: 4.2, avgTimeToFix: 7.8 },
+    { date: '2026-05-04', regressionRate: 18, avgTimeToTriage: 2.8, avgTimeToVerify: 5.5, avgTimeToFix: 10.2 },
+    { date: '2026-05-11', regressionRate: 15, avgTimeToTriage: 2.4, avgTimeToVerify: 5.0, avgTimeToFix: 9.1 },
+    { date: '2026-05-18', regressionRate: 10, avgTimeToTriage: 1.9, avgTimeToVerify: 4.0, avgTimeToFix: 7.2 },
+  ],
+  // Per-user data (when specific user selected)
+  'u-4': [ // Aisha - QA, high reporter
+    { date: '2026-04-20', regressionRate: 0, avgTimeToTriage: 1.5, avgTimeToVerify: 3.8, avgTimeToFix: null },
+    { date: '2026-04-27', regressionRate: 0, avgTimeToTriage: 1.8, avgTimeToVerify: 4.2, avgTimeToFix: null },
+    { date: '2026-05-04', regressionRate: 0, avgTimeToTriage: 2.0, avgTimeToVerify: 4.5, avgTimeToFix: null },
+    { date: '2026-05-11', regressionRate: 0, avgTimeToTriage: 1.6, avgTimeToVerify: 3.5, avgTimeToFix: null },
+    { date: '2026-05-18', regressionRate: 0, avgTimeToTriage: 1.4, avgTimeToVerify: 3.2, avgTimeToFix: null },
+  ],
+  'u-3': [ // Lucas - Senior developer, high fixer
+    { date: '2026-04-20', regressionRate: 5, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 3.5 },
+    { date: '2026-04-27', regressionRate: 8, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 3.8 },
+    { date: '2026-05-04', regressionRate: 12, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 4.2 },
+    { date: '2026-05-11', regressionRate: 7, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 3.1 },
+    { date: '2026-05-18', regressionRate: 4, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 2.9 },
+  ],
+  'u-2': [ // Priya - Triage lead, good at triage
+    { date: '2026-04-20', regressionRate: 2, avgTimeToTriage: 1.2, avgTimeToVerify: 4.0, avgTimeToFix: null },
+    { date: '2026-04-27', regressionRate: 3, avgTimeToTriage: 1.0, avgTimeToVerify: 3.8, avgTimeToFix: null },
+    { date: '2026-05-04', regressionRate: 4, avgTimeToTriage: 1.5, avgTimeToVerify: 4.5, avgTimeToFix: null },
+    { date: '2026-05-11', regressionRate: 2, avgTimeToTriage: 1.1, avgTimeToVerify: 3.9, avgTimeToFix: null },
+    { date: '2026-05-18', regressionRate: 1, avgTimeToTriage: 0.9, avgTimeToVerify: 3.5, avgTimeToFix: null },
+  ],
+  'u-5': [ // Marcus - Developer, moderate fixer
+    { date: '2026-04-20', regressionRate: 8, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 5.5 },
+    { date: '2026-04-27', regressionRate: 10, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 6.2 },
+    { date: '2026-05-04', regressionRate: 15, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 7.0 },
+    { date: '2026-05-11', regressionRate: 9, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 5.8 },
+    { date: '2026-05-18', regressionRate: 6, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 5.0 },
+  ],
+  'u-8': [ // Chen Wei - Developer
+    { date: '2026-04-20', regressionRate: 6, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 4.8 },
+    { date: '2026-04-27', regressionRate: 7, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 5.0 },
+    { date: '2026-05-04', regressionRate: 10, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 5.5 },
+    { date: '2026-05-11', regressionRate: 5, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 4.2 },
+    { date: '2026-05-18', regressionRate: 3, avgTimeToTriage: null, avgTimeToVerify: null, avgTimeToFix: 4.0 },
+  ],
+}
+
+// ─── Segmented by severity (for stacked bar chart) ────────────────────────────
+export const MOCK_CONTRIBUTIONS_SEGMENTED = [
+  {
+    userId: 'u-4',
+    name: 'Aisha',
+    reported: { blocker: 8, critical: 12, major: 14, minor: 5, total: 39 },
+    fixed: { blocker: 0, critical: 0, major: 0, minor: 0, total: 0 },
+  },
+  {
+    userId: 'u-2',
+    name: 'Priya',
+    reported: { blocker: 5, critical: 8, major: 11, minor: 7, total: 31 },
+    fixed: { blocker: 1, critical: 1, major: 0, minor: 0, total: 2 },
+  },
+  {
+    userId: 'u-3',
+    name: 'Lucas',
+    reported: { blocker: 0, critical: 1, major: 1, minor: 1, total: 3 },
+    fixed: { blocker: 6, critical: 8, major: 10, minor: 4, total: 28 },
+  },
+  {
+    userId: 'u-5',
+    name: 'Marcus',
+    reported: { blocker: 0, critical: 1, major: 3, minor: 1, total: 5 },
+    fixed: { blocker: 2, critical: 4, major: 12, minor: 4, total: 22 },
+  },
+  {
+    userId: 'u-8',
+    name: 'Chen Wei',
+    reported: { blocker: 0, critical: 1, major: 2, minor: 1, total: 4 },
+    fixed: { blocker: 1, critical: 3, major: 10, minor: 4, total: 18 },
+  },
+  {
+    userId: 'u-7',
+    name: 'Ben',
+    reported: { blocker: 2, critical: 5, major: 9, minor: 3, total: 19 },
+    fixed: { blocker: 0, critical: 0, major: 0, minor: 0, total: 0 },
+  },
+  {
+    userId: 'u-1',
+    name: 'Sajjad',
+    reported: { blocker: 1, critical: 3, major: 5, minor: 2, total: 11 },
+    fixed: { blocker: 1, critical: 2, major: 4, minor: 1, total: 8 },
+  },
+  {
+    userId: 'u-6',
+    name: 'Elena',
+    reported: { blocker: 1, critical: 1, major: 0, minor: 0, total: 2 },
+    fixed: { blocker: 0, critical: 0, major: 1, minor: 0, total: 1 },
+  },
+]
+
+// ─── Per label issued per person (for label bar chart) ─────────────────────────
+export const MOCK_LABELS_PER_PERSON = [
+  {
+    userId: 'u-4',
+    name: 'Aisha',
+    labels: { auth: 8, payments: 12, performance: 5, uiux: 4, api: 6, mobile: 3, data: 2, infra: 1, total: 41 },
+  },
+  {
+    userId: 'u-2',
+    name: 'Priya',
+    labels: { auth: 6, payments: 8, performance: 4, uiux: 5, api: 4, mobile: 3, data: 2, infra: 2, total: 34 },
+  },
+  {
+    userId: 'u-7',
+    name: 'Ben',
+    labels: { auth: 3, payments: 4, performance: 5, uiux: 2, api: 2, mobile: 2, data: 1, infra: 0, total: 19 },
+  },
+  {
+    userId: 'u-1',
+    name: 'Sajjad',
+    labels: { auth: 2, payments: 2, performance: 1, uiux: 3, api: 2, mobile: 1, data: 1, infra: 1, total: 13 },
+  },
+  {
+    userId: 'u-5',
+    name: 'Marcus',
+    labels: { auth: 1, payments: 1, performance: 1, uiux: 1, api: 1, mobile: 0, data: 0, infra: 0, total: 5 },
+  },
+  {
+    userId: 'u-8',
+    name: 'Chen Wei',
+    labels: { auth: 1, payments: 1, performance: 1, uiux: 0, api: 1, mobile: 0, data: 0, infra: 0, total: 4 },
+  },
+  {
+    userId: 'u-3',
+    name: 'Lucas',
+    labels: { auth: 1, payments: 0, performance: 0, uiux: 1, api: 1, mobile: 0, data: 0, infra: 0, total: 3 },
+  },
+  {
+    userId: 'u-6',
+    name: 'Elena',
+    labels: { auth: 1, payments: 0, performance: 0, uiux: 0, api: 1, mobile: 0, data: 0, infra: 0, total: 2 },
+  },
+]
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export function userById(id) {
   return MOCK_TEAM.find((u) => u.id === id) ?? null
@@ -1109,4 +1253,45 @@ export function issuesByRelease(releaseId) {
 
 export function issuesByProject(projectId) {
   return MOCK_ISSUES.filter((i) => i.projectId === projectId)
+}
+
+// Get merged contributions data for the unified table
+export function getMergedContributions() {
+  const merged = []
+
+  // Add all reporters
+  MOCK_CONTRIBUTIONS.reporters.forEach(r => {
+    merged.push({
+      userId: r.userId,
+      reported: r.reported,
+      reportedBreakdown: r.breakdown,
+      fixed: 0,
+      fixRate: null,
+      avgTTF: null,
+      avgTTV: null,
+    })
+  })
+
+  // Merge in solvers
+  MOCK_CONTRIBUTIONS.solvers.forEach(s => {
+    const existing = merged.find(m => m.userId === s.userId)
+    if (existing) {
+      existing.fixed = s.fixed
+      existing.fixRate = s.fixRate
+      existing.avgTTF = s.avgTTF
+      existing.avgTTV = s.avgTTF * 1.3 // Mock: verification is typically 30% longer
+    } else {
+      merged.push({
+        userId: s.userId,
+        reported: 0,
+        reportedBreakdown: { blocker: 0, critical: 0, major: 0, minor: 0, enhancement: 0 },
+        fixed: s.fixed,
+        fixRate: s.fixRate,
+        avgTTF: s.avgTTF,
+        avgTTV: s.avgTTF * 1.3,
+      })
+    }
+  })
+
+  return merged
 }
