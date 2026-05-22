@@ -1,18 +1,29 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { StatusBadge, SeverityBadge } from '../components/ui/Badge'
+import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
 import { MetricCard } from '../components/common/MetricCard'
+import { Tabs } from '../components/ui/Tabs'
+import { Tooltip } from '../components/ui/Tooltip'
+import { InfoTooltip } from '../components/ui/InfoTooltip'
+import { Icon } from '../components/ui/Icon'
+import { Segmented } from '../components/ui/Segmented'
+import { ColorSelectDropdown } from '../components/ui/ColorSelectDropdown'
 import {
   PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import { MOCK_RELEASES, MOCK_ISSUES, MOCK_TEAM, SEVERITY, releaseById, issuesByRelease, userById } from '../data/mockData'
+import {
+  MOCK_RELEASES, MOCK_ISSUES, MOCK_TEAM, MOCK_LABELS, SEVERITY,
+  releaseById, issuesByRelease, userById
+} from '../data/mockData'
 import { relTime } from '../lib/relTime'
-import { ThumbsUp, ThumbsDown, CheckCircle2, XCircle, Clock, AlertTriangle, Ship } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Info } from 'lucide-react'
 
 const SEVERITY_COLORS = {
   blocker: '#ef4444',
@@ -20,6 +31,238 @@ const SEVERITY_COLORS = {
   major: '#f59e0b',
   minor: '#3b82f6',
   enhancement: '#8b5cf6',
+}
+
+// Severity items for filter dropdown
+const SEVERITY_ITEMS = Object.keys(SEVERITY).map((key) => ({
+  value: key,
+  label: SEVERITY[key].label,
+  color: SEVERITY_COLORS[key],
+}))
+
+// Calculate label-level metrics from issues
+// TODO: In production, this should come from the backend API
+function calculateLabelMetrics(issues, labels) {
+  const metrics = {}
+
+  issues.forEach(issue => {
+    issue.labels.forEach(labelId => {
+      const label = labels.find(l => l.id === labelId)
+      if (!label) return
+
+      if (!metrics[label.name]) {
+        metrics[label.name] = {
+          label: label.name,
+          mttfSum: 0,
+          mttfCount: 0,
+          mttvSum: 0,
+          mttvCount: 0,
+          mtttSum: 0,
+          mtttCount: 0,
+          bugCount: 0,
+          regressionCount: 0,
+          verifiedCount: 0
+        }
+      }
+
+      metrics[label.name].bugCount++
+      if (issue.is_regression || issue.regressionCount > 0) metrics[label.name].regressionCount++
+      if (issue.status === 'verified') metrics[label.name].verifiedCount++
+
+      if (issue.time_to_triage_h) {
+        metrics[label.name].mtttSum += issue.time_to_triage_h
+        metrics[label.name].mtttCount++
+      }
+      if (issue.time_to_fix_h) {
+        metrics[label.name].mttfSum += issue.time_to_fix_h
+        metrics[label.name].mttfCount++
+      }
+      if (issue.time_to_verify_h) {
+        metrics[label.name].mttvSum += issue.time_to_verify_h
+        metrics[label.name].mttvCount++
+      }
+    })
+  })
+
+  return Object.values(metrics).map(m => ({
+    label: m.label,
+    mttf: m.mttfCount > 0 ? Math.round(m.mttfSum / m.mttfCount * 10) / 10 : 0,
+    mttv: m.mttvCount > 0 ? Math.round(m.mttvSum / m.mttvCount * 10) / 10 : 0,
+    mttt: m.mtttCount > 0 ? Math.round(m.mtttSum / m.mtttCount * 10) / 10 : 0,
+    bugCount: m.bugCount,
+    regressionCount: m.regressionCount,
+    regressionRate: m.verifiedCount > 0
+      ? Math.round((m.regressionCount / (m.verifiedCount + m.regressionCount)) * 100)
+      : 0
+  })).filter(d => d.bugCount > 0) // Only include labels with bugs
+}
+
+// Calculate severity-level metrics from issues
+function calculateSeverityMetrics(issues) {
+  const severityOrder = ['blocker', 'critical', 'major', 'minor', 'enhancement']
+  const metrics = {}
+
+  // Initialize all severities
+  severityOrder.forEach(sev => {
+    metrics[sev] = {
+      severity: SEVERITY[sev].label,
+      mttfSum: 0,
+      mttfCount: 0,
+      mttvSum: 0,
+      mttvCount: 0,
+      mtttSum: 0,
+      mtttCount: 0,
+      bugCount: 0,
+      color: SEVERITY_COLORS[sev]
+    }
+  })
+
+  // Aggregate metrics by severity
+  issues.forEach(issue => {
+    const sev = issue.severity
+    if (metrics[sev]) {
+      metrics[sev].bugCount++
+      if (issue.time_to_triage_h) {
+        metrics[sev].mtttSum += issue.time_to_triage_h
+        metrics[sev].mtttCount++
+      }
+      if (issue.time_to_fix_h) {
+        metrics[sev].mttfSum += issue.time_to_fix_h
+        metrics[sev].mttfCount++
+      }
+      if (issue.time_to_verify_h) {
+        metrics[sev].mttvSum += issue.time_to_verify_h
+        metrics[sev].mttvCount++
+      }
+    }
+  })
+
+  // Transform to chart data format, only include severities with bugs
+  return Object.values(metrics)
+    .filter(m => m.bugCount > 0)
+    .map(m => ({
+      severity: m.severity,
+      mttf: m.mttfCount > 0 ? Math.round(m.mttfSum / m.mttfCount * 10) / 10 : 0,
+      mttv: m.mttvCount > 0 ? Math.round(m.mttvSum / m.mttvCount * 10) / 10 : 0,
+      mttt: m.mtttCount > 0 ? Math.round(m.mtttSum / m.mtttCount * 10) / 10 : 0,
+      bugCount: m.bugCount,
+      color: m.color
+    }))
+}
+
+// Calculate daily time metrics for time-series chart
+function calculateDailyTimeMetrics(issues) {
+  if (issues.length === 0) return []
+
+  // Collect all relevant dates
+  const dates = issues.flatMap(i => [
+    new Date(i.createdAt),
+    i.fixedAt ? new Date(i.fixedAt) : null,
+    i.verifiedAt ? new Date(i.verifiedAt) : null,
+    i.triagedAt ? new Date(i.triagedAt) : null,
+  ]).filter(Boolean)
+
+  if (dates.length === 0) return []
+
+  const minDate = new Date(Math.min(...dates))
+  const maxDate = new Date(Math.max(...dates))
+  const dayCount = Math.max(7, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)))
+
+  // Generate daily buckets
+  const dailyBuckets = Array.from({ length: dayCount }, (_, i) => {
+    const dayDate = new Date(minDate)
+    dayDate.setDate(dayDate.getDate() + i)
+    return {
+      date: dayDate,
+      dateLabel: dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      mttfSum: 0,
+      mttfCount: 0,
+      mttvSum: 0,
+      mttvCount: 0,
+      mtttSum: 0,
+      mtttCount: 0
+    }
+  })
+
+  // Aggregate metrics by day based on completion date
+  issues.forEach(issue => {
+    if (issue.triagedAt && issue.createdAt) {
+      const triageDate = new Date(issue.triagedAt)
+      const triageHours = (triageDate - new Date(issue.createdAt)) / (1000 * 60 * 60)
+      const dayIndex = Math.floor((triageDate - minDate) / (1000 * 60 * 60 * 24))
+      if (dayIndex >= 0 && dayIndex < dayCount) {
+        dailyBuckets[dayIndex].mtttSum += triageHours
+        dailyBuckets[dayIndex].mtttCount++
+      }
+    }
+    if (issue.fixedAt && issue.triagedAt) {
+      const fixDate = new Date(issue.fixedAt)
+      const fixHours = (fixDate - new Date(issue.triagedAt)) / (1000 * 60 * 60)
+      const dayIndex = Math.floor((fixDate - minDate) / (1000 * 60 * 60 * 24))
+      if (dayIndex >= 0 && dayIndex < dayCount) {
+        dailyBuckets[dayIndex].mttfSum += fixHours
+        dailyBuckets[dayIndex].mttfCount++
+      }
+    }
+    if (issue.verifiedAt && issue.fixedAt) {
+      const verifyDate = new Date(issue.verifiedAt)
+      const verifyHours = (verifyDate - new Date(issue.fixedAt)) / (1000 * 60 * 60)
+      const dayIndex = Math.floor((verifyDate - minDate) / (1000 * 60 * 60 * 24))
+      if (dayIndex >= 0 && dayIndex < dayCount) {
+        dailyBuckets[dayIndex].mttvSum += verifyHours
+        dailyBuckets[dayIndex].mttvCount++
+      }
+    }
+  })
+
+  return dailyBuckets.map(d => ({
+    date: d.dateLabel,
+    mttf: d.mttfCount > 0 ? Math.round(d.mttfSum / d.mttfCount * 10) / 10 : null,
+    mttv: d.mttvCount > 0 ? Math.round(d.mttvSum / d.mttvCount * 10) / 10 : null,
+    mttt: d.mtttCount > 0 ? Math.round(d.mtttSum / d.mtttCount * 10) / 10 : null
+  }))
+}
+
+// KPI Card with improved tooltip
+function KPICard({ label, value, icon, delta, tone, description, tooltip }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+        <div className="flex items-center gap-1.5">
+          {tooltip && <InfoTooltip content={tooltip} side="top" />}
+          {icon && (
+            <div className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg',
+              tone === 'red' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+              tone === 'amber' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+              tone === 'green' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+              tone === 'blue' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+              'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+            )}>
+              <Icon name={icon} size={16} />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-3xl font-bold tracking-tight">{value ?? '—'}</p>
+        {delta && (
+          <span className={cn(
+            'mb-1 rounded-full px-2 py-0.5 text-xs font-medium',
+            tone === 'red' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+            tone === 'amber' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+          )}>
+            {delta}
+          </span>
+        )}
+      </div>
+      {description && (
+        <p className="text-xs text-muted-foreground">{description}</p>
+      )}
+    </div>
+  )
 }
 
 // Generate mock discovery data
@@ -34,11 +277,110 @@ function generateDiscoveryData(releaseId) {
 
 export default function ReleaseDetailPage() {
   const { id } = useParams()
+  const [activeTab, setActiveTab] = useState('overview')
   const [goNoGoLoading, setGoNoGoLoading] = useState(false)
   const [localRelease, setLocalRelease] = useState(() => releaseById(id))
 
   const release = localRelease
   const issues = issuesByRelease(id)
+
+  // Calculate label metrics for analytics dashboard
+  const labelMetrics = useMemo(() =>
+    calculateLabelMetrics(issues, MOCK_LABELS),
+    [issues]
+  )
+
+  // Calculate severity metrics for analytics dashboard
+  const severityMetrics = useMemo(() =>
+    calculateSeverityMetrics(issues),
+    [issues]
+  )
+
+  // Get active blockers for analytics dashboard
+  const activeBlockers = useMemo(() =>
+    issues.filter(i => i.is_release_blocker && i.status !== 'verified' && i.status !== 'closed'),
+    [issues]
+  )
+
+  // Get top fragile labels
+  const topFragileLabels = useMemo(() =>
+    [...labelMetrics]
+      .sort((a, b) => b.regressionCount - a.regressionCount)
+      .slice(0, 5)
+      .filter(c => c.regressionCount > 0),
+    [labelMetrics]
+  )
+
+  // Calculate KPI values
+  const verifiedIssues = useMemo(() =>
+    issues.filter(i => i.status === 'verified').length,
+    [issues]
+  )
+  const regressionCount = useMemo(() =>
+    issues.filter(i => i.is_regression || (i.regressionCount && i.regressionCount > 0)).length,
+    [issues]
+  )
+  const regressionRate = useMemo(() =>
+    verifiedIssues > 0 ? Math.round((regressionCount / (verifiedIssues + regressionCount)) * 100) : 0,
+    [verifiedIssues, regressionCount]
+  )
+
+  // Calculate average times from issues
+  const avgTimeToFix = useMemo(() => {
+    const withFixTime = issues.filter(i => i.time_to_fix_h)
+    return withFixTime.length > 0
+      ? Math.round(withFixTime.reduce((sum, i) => sum + i.time_to_fix_h, 0) / withFixTime.length * 10) / 10
+      : null
+  }, [issues])
+
+  const avgTimeToVerify = useMemo(() => {
+    const withVerifyTime = issues.filter(i => i.time_to_verify_h)
+    return withVerifyTime.length > 0
+      ? Math.round(withVerifyTime.reduce((sum, i) => sum + i.time_to_verify_h, 0) / withVerifyTime.length * 10) / 10
+      : null
+  }, [issues])
+
+  // Calculate average time to triage
+  const avgTimeToTriage = useMemo(() => {
+    const withTriageTime = issues.filter(i => i.time_to_triage_h)
+    return withTriageTime.length > 0
+      ? Math.round(withTriageTime.reduce((sum, i) => sum + i.time_to_triage_h, 0) / withTriageTime.length * 10) / 10
+      : null
+  }, [issues])
+
+  // Filter state for analytics
+  const [filterBy, setFilterBy] = useState('all') // 'all', 'severity', 'labels'
+  const [selectedSeverity, setSelectedSeverity] = useState(null)
+  const [selectedLabel, setSelectedLabel] = useState(null)
+
+  // Filter issues based on selection
+  const filteredIssues = useMemo(() => {
+    if (filterBy === 'all') return issues
+    if (filterBy === 'severity' && selectedSeverity) {
+      return issues.filter(i => i.severity === selectedSeverity)
+    }
+    if (filterBy === 'labels' && selectedLabel) {
+      return issues.filter(i => i.labels.includes(selectedLabel))
+    }
+    return issues
+  }, [issues, filterBy, selectedSeverity, selectedLabel])
+
+  // Calculate daily time metrics for time-series chart
+  const dailyTimeMetrics = useMemo(() =>
+    calculateDailyTimeMetrics(filteredIssues),
+    [filteredIssues]
+  )
+
+  // Recalculate metrics based on filtered issues
+  const filteredLabelMetrics = useMemo(() =>
+    calculateLabelMetrics(filteredIssues, MOCK_LABELS),
+    [filteredIssues]
+  )
+
+  const filteredSeverityMetrics = useMemo(() =>
+    calculateSeverityMetrics(filteredIssues),
+    [filteredIssues]
+  )
 
   if (!release) {
     return (
@@ -172,6 +514,20 @@ export default function ReleaseDetailPage() {
           <StatusBadge status={release.status === 'released' ? 'verified' : release.status === 'active' ? 'in_progress' : 'new'} />
         </div>
 
+        {/* Tab Navigation */}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          options={[
+            { value: 'overview', label: 'Overview' },
+            { value: 'analytics', label: 'Analytics Dashboard' },
+          ]}
+        />
+
+        {/* Overview Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+
         {/* Metrics and Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Beautiful status section */}
@@ -217,53 +573,6 @@ export default function ReleaseDetailPage() {
             <MetricCard label="Fixed" value={issues.filter((i) => ['fixed', 'verified'].includes(i.status)).length} icon="check-circle" tone="green" />
             <MetricCard label="Open" value={release.openIssues} icon="circle-dot" tone="amber" />
             <MetricCard label="Blockers" value={release.blockers} icon="alert-octagon" tone="red" />
-          </div>
-        </div>
-
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Severity donut */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Issue breakdown by severity</h3>
-            {sevCounts.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No issues</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={sevCounts}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {sevCounts.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v, n) => [v, n]} />
-                  <Legend iconType="circle" iconSize={8} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Bug discovery line chart */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Bug discovery & fix rate</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={discoveryData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend iconSize={8} />
-                <Line type="monotone" dataKey="filed" stroke="#ef4444" strokeWidth={2} dot={false} name="Filed" />
-                <Line type="monotone" dataKey="fixed" stroke="#10b981" strokeWidth={2} dot={false} name="Fixed" />
-              </LineChart>
-            </ResponsiveContainer>
           </div>
         </div>
 
@@ -330,6 +639,356 @@ export default function ReleaseDetailPage() {
             <IssueTable issues={issues} />
           </div>
         </div>
+          </div>
+        )}
+
+        {/* Analytics Dashboard Tab Content */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            {/* KPI Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                label="Mean Time to Fix"
+                value={avgTimeToFix ? `${avgTimeToFix}h` : null}
+                icon="clock"
+                tone="blue"
+                description="Average time from Triaged to Fixed"
+                tooltip="The average hours spent moving an issue from 'Triaged' to 'Fixed'. Insight: A rising MTTF indicates developers are struggling with complex bugs, unclear requirements, or resource constraints."
+              />
+              <KPICard
+                label="Mean Time to Verify"
+                value={avgTimeToVerify ? `${avgTimeToVerify}h` : null}
+                icon="check-circle"
+                tone="green"
+                description="Average time from Fixed to Verified"
+                tooltip="The average hours spent moving an issue from 'Fixed' to 'Verified'. Insight: If MTTV is significantly higher than MTTF, QA and retesting processes are the primary bottleneck delaying the release."
+              />
+              <KPICard
+                label="Mean Time to Triage"
+                value={avgTimeToTriage ? `${avgTimeToTriage}h` : null}
+                icon="tag"
+                tone="purple"
+                description="Average time from New to Triaged"
+                tooltip="The average hours spent moving an issue from 'New' to 'Triaged'. Insight: A rising MTTT indicates triage backlog or unclear issue categorization."
+              />
+              <KPICard
+                label="Regression Rate"
+                value={`${regressionRate}%`}
+                icon="trending-down"
+                tone={regressionRate > 15 ? 'red' : regressionRate > 8 ? 'amber' : 'green'}
+                delta={regressionRate > 15 ? 'High' : regressionRate > 8 ? 'Moderate' : 'Low'}
+                description={`${regressionCount} regressions out of ${verifiedIssues + regressionCount} verified`}
+                tooltip="The percentage of fixed issues that failed QA and were sent back to development. Insight: High rates indicate poor developer testing or fragile code architecture. It directly causes QA fatigue."
+              />
+            </div>
+
+            {/* Filter Controls */}
+            <div className="flex flex-wrap items-center gap-4">
+              <Segmented
+                value={filterBy}
+                onValueChange={(val) => {
+                  setFilterBy(val)
+                  setSelectedSeverity(null)
+                  setSelectedLabel(null)
+                }}
+                options={[
+                  { value: 'all', label: 'All Issues' },
+                  { value: 'severity', label: 'By Severity' },
+                  { value: 'labels', label: 'By Label' },
+                ]}
+              />
+              {filterBy === 'severity' && (
+                <ColorSelectDropdown
+                  items={SEVERITY_ITEMS}
+                  value={selectedSeverity}
+                  onChange={setSelectedSeverity}
+                  placeholder="All Severities"
+                  label="Filter by severity"
+                  compact
+                  width={180}
+                />
+              )}
+              {filterBy === 'labels' && (
+                <ColorSelectDropdown
+                  items={MOCK_LABELS.map((l) => ({ value: l.id, label: l.name, color: l.color }))}
+                  value={selectedLabel}
+                  onChange={setSelectedLabel}
+                  placeholder="All Labels"
+                  label="Filter by label"
+                  compact
+                  width={180}
+                />
+              )}
+            </div>
+
+            {/* Time Metrics Chart - Time Series Vertical Triple Bar */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">Time Metrics Overview</h3>
+                <Tooltip content="MTTF, MTTV, MTTT trends over time from first issue to now">
+                  <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
+                </Tooltip>
+              </div>
+              {dailyTimeMetrics.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dailyTimeMetrics} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 11 }} label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
+                    <RechartsTooltip />
+                    <Legend iconSize={8} />
+                    <Bar dataKey="mttf" fill="#6366f1" radius={[3, 3, 0, 0]} name="MTTF" />
+                    <Bar dataKey="mttv" fill="#10b981" radius={[3, 3, 0, 0]} name="MTTV" />
+                    <Bar dataKey="mttt" fill="#8b5cf6" radius={[3, 3, 0, 0]} name="MTTT" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground">
+                  No time data available
+                </div>
+              )}
+            </div>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Bottleneck Bar Chart */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold">Velocity by Label</h3>
+                  <Tooltip content="Compare Dev Time (MTTF) vs QA Time (MTTV) to identify bottlenecks">
+                    <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
+                  </Tooltip>
+                </div>
+                {filteredLabelMetrics.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={filteredLabelMetrics} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
+                      <RechartsTooltip />
+                      <Legend iconSize={8} />
+                      <Bar dataKey="mttf" fill="#6366f1" radius={[3, 3, 0, 0]} name="MTTF" />
+                      <Bar dataKey="mttv" fill="#10b981" radius={[3, 3, 0, 0]} name="MTTV" />
+                      <Bar dataKey="mttt" fill="#8b5cf6" radius={[3, 3, 0, 0]} name="MTTT" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
+                    No label data available
+                  </div>
+                )}
+              </div>
+
+              {/* Label Fragility Scatter Plot */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold">Label Fragility</h3>
+                  <Tooltip content="Top-right quadrant shows high-volume, high-regression labels needing architectural review">
+                    <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
+                  </Tooltip>
+                </div>
+                {filteredLabelMetrics.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ScatterChart margin={{ top: 10, right: 20, left: -10, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" dataKey="bugCount" name="Bug Volume" tick={{ fontSize: 11 }} />
+                      <YAxis type="number" dataKey="regressionRate" name="Regression Rate %" tick={{ fontSize: 11 }} />
+                      <ZAxis range={[60, 200]} />
+                      <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
+                      <Scatter data={filteredLabelMetrics} fill="#ef4444" opacity={0.7} />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
+                    No label data available
+                  </div>
+                )}
+              </div>
+
+              {/* Severity-Based Metrics Chart */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold">Metrics by Severity</h3>
+                  <Tooltip content="Average MTTF and MTTV broken down by issue severity level">
+                    <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
+                  </Tooltip>
+                </div>
+                {filteredSeverityMetrics.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={filteredSeverityMetrics} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="severity" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
+                      <RechartsTooltip />
+                      <Legend iconSize={8} />
+                      <Bar dataKey="mttf" fill="#6366f1" radius={[3, 3, 0, 0]} name="MTTF" />
+                      <Bar dataKey="mttv" fill="#10b981" radius={[3, 3, 0, 0]} name="MTTV" />
+                      <Bar dataKey="mttt" fill="#8b5cf6" radius={[3, 3, 0, 0]} name="MTTT" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
+                    No severity data available
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Charts Row 2: Moved from Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Severity donut */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-sm font-semibold mb-4">Issue breakdown by severity</h3>
+                {sevCounts.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground py-8">No issues</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={sevCounts}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {sevCounts.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v, n) => [v, n]} />
+                      <Legend iconType="circle" iconSize={8} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Bug discovery line chart */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-sm font-semibold mb-4">Bug discovery & fix rate</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={discoveryData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Legend iconSize={8} />
+                    <Line type="monotone" dataKey="filed" stroke="#ef4444" strokeWidth={2} dot={false} name="Filed" />
+                    <Line type="monotone" dataKey="fixed" stroke="#10b981" strokeWidth={2} dot={false} name="Fixed" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Tables Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Active Blockers Table */}
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h3 className="text-sm font-semibold">Active Release Blockers</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {activeBlockers.length} unresolved {activeBlockers.length === 1 ? 'issue' : 'issues'} preventing release
+                  </p>
+                </div>
+                {activeBlockers.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left">
+                        <th className="px-4 py-2 text-xs font-semibold text-muted-foreground">Issue</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-muted-foreground">Assignee</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeBlockers.map((issue) => (
+                        <tr
+                          key={issue.id}
+                          className="border-b border-border last:border-0 hover:bg-accent cursor-pointer transition-colors"
+                          onClick={() => window.location.hash = `/issue/${issue.id}`}
+                        >
+                          <td className="px-4 py-2.5">
+                            <div>
+                              <span className="font-mono text-xs text-muted-foreground">{issue.id}</span>
+                              <p className="text-sm font-medium truncate max-w-[200px]">{issue.title}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {issue.assignee ? (
+                              <UserHoverCard user={userById(issue.assignee)} size={24}>
+                                <Avatar user={userById(issue.assignee)} size={24} ring />
+                              </UserHoverCard>
+                            ) : (
+                              <span className="text-muted-foreground text-sm italic">Unassigned</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <StatusBadge status={issue.status} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                    No active blockers - release is unblocked
+                  </div>
+                )}
+              </div>
+
+              {/* Top Fragile Labels List */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold">Top Fragile Labels</h3>
+                  <Tooltip content="Labels with highest regression counts - consider architectural review">
+                    <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
+                  </Tooltip>
+                </div>
+                {topFragileLabels.length > 0 ? (
+                  <div className="space-y-2">
+                    {topFragileLabels.map((comp, idx) => {
+                      const label = MOCK_LABELS.find(l => l.name === comp.label)
+                      return (
+                        <div
+                          key={comp.label}
+                          className="flex items-center justify-between p-3 rounded-lg bg-accent/50 hover:bg-accent transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-muted-foreground w-4">#{idx + 1}</span>
+                            <span
+                              className="text-sm font-medium"
+                              style={{ color: label?.color }}
+                            >
+                              {comp.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">{comp.bugCount} bugs</span>
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              comp.regressionRate > 20
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : comp.regressionRate > 10
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            )}>
+                              {comp.regressionCount} reg.
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    No regression data available for this release
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
