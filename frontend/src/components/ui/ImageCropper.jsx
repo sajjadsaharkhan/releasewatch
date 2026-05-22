@@ -86,7 +86,7 @@ export function ImageCropper({ image, onSave, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
       <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full p-6 flex flex-col items-center">
         <div className="flex items-center justify-between w-full mb-4">
           <h3 className="text-sm font-semibold">Crop your photo</h3>

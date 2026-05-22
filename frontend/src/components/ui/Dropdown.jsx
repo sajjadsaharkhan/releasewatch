@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../lib/cn'
+
+const DropdownContext = createContext(null)
 
 export function Dropdown({ trigger, children, align = 'left', className, width = null }) {
   const [open, setOpen] = useState(false)
@@ -58,14 +60,16 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
   }, [open, close])
 
   const dropdownContent = open ? (
-    <div
-      ref={dropdownRef}
-      className={cn('fixed z-[9999] mt-1 rounded-lg border border-border bg-card shadow-lg', 'py-1 text-sm', className)}
-      style={{ top: position.top, left: position.left, width: width || undefined }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {typeof children === 'function' ? children({ close }) : children}
-    </div>
+    <DropdownContext.Provider value={close}>
+      <div
+        ref={dropdownRef}
+        className={cn('fixed z-[100] mt-1 rounded-lg border border-border bg-card shadow-lg', 'py-1 text-sm', className)}
+        style={{ top: position.top, left: position.left, width: width || undefined }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {typeof children === 'function' ? children({ close }) : children}
+      </div>
+    </DropdownContext.Provider>
   ) : null
 
   return (
@@ -79,9 +83,17 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
 }
 
 export function DropdownItem({ children, onClick, icon: Icon, destructive = false, disabled = false }) {
+  const closeDropdown = useContext(DropdownContext)
+
+  const handleClick = (e) => {
+    if (disabled) return
+    onClick?.(e)
+    closeDropdown?.()
+  }
+
   return (
     <button
-      onClick={disabled ? undefined : onClick}
+      onClick={handleClick}
       disabled={disabled}
       className={cn(
         'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
