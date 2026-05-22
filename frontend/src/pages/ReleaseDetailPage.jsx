@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
-import { StatusBadge, SeverityBadge } from '../components/ui/Badge'
+import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
@@ -284,6 +284,23 @@ export default function ReleaseDetailPage() {
   const release = localRelease
   const issues = issuesByRelease(id)
 
+  // Calculate days information for the release
+  const daysInfo = useMemo(() => {
+    const now = new Date()
+    const createdDate = new Date(release.createdAt)
+    const targetDate = new Date(release.targetDate)
+
+    const daysSinceCreated = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24))
+    const daysUntilTarget = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24))
+
+    return {
+      daysSinceCreated: Math.max(0, daysSinceCreated),
+      daysUntilTarget,
+      isDelayed: daysUntilTarget < 0,
+      isToday: daysUntilTarget === 0
+    }
+  }, [release.createdAt, release.targetDate])
+
   // Calculate label metrics for analytics dashboard
   const labelMetrics = useMemo(() =>
     calculateLabelMetrics(issues, MOCK_LABELS),
@@ -381,6 +398,41 @@ export default function ReleaseDetailPage() {
     calculateSeverityMetrics(filteredIssues),
     [filteredIssues]
   )
+
+  // Calculate filtered KPI values
+  const filteredVerifiedIssues = useMemo(() =>
+    filteredIssues.filter(i => i.status === 'verified').length,
+    [filteredIssues]
+  )
+  const filteredRegressionCount = useMemo(() =>
+    filteredIssues.filter(i => i.is_regression || (i.regressionCount && i.regressionCount > 0)).length,
+    [filteredIssues]
+  )
+  const filteredRegressionRate = useMemo(() =>
+    filteredVerifiedIssues > 0 ? Math.round((filteredRegressionCount / (filteredVerifiedIssues + filteredRegressionCount)) * 100) : 0,
+    [filteredVerifiedIssues, filteredRegressionCount]
+  )
+
+  const filteredAvgTimeToFix = useMemo(() => {
+    const withFixTime = filteredIssues.filter(i => i.time_to_fix_h)
+    return withFixTime.length > 0
+      ? Math.round(withFixTime.reduce((sum, i) => sum + i.time_to_fix_h, 0) / withFixTime.length * 10) / 10
+      : null
+  }, [filteredIssues])
+
+  const filteredAvgTimeToVerify = useMemo(() => {
+    const withVerifyTime = filteredIssues.filter(i => i.time_to_verify_h)
+    return withVerifyTime.length > 0
+      ? Math.round(withVerifyTime.reduce((sum, i) => sum + i.time_to_verify_h, 0) / withVerifyTime.length * 10) / 10
+      : null
+  }, [filteredIssues])
+
+  const filteredAvgTimeToTriage = useMemo(() => {
+    const withTriageTime = filteredIssues.filter(i => i.time_to_triage_h)
+    return withTriageTime.length > 0
+      ? Math.round(withTriageTime.reduce((sum, i) => sum + i.time_to_triage_h, 0) / withTriageTime.length * 10) / 10
+      : null
+  }, [filteredIssues])
 
   if (!release) {
     return (
@@ -493,25 +545,61 @@ export default function ReleaseDetailPage() {
     }
   }
 
+  // Compact inline status badge for panel header
+  const getStatusInlineBadge = () => {
+    if (release.goNoGo === 'approved') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+          <Ship className="h-3.5 w-3.5" />
+          GO
+        </span>
+      )
+    } else if (release.goNoGo === 'blocked') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
+          <XCircle className="h-3.5 w-3.5" />
+          NO-GO
+        </span>
+      )
+    } else if (release.blockers > 0) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          {release.blockers} Blocker{release.blockers > 1 ? 's' : ''}
+        </span>
+      )
+    } else if (release.openIssues > 0) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+          <Clock className="h-3.5 w-3.5" />
+          {release.openIssues} Open
+        </span>
+      )
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Ready
+        </span>
+      )
+    }
+  }
+
   return (
     <div className="flex h-full">
       {/* Left: release detail */}
       <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
               <Link to="/releases" className="text-sm text-muted-foreground hover:text-foreground">
                 Releases
               </Link>
               <span className="text-muted-foreground">/</span>
               <h1 className="text-2xl font-bold font-mono">{release.version}</h1>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Target: {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </p>
           </div>
-          <StatusBadge status={release.status === 'released' ? 'verified' : release.status === 'active' ? 'in_progress' : 'new'} />
         </div>
 
         {/* Tab Navigation */}
@@ -530,49 +618,168 @@ export default function ReleaseDetailPage() {
 
         {/* Metrics and Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Beautiful status section */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Release Status</h3>
-            {getStatusIndicator()}
-
-            {!release.goNoGo && release.status === 'active' && (
-              <div className="mt-6 pt-6 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Go / No-Go Decision</p>
-                <div className="flex gap-3">
-                  <Button
-                    size="lg"
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                    loading={goNoGoLoading}
-                    onClick={() => handleGoNoGo('approved')}
-                    disabled={release.blockers > 0}
-                  >
-                    <ThumbsUp className="h-5 w-5 mr-2" /> Approve Release
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="lg"
-                    className="flex-1"
-                    loading={goNoGoLoading}
-                    onClick={() => handleGoNoGo('blocked')}
-                  >
-                    <ThumbsDown className="h-5 w-5 mr-2" /> Block Release
-                  </Button>
-                </div>
-                {release.blockers > 0 && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                    Cannot approve while blockers are unresolved
-                  </p>
-                )}
+          {/* Release Status */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            {/* Status and Date Header */}
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
+              <div className="flex-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Release Status</span>
+                {getStatusInlineBadge()}
               </div>
-            )}
+              <div className="text-right">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Target Date</span>
+                <span className="text-sm font-medium text-foreground">
+                  {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+
+            {/* Days Cards - Compact Row */}
+            <div className="flex gap-3">
+              {/* Days Active */}
+              <div className="flex-1 rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <InfoTooltip
+                    content="Number of days since this release was created"
+                    side="top"
+                  />
+                  <span className="text-[10.5px] text-muted-foreground uppercase tracking-wide">Days Active</span>
+                </div>
+                <p className="text-2xl font-bold tracking-tight">{daysInfo.daysSinceCreated}</p>
+              </div>
+
+              {/* Days Left/Delayed */}
+              <div className={cn(
+                'flex-1 rounded-lg border bg-card p-3',
+                daysInfo.isDelayed
+                  ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
+                  : daysInfo.isToday
+                  ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10'
+                  : 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
+              )}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <InfoTooltip
+                    content={daysInfo.isDelayed
+                      ? "This release is overdue by the shown number of days"
+                      : daysInfo.isToday
+                      ? "This release is due today"
+                      : "Number of days remaining until the target release date"}
+                    side="top"
+                  />
+                  <span className={cn(
+                    'text-[10.5px] uppercase tracking-wide',
+                    daysInfo.isDelayed || daysInfo.isToday
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-600 dark:text-green-400'
+                  )}>
+                    {daysInfo.isDelayed ? 'Delayed' : daysInfo.isToday ? 'Due Today' : 'Days Left'}
+                  </span>
+                </div>
+                <p className={cn(
+                  'text-2xl font-bold tracking-tight',
+                  daysInfo.isDelayed
+                    ? 'text-red-600 dark:text-red-400'
+                    : daysInfo.isToday
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-green-600 dark:text-green-400'
+                )}>
+                  {daysInfo.isDelayed ? Math.abs(daysInfo.daysUntilTarget) : daysInfo.daysUntilTarget}
+                </p>
+              </div>
+            </div>
+
+            {/* Decision Section - Always occupies same space */}
+            <div className="pt-3 mt-3 border-t border-border">
+              {!release.goNoGo && release.status === 'active' ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    {release.blockers > 0
+                      ? 'Resolve all blockers before approving this release'
+                      : 'Review the release status and make your decision'}
+                  </p>
+                  <div className="flex gap-3">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-10"
+                      loading={goNoGoLoading}
+                      onClick={() => handleGoNoGo('approved')}
+                      disabled={release.blockers > 0}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Ship className="h-4 w-4" />
+                        <div className="text-left">
+                          <div className="text-xs font-semibold">Approve Release</div>
+                          <div className="text-[10px] opacity-80">Ready to ship</div>
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1 h-10"
+                      loading={goNoGoLoading}
+                      onClick={() => handleGoNoGo('blocked')}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <XCircle className="h-4 w-4" />
+                        <div className="text-left">
+                          <div className="text-xs font-semibold">Block Release</div>
+                          <div className="text-[10px] opacity-80">Issues found</div>
+                        </div>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[76px]">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {release.goNoGo === 'approved' && <Ship className="h-4 w-4 text-green-500" />}
+                    {release.goNoGo === 'blocked' && <XCircle className="h-4 w-4 text-red-500" />}
+                    <span>
+                      {release.goNoGo
+                        ? `Decided by ${userById(release.goNoGoBy)?.name ?? 'CTO'}`
+                        : release.status === 'released'
+                        ? 'Release has been shipped'
+                        : 'Release not yet active for decision'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Metrics */}
-          <div className="grid grid-cols-2 gap-4">
-            <MetricCard label="Total Issues" value={issues.length} icon="list" />
-            <MetricCard label="Fixed" value={issues.filter((i) => ['fixed', 'verified'].includes(i.status)).length} icon="check-circle" tone="green" />
-            <MetricCard label="Open" value={release.openIssues} icon="circle-dot" tone="amber" />
-            <MetricCard label="Blockers" value={release.blockers} icon="alert-octagon" tone="red" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <KPICard
+              label="Total Issues"
+              value={issues.length}
+              icon="list"
+              tone="blue"
+              description="All issues in this release"
+              tooltip="The total count of all issues filed against this release, regardless of status."
+            />
+            <KPICard
+              label="Fixed"
+              value={issues.filter((i) => ['fixed', 'verified'].includes(i.status)).length}
+              icon="check-circle"
+              tone="green"
+              description="Fixed & verified issues"
+              tooltip="Issues that have been fixed by development and either verified by QA or awaiting verification."
+            />
+            <KPICard
+              label="Open"
+              value={release.openIssues}
+              icon="circle-dot"
+              tone="amber"
+              description="Unresolved issues"
+              tooltip="Issues that are not yet resolved. Includes new, triaged, and in-progress issues."
+            />
+            <KPICard
+              label="Blockers"
+              value={release.blockers}
+              icon="alert-octagon"
+              tone="red"
+              description="Release blocking issues"
+              tooltip="Critical issues marked as release blockers. The release cannot be approved until these are resolved."
+            />
           </div>
         </div>
 
@@ -601,12 +808,14 @@ export default function ReleaseDetailPage() {
                     >
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
-                          <Avatar user={user} size={24} />
+                          <UserHoverCard user={user} size={24}>
+                            <Avatar user={user} size={24} />
+                          </UserHoverCard>
                           <span className="font-medium">{user.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className="text-xs text-muted-foreground">{user.role.replace('_', ' ')}</span>
+                        <RoleBadge role={user.role} />
                       </td>
                       <td className="px-4 py-2.5 text-right text-muted-foreground">{totalAssigned}</td>
                       <td className="px-4 py-2.5 text-right">
@@ -645,43 +854,6 @@ export default function ReleaseDetailPage() {
         {/* Analytics Dashboard Tab Content */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
-            {/* KPI Cards Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KPICard
-                label="Mean Time to Fix"
-                value={avgTimeToFix ? `${avgTimeToFix}h` : null}
-                icon="clock"
-                tone="blue"
-                description="Average time from Triaged to Fixed"
-                tooltip="The average hours spent moving an issue from 'Triaged' to 'Fixed'. Insight: A rising MTTF indicates developers are struggling with complex bugs, unclear requirements, or resource constraints."
-              />
-              <KPICard
-                label="Mean Time to Verify"
-                value={avgTimeToVerify ? `${avgTimeToVerify}h` : null}
-                icon="check-circle"
-                tone="green"
-                description="Average time from Fixed to Verified"
-                tooltip="The average hours spent moving an issue from 'Fixed' to 'Verified'. Insight: If MTTV is significantly higher than MTTF, QA and retesting processes are the primary bottleneck delaying the release."
-              />
-              <KPICard
-                label="Mean Time to Triage"
-                value={avgTimeToTriage ? `${avgTimeToTriage}h` : null}
-                icon="tag"
-                tone="purple"
-                description="Average time from New to Triaged"
-                tooltip="The average hours spent moving an issue from 'New' to 'Triaged'. Insight: A rising MTTT indicates triage backlog or unclear issue categorization."
-              />
-              <KPICard
-                label="Regression Rate"
-                value={`${regressionRate}%`}
-                icon="trending-down"
-                tone={regressionRate > 15 ? 'red' : regressionRate > 8 ? 'amber' : 'green'}
-                delta={regressionRate > 15 ? 'High' : regressionRate > 8 ? 'Moderate' : 'Low'}
-                description={`${regressionCount} regressions out of ${verifiedIssues + regressionCount} verified`}
-                tooltip="The percentage of fixed issues that failed QA and were sent back to development. Insight: High rates indicate poor developer testing or fragile code architecture. It directly causes QA fatigue."
-              />
-            </div>
-
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-4">
               <Segmented
@@ -719,6 +891,43 @@ export default function ReleaseDetailPage() {
                   width={180}
                 />
               )}
+            </div>
+
+            {/* KPI Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                label="Mean Time to Fix"
+                value={filteredAvgTimeToFix ? `${filteredAvgTimeToFix}h` : null}
+                icon="clock"
+                tone="blue"
+                description="Average time from Triaged to Fixed"
+                tooltip="The average hours spent moving an issue from 'Triaged' to 'Fixed'. Insight: A rising MTTF indicates developers are struggling with complex bugs, unclear requirements, or resource constraints."
+              />
+              <KPICard
+                label="Mean Time to Verify"
+                value={filteredAvgTimeToVerify ? `${filteredAvgTimeToVerify}h` : null}
+                icon="check-circle"
+                tone="green"
+                description="Average time from Fixed to Verified"
+                tooltip="The average hours spent moving an issue from 'Fixed' to 'Verified'. Insight: If MTTV is significantly higher than MTTF, QA and retesting processes are the primary bottleneck delaying the release."
+              />
+              <KPICard
+                label="Mean Time to Triage"
+                value={filteredAvgTimeToTriage ? `${filteredAvgTimeToTriage}h` : null}
+                icon="tag"
+                tone="purple"
+                description="Average time from New to Triaged"
+                tooltip="The average hours spent moving an issue from 'New' to 'Triaged'. Insight: A rising MTTT indicates triage backlog or unclear issue categorization."
+              />
+              <KPICard
+                label="Regression Rate"
+                value={`${filteredRegressionRate}%`}
+                icon="trending-down"
+                tone={filteredRegressionRate > 15 ? 'red' : filteredRegressionRate > 8 ? 'amber' : 'green'}
+                delta={filteredRegressionRate > 15 ? 'High' : filteredRegressionRate > 8 ? 'Moderate' : 'Low'}
+                description={`${filteredRegressionCount} regressions out of ${filteredVerifiedIssues + filteredRegressionCount} verified`}
+                tooltip="The percentage of fixed issues that failed QA and were sent back to development. Insight: High rates indicate poor developer testing or fragile code architecture. It directly causes QA fatigue."
+              />
             </div>
 
             {/* Time Metrics Chart - Time Series Vertical Triple Bar */}

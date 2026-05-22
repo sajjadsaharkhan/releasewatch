@@ -56,7 +56,7 @@ export function InfoTooltip({ content, side = 'top', className }) {
         <div
           className={cn(
             // Base styles
-            'absolute z-[100] w-48 rounded-lg px-2.5 py-2 text-[11px] leading-snug',
+            'absolute z-[9999] w-48 rounded-lg px-2.5 py-2 text-[11px] leading-snug',
             // Colors - dark background with white text
             'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-md',
             // Text wrapping
