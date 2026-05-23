@@ -12,13 +12,13 @@ Typical usage
 """
 
 import uuid
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,22 +27,21 @@ from app.db.models.user import User, UserRole
 from app.db.session import get_db
 
 # ── Password hashing ──────────────────────────────────────────────────────────
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# ── OAuth2 bearer scheme (reads token from Authorization: Bearer <token>) ─────
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-
-# ── Password helpers ──────────────────────────────────────────────────────────
 
 def get_password_hash(password: str) -> str:
     """Return a bcrypt hash of the plain-text password."""
-    return _pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return ``True`` if ``plain_password`` matches the stored bcrypt hash."""
-    return _pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+# ── OAuth2 bearer scheme (reads token from Authorization: Bearer <token>) ─────
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 # ── Token creation ────────────────────────────────────────────────────────────

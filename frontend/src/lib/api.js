@@ -22,6 +22,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('rw:token')
+      localStorage.removeItem('rw:refresh_token')
       window.location.hash = '/login'
     } else if (error.response?.status === 429) {
       console.warn('[Releasewatch] Rate limited — slow down requests')
@@ -35,8 +36,8 @@ export default api
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }),
-  refresh: () => api.post('/auth/refresh'),
-  logout: () => api.post('/auth/logout'),
+  refresh: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
+  logout: (refreshToken) => api.post('/auth/logout', { refresh_token: refreshToken }),
   me: () => api.get('/auth/me'),
   getTelegramToken: () => api.get('/auth/telegram/token'),
 }

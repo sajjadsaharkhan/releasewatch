@@ -16,7 +16,7 @@ from app.config import settings
 from app.core.auth import get_password_hash
 from app.db.models.user import User, UserRole
 from app.db.models.project import Project
-from app.db.models.release import Release, ReleaseStatus, GoNoGoStatus
+from app.db.models.release import Release, ReleaseStatus, GoNogoStatus
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 
@@ -25,19 +25,39 @@ NOW = datetime.now(tz=timezone.utc)
 
 async def seed(session: AsyncSession) -> None:
     print("Seeding team members...")
+
+    # Create admin user first (matches demo credentials in LoginPage)
+    admin_user = User(
+        id=uuid.uuid4(),
+        name="Root Admin",
+        username="admin",
+        email="admin@example.com",
+        hashed_password=get_password_hash("password123"),
+        role=UserRole.admin,
+        title="System Administrator",
+        bio="Root administrator with full access to all resources.",
+        avatar_color="#6366f1",
+        is_active=True,
+    )
+
     users = [
-        User(id=uuid.uuid4(), name="Sajjad Saharkhan",  username="sajjad",  email="sajjad@releasewatch.dev",  role=UserRole.triage_lead, avatar_color="#8b5cf6", is_active=True),
-        User(id=uuid.uuid4(), name="Priya Nair",         username="priya",   email="priya@releasewatch.dev",   role=UserRole.qa,          avatar_color="#06b6d4", is_active=True),
-        User(id=uuid.uuid4(), name="Tom Eriksson",       username="tom",     email="tom@releasewatch.dev",     role=UserRole.developer,   avatar_color="#10b981", is_active=True),
-        User(id=uuid.uuid4(), name="Ana Beatriz",        username="ana",     email="ana@releasewatch.dev",     role=UserRole.developer,   avatar_color="#f59e0b", is_active=True),
-        User(id=uuid.uuid4(), name="Lena Hoffmann",      username="lena",    email="lena@releasewatch.dev",    role=UserRole.qa,          avatar_color="#ef4444", is_active=True),
-        User(id=uuid.uuid4(), name="Marcus Chen",        username="marcus",  email="marcus@releasewatch.dev",  role=UserRole.cto,         avatar_color="#6366f1", is_active=True),
+        admin_user,
+        User(id=uuid.uuid4(), name="Sajjad Saharkhan",  username="sajjad",  email="sajjad@releasewatch.dev",  role=UserRole.triage_lead, avatar_color="#8b5cf6", title="Engineering Lead", bio="Building Releasewatch to make QA painless.", is_active=True),
+        User(id=uuid.uuid4(), name="Priya Nair",         username="priya",   email="priya@releasewatch.dev",   role=UserRole.qa,          avatar_color="#06b6d4", title="QA Engineer", is_active=True),
+        User(id=uuid.uuid4(), name="Tom Eriksson",       username="tom",     email="tom@releasewatch.dev",     role=UserRole.developer,   avatar_color="#10b981", title="Frontend Developer", is_active=True),
+        User(id=uuid.uuid4(), name="Ana Beatriz",        username="ana",     email="ana@releasewatch.dev",     role=UserRole.developer,   avatar_color="#f59e0b", title="Backend Developer", is_active=True),
+        User(id=uuid.uuid4(), name="Lena Hoffmann",      username="lena",    email="lena@releasewatch.dev",    role=UserRole.qa,          avatar_color="#ef4444", title="QA Engineer", is_active=True),
+        User(id=uuid.uuid4(), name="Marcus Chen",        username="marcus",  email="marcus@releasewatch.dev",  role=UserRole.cto,         avatar_color="#6366f1", title="CTO", is_active=True),
     ]
+
+    # Set password for all users
     for u in users:
-        u.hashed_password = get_password_hash("password123")
+        if u.id != admin_user.id:  # Already set above
+            u.hashed_password = get_password_hash("password123")
+
     session.add_all(users)
     await session.flush()
-    print(f"  Created {len(users)} users")
+    print(f"  Created {len(users)} users (including admin)")
 
     print("Seeding projects...")
     triage_lead = users[0]
@@ -51,9 +71,9 @@ async def seed(session: AsyncSession) -> None:
 
     print("Seeding releases...")
     releases = [
-        Release(id=uuid.uuid4(), project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNoGoStatus.pending,  created_by=triage_lead.id),
-        Release(id=uuid.uuid4(), project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.archived, go_nogo_status=GoNoGoStatus.approved, created_by=triage_lead.id),
-        Release(id=uuid.uuid4(), project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.qa,       go_nogo_status=GoNoGoStatus.pending,  created_by=triage_lead.id),
+        Release(id=uuid.uuid4(), project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by=triage_lead.id),
+        Release(id=uuid.uuid4(), project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.archived, go_nogo_status=GoNogoStatus.approved, created_by=triage_lead.id),
+        Release(id=uuid.uuid4(), project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.qa,       go_nogo_status=GoNogoStatus.pending,  created_by=triage_lead.id),
     ]
     session.add_all(releases)
     await session.flush()

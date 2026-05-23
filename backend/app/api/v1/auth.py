@@ -112,12 +112,15 @@ async def get_me(
     current_user: User = Depends(get_current_user),
 ) -> UserMeResponse:
     """Return the authenticated user's profile information."""
+    # Handle role as string or enum
+    role_value = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+
     return UserMeResponse(
         id=str(current_user.id),
         email=current_user.email,
         name=current_user.name,
         username=current_user.username,
-        role=current_user.role.value,
+        role=role_value,
         avatar_color=current_user.avatar_color,
         telegram_handle=current_user.telegram_handle,
         telegram_connected_at=(

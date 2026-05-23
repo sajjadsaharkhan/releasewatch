@@ -11,10 +11,16 @@ import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
 import { MOCK_PROJECTS, MOCK_RELEASES, userById } from '../../data/mockData'
 
 export function Topbar() {
-  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen } = useApp()
+  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, user, logout } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
-  const currentUser = userById('u-1')
+
+  // Use authenticated user if available, otherwise fall back to mock user
+  const currentUser = user ? { ...user, username: user.username, name: user.name, avatar_color: user.avatar_color || '#6366f1' } : userById('u-1')
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   const currentReleases = MOCK_RELEASES.filter(r => r.projectId === activeProjectId)
 
@@ -85,7 +91,7 @@ export function Topbar() {
           Settings
         </DropdownItem>
         <DropdownSep />
-        <DropdownItem icon={LogOut} destructive onClick={() => {}}>
+        <DropdownItem icon={LogOut} destructive onClick={handleLogout}>
           Sign out
         </DropdownItem>
       </Dropdown>
