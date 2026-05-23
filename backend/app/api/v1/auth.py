@@ -39,19 +39,19 @@ async def login(
     payload: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Authenticate with email + password and receive an access/refresh token pair.
+    """Authenticate with username + password and receive an access/refresh token pair.
 
     The access token is short-lived (default: 60 min).
     The refresh token is long-lived (default: 30 days) and must be stored
     securely (HTTP-only cookie recommended on the client).
     """
-    result = await db.execute(select(User).where(User.email == payload.email))
+    result = await db.execute(select(User).where(User.username == payload.username))
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
@@ -117,7 +117,6 @@ async def get_me(
 
     return UserMeResponse(
         id=str(current_user.id),
-        email=current_user.email,
         name=current_user.name,
         username=current_user.username,
         role=role_value,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus, Send, Sun, Moon, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
@@ -10,8 +10,9 @@ import { RoleBadge } from '../components/ui/Badge'
 import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
 import { useApp } from '../hooks/useApp'
 import { MOCK_TEAM, MOCK_PROJECTS, MOCK_LABELS, ROLE } from '../data/mockData'
-import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal } from '../components/team'
+import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal } from '../components/project'
+import { teamApi } from '../lib/api'
 
 const TAB_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -73,7 +74,7 @@ function FieldRow({ label, description, children }) {
 }
 
 export default function SettingsPage() {
-  const { theme, toggleTheme } = useApp()
+  const { theme, toggleTheme, user: currentUser } = useApp()
   const [activeTab, setActiveTab] = useState('general')
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
   const [labels, setLabels] = useState(MOCK_LABELS)
@@ -89,8 +90,28 @@ export default function SettingsPage() {
     return map
   })
   const [tgToken] = useState('abc123XYZ-token-placeholder')
-  const [team, setTeam] = useState(MOCK_TEAM.map(m => ({ ...m, active: true })))
+  const [team, setTeam] = useState([])
+  const [teamLoading, setTeamLoading] = useState(true)
   const [projects, setProjects] = useState(MOCK_PROJECTS)
+
+  // Fetch team from API (including inactive users for Settings page)
+  const fetchTeam = useCallback(async () => {
+    setTeamLoading(true)
+    try {
+      const response = await teamApi.listAll()
+      setTeam(response.data || [])
+    } catch (err) {
+      console.error('Failed to fetch team:', err)
+      // Fall back to mock data when API fails
+      setTeam(MOCK_TEAM.map(m => ({ ...m, active: m.is_active !== false })))
+    } finally {
+      setTeamLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTeam()
+  }, [fetchTeam])
 
   // Configuration state
   const [proxy, setProxy] = useState({ enabled: false, http: '', https: '', noProxy: '' })
@@ -100,9 +121,11 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false)
 
   // Member modals state
-  const [createMemberOpen, setCreateMemberOpen] = useState(false)
-  const [editMemberOpen, setEditMemberOpen] = useState(false)
-  const [editingMember, setEditingMember] = useState(null)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
+  const [activateModalOpen, setActivateModalOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmMemberId, setConfirmMemberId] = useState(null)
   const [confirmType, setConfirmType] = useState('deactivate')
@@ -149,47 +172,72 @@ export default function SettingsPage() {
     }))
   }
 
-  function handleCreateMember(form) {
-    setTeam((t) => [...t, {
-      id: `u-${Date.now()}`,
-      name: form.name,
-      username: form.username,
-      role: form.role,
-      avatar: null,
-      tgConnected: false,
-      tgHandle: null,
-      joinedAt: new Date().toISOString(),
-      title: null,
-      active: true
-    }])
-    setCreateMemberOpen(false)
+  function handleInviteModalOpen() {
+    setSelectedUser(null)
+    setInviteModalOpen(true)
+  }
+
+  function handleEditModalOpen(user) {
+    setSelectedUser(user)
+    setEditModalOpen(true)
+  }
+
+  function handleDeactivateModalOpen(user) {
+    setSelectedUser(user)
+    setDeactivateModalOpen(true)
+  }
+
+  function handleActivateModalOpen(user) {
+    setSelectedUser(user)
+    setActivateModalOpen(true)
+  }
+
+  function handleUserInvited() {
+    fetchTeam()
+  }
+
+  function handleUserUpdated(updatedUser) {
+    setTeam((prev) =>
+      prev.map((member) =>
+        member.id === updatedUser.id ? { ...member, ...updatedUser } : member
+      )
+    )
+  }
+
+  function handleUserDeactivated(userId) {
+    setTeam((prev) => prev.map((member) =>
+      member.id === userId ? { ...member, is_active: false } : member
+    ))
+  }
+
+  function handleUserActivated(userId) {
+    setTeam((prev) => prev.map((member) =>
+      member.id === userId ? { ...member, is_active: true } : member
+    ))
   }
 
   function openEditMember(member) {
-    setEditingMember(member)
-    setEditMemberOpen(true)
+    setSelectedUser(member)
+    setEditModalOpen(true)
   }
 
-  function handleAvatarChange(url) {
-    if (editingMember) {
-      setTeam((t) => t.map((m) => m.id === editingMember.id ? { ...m, avatar_url: url } : m))
+  function openConfirm(memberId, type) {
+    setConfirmMemberId(memberId)
+    setConfirmType(type)
+    setConfirmOpen(true)
+  }
+
+  function handleConfirm() {
+    const member = team.find(m => m.id === confirmMemberId)
+    if (!member) return
+
+    if (confirmType === 'deactivate') {
+      setTeam((t) => t.map((m) => m.id === confirmMemberId ? { ...m, active: false } : m))
+    } else {
+      setTeam((t) => t.map((m) => m.id === confirmMemberId ? { ...m, active: true } : m))
     }
-  }
-
-  function handleSaveMember(form) {
-    setTeam((t) => t.map((m) => {
-      if (m.id === editingMember.id) {
-        return {
-          ...m,
-          name: form.name,
-          username: form.username,
-          role: form.role
-        }
-      }
-      return m
-    }))
-    setEditMemberOpen(false)
-    setEditingMember(null)
+    setConfirmOpen(false)
+    setConfirmMemberId(null)
   }
 
   function openConfirm(memberId, type) {
@@ -354,45 +402,50 @@ export default function SettingsPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <SectionTitle>Team Members</SectionTitle>
-            <Button size="sm" onClick={() => setCreateMemberOpen(true)}>
+            <Button size="sm" onClick={handleInviteModalOpen}>
               <UserPlus className="h-3.5 w-3.5" /> Add member
             </Button>
           </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Member</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Username</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Role</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Telegram</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Joined</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {team.map((u) => (
-                  <tr key={u.id} className={cn('border-b border-border last:border-0', !u.active && 'bg-muted/50')}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar user={u} size={28} />
-                        <span className={cn('font-medium', !u.active && 'text-muted-foreground')}>{u.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">@{u.username}</td>
-                    <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                    <td className="px-4 py-3">
-                      {u.tgConnected
-                        ? <span className="text-xs text-blue-600 dark:text-blue-400">{u.tgHandle}</span>
-                        : <span className="text-xs text-muted-foreground">Not connected</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {u.active ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <PowerOff className="h-3 w-3" />
-                          Active
-                        </span>
+          {teamLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Member</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Username</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Role</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Telegram</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Joined</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.map((u) => (
+                    <tr key={u.id} className={cn('border-b border-border last:border-0', !u.is_active && 'bg-muted/50')}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar user={u} size={28} />
+                          <span className={cn('font-medium', !u.is_active && 'text-muted-foreground')}>{u.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">@{u.username}</td>
+                      <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+                      <td className="px-4 py-3">
+                        {u.tgConnected
+                          ? <span className="text-xs text-blue-600 dark:text-blue-400">{u.telegram_handle || '@' + u.username}</span>
+                          : <span className="text-xs text-muted-foreground">Not connected</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.is_active ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <PowerOff className="h-3 w-3" />
+                            Active
+                          </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                           <Power className="h-3 w-3" />
@@ -401,22 +454,22 @@ export default function SettingsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {new Date(u.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
                       <Dropdown
                         align="right"
                         trigger={<Button variant="ghost" size="icon-sm">···</Button>}
                       >
-                        <DropdownItem icon={Pencil} onClick={() => openEditMember(u)}>
+                        <DropdownItem icon={Pencil} onClick={() => handleEditModalOpen(u)}>
                           Edit member
                         </DropdownItem>
-                        {u.active ? (
-                          <DropdownItem icon={Power} onClick={() => openConfirm(u.id, 'deactivate')}>
+                        {u.is_active ? (
+                          <DropdownItem icon={Power} onClick={() => handleDeactivateModalOpen(u)}>
                             Deactivate
                           </DropdownItem>
                         ) : (
-                          <DropdownItem icon={PowerOff} onClick={() => openConfirm(u.id, 'activate')}>
+                          <DropdownItem icon={PowerOff} onClick={() => handleActivateModalOpen(u)}>
                             Activate
                           </DropdownItem>
                         )}
@@ -427,6 +480,7 @@ export default function SettingsPage() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -532,7 +586,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">@ReleasewatchBot</p>
-                  <p className="text-xs text-muted-foreground">{MOCK_TEAM.filter((u) => u.tgConnected).length} team members connected</p>
+                  <p className="text-xs text-muted-foreground">{team.filter((u) => u.tgConnected).length} team members connected</p>
                 </div>
               </div>
               <div>
@@ -731,22 +785,38 @@ export default function SettingsPage() {
       )}
 
       {/* Member modals */}
-      <CreateMemberModal
-        open={createMemberOpen}
-        onClose={() => setCreateMemberOpen(false)}
-        onCreate={handleCreateMember}
+      <InviteUserModal
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        onInvited={handleUserInvited}
       />
 
-      <EditMemberModal
-        open={editMemberOpen}
-        onClose={() => {
-          setEditMemberOpen(false)
-          setEditingMember(null)
-        }}
-        member={editingMember}
-        onSave={handleSaveMember}
-        onAvatarChange={handleAvatarChange}
-      />
+      {selectedUser && (
+        <>
+          <EditUserModal
+            open={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            user={selectedUser}
+            currentUser={currentUser}
+            canEditRole={currentUser?.role === 'admin'}
+            onUpdated={handleUserUpdated}
+          />
+          <DeactivateUserModal
+            open={deactivateModalOpen}
+            onClose={() => setDeactivateModalOpen(false)}
+            user={selectedUser}
+            currentUser={currentUser}
+            onDeactivated={handleUserDeactivated}
+          />
+          <ActivateUserModal
+            open={activateModalOpen}
+            onClose={() => setActivateModalOpen(false)}
+            user={selectedUser}
+            currentUser={currentUser}
+            onActivated={handleUserActivated}
+          />
+        </>
+      )}
 
       <ConfirmModal
         open={confirmOpen}
