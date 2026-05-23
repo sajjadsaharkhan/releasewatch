@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.user import UserRole
 
@@ -17,7 +17,6 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     name: str
     username: str
-    email: str
     role: UserRole
     title: Optional[str] = None
     bio: Optional[str] = None
@@ -36,6 +35,7 @@ class ProfileUpdateRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=255)
     bio: Optional[str] = Field(None, max_length=2000)
     avatar_url: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=8)
 
 
 class AvatarUploadRequest(BaseModel):

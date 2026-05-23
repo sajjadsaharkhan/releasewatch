@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { LogIn, Eye, EyeOff, AlertCircle, AtSign } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -10,7 +10,7 @@ import { useApp } from '../hooks/useApp'
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useApp()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await authApi.login(email, password)
+      const response = await authApi.login(username, password)
       const { access_token, refresh_token } = response.data
 
       // Store tokens
@@ -68,21 +68,24 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Email */}
+            {/* Username */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                Username
               </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoFocus
-                className="w-full"
-              />
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
+                  placeholder="username"
+                  required
+                  autoFocus
+                  className="w-full pl-10"
+                />
+              </div>
             </div>
 
             {/* Password */}
@@ -147,7 +150,7 @@ export default function LoginPage() {
           {/* Demo Notice */}
           <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
             <p className="text-xs text-center text-zinc-500 dark:text-zinc-400">
-              Demo credentials: <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">admin@example.com</span> / <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">password123</span>
+              Demo credentials: <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">admin</span> / <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">password123</span>
             </p>
           </div>
         </div>

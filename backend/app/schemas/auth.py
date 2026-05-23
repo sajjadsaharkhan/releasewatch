@@ -1,12 +1,12 @@
 """Authentication schemas."""
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LoginRequest(BaseModel):
     """Credentials supplied to POST /auth/login."""
 
-    email: EmailStr
+    username: str
     password: str = Field(min_length=8)
 
 
@@ -37,7 +37,6 @@ class UserMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    email: str
     name: str
     username: str
     role: str

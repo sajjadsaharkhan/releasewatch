@@ -1,7 +1,7 @@
 """User profile and avatar endpoints.
 
 POST /me/avatar/presign   — generate pre-signed S3 upload URL for avatar
-PUT  /me/profile          — update profile (name, title, bio, avatar_url)
+PUT  /me/profile          — update profile (name, title, bio, avatar_url, password)
 DELETE /me/avatar         — remove avatar
 """
 
@@ -9,7 +9,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_password_hash
 from app.core.s3 import s3_service
 from app.db.models.user import User
 from app.db.session import get_db
@@ -79,6 +79,8 @@ async def update_profile(
         current_user.bio = payload.bio
     if payload.avatar_url is not None:
         current_user.avatar_url = payload.avatar_url
+    if payload.password is not None:
+        current_user.hashed_password = get_password_hash(payload.password)
 
     await db.commit()
     await db.refresh(current_user)

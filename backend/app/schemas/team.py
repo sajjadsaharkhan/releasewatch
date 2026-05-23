@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.user import UserRole
 
@@ -52,7 +52,6 @@ class MemberResponse(TeamMemberResponse):
 class InviteRequest(BaseModel):
     """Payload for POST /team/invite."""
 
-    email: EmailStr
     name: str = Field(max_length=255)
     username: str = Field(max_length=64, pattern=r"^[a-z0-9_.-]+$")
     role: UserRole = UserRole.qa
@@ -75,3 +74,15 @@ class DeactivateRequest(BaseModel):
 
     deactivate: bool = True
     reason: Optional[str] = None
+
+
+class UserUpdateRequest(BaseModel):
+    """Payload for PATCH /team/{user_id} — update user profile."""
+
+    name: Optional[str] = Field(None, max_length=255)
+    username: Optional[str] = Field(None, max_length=64)
+    title: Optional[str] = Field(None, max_length=255)
+    bio: Optional[str] = Field(None, max_length=2000)
+    avatar_color: Optional[str] = Field(None, max_length=7, description="Hex colour e.g. #6366f1")
+    role: Optional[UserRole] = None  # Only admins can change this
+    password: Optional[str] = Field(None, min_length=8)  # Only admins can change this

@@ -35,7 +35,7 @@ export default api
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (username, password) => api.post('/auth/login', { username, password }),
   refresh: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
   logout: (refreshToken) => api.post('/auth/logout', { refresh_token: refreshToken }),
   me: () => api.get('/auth/me'),
@@ -76,9 +76,12 @@ export const reportsApi = {
 // ─── Team ────────────────────────────────────────────────────────────────────
 export const teamApi = {
   list: () => api.get('/team'),
+  listAll: () => api.get('/team/all'),
   invite: (data) => api.post('/team/invite', data),
+  update: (userId, data) => api.patch(`/team/${userId}`, data),
   changeRole: (userId, role) => api.patch(`/team/${userId}/role`, { role }),
   deactivate: (userId) => api.patch(`/team/${userId}/deactivate`),
+  activate: (userId) => api.patch(`/team/${userId}/activate`),
 }
 
 // ─── Projects ────────────────────────────────────────────────────────────────
