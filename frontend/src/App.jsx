@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
@@ -8,6 +8,7 @@ import { CreateProjectModal } from './components/project'
 import { MOCK_PROJECTS } from './data/mockData'
 
 // Lazy-loaded pages
+const LoginPage = lazy(() => import('./pages/LoginPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const InboxPage = lazy(() => import('./pages/InboxPage'))
 const IssuesPage = lazy(() => import('./pages/IssuesPage'))
@@ -22,6 +23,45 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
+
+// Protected route wrapper
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, authLoading } = useApp()
+  const location = useLocation()
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return children
+}
+
+// Public route wrapper (redirect if already authenticated)
+function PublicRoute({ children }) {
+  const { isAuthenticated, authLoading } = useApp()
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return children
+}
 
 function PageFallback() {
   return (
@@ -71,7 +111,18 @@ function AppInner() {
     <>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          <Route path="/" element={<AppShell />}>
+          {/* Public routes */}
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="inbox" element={<InboxPage />} />
@@ -86,7 +137,16 @@ function AppInner() {
             <Route path="u/:username" element={<ProfilePage />} />
             <Route path="issue/:id" element={<IssuePage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Catch all - redirect to dashboard or login */}
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard" replace />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Suspense>
 

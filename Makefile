@@ -1,4 +1,4 @@
-.PHONY: dev dev-build stop migrate migrate-down seed test lint format shell logs
+.PHONY: dev dev-build stop migrate migrate-down seed seed-admin test lint format shell logs
 
 # ── Local development ─────────────────────────────────────────────────────────
 
@@ -25,6 +25,9 @@ migrate-new:
 
 seed:
 	docker compose exec api python -m scripts.seed
+
+seed-admin:
+	docker compose exec api python -m scripts.create_admin
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 

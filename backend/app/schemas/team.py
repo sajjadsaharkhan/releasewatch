@@ -17,14 +17,36 @@ class TeamMemberResponse(BaseModel):
     id: uuid.UUID
     name: str
     username: str
-    email: str
     role: UserRole
     avatar_url: Optional[str] = None
     avatar_color: str
     telegram_handle: Optional[str] = None
-    telegram_connected_at: Optional[datetime] = None
     is_active: bool
     created_at: datetime
+
+    # Computed metrics for team page
+    reported: int = 0
+    fixed: int = 0
+
+
+class MemberResponse(TeamMemberResponse):
+    """Complete member response with all fields and computed metrics.
+
+    Extends TeamMemberResponse with:
+    - Additional profile fields (title, bio)
+    - Computed connection status (tgConnected)
+    - Additional metrics (avgFixTime, fixRate)
+    """
+
+    title: Optional[str] = None
+    bio: Optional[str] = None
+
+    # Telegram connection status (computed from telegram_handle)
+    tgConnected: bool = False
+
+    # Additional computed metrics
+    avgFixTime: Optional[float] = None
+    fixRate: Optional[int] = None
 
 
 class InviteRequest(BaseModel):

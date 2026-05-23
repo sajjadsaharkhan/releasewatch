@@ -4,9 +4,9 @@ All values can be supplied through environment variables or a .env file.
 """
 
 from functools import lru_cache
-from typing import List
+from typing import List, Union
 
-from pydantic import Field, computed_field
+from pydantic import Field, field_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,10 +23,27 @@ class Settings(BaseSettings):
     # ── General ───────────────────────────────────────────────────────────────
     SECRET_KEY: str = Field(..., description="Random secret used for signing JWTs")
     ENVIRONMENT: str = Field("development", description="development | staging | production")
-    ALLOWED_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000"],
-        description="CORS allowed origins (comma-separated in env: 'http://a,http://b')",
+    ALLOWED_ORIGINS: Union[str, List[str]] = Field(
+        default=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
+        description="CORS allowed origins (comma-separated string or JSON list)",
     )
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        """Parse ALLOWED_ORIGINS from string or list."""
+        if isinstance(v, str):
+            # Try to parse as JSON first
+            import json
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                # Fall back to comma-separated
+                return [origin.strip() for origin in v.split(",")]
+        return v
+
     APP_VERSION: str = Field("0.1.0", description="Semantic version, injected by CI")
 
     # ── PostgreSQL ─────────────────────────────────────────────────────────────
