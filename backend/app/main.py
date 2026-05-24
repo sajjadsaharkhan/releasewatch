@@ -22,6 +22,15 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     await init_engine()
     await init_redis()
 
+    # Initialize S3 bucket and lifecycle policy
+    from app.core.s3 import s3_service
+    try:
+        s3_service.ensure_bucket_exists()
+        s3_service.ensure_lifecycle_policy()
+    except Exception as e:
+        import logging
+        logging.warning(f"S3 initialization skipped: {e}")
+
     yield  # application is now running
 
     # ── shutdown ──────────────────────────────────────────────────────────────

@@ -38,8 +38,37 @@ class ProfileUpdateRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=8)
 
 
+class AvatarPresignRequest(BaseModel):
+    """Payload for POST /me/avatar/presign to request presigned URL."""
+
+    filename: str = Field(..., max_length=255)
+    mime_type: str = Field(..., description="MIME type, e.g., image/jpeg")
+
+
+class AvatarPresignResponse(BaseModel):
+    """Response with presigned S3 URL for avatar upload."""
+
+    upload_url: str
+    fields: dict
+    s3_key: str
+    file_id: str
+    public_url: Optional[str] = None
+    expires_in_seconds: int
+
+
+class AvatarConfirmRequest(BaseModel):
+    """Payload for POST /me/avatar/confirm to finalize upload."""
+
+    s3_key: str
+    delete_old: bool = Field(True, description="Delete the old avatar from S3")
+
+
+# Legacy schemas for backward compatibility
 class AvatarUploadRequest(BaseModel):
-    """Payload for POST /me/avatar to request presigned URL."""
+    """Legacy payload for POST /me/avatar to request presigned URL.
+
+    Deprecated: Use AvatarPresignRequest instead.
+    """
 
     file_name: str = Field(..., max_length=255)
     content_type: str = Field(..., pattern=r"^image/")
@@ -47,7 +76,10 @@ class AvatarUploadRequest(BaseModel):
 
 
 class AvatarUploadResponse(BaseModel):
-    """Response with presigned S3 URL."""
+    """Legacy response with presigned S3 URL.
+
+    Deprecated: Use AvatarPresignResponse instead.
+    """
 
     upload_url: str
     s3_key: str

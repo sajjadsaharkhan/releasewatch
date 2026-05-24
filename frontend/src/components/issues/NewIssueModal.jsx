@@ -24,8 +24,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     labels: [],
   })
   const [loading, setLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [errors, setErrors] = useState({})
   const [attachments, setAttachments] = useState([])
+  const [pendingAttachments, setPendingAttachments] = useState([])
   const [projects, setProjects] = useState([])
   const [allReleases, setAllReleases] = useState([])
   const [labels, setLabels] = useState([])
@@ -60,13 +62,36 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     if (open) fetchData()
   }, [open, activeProjectId, activeReleaseId])
 
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setAttachments([])
+      setPendingAttachments([])
+      setForm({
+        title: '',
+        projectId: activeProjectId || projects[0]?.id || '',
+        releaseId: activeReleaseId || '',
+        severity: 'major',
+        description: '',
+        steps: [''],
+        curlCommand: '',
+        labels: [],
+      })
+      setErrors({})
+    }
+  }, [open])
+
   // Filter releases for selected project and only active/blocked status
   const availableReleases = allReleases.filter(
     (r) => r.projectId === form.projectId && (r.status === 'active' || r.status === 'blocked')
   )
 
-  // Create a wrapper issue object for AttachmentsSection
+  // Create a wrapper issue object for AttachmentsSection display
   const issueWrapper = { attachments }
+
+  function handlePendingAttachment(pending) {
+    setPendingAttachments(prev => [...prev, pending])
+  }
 
   function set(key, val) {
     setForm((f) => ({ ...f, [key]: val }))
@@ -99,16 +124,17 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   function validate() {
     const errs = {}
     if (!form.title.trim()) errs.title = 'Title is required'
+    if (!form.releaseId) errs.releaseId = 'Please select a release'
     return errs
   }
 
   async function handleSubmit() {
     const errs = validate()
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    if (!form.releaseId) {
-      setErrors((e) => ({ ...e, releaseId: 'Please select a release' }))
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs)
       return
     }
+
     setLoading(true)
     try {
       // Build reproduction steps from the form
@@ -132,10 +158,13 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         labels: form.labels,
         curl_command: form.curlCommand || null,
         reproduction_steps: reproductionSteps,
+        pending_attachments: pendingAttachments,
       }
 
       const response = await issuesApi.create(payload)
-      onCreated?.(response.data)
+      const issue = response.data
+
+      onCreated?.(issue)
       onClose?.()
 
       // Reset form
@@ -150,13 +179,18 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         labels: [],
       })
       setAttachments([])
+      setPendingAttachments([])
+      setErrors({})
     } catch (err) {
-      console.error('Failed to create issue:', err)
-      setErrors((e) => ({ ...e, submit: err.response?.data?.detail || 'Failed to create issue' }))
+      console.error('Failed to save issue:', err)
+      setErrors((e) => ({ ...e, submit: err.response?.data?.detail || err.normalizedMessage || 'Failed to save issue' }))
     } finally {
       setLoading(false)
     }
   }
+
+  const isSubmitting = loading || dataLoading || isUploading
+  const attachmentsDisabled = loading || dataLoading
 
   return (
     <Dialog open={open} onClose={onClose} title="New Issue" size="xl">
@@ -195,7 +229,9 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Release</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      Release <span className="text-destructive">*</span>
+                    </label>
                     <ReleaseSwitcher
                       releases={availableReleases}
                       activeReleaseId={form.releaseId}
@@ -315,7 +351,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
               </div>
               <AttachmentsSection
                 issue={issueWrapper}
-                onAttachmentsChange={(atts) => setAttachments(atts)}
+                onAttachmentsChange={setAttachments}
+                disabled={attachmentsDisabled}
+                onUploadingChange={setIsUploading}
+                onPendingAttachment={handlePendingAttachment}
               />
             </div>
               </>
@@ -325,11 +364,14 @@ export function NewIssueModal({ open, onClose, onCreated }) {
 
         {/* Fixed footer */}
         <div className="flex justify-between items-center border-t border-border px-5 py-4 shrink-0 bg-background">
-          {errors.submit && <p className="text-xs text-destructive">{errors.submit}</p>}
-          <div className="flex-1" />
+          <div>
+            {errors.submit && <p className="text-xs text-destructive">{errors.submit}</p>}
+          </div>
           <div className="flex gap-3">
             <Button variant="ghost" onClick={onClose} disabled={loading}>Cancel</Button>
-            <Button onClick={handleSubmit} loading={loading || dataLoading}>Create Issue</Button>
+            <Button onClick={handleSubmit} loading={loading} disabled={isUploading}>
+              {loading ? 'Creating...' : 'Create Issue'}
+            </Button>
           </div>
         </div>
       </div>

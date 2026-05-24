@@ -4,10 +4,8 @@ import { cn } from '../../lib/cn'
 import { StatusBadge } from '../ui/Badge'
 import { DraggableIssueCard } from './DraggableIssueCard'
 
-export function DroppableColumn({ status, issues, onOpen, assigneeMap, labelMap }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: status,
-  })
+export function DroppableColumn({ status, issues, onOpen }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status })
 
   return (
     <div className="flex flex-col min-h-0">
@@ -25,22 +23,15 @@ export function DroppableColumn({ status, issues, onOpen, assigneeMap, labelMap 
             : "bg-zinc-50 dark:bg-zinc-900/40"
         )}
       >
-        {issues.map((issue) => {
-          const assignee = assigneeMap.get(issue.assignee)
-          const labels = (issue.labels ?? [])
-            .map((lId) => labelMap.get(lId))
-            .filter(Boolean)
-
-          return (
-            <DraggableIssueCard
-              key={issue.id}
-              issue={issue}
-              assignee={assignee}
-              labels={labels}
-              onOpen={onOpen}
-            />
-          )
-        })}
+        {issues.map((issue) => (
+          <DraggableIssueCard
+            key={issue.id}
+            issue={issue}
+            assignee={issue.assignee_user}
+            labels={issue.labels_detail ?? []}
+            onOpen={onOpen}
+          />
+        ))}
         {issues.length === 0 && !isOver && (
           <div className="h-16 flex items-center justify-center text-[11px] text-zinc-400 dark:text-zinc-600 italic">
             No issues

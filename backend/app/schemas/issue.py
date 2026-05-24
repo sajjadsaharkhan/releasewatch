@@ -7,6 +7,31 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.issue import IssueSeverity, IssueStatus
+from app.db.models.user import UserRole
+from app.schemas.attachment import PendingAttachment
+
+
+class UserSummary(BaseModel):
+    """Minimal user info embedded in issue responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    username: str
+    role: UserRole
+    avatar_url: Optional[str] = None
+    avatar_color: str
+
+
+class LabelDetail(BaseModel):
+    """Label info embedded in issue responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    color: str
 
 
 # Reproduction step structure (stored as JSON in the Issue model)
@@ -36,6 +61,7 @@ class IssueCreate(IssueBase):
 
     release_id: uuid.UUID
     reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
+    pending_attachments: List[PendingAttachment] = Field(default_factory=list)
 
 
 class IssueUpdate(BaseModel):
@@ -44,6 +70,7 @@ class IssueUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = None
     severity: Optional[IssueSeverity] = None
+    status: Optional[IssueStatus] = None
     labels: Optional[List[str]] = None
     is_release_blocker: Optional[bool] = None
     environment_browser: Optional[str] = None
@@ -58,6 +85,8 @@ class TriageRequest(BaseModel):
 
     assignee_id: uuid.UUID
     severity: IssueSeverity
+    labels: Optional[List[str]] = None
+    is_release_blocker: Optional[bool] = None
     note: Optional[str] = None
 
 
@@ -90,9 +119,13 @@ class IssueResponse(IssueBase):
     issue_number: int
     project_id: uuid.UUID
     release_id: uuid.UUID
+    release_version: Optional[str] = None
     status: IssueStatus
     reporter_id: Optional[uuid.UUID] = None
     assignee_id: Optional[uuid.UUID] = None
+    assignee_user: Optional[UserSummary] = None
+    reporter_user: Optional[UserSummary] = None
+    labels_detail: List[LabelDetail] = Field(default_factory=list)
     is_regression: bool
     regression_count: int
     parent_issue_id: Optional[uuid.UUID] = None

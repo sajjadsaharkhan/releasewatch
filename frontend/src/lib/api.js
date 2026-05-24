@@ -27,6 +27,19 @@ api.interceptors.response.use(
     } else if (error.response?.status === 429) {
       console.warn('[Releasewatch] Rate limited — slow down requests')
     }
+
+    // Normalize FastAPI validation errors to a simple message format
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail
+      if (Array.isArray(detail)) {
+        // FastAPI validation error: [{type, loc, msg, input}]
+        // Extract the first error message
+        error.normalizedMessage = detail[0]?.msg || 'Validation error'
+      } else if (typeof detail === 'string') {
+        error.normalizedMessage = detail
+      }
+    }
+
     return Promise.reject(error)
   }
 )
@@ -45,8 +58,10 @@ export const authApi = {
 // ─── Issues ──────────────────────────────────────────────────────────────────
 export const issuesApi = {
   list: (params) => api.get('/issues', { params }),
+  export: (params) => api.get('/issues/export', { params, responseType: 'blob' }),
   create: (data) => api.post('/issues', data),
   get: (id) => api.get(`/issues/${id}`),
+  getByNumber: (num) => api.get(`/issues/by-number/${num}`),
   update: (id, data) => api.patch(`/issues/${id}`, data),
   remove: (id) => api.delete(`/issues/${id}`),
   triage: (id, data) => api.post(`/issues/${id}/triage`, data),
@@ -110,12 +125,23 @@ export const labelsApi = {
   remove: (id) => api.delete(`/labels/${id}`),
 }
 
-// ─── Attachments ─────────────────────────────────────────────────────────────
+// ─── Attachments (issue-scoped — used when editing existing issues) ───────────
 export const attachmentsApi = {
   presign: (issueId, data) => api.post(`/issues/${issueId}/attachments/presign`, data),
   confirm: (issueId, data) => api.post(`/issues/${issueId}/attachments/confirm`, data),
   list: (issueId) => api.get(`/issues/${issueId}/attachments`),
   remove: (issueId, attachmentId) => api.delete(`/issues/${issueId}/attachments/${attachmentId}`),
+  startMultipart: (issueId, data) => api.post(`/issues/${issueId}/attachments/multipart/start`, data),
+  getPartUploadUrl: (issueId, data) => api.post(`/issues/${issueId}/attachments/multipart/part`, data),
+  completeMultipart: (issueId, data) => api.post(`/issues/${issueId}/attachments/multipart/complete`, data),
+}
+
+// ─── Pre-upload (standalone — used during new issue creation) ─────────────────
+export const preUploadApi = {
+  presign: (data) => api.post('/attachments/presign', data),
+  startMultipart: (data) => api.post('/attachments/multipart/start', data),
+  getPartUploadUrl: (data) => api.post('/attachments/multipart/part', data),
+  completeMultipart: (data) => api.post('/attachments/multipart/complete', data),
 }
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
@@ -126,6 +152,7 @@ export const timelineApi = {
 // ─── User ────────────────────────────────────────────────────────────────────
 export const userApi = {
   presignAvatar: (data) => api.post('/me/avatar/presign', data),
+  confirmAvatar: (data) => api.post('/me/avatar/confirm', data),
   updateProfile: (data) => api.put('/me/profile', data),
   deleteAvatar: () => api.delete('/me/avatar'),
 }
