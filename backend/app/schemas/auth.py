@@ -44,3 +44,10 @@ class UserMeResponse(BaseModel):
     telegram_handle: str | None = None
     telegram_connected_at: str | None = None
     is_active: bool
+
+
+class TelegramIntegrationResponse(BaseModel):
+    """Telegram bot integration status for GET /settings/integrations/telegram."""
+
+    bot_username: str
+    connected_count: int

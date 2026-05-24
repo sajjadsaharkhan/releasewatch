@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi } from '../lib/api'
+import { authApi, projectsApi, releasesApi } from '../lib/api'
 
 const AppContext = createContext(null)
 
@@ -9,12 +9,20 @@ export function AppProvider({ children }) {
     if (stored) return stored
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
-  const [activeProjectId, setActiveProjectId] = useState('proj-1')
-  const [activeReleaseId, setActiveReleaseId] = useState('rel-1')
+  const [activeProjectId, setActiveProjectId] = useState(null)
+  const [activeReleaseId, setActiveReleaseId] = useState(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [newIssueOpen, setNewIssueOpen] = useState(false)
   const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
+
+  // Projects state
+  const [projects, setProjects] = useState([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
+
+  // Releases state
+  const [releases, setReleases] = useState([])
+  const [releasesLoading, setReleasesLoading] = useState(false)
 
   // Auth state
   const [user, setUser] = useState(null)
@@ -59,6 +67,58 @@ export function AppProvider({ children }) {
     checkAuth()
   }, [])
 
+  // Fetch projects on mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await projectsApi.list()
+        const projectsList = response.data || []
+        setProjects(projectsList)
+        // Set first active (non-archived) project as default
+        const firstProject = projectsList.find((p) => !p.archived) ?? projectsList[0]
+        if (firstProject && !activeProjectId) {
+          setActiveProjectId(firstProject.id)
+        }
+      } catch (err) {
+        console.error('Failed to fetch projects:', err)
+        setProjects([])
+      } finally {
+        setProjectsLoading(false)
+      }
+    }
+
+    fetchProjects()
+  }, [])
+
+  // Fetch releases when active project changes
+  useEffect(() => {
+    if (!activeProjectId) {
+      setReleases([])
+      return
+    }
+
+    const fetchReleases = async () => {
+      setReleasesLoading(true)
+      try {
+        const response = await releasesApi.list({ project_id: activeProjectId })
+        // Handle both response formats - with or without releases wrapper
+        const releasesList = response.data?.releases || response.data || []
+        setReleases(releasesList)
+        // Set first active release as default if none selected
+        if (releasesList.length > 0 && !activeReleaseId) {
+          setActiveReleaseId(releasesList[0].id)
+        }
+      } catch (err) {
+        console.error('Failed to fetch releases:', err)
+        setReleases([])
+      } finally {
+        setReleasesLoading(false)
+      }
+    }
+
+    fetchReleases()
+  }, [activeProjectId])
+
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
@@ -86,6 +146,37 @@ export function AppProvider({ children }) {
     }
   }, [])
 
+  // Refetch projects function (can be called after creating/updating projects)
+  const refetchProjects = useCallback(async () => {
+    try {
+      const response = await projectsApi.list()
+      const projectsList = response.data || []
+      setProjects(projectsList)
+      // Update active project if needed
+      const active = projectsList.find((p) => p.id === activeProjectId)
+      if (!active && !activeProjectId) {
+        const firstProject = projectsList.find((p) => !p.archived) ?? projectsList[0]
+        if (firstProject) {
+          setActiveProjectId(firstProject.id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refetch projects:', err)
+    }
+  }, [activeProjectId])
+
+  // Refetch releases function (can be called after creating/updating releases)
+  const refetchReleases = useCallback(async () => {
+    if (!activeProjectId) return
+    try {
+      const response = await releasesApi.list({ project_id: activeProjectId })
+      const releasesList = response.data?.releases || response.data || []
+      setReleases(releasesList)
+    } catch (err) {
+      console.error('Failed to refetch releases:', err)
+    }
+  }, [activeProjectId])
+
   const value = {
     theme,
     setTheme,
@@ -102,6 +193,14 @@ export function AppProvider({ children }) {
     setCreateReleaseOpen,
     createProjectOpen,
     setCreateProjectOpen,
+    // Projects
+    projects,
+    projectsLoading,
+    refetchProjects,
+    // Releases
+    releases,
+    releasesLoading,
+    refetchReleases,
     // Auth
     user,
     isAuthenticated,

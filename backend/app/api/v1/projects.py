@@ -14,6 +14,7 @@ POST   /projects/{slug}/releases/{version}/go-nogo — submit go/no-go decision
 
 from datetime import datetime, timezone
 from typing import List
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -24,7 +25,7 @@ from app.db.models.project import Project
 from app.db.models.release import Release, GoNogoStatus
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.schemas.project import ProjectArchiveRequest, ProjectCreate, ProjectResponse, ProjectUpdate
 from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, ReleaseUpdate
 
 router = APIRouter()
@@ -37,9 +38,9 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ProjectResponse]:
-    """Return all non-archived projects visible to the authenticated user."""
+    """Return all projects (active and archived) visible to the authenticated user."""
     result = await db.execute(
-        select(Project).where(Project.archived_at.is_(None)).order_by(Project.created_at.desc())
+        select(Project).order_by(Project.created_at.desc())
     )
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]
@@ -124,6 +125,92 @@ async def archive_project(
     await db.commit()
 
 
+# ── ID-based routes for frontend compatibility ───────────────────────────────────
+
+@router.get(
+    "/id/{project_id}",
+    response_model=ProjectResponse,
+    summary="Get project by ID",
+    include_in_schema=False,  # Keep slug as primary, hide from docs
+)
+async def get_project_by_id(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProjectResponse:
+    """Return a single project identified by its ID (UUID)."""
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
+    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
+    return ProjectResponse.model_validate(project)
+
+
+@router.patch(
+    "/id/{project_id}",
+    response_model=ProjectResponse,
+    summary="Update project by ID",
+    include_in_schema=False,
+)
+async def update_project_by_id(
+    project_id: str,
+    payload: ProjectUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+) -> ProjectResponse:
+    """Partially update a project's metadata by ID."""
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
+    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(project, field, value)
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return ProjectResponse.model_validate(project)
+
+
+@router.post(
+    "/id/{project_id}/archive",
+    response_model=ProjectResponse,
+    summary="Archive a project by ID",
+    include_in_schema=False,
+)
+async def archive_project_by_id(
+    project_id: str,
+    payload: ProjectArchiveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin)),
+) -> ProjectResponse:
+    """Archive or restore a project by ID."""
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
+    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
+    if payload.archive:
+        project.archived_at = datetime.now(tz=timezone.utc)
+    else:
+        project.archived_at = None
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return ProjectResponse.model_validate(project)
+
+
 # ── Releases (nested under projects) ─────────────────────────────────────────
 
 @router.get(
@@ -137,6 +224,8 @@ async def list_releases(
     current_user: User = Depends(get_current_user),
 ) -> List[ReleaseResponse]:
     """Return all releases for a project, most recent first."""
+    from app.api.v1.releases import _release_to_response
+
     project = await _get_project_or_404(db, slug)
     result = await db.execute(
         select(Release)
@@ -144,7 +233,7 @@ async def list_releases(
         .order_by(Release.created_at.desc())
     )
     releases = result.scalars().all()
-    return [ReleaseResponse.model_validate(r) for r in releases]
+    return [await _release_to_response(db, r) for r in releases]
 
 
 @router.post(
@@ -160,17 +249,21 @@ async def create_release(
     current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
 ) -> ReleaseResponse:
     """Create a new release under the given project."""
+    from app.api.v1.releases import _release_to_response
+
     project = await _get_project_or_404(db, slug)
     release = Release(
         project_id=project.id,
         version=payload.version,
+        description=payload.description,
+        target_date=payload.target_date,
         staging_url=payload.staging_url,
         created_by_id=current_user.id,
     )
     db.add(release)
     await db.commit()
     await db.refresh(release)
-    return ReleaseResponse.model_validate(release)
+    return await _release_to_response(db, release)
 
 
 @router.get(
@@ -185,8 +278,10 @@ async def get_release(
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Return a single release identified by project slug + version string."""
+    from app.api.v1.releases import _release_to_response
+
     release = await _get_release_or_404(db, slug, version)
-    return ReleaseResponse.model_validate(release)
+    return await _release_to_response(db, release)
 
 
 @router.patch(
@@ -201,7 +296,9 @@ async def update_release(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
 ) -> ReleaseResponse:
-    """Partially update a release (status, staging URL)."""
+    """Partially update a release (status, staging URL, description, target date)."""
+    from app.api.v1.releases import _release_to_response
+
     release = await _get_release_or_404(db, slug, version)
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -209,7 +306,7 @@ async def update_release(
     db.add(release)
     await db.commit()
     await db.refresh(release)
-    return ReleaseResponse.model_validate(release)
+    return await _release_to_response(db, release)
 
 
 @router.post(
@@ -225,6 +322,8 @@ async def submit_go_nogo(
     current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
 ) -> ReleaseResponse:
     """Record a go or no-go gate decision for a release (CTO / admin only)."""
+    from app.api.v1.releases import _release_to_response
+
     release = await _get_release_or_404(db, slug, version)
     release.go_nogo_status = payload.decision
     release.go_nogo_note = payload.note
@@ -239,7 +338,7 @@ async def submit_go_nogo(
     from app.tasks.notifications import bulk_notify_team
     # (enqueue Telegram alerts for triage leads / QA team)
 
-    return ReleaseResponse.model_validate(release)
+    return await _release_to_response(db, release)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

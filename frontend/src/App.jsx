@@ -1,11 +1,10 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
-import { MOCK_PROJECTS } from './data/mockData'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -72,16 +71,7 @@ function PageFallback() {
 }
 
 function AppInner() {
-  const { setCommandPaletteOpen, setNewIssueOpen, newIssueOpen, createProjectOpen, setCreateProjectOpen } = useApp()
-  const [projects, setProjects] = useState(MOCK_PROJECTS)
-
-  function handleCreateProject(form) {
-    setProjects((p) => [...p, {
-      id: `proj-${Date.now()}`,
-      ...form
-    }])
-    setCreateProjectOpen(false)
-  }
+  const { setCommandPaletteOpen, setNewIssueOpen, createProjectOpen, setCreateProjectOpen, refetchProjects } = useApp()
 
   useEffect(() => {
     function handleKey(e) {
@@ -155,7 +145,17 @@ function AppInner() {
       <CreateProjectModal
         open={createProjectOpen}
         onClose={() => setCreateProjectOpen(false)}
-        onCreate={handleCreateProject}
+        onCreate={async (form) => {
+          // Create project via API - AppContext will refresh projects automatically
+          const { projectsApi } = await import('./lib/api')
+          try {
+            await projectsApi.create(form)
+            setCreateProjectOpen(false)
+            await refetchProjects()
+          } catch (err) {
+            console.error('Failed to create project:', err)
+          }
+        }}
       />
     </>
   )

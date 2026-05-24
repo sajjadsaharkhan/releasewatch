@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LogOut, User, Settings, Menu, X } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, X, Loader2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
@@ -8,10 +8,10 @@ import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
-import { MOCK_PROJECTS, MOCK_RELEASES, userById } from '../../data/mockData'
+import { userById } from '../../data/mockData'
 
 export function Topbar() {
-  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, user, logout } = useApp()
+  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -21,8 +21,6 @@ export function Topbar() {
   const handleLogout = async () => {
     await logout()
   }
-
-  const currentReleases = MOCK_RELEASES.filter(r => r.projectId === activeProjectId)
 
   return (
     <header className="flex h-12 shrink-0 items-center border-b border-border bg-card px-4 gap-3">
@@ -36,21 +34,37 @@ export function Topbar() {
 
       {/* Project and Release selectors */}
       <div className="hidden lg:flex items-center gap-2">
-        <ProjectSwitcher
-          projects={MOCK_PROJECTS}
-          activeProjectId={activeProjectId}
-          onChange={setActiveProjectId}
-          compact
-          width={260}
-          onCreateProject={() => setCreateProjectOpen(true)}
-        />
-        <ReleaseSwitcher
-          releases={currentReleases}
-          activeReleaseId={activeReleaseId}
-          onChange={setActiveReleaseId}
-          compact
-          width={220}
-        />
+        {projectsLoading ? (
+          <div className="flex items-center justify-center w-[260px] h-8">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : projects.length === 0 ? (
+          <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
+            Create project
+          </Button>
+        ) : (
+          <ProjectSwitcher
+            projects={projects}
+            activeProjectId={activeProjectId}
+            onChange={setActiveProjectId}
+            compact
+            width={260}
+            onCreateProject={() => setCreateProjectOpen(true)}
+          />
+        )}
+        {releasesLoading ? (
+          <div className="flex items-center justify-center w-[140px] h-8">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          </div>
+        ) : releases.length > 0 ? (
+          <ReleaseSwitcher
+            releases={releases}
+            activeReleaseId={activeReleaseId}
+            onChange={setActiveReleaseId}
+            compact
+            width={220}
+          />
+        ) : null}
       </div>
 
       {/* Centered search box */}
@@ -102,20 +116,38 @@ export function Topbar() {
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Project</label>
-              <ProjectSwitcher
-                projects={MOCK_PROJECTS}
-                activeProjectId={activeProjectId}
-                onChange={setActiveProjectId}
-                onCreateProject={() => setCreateProjectOpen(true)}
-              />
+              {projectsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : projects.length === 0 ? (
+                <Button onClick={() => setCreateProjectOpen(true)} className="w-full">
+                  Create project
+                </Button>
+              ) : (
+                <ProjectSwitcher
+                  projects={projects}
+                  activeProjectId={activeProjectId}
+                  onChange={setActiveProjectId}
+                  onCreateProject={() => setCreateProjectOpen(true)}
+                />
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Release</label>
-              <ReleaseSwitcher
-                releases={currentReleases}
-                activeReleaseId={activeReleaseId}
-                onChange={setActiveReleaseId}
-              />
+              {releasesLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : releases.length > 0 ? (
+                <ReleaseSwitcher
+                  releases={releases}
+                  activeReleaseId={activeReleaseId}
+                  onChange={setActiveReleaseId}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">No releases for this project</p>
+              )}
             </div>
           </div>
           <button

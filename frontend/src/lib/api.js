@@ -88,8 +88,8 @@ export const teamApi = {
 export const projectsApi = {
   list: () => api.get('/projects'),
   create: (data) => api.post('/projects', data),
-  update: (id, data) => api.patch(`/projects/${id}`, data),
-  archive: (id) => api.post(`/projects/${id}/archive`),
+  update: (id, data) => api.patch(`/projects/id/${id}`, data),
+  archive: (id, archive = true) => api.post(`/projects/id/${id}/archive`, { archive }),
 }
 
 // ─── Releases ────────────────────────────────────────────────────────────────
@@ -128,4 +128,18 @@ export const userApi = {
   presignAvatar: (data) => api.post('/me/avatar/presign', data),
   updateProfile: (data) => api.put('/me/profile', data),
   deleteAvatar: () => api.delete('/me/avatar'),
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  getTelegramIntegration: () => api.get('/settings/integrations/telegram'),
+  getNotifications: () => api.get('/settings/notifications'),
+  saveNotifications: (data) => api.put('/settings/notifications', data),
+  getGitlabConfig: () => api.get('/settings/integrations/gitlab'),
+  saveGitlabConfig: (data) => api.post('/settings/integrations/gitlab', data),
+  getGeneral: () => api.get('/settings/general'),
+  saveGeneral: (data) => api.put('/settings/general', data),
+  getConfiguration: () => api.get('/settings/configuration'),
+  saveConfiguration: (data) => api.put('/settings/configuration', data),
+  testLlmConnection: (data) => api.post('/settings/configuration/llm/test', data),
 }

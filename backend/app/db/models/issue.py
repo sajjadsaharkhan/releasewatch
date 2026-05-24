@@ -4,7 +4,7 @@ import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, SmallInteger, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -89,6 +89,10 @@ class Issue(Base):
     environment_build_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     environment_staging_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     curl_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reproduction_steps: Mapped[list | None] = mapped_column(
+        JSON, nullable=True, default=list,
+        doc="JSON array of reproduction steps: [{step_order, description, expected_result, actual_result}]"
+    )
 
     # SLA / lead-time metrics (computed and stored for fast reporting)
     time_to_triage_h: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -115,10 +119,6 @@ class Issue(Base):
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_issues")
     parent = relationship("Issue", remote_side="Issue.id", foreign_keys=[parent_issue_id])
     duplicates = relationship("Issue", foreign_keys="Issue.parent_issue_id")
-    reproduction_steps = relationship(
-        "IssueReproductionStep", back_populates="issue", cascade="all, delete-orphan",
-        order_by="IssueReproductionStep.step_order",
-    )
     timeline = relationship(
         "IssueTimeline", back_populates="issue", cascade="all, delete-orphan",
         order_by="IssueTimeline.created_at",

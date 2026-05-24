@@ -12,7 +12,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
-from app.db.models.issue_reproduction_step import IssueReproductionStep
 from app.db.models.issue_timeline import TimelineEventType
 from app.db.models.user import User
 from app.schemas.issue import IssueCreate, IssueUpdate
@@ -68,6 +67,18 @@ class IssueService:
         next_number: int = (result.scalar_one() or 0) + 1
 
         now = datetime.now(tz=timezone.utc)
+
+        # Convert reproduction steps to dict list for JSON storage
+        reproduction_steps_json = [
+            {
+                "step_order": step.step_order,
+                "description": step.description,
+                "expected_result": step.expected_result,
+                "actual_result": step.actual_result,
+            }
+            for step in data.reproduction_steps
+        ]
+
         issue = Issue(
             issue_number=next_number,
             project_id=release.project_id,
@@ -85,20 +96,10 @@ class IssueService:
             reporter_id=current_user.id,
             status=IssueStatus.new,
             filed_at=now,
+            reproduction_steps=reproduction_steps_json or [],
         )
         db.add(issue)
-        await db.flush()  # get issue.id before adding child rows
-
-        # Reproduction steps
-        for step_data in data.reproduction_steps:
-            step = IssueReproductionStep(
-                issue_id=issue.id,
-                step_order=step_data.step_order,
-                description=step_data.description,
-                expected_result=step_data.expected_result,
-                actual_result=step_data.actual_result,
-            )
-            db.add(step)
+        await db.flush()  # get issue.id before adding timeline
 
         # Timeline: filed event
         timeline_svc = TimelineService()

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Paperclip } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Dialog } from '../ui/Dialog'
@@ -7,26 +7,63 @@ import { Input } from '../ui/Input'
 import { MarkdownComposer } from './MarkdownComposer'
 import { AttachmentsSection } from './AttachmentsSection'
 import { ProjectSwitcher, ReleaseSwitcher } from '../common'
-import { MOCK_PROJECTS, MOCK_RELEASES, MOCK_LABELS, SEVERITY } from '../../data/mockData'
-import { issuesApi } from '../../lib/api'
+import { SEVERITY } from '../../data/mockData'
+import { issuesApi, projectsApi, releasesApi, labelsApi } from '../../lib/api'
+import { useApp } from '../../hooks/useApp'
 
 export function NewIssueModal({ open, onClose, onCreated }) {
+  const { activeProjectId, activeReleaseId } = useApp()
   const [form, setForm] = useState({
     title: '',
-    projectId: MOCK_PROJECTS[0]?.id ?? '',
+    projectId: '',
     releaseId: '',
     severity: 'major',
     description: '',
     steps: [''],
     curlCommand: '',
     labels: [],
-    assignee: '',
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [attachments, setAttachments] = useState([])
+  const [projects, setProjects] = useState([])
+  const [allReleases, setAllReleases] = useState([])
+  const [labels, setLabels] = useState([])
+  const [dataLoading, setDataLoading] = useState(false)
 
-  const availableReleases = MOCK_RELEASES.filter((r) => r.projectId === form.projectId)
+  // Fetch projects, releases, and labels on mount
+  useEffect(() => {
+    async function fetchData() {
+      setDataLoading(true)
+      try {
+        const [projectsRes, releasesRes, labelsRes] = await Promise.all([
+          projectsApi.list(),
+          releasesApi.list(),
+          labelsApi.list(),
+        ])
+        setProjects(projectsRes.data || [])
+        setAllReleases(releasesRes.data?.releases || [])
+        setLabels(labelsRes.data || [])
+
+        // Set initial values from AppContext or defaults
+        setForm((f) => ({
+          ...f,
+          projectId: activeProjectId || projectsRes.data?.[0]?.id || '',
+          releaseId: activeReleaseId || '',
+        }))
+      } catch (err) {
+        console.error('Failed to load data:', err)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+    if (open) fetchData()
+  }, [open, activeProjectId, activeReleaseId])
+
+  // Filter releases for selected project and only active/blocked status
+  const availableReleases = allReleases.filter(
+    (r) => r.projectId === form.projectId && (r.status === 'active' || r.status === 'blocked')
+  )
 
   // Create a wrapper issue object for AttachmentsSection
   const issueWrapper = { attachments }
@@ -52,10 +89,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     setForm((f) => ({ ...f, steps: f.steps.filter((_, i) => i !== idx) }))
   }
 
-  function toggleLabel(id) {
+  function toggleLabel(labelName) {
     setForm((f) => ({
       ...f,
-      labels: f.labels.includes(id) ? f.labels.filter((l) => l !== id) : [...f.labels, id],
+      labels: f.labels.includes(labelName) ? f.labels.filter((l) => l !== labelName) : [...f.labels, labelName],
     }))
   }
 
@@ -68,14 +105,54 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   async function handleSubmit() {
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    if (!form.releaseId) {
+      setErrors((e) => ({ ...e, releaseId: 'Please select a release' }))
+      return
+    }
     setLoading(true)
     try {
-      // In prod: await issuesApi.create({ ...form, attachments })
-      await new Promise((r) => setTimeout(r, 800))
-      onCreated?.({ ...form, id: `BUG-${Math.floor(Math.random() * 900) + 100}`, createdAt: new Date().toISOString() })
+      // Build reproduction steps from the form
+      const reproductionSteps = form.steps
+        .map((step, idx) => {
+          if (!step.trim()) return null
+          return {
+            step_order: idx + 1,
+            description: step,
+            expected_result: null,
+            actual_result: null,
+          }
+        })
+        .filter(Boolean)
+
+      const payload = {
+        title: form.title,
+        release_id: form.releaseId,
+        description: form.description || null,
+        severity: form.severity,
+        labels: form.labels,
+        curl_command: form.curlCommand || null,
+        reproduction_steps: reproductionSteps,
+      }
+
+      const response = await issuesApi.create(payload)
+      onCreated?.(response.data)
       onClose?.()
+
+      // Reset form
+      setForm({
+        title: '',
+        projectId: projects[0]?.id ?? '',
+        releaseId: '',
+        severity: 'major',
+        description: '',
+        steps: [''],
+        curlCommand: '',
+        labels: [],
+      })
+      setAttachments([])
     } catch (err) {
-      console.error(err)
+      console.error('Failed to create issue:', err)
+      setErrors((e) => ({ ...e, submit: err.response?.data?.detail || 'Failed to create issue' }))
     } finally {
       setLoading(false)
     }
@@ -87,72 +164,79 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto px-5 scrollbar-thin">
           <div className="py-5 space-y-5">
-            {/* Title */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                Title <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={form.title}
-                onChange={(e) => set('title', e.target.value)}
-                placeholder="Short, descriptive title…"
-                error={!!errors.title}
-              />
-              {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
-            </div>
+            {dataLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-muted-foreground text-sm">Loading…</div>
+              </div>
+            ) : (
+              <>
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Title <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    value={form.title}
+                    onChange={(e) => set('title', e.target.value)}
+                    placeholder="Short, descriptive title…"
+                    error={!!errors.title}
+                  />
+                  {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
+                </div>
 
-            {/* Project + Release + Severity in one row */}
-            <div className="grid grid-cols-[200px_180px_1fr] gap-3">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Project</label>
-                <ProjectSwitcher
-                  projects={MOCK_PROJECTS}
-                  activeProjectId={form.projectId}
-                  onChange={(id) => set('projectId', id)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Release</label>
-                <ReleaseSwitcher
-                  releases={availableReleases}
-                  activeReleaseId={form.releaseId}
-                  onChange={(id) => set('releaseId', id)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Severity</label>
-                <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1">
-                  <div className="flex gap-1 min-w-max pb-1">
-                    {Object.keys(SEVERITY).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => set('severity', s)}
-                        className={cn(
-                          'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
-                          'flex items-center gap-1 whitespace-nowrap',
-                          form.severity === s
-                            ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
-                            : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
-                        )}
-                      >
-                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', SEVERITY[s].dot)} />
-                        {SEVERITY[s].label}
-                      </button>
-                    ))}
+                {/* Project + Release + Severity in one row */}
+                <div className="grid grid-cols-[200px_180px_1fr] gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Project</label>
+                    <ProjectSwitcher
+                      projects={projects}
+                      activeProjectId={form.projectId}
+                      onChange={(id) => set('projectId', id)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Release</label>
+                    <ReleaseSwitcher
+                      releases={availableReleases}
+                      activeReleaseId={form.releaseId}
+                      onChange={(id) => set('releaseId', id)}
+                    />
+                    {errors.releaseId && <p className="mt-1 text-xs text-destructive">{errors.releaseId}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Severity</label>
+                    <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1">
+                      <div className="flex gap-1 min-w-max pb-1">
+                        {Object.keys(SEVERITY).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => set('severity', s)}
+                            className={cn(
+                              'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
+                              'flex items-center gap-1 whitespace-nowrap',
+                              form.severity === s
+                                ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
+                                : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
+                            )}
+                          >
+                            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', SEVERITY[s].dot)} />
+                            {SEVERITY[s].label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
             {/* Description */}
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-              <MarkdownComposer
-                onSubmit={(body) => set('description', body)}
+              <textarea
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
                 placeholder="Describe the issue, expected vs actual behavior…"
-                showMentions={false}
-                showInternal={false}
-                mode="create"
+                rows={5}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
               />
             </div>
 
@@ -196,30 +280,32 @@ export function NewIssueModal({ open, onClose, onCreated }) {
             </div>
 
             {/* Labels */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-2">Labels</label>
-              <div className="flex flex-wrap gap-2">
-                {MOCK_LABELS.map((l) => {
-                  const selected = form.labels.includes(l.id)
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => toggleLabel(l.id)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                        selected
-                          ? 'border-transparent text-white'
-                          : 'border-border text-muted-foreground hover:text-foreground'
-                      )}
-                      style={selected ? { backgroundColor: l.color } : {}}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selected ? 'white' : l.color }} />
-                      {l.name}
-                    </button>
-                  )
-                })}
+            {labels.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">Labels</label>
+                <div className="flex flex-wrap gap-2">
+                  {labels.map((l) => {
+                    const selected = form.labels.includes(l.name)
+                    return (
+                      <button
+                        key={l.id}
+                        onClick={() => toggleLabel(l.name)}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                          selected
+                            ? 'border-transparent text-white'
+                            : 'border-border text-muted-foreground hover:text-foreground'
+                        )}
+                        style={selected ? { backgroundColor: l.color } : {}}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selected ? 'white' : l.color }} />
+                        {l.name}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Attachments */}
             <div>
@@ -232,13 +318,19 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                 onAttachmentsChange={(atts) => setAttachments(atts)}
               />
             </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Fixed footer */}
-        <div className="flex justify-end gap-3 border-t border-border px-5 py-4 shrink-0 bg-background">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} loading={loading}>Create Issue</Button>
+        <div className="flex justify-between items-center border-t border-border px-5 py-4 shrink-0 bg-background">
+          {errors.submit && <p className="text-xs text-destructive">{errors.submit}</p>}
+          <div className="flex-1" />
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={onClose} disabled={loading}>Cancel</Button>
+            <Button onClick={handleSubmit} loading={loading || dataLoading}>Create Issue</Button>
+          </div>
         </div>
       </div>
     </Dialog>

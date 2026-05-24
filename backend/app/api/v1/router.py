@@ -15,6 +15,7 @@ from app.api.v1 import (
     timeline,
     attachments,
     inbox,
+    labels,
     reports,
     team,
     settings as settings_router,
@@ -34,6 +35,7 @@ api_router.include_router(issues.router, prefix="/issues", tags=["issues"])
 api_router.include_router(timeline.router, prefix="/issues", tags=["timeline"])
 api_router.include_router(attachments.router, prefix="/issues", tags=["attachments"])
 api_router.include_router(inbox.router, prefix="/inbox", tags=["inbox"])
+api_router.include_router(labels.router, prefix="/labels", tags=["labels"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(team.router, prefix="/team", tags=["team"])
 api_router.include_router(user.router, tags=["user"])

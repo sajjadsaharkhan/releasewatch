@@ -19,7 +19,7 @@ const sizeClasses = {
   'icon-sm': 'h-8 w-8 p-0',
 }
 
-export function Button({
+export const Button = React.forwardRef(function Button({
   variant = 'default',
   size = 'md',
   disabled = false,
@@ -27,11 +27,12 @@ export function Button({
   children,
   className,
   ...props
-}) {
+}, ref) {
   const isDisabled = disabled || loading
 
   return (
     <button
+      ref={ref}
       disabled={isDisabled}
       className={cn(
         'inline-flex items-center justify-center rounded-[var(--radius)] font-medium transition-colors',
@@ -47,4 +48,4 @@ export function Button({
       {children}
     </button>
   )
-}
+})
