@@ -14,9 +14,9 @@ from app.db.base import Base
 class ReleaseStatus(str, enum.Enum):
     """Lifecycle status of a release cycle."""
 
-    draft = "draft"
     active = "active"
-    qa = "qa"
+    released = "released"
+    blocked = "blocked"
     archived = "archived"
 
 
@@ -31,7 +31,7 @@ class GoNogoStatus(str, enum.Enum):
 class Release(Base):
     """A versioned release within a project.
 
-    Tracks the QA cycle from ``draft`` through ``qa`` to ``archived``.
+    Tracks the QA cycle from ``draft`` through ``active`` to ``released``.
     The go/no-go decision gates production deployment.
     """
 
@@ -46,8 +46,14 @@ class Release(Base):
     version: Mapped[str] = mapped_column(
         String(64), nullable=False, doc="Semantic version string, e.g. '2.4.1'"
     )
+    description: Mapped[str | None] = mapped_column(
+        Text, nullable=True, doc="Release description / notes"
+    )
     status: Mapped[ReleaseStatus] = mapped_column(
-        String(32), nullable=False, default=ReleaseStatus.draft
+        String(32), nullable=False, default=ReleaseStatus.active
+    )
+    target_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, doc="Target release date"
     )
     staging_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 

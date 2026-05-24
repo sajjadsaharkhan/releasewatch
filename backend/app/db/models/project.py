@@ -24,6 +24,7 @@ class Project(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#6366f1")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Labels that are automatically suggested when filing an issue

@@ -9,17 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.db.models.issue import IssueSeverity, IssueStatus
 
 
-class ReproductionStepCreate(BaseModel):
-    step_order: int = Field(ge=1)
-    description: str
-    expected_result: Optional[str] = None
-    actual_result: Optional[str] = None
-
-
-class ReproductionStepResponse(ReproductionStepCreate):
-    model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID
-    issue_id: uuid.UUID
+# Reproduction step structure (stored as JSON in the Issue model)
+class ReproductionStep(BaseModel):
+    """A single reproduction step."""
+    step_order: int = Field(ge=1, description="Step number (1-based)")
+    description: str = Field(description="What to do in this step")
+    expected_result: Optional[str] = Field(None, description="What should happen")
+    actual_result: Optional[str] = Field(None, description="What actually happened")
 
 
 class IssueBase(BaseModel):
@@ -39,7 +35,7 @@ class IssueCreate(IssueBase):
     """Payload for POST /issues."""
 
     release_id: uuid.UUID
-    reproduction_steps: List[ReproductionStepCreate] = Field(default_factory=list)
+    reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
 
 
 class IssueUpdate(BaseModel):
@@ -110,7 +106,7 @@ class IssueResponse(IssueBase):
     closed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    reproduction_steps: List[ReproductionStepResponse] = Field(default_factory=list)
+    reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
 
 
 class IssueListResponse(BaseModel):

@@ -9,10 +9,11 @@ import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
 import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
 import { useApp } from '../hooks/useApp'
-import { MOCK_TEAM, MOCK_PROJECTS, MOCK_LABELS, ROLE } from '../data/mockData'
+import { useToast } from '../hooks/useToast'
+import { MOCK_TEAM, ROLE } from '../data/mockData'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal } from '../components/project'
-import { teamApi } from '../lib/api'
+import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
 
 const TAB_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -74,10 +75,14 @@ function FieldRow({ label, description, children }) {
 }
 
 export default function SettingsPage() {
-  const { theme, toggleTheme, user: currentUser } = useApp()
+  const { toast } = useToast()
+  const { theme, toggleTheme, user: currentUser, refetchProjects, projects, projectsLoading: contextProjectsLoading } = useApp()
   const [activeTab, setActiveTab] = useState('general')
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
-  const [labels, setLabels] = useState(MOCK_LABELS)
+  const [generalLoading, setGeneralLoading] = useState(true)
+  const [generalSaving, setGeneralSaving] = useState(false)
+  const [labels, setLabels] = useState([])
+  const [labelsLoading, setLabelsLoading] = useState(true)
   const [newLabel, setNewLabel] = useState({ name: '', color: '#6366f1' })
   const [notifications, setNotifications] = useState(() => {
     const map = {}
@@ -90,9 +95,10 @@ export default function SettingsPage() {
     return map
   })
   const [tgToken] = useState('abc123XYZ-token-placeholder')
+  const [telegramIntegration, setTelegramIntegration] = useState({ botUsername: '@ReleasewatchBot', connectedCount: 0 })
+  const [telegramLoading, setTelegramLoading] = useState(true)
   const [team, setTeam] = useState([])
   const [teamLoading, setTeamLoading] = useState(true)
-  const [projects, setProjects] = useState(MOCK_PROJECTS)
 
   // Fetch team from API (including inactive users for Settings page)
   const fetchTeam = useCallback(async () => {
@@ -109,9 +115,77 @@ export default function SettingsPage() {
     }
   }, [])
 
+  // Fetch labels from API
+  const fetchLabels = useCallback(async () => {
+    setLabelsLoading(true)
+    try {
+      const response = await labelsApi.list()
+      setLabels(response.data || [])
+    } catch (err) {
+      console.error('Failed to fetch labels:', err)
+      setLabels([])
+    } finally {
+      setLabelsLoading(false)
+    }
+  }, [])
+
+  // Fetch Telegram integration info from API
+  const fetchTelegramIntegration = useCallback(async () => {
+    setTelegramLoading(true)
+    try {
+      const response = await settingsApi.getTelegramIntegration()
+      setTelegramIntegration({
+        botUsername: response.data.bot_username,
+        connectedCount: response.data.connected_count,
+      })
+    } catch (err) {
+      console.error('Failed to fetch Telegram integration:', err)
+      // Keep default values on error
+    } finally {
+      setTelegramLoading(false)
+    }
+  }, [])
+
+  // Fetch general settings from API
+  const fetchGeneralSettings = useCallback(async () => {
+    setGeneralLoading(true)
+    try {
+      const response = await settingsApi.getGeneral()
+      setGeneral({
+        workspace: response.data.general.workspaceName || 'Releasewatch',
+        timezone: response.data.general.timezone || 'UTC',
+      })
+    } catch (err) {
+      console.error('Failed to fetch general settings:', err)
+      // Keep default values on error
+    } finally {
+      setGeneralLoading(false)
+    }
+  }, [])
+
+  // Fetch configuration from API
+  const fetchConfiguration = useCallback(async () => {
+    setConfigLoading(true)
+    try {
+      const response = await settingsApi.getConfiguration()
+      const { proxy: proxyData, llm: llmData } = response.data
+      setProxy(proxyData)
+      setLlm(llmData)
+    } catch (err) {
+      console.error('Failed to fetch configuration:', err)
+      // Keep default empty values on error
+    } finally {
+      setConfigLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchTeam()
-  }, [fetchTeam])
+    fetchLabels()
+    fetchTelegramIntegration()
+    fetchGeneralSettings()
+    fetchConfiguration()
+  }, [fetchTeam, fetchLabels, fetchTelegramIntegration, fetchGeneralSettings, fetchConfiguration])
 
   // Configuration state
   const [proxy, setProxy] = useState({ enabled: false, http: '', https: '', noProxy: '' })
@@ -119,6 +193,8 @@ export default function SettingsPage() {
   const [llmTestStatus, setLlmTestStatus] = useState(null) // null | 'loading' | 'success' | 'error'
   const [llmTestMessage, setLlmTestMessage] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configLoading, setConfigLoading] = useState(true)
 
   // Member modals state
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -142,14 +218,24 @@ export default function SettingsPage() {
   const [projectToArchive, setProjectToArchive] = useState(null)
   const [archiveType, setArchiveType] = useState('archive')
 
-  function addLabel() {
+  async function addLabel() {
     if (!newLabel.name.trim()) return
-    setLabels((l) => [...l, { id: `lbl-${Date.now()}`, name: newLabel.name, color: newLabel.color, issueCount: 0 }])
-    setNewLabel({ name: '', color: '#6366f1' })
+    try {
+      const response = await labelsApi.create(newLabel)
+      setLabels((l) => [...l, response.data])
+      setNewLabel({ name: '', color: '#6366f1' })
+    } catch (err) {
+      console.error('Failed to create label:', err)
+    }
   }
 
-  function removeLabel(id) {
-    setLabels((l) => l.filter((x) => x.id !== id))
+  async function removeLabel(id) {
+    try {
+      await labelsApi.remove(id)
+      setLabels((l) => l.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('Failed to delete label:', err)
+    }
   }
 
   function openLabelConfirm(labelId) {
@@ -256,12 +342,14 @@ export default function SettingsPage() {
     setConfirmMemberId(null)
   }
 
-  function handleCreateProject(form) {
-    setProjects((p) => [...p, {
-      id: `proj-${Date.now()}`,
-      ...form
-    }])
-    setCreateProjectOpen(false)
+  async function handleCreateProject(form) {
+    try {
+      await projectsApi.create(form)
+      setCreateProjectOpen(false)
+      await refetchProjects()
+    } catch (err) {
+      console.error('Failed to create project:', err)
+    }
   }
 
   function openEditProject(project) {
@@ -269,15 +357,15 @@ export default function SettingsPage() {
     setEditProjectOpen(true)
   }
 
-  function handleSaveProject(form) {
-    setProjects((p) => p.map((proj) => {
-      if (proj.id === editingProject.id) {
-        return { ...proj, ...form }
-      }
-      return proj
-    }))
-    setEditProjectOpen(false)
-    setEditingProject(null)
+  async function handleSaveProject(form) {
+    try {
+      await projectsApi.update(editingProject.id, form)
+      setEditProjectOpen(false)
+      setEditingProject(null)
+      await refetchProjects()
+    } catch (err) {
+      console.error('Failed to update project:', err)
+    }
   }
 
   function openArchiveConfirm(projectId, type) {
@@ -286,14 +374,16 @@ export default function SettingsPage() {
     setArchiveConfirmOpen(true)
   }
 
-  function handleArchiveConfirm() {
-    if (archiveType === 'archive') {
-      setProjects((p) => p.map((proj) => proj.id === projectToArchive ? { ...proj, archived: true } : proj))
-    } else {
-      setProjects((p) => p.map((proj) => proj.id === projectToArchive ? { ...proj, archived: false } : proj))
+  async function handleArchiveConfirm() {
+    try {
+      const shouldArchive = archiveType === 'archive'
+      await projectsApi.archive(projectToArchive, shouldArchive)
+      setArchiveConfirmOpen(false)
+      setProjectToArchive(null)
+      await refetchProjects()
+    } catch (err) {
+      console.error('Failed to archive project:', err)
     }
-    setArchiveConfirmOpen(false)
-    setProjectToArchive(null)
   }
 
   async function testLlmConnection() {
@@ -301,24 +391,69 @@ export default function SettingsPage() {
     setLlmTestMessage('')
 
     try {
-      // Simulate API call - in production this would call your backend
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Simple validation check
       if (!llm.baseUrl || !llm.apiKey) {
         throw new Error('Base URL and API key are required')
       }
 
-      // Simulate success/failure based on input
-      if (llm.baseUrl.includes('invalid') || llm.apiKey === 'test') {
-        throw new Error('Connection failed: Invalid credentials')
-      }
+      const response = await settingsApi.testLlmConnection({
+        baseUrl: llm.baseUrl,
+        apiKey: llm.apiKey,
+      })
 
-      setLlmTestStatus('success')
-      setLlmTestMessage('Successfully connected to LLM provider')
+      if (response.data.success) {
+        setLlmTestStatus('success')
+        setLlmTestMessage(response.data.message)
+      } else {
+        setLlmTestStatus('error')
+        setLlmTestMessage(response.data.message)
+      }
     } catch (err) {
       setLlmTestStatus('error')
-      setLlmTestMessage(err.message || 'Connection failed')
+      setLlmTestMessage(err.response?.data?.detail || err.message || 'Connection failed')
+    }
+  }
+
+  async function saveGeneralSettings() {
+    setGeneralSaving(true)
+    try {
+      await settingsApi.saveGeneral({
+        workspaceName: general.workspace,
+        timezone: general.timezone,
+      })
+      toast({
+        title: 'Settings saved',
+        body: 'General settings have been updated successfully.',
+      })
+    } catch (err) {
+      console.error('Failed to save general settings:', err)
+      toast({
+        title: 'Failed to save',
+        body: err.response?.data?.detail || 'Could not save general settings. Please try again.',
+      })
+    } finally {
+      setGeneralSaving(false)
+    }
+  }
+
+  async function saveConfiguration() {
+    setConfigSaving(true)
+    try {
+      await settingsApi.saveConfiguration({
+        proxy,
+        llm,
+      })
+      toast({
+        title: 'Configuration saved',
+        body: 'System configuration has been updated successfully.',
+      })
+    } catch (err) {
+      console.error('Failed to save configuration:', err)
+      toast({
+        title: 'Failed to save',
+        body: err.response?.data?.detail || 'Could not save configuration. Please try again.',
+      })
+    } finally {
+      setConfigSaving(false)
     }
   }
 
@@ -333,67 +468,78 @@ export default function SettingsPage() {
       {/* General */}
       {activeTab === 'general' && (
         <div className="max-w-md space-y-4">
-          <SectionTitle>Workspace</SectionTitle>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Workspace name</label>
-            <Input value={general.workspace} onChange={(e) => setGeneral((g) => ({ ...g, workspace: e.target.value }))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Timezone</label>
-            <Dropdown
-              width="w-full"
-              trigger={
-                <button className="flex h-9 w-full items-center justify-between rounded-[var(--radius)] border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                  <span>{selectedTimezone.label} ({selectedTimezone.offset})</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </button>
-              }
-            >
-              {TIMEZONES.map((tz) => (
-                <DropdownItem
-                  key={tz.value}
-                  onClick={() => setGeneral((g) => ({ ...g, timezone: tz.value }))}
-                >
-                  <span className="flex items-center justify-between gap-8">
-                    <span>{tz.label}</span>
-                    <span className="text-muted-foreground font-mono text-xs">{tz.offset}</span>
-                  </span>
-                </DropdownItem>
-              ))}
-            </Dropdown>
-          </div>
-
-          <SectionTitle>Appearance</SectionTitle>
-          <div className="flex items-center justify-between py-3 border-b border-border">
+          {generalLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+            <SectionTitle>Workspace</SectionTitle>
             <div>
-              <p className="text-sm font-medium">Theme</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Choose your preferred color scheme</p>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Workspace name</label>
+              <Input value={general.workspace} onChange={(e) => setGeneral((g) => ({ ...g, workspace: e.target.value }))} />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => theme !== 'light' && toggleTheme()}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
-                  theme === 'light' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
-                )}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Timezone</label>
+              <Dropdown
+                width="w-full"
+                trigger={
+                  <button className="flex h-9 w-full items-center justify-between rounded-[var(--radius)] border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                    <span>{selectedTimezone.label} ({selectedTimezone.offset})</span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                }
               >
-                <Sun className="h-4 w-4" />
-                Light
-              </button>
-              <button
-                onClick={() => theme !== 'dark' && toggleTheme()}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
-                  theme === 'dark' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
-                )}
-              >
-                <Moon className="h-4 w-4" />
-                Dark
-              </button>
+                {TIMEZONES.map((tz) => (
+                  <DropdownItem
+                    key={tz.value}
+                    onClick={() => setGeneral((g) => ({ ...g, timezone: tz.value }))}
+                  >
+                    <span className="flex items-center justify-between gap-8">
+                      <span>{tz.label}</span>
+                      <span className="text-muted-foreground font-mono text-xs">{tz.offset}</span>
+                    </span>
+                  </DropdownItem>
+                ))}
+              </Dropdown>
             </div>
-          </div>
 
-          <Button>Save changes</Button>
+            <SectionTitle>Appearance</SectionTitle>
+            <div className="flex items-center justify-between py-3 border-b border-border">
+              <div>
+                <p className="text-sm font-medium">Theme</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose your preferred color scheme</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => theme !== 'light' && toggleTheme()}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                    theme === 'light' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
+                  )}
+                >
+                  <Sun className="h-4 w-4" />
+                  Light
+                </button>
+                <button
+                  onClick={() => theme !== 'dark' && toggleTheme()}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                    theme === 'dark' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
+                  )}
+                >
+                  <Moon className="h-4 w-4" />
+                  Dark
+                </button>
+              </div>
+            </div>
+
+            <Button onClick={saveGeneralSettings} disabled={generalSaving}>
+              {generalSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Save changes
+            </Button>
+            </>
+          )}
         </div>
       )}
 
@@ -493,8 +639,13 @@ export default function SettingsPage() {
               <Plus className="h-3.5 w-3.5" /> New project
             </Button>
           </div>
-          <div className="space-y-2">
-            {projects.filter((p) => !p.archived).map((p) => (
+          {contextProjectsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {projects.filter((p) => !p.archived).map((p) => (
               <div key={p.id} className={cn(
                 "flex items-center gap-3 rounded-lg border border-border bg-card p-3",
                 p.archived && "opacity-50"
@@ -522,6 +673,7 @@ export default function SettingsPage() {
               </>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -529,20 +681,26 @@ export default function SettingsPage() {
       {activeTab === 'labels' && (
         <div>
           <SectionTitle>Labels</SectionTitle>
-          <div className="space-y-2 mb-5">
-            {labels.map((l) => (
-              <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
-                <span className="flex-1 font-medium text-sm">{l.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {l.issueCount ?? 0} issues
-                </span>
-                <button onClick={() => openLabelConfirm(l.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {labelsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-2 mb-5">
+              {labels.map((l) => (
+                <div key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
+                  <span className="flex-1 font-medium text-sm">{l.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {l.issueCount ?? 0} issues
+                  </span>
+                  <button onClick={() => openLabelConfirm(l.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* New label form */}
           <div className="rounded-xl border border-dashed border-border p-4">
@@ -580,27 +738,35 @@ export default function SettingsPage() {
           <div>
             <SectionTitle>Telegram Bot</SectionTitle>
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                  <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              {telegramLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">@ReleasewatchBot</p>
-                  <p className="text-xs text-muted-foreground">{team.filter((u) => u.tgConnected).length} team members connected</p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Bot token</label>
-                <Input value={tgToken} readOnly className="font-mono text-xs" />
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-xs font-semibold mb-2">How to connect</p>
-                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Open Telegram and search for <code className="font-mono">@ReleasewatchBot</code></li>
-                  <li>Send <code className="font-mono">/connect {tgToken}</code></li>
-                  <li>Your account will be linked automatically</li>
-                </ol>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                      <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{telegramIntegration.botUsername}</p>
+                      <p className="text-xs text-muted-foreground">{telegramIntegration.connectedCount} team members connected</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Bot token</label>
+                    <Input value={tgToken} readOnly className="font-mono text-xs" />
+                  </div>
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold mb-2">How to connect</p>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Open Telegram and search for <code className="font-mono">{telegramIntegration.botUsername}</code></li>
+                      <li>Send <code className="font-mono">/connect {tgToken}</code></li>
+                      <li>Your account will be linked automatically</li>
+                    </ol>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -609,136 +775,154 @@ export default function SettingsPage() {
       {/* Configuration */}
       {activeTab === 'configuration' && (
         <div className="space-y-6 max-w-2xl">
-          {/* HTTP Proxy */}
-          <div>
-            <SectionTitle>HTTP Proxy</SectionTitle>
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                  <Globe className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">Proxy Configuration</p>
-                  <p className="text-xs text-muted-foreground">Configure HTTP proxy for outgoing requests</p>
-                </div>
-              </div>
-              <FieldRow
-                label="Enable proxy"
-                description="Route all external requests through proxy"
-              >
-                <Switch
-                  checked={proxy.enabled}
-                  onCheckedChange={(checked) => setProxy((p) => ({ ...p, enabled: checked }))}
-                />
-              </FieldRow>
-              {proxy.enabled && (
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTP Proxy URL</label>
-                    <Input
-                      value={proxy.http}
-                      onChange={(e) => setProxy((p) => ({ ...p, http: e.target.value }))}
-                      placeholder="http://proxy.example.com:8080"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTPS Proxy URL</label>
-                    <Input
-                      value={proxy.https}
-                      onChange={(e) => setProxy((p) => ({ ...p, https: e.target.value }))}
-                      placeholder="http://proxy.example.com:8080"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">No Proxy (comma-separated)</label>
-                    <Input
-                      value={proxy.noProxy}
-                      onChange={(e) => setProxy((p) => ({ ...p, noProxy: e.target.value }))}
-                      placeholder="localhost,127.0.0.1,.internal.com"
-                    />
-                  </div>
-                </div>
-              )}
+          {configLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          </div>
-
-          {/* LLM Configuration */}
-          <div>
-            <SectionTitle>LLM Configuration</SectionTitle>
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
-                  <Server className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">Language Model API</p>
-                  <p className="text-xs text-muted-foreground">Configure your LLM provider for AI features</p>
-                </div>
-              </div>
+          ) : (
+            <>
+              {/* HTTP Proxy */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Base URL</label>
-                <Input
-                  value={llm.baseUrl}
-                  onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
-                  placeholder="https://api.openai.com/v1"
-                />
-                <p className="text-xs text-muted-foreground mt-1">API endpoint for your LLM provider</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
-                <div className="relative">
-                  <Input
-                    value={llm.apiKey}
-                    onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
-                    placeholder="sk-..."
-                    type={showApiKey ? 'text' : 'password'}
-                    className="pr-9"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                <SectionTitle>HTTP Proxy</SectionTitle>
+                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                      <Globe className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Proxy Configuration</p>
+                      <p className="text-xs text-muted-foreground">Configure HTTP proxy for outgoing requests</p>
+                    </div>
+                  </div>
+                  <FieldRow
+                    label="Enable proxy"
+                    description="Route all external requests through proxy"
                   >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                    <Switch
+                      checked={proxy.enabled}
+                      onCheckedChange={(checked) => setProxy((p) => ({ ...p, enabled: checked }))}
+                    />
+                  </FieldRow>
+                  {proxy.enabled && (
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTP Proxy URL</label>
+                        <Input
+                          value={proxy.http}
+                          onChange={(e) => setProxy((p) => ({ ...p, http: e.target.value }))}
+                          placeholder="http://proxy.example.com:8080"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTPS Proxy URL</label>
+                        <Input
+                          value={proxy.https}
+                          onChange={(e) => setProxy((p) => ({ ...p, https: e.target.value }))}
+                          placeholder="http://proxy.example.com:8080"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">No Proxy (comma-separated)</label>
+                        <Input
+                          value={proxy.noProxy}
+                          onChange={(e) => setProxy((p) => ({ ...p, noProxy: e.target.value }))}
+                          placeholder="localhost,127.0.0.1,.internal.com"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Your API key for authentication</p>
               </div>
+
+              {/* LLM Configuration */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Model</label>
-                <Input
-                  value={llm.embeddingModel}
-                  onChange={(e) => setLlm((l) => ({ ...l, embeddingModel: e.target.value }))}
-                  placeholder="text-embedding-3-small"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Model name for text embeddings</p>
-              </div>
-              {llmTestStatus && (
-                <div className={cn(
-                  'flex items-center gap-2 rounded-lg p-3 text-sm',
-                  llmTestStatus === 'success' && 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-                  llmTestStatus === 'error' && 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
-                  llmTestStatus === 'loading' && 'bg-muted text-muted-foreground'
-                )}>
-                  {llmTestStatus === 'loading' && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {llmTestStatus === 'success' && <CheckCircle className="h-4 w-4" />}
-                  {llmTestStatus === 'error' && <XCircle className="h-4 w-4" />}
-                  <span>{llmTestMessage}</span>
+                <SectionTitle>LLM Configuration</SectionTitle>
+                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                      <Server className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Language Model API</p>
+                      <p className="text-xs text-muted-foreground">Configure your LLM provider for AI features</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Base URL</label>
+                    <Input
+                      value={llm.baseUrl}
+                      onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
+                      placeholder="https://api.openai.com/v1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">API endpoint for your LLM provider</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
+                    <div className="relative">
+                      <Input
+                        value={llm.apiKey}
+                        onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
+                        placeholder="sk-..."
+                        type={showApiKey ? 'text' : 'password'}
+                        className="pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey((s) => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Your API key for authentication</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Model</label>
+                    <Input
+                      value={llm.embeddingModel}
+                      onChange={(e) => setLlm((l) => ({ ...l, embeddingModel: e.target.value }))}
+                      placeholder="text-embedding-3-small"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Model name for text embeddings</p>
+                  </div>
+                  {llmTestStatus && (
+                    <div className={cn(
+                      'flex items-center gap-2 rounded-lg p-3 text-sm',
+                      llmTestStatus === 'success' && 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
+                      llmTestStatus === 'error' && 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
+                      llmTestStatus === 'loading' && 'bg-muted text-muted-foreground'
+                    )}>
+                      {llmTestStatus === 'loading' && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {llmTestStatus === 'success' && <CheckCircle className="h-4 w-4" />}
+                      {llmTestStatus === 'error' && <XCircle className="h-4 w-4" />}
+                      <span>{llmTestMessage}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={testLlmConnection}
+                      disabled={llmTestStatus === 'loading' || !llm.baseUrl || !llm.apiKey}
+                    >
+                      {llmTestStatus === 'loading' && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                      Test connection
+                    </Button>
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={testLlmConnection}
-                  disabled={llmTestStatus === 'loading' || !llm.baseUrl || !llm.apiKey}
-                >
-                  {llmTestStatus === 'loading' && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                  Test connection
-                </Button>
-                <Button size="sm" variant="outline">Save configuration</Button>
               </div>
-            </div>
-          </div>
+
+              {/* Save button at the bottom */}
+              <div className="flex justify-end pt-4 border-t border-border">
+                <Button
+                  onClick={saveConfiguration}
+                  disabled={configSaving}
+                >
+                  {configSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Save configuration
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
