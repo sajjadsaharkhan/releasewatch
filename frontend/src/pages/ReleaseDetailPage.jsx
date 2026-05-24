@@ -1117,11 +1117,11 @@ export default function ReleaseDetailPage() {
                         <tr
                           key={issue.id}
                           className="border-b border-border last:border-0 hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => window.location.hash = `/issue/${issue.id}`}
+                          onClick={() => window.location.hash = `/issue/issue-${issue.issue_number}`}
                         >
                           <td className="px-4 py-2.5">
                             <div>
-                              <span className="font-mono text-xs text-muted-foreground">{issue.id}</span>
+                              <span className="font-mono text-xs text-muted-foreground">issue-{issue.issue_number}</span>
                               <p className="text-sm font-medium truncate max-w-[200px]">{issue.title}</p>
                             </div>
                           </td>

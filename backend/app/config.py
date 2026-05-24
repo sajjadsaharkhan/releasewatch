@@ -75,12 +75,17 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field("redis://localhost:6379/0", description="Redis connection URL")
     REDIS_CACHE_TTL: int = Field(300, description="Default cache TTL in seconds")
 
-    # ── AWS S3 ────────────────────────────────────────────────────────────────
+    # ── AWS S3 / MinIO ─────────────────────────────────────────────────────────
+    S3_ENDPOINT_URL: str = Field("", description="Custom S3 endpoint (e.g., MinIO)")
     S3_BUCKET_NAME: str = Field("releasewatch-attachments", description="S3 bucket for attachments")
     S3_ACCESS_KEY: str = Field("", description="AWS access key ID")
     S3_SECRET_KEY: str = Field("", description="AWS secret access key")
     S3_REGION: str = Field("us-east-1", description="AWS region")
     S3_PRESIGN_EXPIRY: int = Field(3600, description="Pre-signed URL expiry in seconds")
+    S3_USE_PRESIGNED: bool = Field(True, description="Use presigned URLs; if False, generates public URLs")
+    S3_LARGE_FILE_THRESHOLD_MB: int = Field(100, description="File size threshold (MB) for lifecycle retention")
+    S3_LARGE_FILE_RETENTION_DAYS: int = Field(60, description="Days before auto-deletion of large files")
+    S3_PUBLIC_URL_BASE: str = Field("", description="Base URL for public S3 access (e.g., CDN)")
 
     # ── Telegram ──────────────────────────────────────────────────────────────
     TELEGRAM_BOT_TOKEN: str = Field("", description="Telegram bot token from @BotFather")

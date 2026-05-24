@@ -65,11 +65,38 @@ In the frontend page:
 - Handle error states
 - Ensure dynamic data rendering
 
-### Step 6: Verify
+### Step 6: Add Toast Notifications for API Calls
+
+After wiring up real API calls, ensure every mutation (create, update, delete) and any critical fetch shows a toast:
+
+- Import `useToast` from `src/hooks/useToast.js`
+- **On success**: call `toast.success("…")` with a short, human-readable message (e.g. `"Issue created"`, `"Settings saved"`)
+- **On error**: call `toast.error("…")` inside the `catch` block with a descriptive message (e.g. `"Failed to delete issue"`)
+- Read-only fetches (lists, detail loads on mount) only need an error toast — skip success toasts for them
+- Keep messages brief and specific: say what happened, not "Error occurred"
+
+```jsx
+// example pattern
+import { useToast } from '../hooks/useToast';
+
+const { toast } = useToast();
+
+const handleCreate = async (data) => {
+  try {
+    await issuesApi.create(data);
+    toast.success('Issue created');
+  } catch (err) {
+    toast.error('Failed to create issue');
+  }
+};
+```
+
+### Step 7: Verify
 
 - Check that frontend loads real data from backend
 - Verify no hardcoded or mock data remains
 - Test the full flow (list, detail, create, update, delete as applicable)
+- Confirm success and error toasts appear for each mutating action
 
 ## Important Rules
 

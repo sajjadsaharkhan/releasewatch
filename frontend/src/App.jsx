@@ -125,7 +125,7 @@ function AppInner() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
-            <Route path="issue/:id" element={<IssuePage />} />
+            <Route path="issue/:slug" element={<IssuePage />} />
           </Route>
 
           {/* Catch all - redirect to dashboard or login */}

@@ -121,21 +121,46 @@ export function MediaPreviewSurface({ media, fullscreen = false }) {
 export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProgress, isUploading }) {
   const progress = uploadProgress ?? 0
   const uploading = isUploading ?? false
+  const hasError = uploadProgress === -1
 
   return (
     <button
-      onClick={() => !uploading && onClick?.(attachment)}
+      onClick={() => !uploading && !hasError && onClick?.(attachment)}
       className={cn(
         'group relative rounded-lg border border-border overflow-hidden bg-muted transition-colors',
-        uploading && 'opacity-60',
-        !uploading && 'hover:border-primary/50'
+        uploading && 'opacity-80',
+        hasError && 'border-red-500/50',
+        !uploading && !hasError && 'hover:border-primary/50'
       )}
     >
-      {/* Upload progress overlay */}
+      {/* Upload progress overlay - shows at bottom over content */}
       {uploading && (
-        <div className="absolute inset-0 z-20 bg-white/60 dark:bg-zinc-900/60 flex flex-col items-center justify-center">
-          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin mb-2" />
-          <p className="text-xs font-medium text-primary">Uploading {progress}%</p>
+        <div className="absolute inset-x-0 bottom-0 top-0 z-20 bg-white/30 dark:bg-black/30 flex flex-col">
+          {/* Content visible behind overlay - spacer at top */}
+          <div className="flex-1" />
+
+          {/* Progress bar at bottom */}
+          <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm p-2 border-t border-border">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-medium text-primary truncate flex-1">{attachment.name}</span>
+              <span className="text-[10px] font-mono text-primary ml-2">{progress}%</span>
+            </div>
+            <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-200 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error indicator */}
+      {hasError && (
+        <div className="absolute top-2 left-2 z-10">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500 text-white text-[10px] font-medium">
+            Upload failed
+          </span>
         </div>
       )}
 
@@ -192,6 +217,7 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProg
                 const a = document.createElement('a')
                 a.href = attachment.url
                 a.download = attachment.name
+                a.target = '_blank'
                 a.click()
               }}
               className="h-7 w-7 flex items-center justify-center rounded bg-white/20 text-white hover:bg-white/30 transition-opacity"
@@ -218,7 +244,7 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProg
       </div>
 
       {/* Type badge - top right */}
-      <div className="absolute top-2 right-2">
+      <div className="absolute top-2 right-2 z-30">
         <span className={cn(
           'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium',
           attachment.type === 'image' && 'bg-blue-500/90 text-white',
@@ -253,6 +279,7 @@ export function MediaPreview({ attachments, onDelete, readonly = false }) {
       const a = document.createElement('a')
       a.href = active.url
       a.download = active.name
+      a.target = '_blank'
       a.click()
     }
     setSaved(true)

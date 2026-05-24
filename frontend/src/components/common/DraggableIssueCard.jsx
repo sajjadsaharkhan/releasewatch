@@ -38,7 +38,7 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
         {...attributes}
       >
         <div className="flex items-center justify-between mb-1.5">
-          <span className="font-mono text-[10.5px] text-zinc-500">{issue.id}</span>
+          <span className="font-mono text-[10.5px] text-zinc-500">issue-{issue.issue_number}</span>
           <SeverityBadge severity={issue.severity} size="sm" />
         </div>
         <div className="text-[12.5px] font-medium text-zinc-900 dark:text-zinc-100 leading-snug mb-2">{issue.title}</div>
@@ -52,9 +52,9 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
             </UserHoverCard>
           )}
         </div>
-        {issue.regressions > 0 && (
+        {(issue.regression_count ?? 0) > 0 && (
           <div className="mt-1.5 text-[10.5px] text-red-600 dark:text-red-400 inline-flex items-center gap-0.5">
-            <RefreshCw className="h-3 w-3" /> regressed {issue.regressions}×
+            <RefreshCw className="h-3 w-3" /> regressed {issue.regression_count}×
           </div>
         )}
       </button>

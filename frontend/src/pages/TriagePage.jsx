@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { Switch } from '../components/ui/Switch'
@@ -6,7 +6,9 @@ import { Avatar } from '../components/ui/Avatar'
 import { SeverityBadge, StatusBadge } from '../components/ui/Badge'
 import { Icon } from '../components/ui/Icon'
 import { MediaPreview } from '../components/common/MediaPreview'
-import { MOCK_ISSUES, MOCK_TEAM, MOCK_LABELS, SEVERITY, STATUS, userById } from '../data/mockData'
+import { SEVERITY } from '../data/mockData'
+import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
+import { useToast } from '../components/ui/Toast'
 
 function calculateAge(createdAt) {
   const now = new Date()
@@ -39,35 +41,66 @@ function RoleBadge({ value }) {
   )
 }
 
-// Sample triage media data
-const TRIAGE_ATTACHMENTS = [
-  {
-    id: 'm1', type: 'image', name: '500-response.png',
-    size: 248 * 1024, url: 'https://picsum.photos/1284/812?random=1', createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'm2', type: 'video', name: 'screen-rec.mp4',
-    size: 4.1 * 1024 * 1024, url: '#', createdAt: new Date(Date.now() - 60000).toISOString(),
-  },
-  {
-    id: 'm3', type: 'log', name: 'trace.log',
-    size: 32 * 1024, url: '#', createdAt: new Date(Date.now() - 120000).toISOString(),
-  },
-]
+function normalizeAttachment(a) {
+  const mimeType = a.mime_type || ''
+  const type = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : 'file'
+  return {
+    id: a.id,
+    name: a.file_name,
+    type,
+    url: a.download_url || a.public_url || '#',
+    size: a.file_size_bytes || 0,
+    createdAt: a.created_at,
+  }
+}
 
 export default function TriagePage() {
+  const [issues, setIssues] = useState([])
+  const [team, setTeam] = useState([])
+  const [labelsData, setLabelsData] = useState([])
+  const [attachments, setAttachments] = useState([])
+  const [loading, setLoading] = useState(true)
+
   const [selectedId, setSelectedId] = useState(null)
   const [assignee, setAssignee] = useState(null)
   const [severity, setSeverity] = useState('major')
   const [labels, setLabels] = useState([])
   const [blocker, setBlocker] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const [issuesRes, teamRes, labelsRes] = await Promise.all([
+          issuesApi.list({ status: 'new' }),
+          teamApi.list(),
+          labelsApi.list(),
+        ])
+        setIssues(issuesRes.data.items)
+        setTeam(teamRes.data)
+        setLabelsData(labelsRes.data)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedId) { setAttachments([]); return }
+    attachmentsApi.list(selectedId)
+      .then(r => setAttachments(r.data.map(normalizeAttachment)))
+      .catch(() => setAttachments([]))
+  }, [selectedId])
+
+  const userById = useCallback((id) => team.find(u => String(u.id) === String(id)), [team])
 
   const queue = useMemo(() => {
-    const issues = MOCK_ISSUES.filter(i => !i.assignee)
-    return issues.map(i => ({ ...i, age: calculateAge(i.createdAt) }))
-  }, [])
-  const selected = queue.find(i => i.id === selectedId)
+    return issues.map(i => ({ ...i, age: calculateAge(i.created_at) }))
+  }, [issues])
+  const selected = queue.find(i => String(i.id) === String(selectedId))
 
   useEffect(() => {
     if (queue.length > 0 && !selectedId) {
@@ -84,20 +117,39 @@ export default function TriagePage() {
     }
   }, [selected?.id])
 
-  function handleTriage() {
+  async function handleTriage() {
     if (!assignee) return
     setSubmitting(true)
-    setTimeout(() => {
-      const next = queue.find(q => q.id !== selected.id)
-      if (next) setSelectedId(next.id)
-      setSubmitting(false)
+    try {
+      await issuesApi.triage(selected.id, {
+        assignee_id: assignee,
+        severity,
+        labels,
+        is_release_blocker: blocker,
+      })
+      const assigneeName = userById(assignee)?.name || 'assignee'
+      const res = await issuesApi.list({ status: 'new' })
+      const updated = res.data.items
+      setIssues(updated)
+      const next = updated.find(i => String(i.id) !== String(selected.id))
+      setSelectedId(next ? next.id : null)
       setAssignee(null)
-    }, 600)
+      toast({ title: 'Issue triaged', body: `Assigned to ${assigneeName} and marked as triaged.` })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function handleNeedsClarification() {
-    // Navigate to issue detail
-    window.location.hash = `#/issue/${selected.id}`
+    window.location.hash = `#/issue/issue-${selected.issue_number}`
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading triage queue…</p>
+      </div>
+    )
   }
 
   if (queue.length === 0) {
@@ -116,8 +168,7 @@ export default function TriagePage() {
 
   const hours = selected.age?.endsWith('h') ? parseFloat(selected.age) : parseFloat(selected.age) * 24 || 0
   const sla = slaColor(hours)
-  const reporter = userById(selected.reporter)
-  const age = calculateAge(selected.createdAt)
+  const reporter = userById(selected.reporter_id)
 
   return (
     <div className="grid grid-cols-[1fr_440px] h-full min-h-0">
@@ -129,17 +180,17 @@ export default function TriagePage() {
         </div>
         <ul>
           {queue.map(i => {
-            const r = userById(i.reporter)
+            const r = userById(i.reporter_id)
             const issueHours = i.age?.endsWith('h') ? parseFloat(i.age) : parseFloat(i.age) * 24 || 0
             const issueSla = slaColor(issueHours)
             return (
               <li key={i.id}>
                 <button onClick={() => setSelectedId(i.id)}
                   className={cn('w-full text-left px-7 py-3 border-b border-border hover:bg-muted/50 transition-colors',
-                    selectedId === i.id && 'bg-muted/80')}>
+                    String(selectedId) === String(i.id) && 'bg-muted/80')}>
                   <div className="flex items-center gap-2 mb-1.5">
                     <SeverityBadge severity={i.severity} dot />
-                    <span className="font-mono text-[11px] text-muted-foreground">{i.id}</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">issue-{i.issue_number}</span>
                     <span className="ml-auto inline-flex items-center gap-1 text-[11px]">
                       <span className={cn('h-1.5 w-1.5 rounded-full', issueSla.dot)} />
                       <span className={issueSla.text}>filed {i.age} ago</span>
@@ -162,7 +213,7 @@ export default function TriagePage() {
       <div className="overflow-y-auto bg-muted/40">
         <div className="px-5 py-5">
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-mono text-[12px] text-muted-foreground">{selected.id}</span>
+            <span className="font-mono text-[12px] text-muted-foreground">issue-{selected.issue_number}</span>
             <SeverityBadge severity={selected.severity} dot />
             <StatusBadge status={selected.status} />
           </div>
@@ -175,7 +226,7 @@ export default function TriagePage() {
             )}
           </div>
 
-          <MediaPreview attachments={TRIAGE_ATTACHMENTS} readonly />
+          <MediaPreview attachments={attachments} readonly />
 
           <div className="mt-5">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Severity</div>
@@ -198,15 +249,15 @@ export default function TriagePage() {
           <div className="mt-4">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Assign to</div>
             <div className="grid grid-cols-1 gap-1.5">
-              {MOCK_TEAM.filter(u => ['developer', 'admin'].includes(u.role)).map(u => (
+              {team.filter(u => ['developer', 'admin'].includes(u.role)).map(u => (
                 <button key={u.id} onClick={() => setAssignee(u.id)}
                   className={cn('flex items-center gap-2 px-2.5 h-9 rounded-md border text-[12.5px] transition-colors',
-                    assignee === u.id
+                    String(assignee) === String(u.id)
                       ? 'border-foreground bg-muted dark:border-foreground dark:bg-muted'
                       : 'border-border hover:bg-muted dark:border-border dark:hover:bg-muted')}>
                   <Avatar user={u} size={22} />
                   <span className="font-medium text-foreground">{u.name}</span>
-                  <span className="text-[10.5px] text-muted-foreground font-mono ml-1">{u.tgHandle || ''}</span>
+                  <span className="text-[10.5px] text-muted-foreground font-mono ml-1">{u.telegram_handle || ''}</span>
                   {!u.tgConnected
                     ? <span className="ml-auto text-[10px] text-amber-600 inline-flex items-center gap-0.5"><Icon name="triangle-alert" size={9} /> not connected</span>
                     : <span className="ml-auto text-[10px] text-emerald-600 inline-flex items-center gap-0.5"><Icon name="check" size={9} /> reachable</span>}
@@ -219,10 +270,10 @@ export default function TriagePage() {
             <div>
               <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Labels</div>
               <div className="flex flex-wrap gap-1">
-                {MOCK_LABELS.map(l => (
-                  <button key={l.id} onClick={() => setLabels(L => L.includes(l.id) ? L.filter(x => x !== l.id) : [...L, l.id])}
+                {labelsData.map(l => (
+                  <button key={l.id} onClick={() => setLabels(L => L.includes(l.name) ? L.filter(x => x !== l.name) : [...L, l.name])}
                     className={cn('inline-flex items-center rounded px-1.5 py-0.5 text-[11px]',
-                      labels.includes(l.id)
+                      labels.includes(l.name)
                         ? 'bg-foreground text-background dark:bg-background dark:text-foreground'
                         : 'bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground hover:bg-muted/70 dark:hover:bg-muted/70')}>
                     {l.name}
@@ -236,7 +287,7 @@ export default function TriagePage() {
                 className={cn('flex items-center justify-between w-full h-9 px-3 rounded-md border',
                   blocker ? 'bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900' : 'border-border dark:border-border')}>
                 <span className={cn('text-[12.5px] font-medium', blocker ? 'text-red-700 dark:text-red-300' : 'text-foreground')}>
-                  {blocker ? 'Blocks v2.4.1' : 'Not a blocker'}
+                  {blocker ? 'Blocks release' : 'Not a blocker'}
                 </span>
                 <Switch checked={blocker} onCheckedChange={setBlocker} />
               </button>
@@ -253,7 +304,7 @@ export default function TriagePage() {
           </div>
           {assignee && (
             <div className="mt-2 text-[11px] text-muted-foreground inline-flex items-center gap-1">
-              <Icon name="send" size={11} className="text-blue-500" /> Will Telegram-ping {userById(assignee)?.tgHandle || ''}
+              <Icon name="send" size={11} className="text-blue-500" /> Will Telegram-ping {userById(assignee)?.telegram_handle || ''}
             </div>
           )}
         </div>

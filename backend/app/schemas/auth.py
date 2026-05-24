@@ -41,6 +41,7 @@ class UserMeResponse(BaseModel):
     username: str
     role: str
     avatar_color: str
+    avatar_url: str | None = None
     telegram_handle: str | None = None
     telegram_connected_at: str | None = None
     is_active: bool

@@ -84,7 +84,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
   }
 
   const copyLink = () => {
-    const url = window.location.origin + window.location.pathname + '#/issue/' + localIssue.id
+    const url = window.location.origin + window.location.pathname + '#/issue/issue-' + localIssue.issue_number
     navigator.clipboard?.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 1400)
@@ -118,7 +118,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
           <ChevronLeft size={13} /> Back to issues
         </button>
         <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
-        <div className="font-mono text-[12px] text-zinc-500">{localIssue.id}</div>
+        <div className="font-mono text-[12px] text-zinc-500">issue-{localIssue.issue_number}</div>
         <div className="flex items-center gap-1.5">
           <SeverityBadge severity={localIssue.severity} dot />
           <StatusBadge status={localIssue.status} />
@@ -199,7 +199,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
                 />
               </>
             )}
-            {tab === 'evidence' && <AttachmentsSection issue={localIssue} onAttachmentsChange={(atts) => update({ attachments: atts })} />}
+            {tab === 'evidence' && <AttachmentsSection issue={localIssue} onAttachmentsChange={(atts) => update({ attachments: atts })} issueId={localIssue.id} />}
             {tab === 'regression' && <RegressionTimelineSection issue={localIssue} />}
           </div>
         </div>

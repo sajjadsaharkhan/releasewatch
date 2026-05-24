@@ -36,7 +36,8 @@ export default function LoginPage() {
       // Navigate to dashboard
       navigate('/dashboard')
     } catch (err) {
-      const message = err.response?.data?.detail || 'Login failed. Please check your credentials.'
+      // Use normalized error message if available, otherwise use default
+      const message = err.normalizedMessage || err.response?.data?.detail || 'Login failed. Please check your credentials.'
       setError(message)
     } finally {
       setLoading(false)

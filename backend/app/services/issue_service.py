@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
@@ -58,14 +58,6 @@ class IssueService:
         if release is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
 
-        # Determine next issue_number for this project
-        result = await db.execute(
-            select(func.coalesce(func.max(Issue.issue_number), 0)).where(
-                Issue.project_id == release.project_id
-            )
-        )
-        next_number: int = (result.scalar_one() or 0) + 1
-
         now = datetime.now(tz=timezone.utc)
 
         # Convert reproduction steps to dict list for JSON storage
@@ -80,7 +72,6 @@ class IssueService:
         ]
 
         issue = Issue(
-            issue_number=next_number,
             project_id=release.project_id,
             release_id=data.release_id,
             title=data.title,
@@ -99,7 +90,7 @@ class IssueService:
             reproduction_steps=reproduction_steps_json or [],
         )
         db.add(issue)
-        await db.flush()  # get issue.id before adding timeline
+        await db.flush()  # get issue.id before adding timeline + attachments
 
         # Timeline: filed event
         timeline_svc = TimelineService()
@@ -113,6 +104,21 @@ class IssueService:
             is_internal=False,
         )
 
+        # Link any pre-uploaded attachments to this issue
+        if data.pending_attachments:
+            from app.db.models.issue_attachment import IssueAttachment
+
+            for pending in data.pending_attachments:
+                db.add(IssueAttachment(
+                    issue_id=issue.id,
+                    uploaded_by_id=current_user.id,
+                    file_name=pending.filename,
+                    s3_key=pending.s3_key,
+                    mime_type=pending.mime_type,
+                    file_size_bytes=pending.file_size_bytes,
+                    attachment_type=pending.attachment_type,
+                ))
+
         await db.flush()
         return issue
 
@@ -125,6 +131,8 @@ class IssueService:
         assignee_id: uuid.UUID,
         severity: IssueSeverity,
         current_user: User,
+        labels: list[str] | None = None,
+        is_release_blocker: bool | None = None,
     ) -> Issue:
         """Triage an issue: assign it and set severity.
 
@@ -165,6 +173,10 @@ class IssueService:
         issue.severity = severity
         issue.status = IssueStatus.triaged
         issue.triaged_at = now
+        if labels is not None:
+            issue.labels = labels
+        if is_release_blocker is not None:
+            issue.is_release_blocker = is_release_blocker
         if issue.filed_at:
             delta = now - issue.filed_at
             issue.time_to_triage_h = round(delta.total_seconds() / 3600, 2)
@@ -186,7 +198,7 @@ class IssueService:
                 actor_id=current_user.id,
                 event_type=TimelineEventType.severity_changed,
                 body=None,
-                meta={"from": prev_severity.value, "to": severity.value},
+                meta={"from": getattr(prev_severity, 'value', prev_severity), "to": getattr(severity, 'value', severity)},
                 is_internal=False,
             )
         await timeline_svc.create_event(
@@ -256,7 +268,7 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.fixed,
             body=mr_url,
-            meta={"from": prev_status.value, "to": IssueStatus.fixed.value, "mr_url": mr_url},
+            meta={"from": getattr(prev_status, 'value', prev_status), "to": IssueStatus.fixed.value, "mr_url": mr_url},
             is_internal=False,
         )
 
@@ -319,7 +331,7 @@ class IssueService:
             actor_id=current_user.id,
             event_type=event_type,
             body=None,
-            meta={"outcome": outcome, "to": issue.status.value},
+            meta={"outcome": outcome, "to": getattr(issue.status, 'value', issue.status)},
             is_internal=False,
         )
 
@@ -369,7 +381,7 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.status_changed,
             body="Issue reopened.",
-            meta={"from": prev_status.value, "to": IssueStatus.in_progress.value},
+            meta={"from": getattr(prev_status, 'value', prev_status), "to": IssueStatus.in_progress.value},
             is_internal=False,
         )
 

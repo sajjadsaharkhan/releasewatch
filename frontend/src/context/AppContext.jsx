@@ -12,6 +12,7 @@ export function AppProvider({ children }) {
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [activeReleaseId, setActiveReleaseId] = useState(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [newIssueOpen, setNewIssueOpen] = useState(false)
   const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
@@ -46,6 +47,7 @@ export function AppProvider({ children }) {
       const token = localStorage.getItem('rw:token')
       if (!token) {
         setAuthLoading(false)
+        setProjectsLoading(false)  // No need to load projects if not authenticated
         return
       }
 
@@ -59,6 +61,7 @@ export function AppProvider({ children }) {
         localStorage.removeItem('rw:refresh_token')
         setIsAuthenticated(false)
         setUser(null)
+        setProjectsLoading(false)  // Stop loading on auth failure
       } finally {
         setAuthLoading(false)
       }
@@ -67,9 +70,15 @@ export function AppProvider({ children }) {
     checkAuth()
   }, [])
 
-  // Fetch projects on mount
+  // Fetch projects on mount (only if authenticated)
   useEffect(() => {
     const fetchProjects = async () => {
+      // Don't fetch if not authenticated
+      if (!isAuthenticated) {
+        setProjectsLoading(false)
+        return
+      }
+
       try {
         const response = await projectsApi.list()
         const projectsList = response.data || []
@@ -88,7 +97,7 @@ export function AppProvider({ children }) {
     }
 
     fetchProjects()
-  }, [])
+  }, [isAuthenticated])
 
   // Fetch releases when active project changes
   useEffect(() => {
@@ -187,6 +196,8 @@ export function AppProvider({ children }) {
     setActiveReleaseId,
     commandPaletteOpen,
     setCommandPaletteOpen,
+    query,
+    setQuery,
     newIssueOpen,
     setNewIssueOpen,
     createReleaseOpen,

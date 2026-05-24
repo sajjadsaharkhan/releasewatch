@@ -88,7 +88,7 @@ export function CommandPalette() {
 
   function select(item) {
     setCommandPaletteOpen(false)
-    if (item.type === 'issue') navigate(`/issue/${item.data.id}`)
+    if (item.type === 'issue') navigate(`/issue/issue-${item.data.issue_number}`)
     else if (item.type === 'page') navigate(item.data.path)
     else if (item.type === 'user') navigate(`/u/${item.data.username}`)
   }
@@ -193,7 +193,7 @@ export function CommandPalette() {
                     onClick={() => select({ type: 'issue', data: issue })}
                   >
                     {sevToken && <span className={cn('h-2 w-2 rounded-full shrink-0', sevToken.dot)} />}
-                    <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{issue.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">issue-{issue.issue_number}</span>
                     <span className="flex-1 text-sm truncate">{issue.title}</span>
                   </div>
                 )

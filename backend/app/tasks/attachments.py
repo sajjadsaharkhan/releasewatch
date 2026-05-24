@@ -3,12 +3,12 @@
 After a client confirms an upload (POST /issues/{id}/attachments/confirm),
 this task is enqueued to:
 
-1. Re-verify the MIME type from S3 (``python-magic`` sniffing of first bytes).
+1. Detect the MIME type from S3 (for display purposes).
 2. Generate a thumbnail for image attachments using Pillow.
 3. Update ``file_size_bytes`` from the S3 HEAD response.
 
-If validation fails the ``IssueAttachment`` row is deleted and the S3 object
-is removed.
+All file types are now allowed — MIME type detection is for display only,
+not rejection.
 """
 
 import asyncio
@@ -50,11 +50,17 @@ def validate_attachment(
     -------
     dict
         ``{valid: bool, thumbnail_key: str|None, file_size_bytes: int|None}``
+
+    Note
+    ----
+    All file types are now allowed. MIME type detection is for display purposes
+    and thumbnail generation, not for rejection.
     """
-    from app.core.s3 import ALLOWED_MIME_TYPES, s3_service
+    from app.core.s3 import s3_service
 
     try:
-        result = asyncio.run(_validate(attachment_id, s3_key, s3_service, ALLOWED_MIME_TYPES))
+        # Pass None for allowed_mime_types to accept all types
+        result = asyncio.run(_validate(attachment_id, s3_key, s3_service, allowed_mime_types=None))
         return result
     except Exception as exc:
         logger.exception("validate_attachment failed for %s: %s", attachment_id, exc)
@@ -93,7 +99,9 @@ async def _validate(
     # Strip charset etc. from content type
     declared_mime = content_type.split(";")[0].strip()
 
-    if declared_mime not in allowed_mime_types:
+    # Only reject if allowed_mime_types is explicitly set and MIME doesn't match
+    # (For attachments, allowed_mime_types is None, so all types are accepted)
+    if allowed_mime_types is not None and declared_mime not in allowed_mime_types:
         logger.warning(
             "Attachment %s rejected — MIME type %r not allowed", attachment_id, declared_mime
         )
