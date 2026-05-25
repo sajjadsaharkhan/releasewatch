@@ -8,7 +8,7 @@ import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
 import { userById } from '../../data/mockData'
 import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
-import { MarkdownComposer } from './MarkdownComposer'
+import { CommentComposer } from './CommentComposer'
 
 // Current user ID - in a real app this would come from auth context
 const CURRENT_USER_ID = 'u-1'
@@ -67,7 +67,7 @@ function getLabel(event) {
   return style.label
 }
 
-export function IssueTimeline({ events = [], comments = [], issue, onAddComment, onUpdateComment, onDeleteComment }) {
+export function IssueTimeline({ events = [], comments = [], issue, users = [], onAddComment, onUpdateComment, onDeleteComment }) {
   const [editingCommentId, setEditingCommentId] = useState(null)
 
   // Merge events and comments, sort by time
@@ -127,13 +127,14 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
                   </div>
 
                   {isEditing ? (
-                    <MarkdownComposer
+                    <CommentComposer
                       initialValue={item.body}
                       initialInternal={item.isInternal}
                       initialMentionedUsers={item.mentionedUsers || []}
                       mode="edit"
                       onSubmit={handleEditComment}
                       onCancelEdit={() => setEditingCommentId(null)}
+                      users={users}
                     />
                   ) : (
                     <div className={cn(
@@ -234,9 +235,10 @@ export function IssueTimeline({ events = [], comments = [], issue, onAddComment,
             <Avatar user={userById('u-1')} size={30} />
           </UserHoverCard>
         </div>
-        <MarkdownComposer
+        <CommentComposer
           onSubmit={handleSubmitComment}
-          placeholder="Leave a comment… Use @ to mention someone."
+          placeholder="Leave a comment…"
+          users={users}
         />
       </div>
     </div>

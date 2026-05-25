@@ -100,35 +100,15 @@ export function UserMentionSelector({ users = [], selectedIds = [], onChange }) 
 
   return (
     <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3 px-3">
-      {/* Header with selected users chips */}
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        {/* Selected users chips */}
-        {selectedUsers.map(user => (
-          <span
-            key={user.id}
-            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium"
-          >
-            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: user.avatar_color }}>
-              {user.name.charAt(0).toUpperCase()}
-            </span>
-            <span>{user.name}</span>
-            <button
-              type="button"
-              onClick={(e) => removeUser(user.id, e)}
-              className="ml-0.5 hover:opacity-70"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-
+      {/* Header: trigger on the left, selected user chips on the right */}
+      <div className="flex items-center gap-2 mb-2">
         {/* Trigger button */}
         <button
           ref={triggerRef}
           type="button"
           onClick={toggleOpen}
           className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium transition-colors",
+            "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium transition-colors flex-shrink-0",
             isOpen
               ? "bg-blue-200 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200"
               : "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
@@ -138,6 +118,28 @@ export function UserMentionSelector({ users = [], selectedIds = [], onChange }) 
           Mention
           <ChevronDown className={cn("h-3 w-3 transition-transform", isOpen && "rotate-180")} />
         </button>
+
+        {/* Selected users chips — immediately after the trigger */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {selectedUsers.map(user => (
+            <span
+              key={user.id}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium"
+            >
+              <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: user.avatar_color }}>
+                {user.name.charAt(0).toUpperCase()}
+              </span>
+              <span>{user.name}</span>
+              <button
+                type="button"
+                onClick={(e) => removeUser(user.id, e)}
+                className="ml-0.5 hover:opacity-70"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Floating Dropdown - rendered via Portal to escape stacking context */}

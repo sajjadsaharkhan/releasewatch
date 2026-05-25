@@ -9,6 +9,7 @@ import { MediaPreview } from '../components/common/MediaPreview'
 import { SEVERITY } from '../data/mockData'
 import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
 import { useToast } from '../components/ui/Toast'
+import { renderMarkdown } from '../lib/markdown'
 
 function calculateAge(createdAt) {
   const now = new Date()
@@ -74,7 +75,7 @@ export default function TriagePage() {
       setLoading(true)
       try {
         const [issuesRes, teamRes, labelsRes] = await Promise.all([
-          issuesApi.list({ status: 'new' }),
+          issuesApi.list({ status: 'new', sort: 'oldest' }),
           teamApi.list(),
           labelsApi.list(),
         ])
@@ -176,7 +177,7 @@ export default function TriagePage() {
       <div className="border-r border-border overflow-y-auto">
         <div className="px-7 py-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
           <h1 className="text-lg font-semibold text-foreground">Triage queue</h1>
-          <p className="text-[12px] text-muted-foreground">{queue.length} unassigned · sorted by severity &amp; age</p>
+          <p className="text-[12px] text-muted-foreground">{queue.length} unassigned · oldest first</p>
         </div>
         <ul>
           {queue.map(i => {
@@ -219,14 +220,19 @@ export default function TriagePage() {
           </div>
           <h2 className="text-[17px] font-semibold leading-snug text-foreground">{selected.title}</h2>
 
-          <div className="mt-3 text-[13px] text-muted-foreground leading-relaxed">
-            {selected.description?.substring(0, 150) || 'No description provided.'}
-            {selected.description?.length > 150 && (
-              <button className="ml-1 text-[11.5px] text-blue-600 dark:text-blue-400">expand</button>
-            )}
+          <div className="mt-3 text-[13px] text-foreground/90 leading-relaxed prose-sm max-w-none">
+            {selected.description
+              ? renderMarkdown(selected.description)
+              : <span className="text-muted-foreground">No description provided.</span>}
           </div>
 
-          <MediaPreview attachments={attachments} readonly />
+          {attachments.length > 0 && <MediaPreview attachments={attachments} readonly />}
+          {attachments.length === 0 && (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+              <Icon name="paperclip" size={11} />
+              <span>No attachments</span>
+            </div>
+          )}
 
           <div className="mt-5">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Severity</div>

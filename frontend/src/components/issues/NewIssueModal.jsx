@@ -4,19 +4,19 @@ import { cn } from '../../lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { MarkdownComposer } from './MarkdownComposer'
+import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
 import { ProjectSwitcher, ReleaseSwitcher } from '../common'
 import { SEVERITY } from '../../data/mockData'
-import { issuesApi, projectsApi, releasesApi, labelsApi } from '../../lib/api'
+import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
 import { useApp } from '../../hooks/useApp'
 
 export function NewIssueModal({ open, onClose, onCreated }) {
   const { activeProjectId, activeReleaseId } = useApp()
   const [form, setForm] = useState({
     title: '',
-    projectId: '',
-    releaseId: '',
+    projectId: activeProjectId || '',
+    releaseId: activeReleaseId || '',
     severity: 'major',
     description: '',
     steps: [''],
@@ -31,6 +31,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   const [projects, setProjects] = useState([])
   const [allReleases, setAllReleases] = useState([])
   const [labels, setLabels] = useState([])
+  const [teamUsers, setTeamUsers] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
 
   // Fetch projects, releases, and labels on mount
@@ -38,14 +39,16 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     async function fetchData() {
       setDataLoading(true)
       try {
-        const [projectsRes, releasesRes, labelsRes] = await Promise.all([
+        const [projectsRes, releasesRes, labelsRes, teamRes] = await Promise.all([
           projectsApi.list(),
           releasesApi.list(),
           labelsApi.list(),
+          teamApi.list(),
         ])
         setProjects(projectsRes.data || [])
         setAllReleases(releasesRes.data?.releases || [])
         setLabels(labelsRes.data || [])
+        setTeamUsers(teamRes.data || [])
 
         // Set initial values from AppContext or defaults
         setForm((f) => ({
@@ -79,7 +82,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       })
       setErrors({})
     }
-  }, [open])
+  }, [open, activeProjectId, activeReleaseId])
 
   // Filter releases for selected project and only active/blocked status
   const availableReleases = allReleases.filter(
@@ -267,12 +270,13 @@ export function NewIssueModal({ open, onClose, onCreated }) {
             {/* Description */}
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => set('description', e.target.value)}
+              <CommentComposer
+                initialValue={form.description}
+                onChange={(val) => set('description', val)}
                 placeholder="Describe the issue, expected vs actual behavior…"
-                rows={5}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                showInternal={false}
+                hideFooter={false}
+                users={teamUsers}
               />
             </div>
 
