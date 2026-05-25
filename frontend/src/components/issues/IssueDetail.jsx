@@ -18,6 +18,7 @@ import { RegressionTimelineSection } from './RegressionTimelineSection'
 import { IssueTimeline } from './IssueTimeline'
 import { relTime } from '../../lib/relTime'
 import { userById, MOCK_TEAM, MOCK_PROJECTS, MOCK_RELEASES, SEVERITY, STATUS, MOCK_LABELS } from '../../data/mockData'
+import { teamApi } from '../../lib/api'
 import { ENVIRONMENT } from './DescriptionSection'
 
 export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
@@ -27,6 +28,11 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
   const [copied, setCopied] = useState(false)
   const [localIssue, setLocalIssue] = useState(issue)
   const [labelPickerOpen, setLabelPickerOpen] = useState(false)
+  const [teamUsers, setTeamUsers] = useState([])
+
+  useEffect(() => {
+    teamApi.list().then(res => setTeamUsers(res.data || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!localIssue) return
@@ -189,6 +195,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
                   events={events}
                   comments={comments}
                   issue={localIssue}
+                  users={teamUsers}
                   onAddComment={addComment}
                   onUpdateComment={(commentId, body, isInternal, mentionedUserIds, editedAt) => {
                     setComments(c => c.map(cm => cm.id === commentId ? { ...cm, body, isInternal, mentionedUsers: mentionedUserIds || [], editedAt } : cm))

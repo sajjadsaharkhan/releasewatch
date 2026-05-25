@@ -1,0 +1,1112 @@
+{
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/tailwind.config.js": {
+    "mtime": 1779264070.3289385,
+    "ast_hash": "6b5cb5df2634a85a2f393a09dfb5c3bf",
+    "semantic_hash": "6b5cb5df2634a85a2f393a09dfb5c3bf"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/vite.config.js": {
+    "mtime": 1779282662.2512267,
+    "ast_hash": "5ed3bf47a66e9f67a4ddf383a41d2e38",
+    "semantic_hash": "5ed3bf47a66e9f67a4ddf383a41d2e38"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/package.json": {
+    "mtime": 1779402408.8876383,
+    "ast_hash": "f5baba1c2e8052c1ea5d4fb9c2d88fc9",
+    "semantic_hash": "f5baba1c2e8052c1ea5d4fb9c2d88fc9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/postcss.config.js": {
+    "mtime": 1779264079.8626246,
+    "ast_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0",
+    "semantic_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/main.jsx": {
+    "mtime": 1779264127.354534,
+    "ast_hash": "ef76adc96162033027ef56828da80583",
+    "semantic_hash": "ef76adc96162033027ef56828da80583"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/App.jsx": {
+    "mtime": 1779652429.8935077,
+    "ast_hash": "1a098ce0bf86bd3ec5d3fe0d9fb7650e",
+    "semantic_hash": "1a098ce0bf86bd3ec5d3fe0d9fb7650e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/context/AppContext.jsx": {
+    "mtime": 1779650569.1472108,
+    "ast_hash": "b4246a0dda72f77e6c4bda34b401b30d",
+    "semantic_hash": "b4246a0dda72f77e6c4bda34b401b30d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Segmented.jsx": {
+    "mtime": 1779264707.5380392,
+    "ast_hash": "0410fa0b3e734634e2547a2ee29e8484",
+    "semantic_hash": "0410fa0b3e734634e2547a2ee29e8484"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Dialog.jsx": {
+    "mtime": 1779480528.750461,
+    "ast_hash": "a84d5bebd2fda27c292eb8cc551dfde7",
+    "semantic_hash": "a84d5bebd2fda27c292eb8cc551dfde7"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Avatar.jsx": {
+    "mtime": 1779476292.4006226,
+    "ast_hash": "706197288b38247103e559fdddf25b90",
+    "semantic_hash": "706197288b38247103e559fdddf25b90"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Dropdown.jsx": {
+    "mtime": 1779480537.1598241,
+    "ast_hash": "16f16bc0c9d7a603db8dce87592e2526",
+    "semantic_hash": "16f16bc0c9d7a603db8dce87592e2526"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/UserHoverCard.jsx": {
+    "mtime": 1779484342.8078923,
+    "ast_hash": "ef8f44be2f3f3e3160aa76f7734c35fa",
+    "semantic_hash": "ef8f44be2f3f3e3160aa76f7734c35fa"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Calendar.jsx": {
+    "mtime": 1779623702.340045,
+    "ast_hash": "adf0a93a2cd499ad138577f47af7a314",
+    "semantic_hash": "adf0a93a2cd499ad138577f47af7a314"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Switch.jsx": {
+    "mtime": 1779264694.998051,
+    "ast_hash": "1fb5c0a7d5a122d9a44a621051d39d2f",
+    "semantic_hash": "1fb5c0a7d5a122d9a44a621051d39d2f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/ImageCropper.jsx": {
+    "mtime": 1779480645.8800375,
+    "ast_hash": "7c26337f35db55f9fac03ceaca3cb730",
+    "semantic_hash": "7c26337f35db55f9fac03ceaca3cb730"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/InfoTooltip.jsx": {
+    "mtime": 1779473091.2593324,
+    "ast_hash": "cd6679e0ff5b413ad32017335b2bb7fa",
+    "semantic_hash": "cd6679e0ff5b413ad32017335b2bb7fa"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Input.jsx": {
+    "mtime": 1779264682.1991096,
+    "ast_hash": "82c78719e880cf7916c198ec697641d6",
+    "semantic_hash": "82c78719e880cf7916c198ec697641d6"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Textarea.jsx": {
+    "mtime": 1779264689.1900246,
+    "ast_hash": "a03c0a08b790ebe0cc803fb98495a651",
+    "semantic_hash": "a03c0a08b790ebe0cc803fb98495a651"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Select.jsx": {
+    "mtime": 1779623414.9793808,
+    "ast_hash": "3df7a838d58ab2057ad9c4949186e743",
+    "semantic_hash": "3df7a838d58ab2057ad9c4949186e743"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Toast.jsx": {
+    "mtime": 1779264755.0044365,
+    "ast_hash": "5b2171c97a78a16495f20ffdd4cc3d84",
+    "semantic_hash": "5b2171c97a78a16495f20ffdd4cc3d84"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Button.jsx": {
+    "mtime": 1779624109.4090147,
+    "ast_hash": "22d9f9974983eeecc472732db66d2b7c",
+    "semantic_hash": "22d9f9974983eeecc472732db66d2b7c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/index.js": {
+    "mtime": 1779659808.608226,
+    "ast_hash": "e1b87aba8f761cd0b83bf30041b9eb23",
+    "semantic_hash": "e1b87aba8f761cd0b83bf30041b9eb23"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Badge.jsx": {
+    "mtime": 1779401945.751492,
+    "ast_hash": "d4f3fb3455be33785e9ff7521af78f82",
+    "semantic_hash": "d4f3fb3455be33785e9ff7521af78f82"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Icon.jsx": {
+    "mtime": 1779264767.7662241,
+    "ast_hash": "43a25790d40c7c1e13ac04a8f36a5a18",
+    "semantic_hash": "43a25790d40c7c1e13ac04a8f36a5a18"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/ColorSelectDropdown.jsx": {
+    "mtime": 1779462992.8436046,
+    "ast_hash": "233385284efb01253b8ce9bd4cd2a317",
+    "semantic_hash": "233385284efb01253b8ce9bd4cd2a317"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/NativeSelect.jsx": {
+    "mtime": 1779379689.2759542,
+    "ast_hash": "4db61ac7cb39cd16c955b4e2bdc30d6c",
+    "semantic_hash": "4db61ac7cb39cd16c955b4e2bdc30d6c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/FilterChipStatic.jsx": {
+    "mtime": 1779379681.2250414,
+    "ast_hash": "d85c78b06244c200ded759e81af7f2f1",
+    "semantic_hash": "d85c78b06244c200ded759e81af7f2f1"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/MentionDropdown.jsx": {
+    "mtime": 1779659756.5586581,
+    "ast_hash": "e5dd36b1dfb44daea0b47e299ddc32b5",
+    "semantic_hash": "e5dd36b1dfb44daea0b47e299ddc32b5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Popover.jsx": {
+    "mtime": 1779624243.4475183,
+    "ast_hash": "48b95c752c39a24e608b3542bdb8ba1d",
+    "semantic_hash": "48b95c752c39a24e608b3542bdb8ba1d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Slider.jsx": {
+    "mtime": 1779476358.108338,
+    "ast_hash": "c0c36eac6e39f9a41fe828ea33b9b01d",
+    "semantic_hash": "c0c36eac6e39f9a41fe828ea33b9b01d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Card.jsx": {
+    "mtime": 1779264410.385389,
+    "ast_hash": "2fb3db8c1fb5a35aef7c0b412549150b",
+    "semantic_hash": "2fb3db8c1fb5a35aef7c0b412549150b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/DatePicker.jsx": {
+    "mtime": 1779623765.3661325,
+    "ast_hash": "bd25e55e7c07f6e0308704aac5004cb8",
+    "semantic_hash": "bd25e55e7c07f6e0308704aac5004cb8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Tabs.jsx": {
+    "mtime": 1779380962.3860364,
+    "ast_hash": "fd193bbcade3f8bc0fec4bd9d4d530a1",
+    "semantic_hash": "fd193bbcade3f8bc0fec4bd9d4d530a1"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Tooltip.jsx": {
+    "mtime": 1779264714.5962474,
+    "ast_hash": "e4896e1cd66f638be82cb9d4c00a0af6",
+    "semantic_hash": "e4896e1cd66f638be82cb9d4c00a0af6"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Empty.jsx": {
+    "mtime": 1779264760.8361764,
+    "ast_hash": "285f8aa3b70e0f5fe4f58c8ca0e2c658",
+    "semantic_hash": "285f8aa3b70e0f5fe4f58c8ca0e2c658"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/UserMentionSelector.jsx": {
+    "mtime": 1779662021.7104337,
+    "ast_hash": "d856f2061189c41d6d6a8f702f0aa4f5",
+    "semantic_hash": "d856f2061189c41d6d6a8f702f0aa4f5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/ui/Sheet.jsx": {
+    "mtime": 1779264742.6248686,
+    "ast_hash": "3fb4143f6287f9913d81e56db5fc26ae",
+    "semantic_hash": "3fb4143f6287f9913d81e56db5fc26ae"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/releases/EditReleaseModal.jsx": {
+    "mtime": 1779468016.2007468,
+    "ast_hash": "7c570c452a19430b634b2ce734d2843d",
+    "semantic_hash": "7c570c452a19430b634b2ce734d2843d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/releases/CreateReleaseModal.jsx": {
+    "mtime": 1779624411.7954419,
+    "ast_hash": "17f9679f83b4e9da0060d1db396061a8",
+    "semantic_hash": "17f9679f83b4e9da0060d1db396061a8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/releases/index.js": {
+    "mtime": 1779468025.986669,
+    "ast_hash": "f77720292a5b4ff07621f4f0179074e5",
+    "semantic_hash": "f77720292a5b4ff07621f4f0179074e5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/layout/NavItem.jsx": {
+    "mtime": 1779264782.9894035,
+    "ast_hash": "02d1c0cd0741ee67a67258374d0672cb",
+    "semantic_hash": "02d1c0cd0741ee67a67258374d0672cb"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/layout/index.js": {
+    "mtime": 1779264824.680226,
+    "ast_hash": "c9e5d7d4106781dd07a2b31c4787cd20",
+    "semantic_hash": "c9e5d7d4106781dd07a2b31c4787cd20"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/layout/Sidebar.jsx": {
+    "mtime": 1779402944.4740303,
+    "ast_hash": "9a25e41f2ffebc5de256119bb896059b",
+    "semantic_hash": "9a25e41f2ffebc5de256119bb896059b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/layout/Topbar.jsx": {
+    "mtime": 1779624598.4312272,
+    "ast_hash": "aa0943acb45a83b90cdc72e01e3eb9d9",
+    "semantic_hash": "aa0943acb45a83b90cdc72e01e3eb9d9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/layout/AppShell.jsx": {
+    "mtime": 1779479223.10736,
+    "ast_hash": "1afb6f69d110aaaeebdb30e9a57e1d1f",
+    "semantic_hash": "1afb6f69d110aaaeebdb30e9a57e1d1f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/project/ArchiveProjectConfirmModal.jsx": {
+    "mtime": 1779482071.9056032,
+    "ast_hash": "b4ebfd9b1ec9a1ba10eece9df8c7a0ac",
+    "semantic_hash": "b4ebfd9b1ec9a1ba10eece9df8c7a0ac"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/project/index.js": {
+    "mtime": 1779481406.8027966,
+    "ast_hash": "9621844fcb15f43b2303e34db41031f5",
+    "semantic_hash": "9621844fcb15f43b2303e34db41031f5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/project/EditProjectModal.jsx": {
+    "mtime": 1779481404.1575134,
+    "ast_hash": "3d0afe35880cd0ba07ced3a88b7cc300",
+    "semantic_hash": "3d0afe35880cd0ba07ced3a88b7cc300"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/project/CreateProjectModal.jsx": {
+    "mtime": 1779481399.467668,
+    "ast_hash": "e9cf7d6d86bb77fec1cfc174bdb8d4d0",
+    "semantic_hash": "e9cf7d6d86bb77fec1cfc174bdb8d4d0"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/LabelChip.jsx": {
+    "mtime": 1779383211.537587,
+    "ast_hash": "8f8af21115f18140543ba501cb53c299",
+    "semantic_hash": "8f8af21115f18140543ba501cb53c299"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/RegressionRateLineChart.jsx": {
+    "mtime": 1779473711.770768,
+    "ast_hash": "2f661ff556c109e2c36594d764325d33",
+    "semantic_hash": "2f661ff556c109e2c36594d764325d33"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/MetricCard.jsx": {
+    "mtime": 1779478215.2215059,
+    "ast_hash": "fb29bf7c6d22687f61df4f0ec963a9d6",
+    "semantic_hash": "fb29bf7c6d22687f61df4f0ec963a9d6"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/MediaPreview.jsx": {
+    "mtime": 1779645860.1894627,
+    "ast_hash": "7cfb555939bfb5a33c8a77cf9d5a61fb",
+    "semantic_hash": "7cfb555939bfb5a33c8a77cf9d5a61fb"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/LabelBarChart.jsx": {
+    "mtime": 1779470659.477174,
+    "ast_hash": "6e5fbc2d9558be5ec5e699e27afd2272",
+    "semantic_hash": "6e5fbc2d9558be5ec5e699e27afd2272"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/ChronicRecurrenceTable.jsx": {
+    "mtime": 1779473770.0001366,
+    "ast_hash": "618b3325145197d4549ed2b91c213231",
+    "semantic_hash": "618b3325145197d4549ed2b91c213231"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/RegressionIssueTable.jsx": {
+    "mtime": 1779474825.7176435,
+    "ast_hash": "cc07b0df62700a5e950980396986b5a7",
+    "semantic_hash": "cc07b0df62700a5e950980396986b5a7"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/FilterDropdown.jsx": {
+    "mtime": 1779378263.1347778,
+    "ast_hash": "97dc8ecdc858c07906c9c9d87fef836b",
+    "semantic_hash": "97dc8ecdc858c07906c9c9d87fef836b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/MetricChart.jsx": {
+    "mtime": 1779469691.0254664,
+    "ast_hash": "862be4c6b09d17cb35f04433089ee917",
+    "semantic_hash": "862be4c6b09d17cb35f04433089ee917"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/index.js": {
+    "mtime": 1779474723.7666745,
+    "ast_hash": "4f03a0b9c3d1566440b73d084abf9179",
+    "semantic_hash": "4f03a0b9c3d1566440b73d084abf9179"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/SegmentedBarChart.jsx": {
+    "mtime": 1779472735.3342512,
+    "ast_hash": "ba1fdc2db4ddd4a9c1728b70f1e7ab66",
+    "semantic_hash": "ba1fdc2db4ddd4a9c1728b70f1e7ab66"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/SeverityDistributionChart.jsx": {
+    "mtime": 1779473740.8018484,
+    "ast_hash": "87cbda7c3c1d21c5c33ae1d019024179",
+    "semantic_hash": "87cbda7c3c1d21c5c33ae1d019024179"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/ReleaseSwitcher.jsx": {
+    "mtime": 1779625965.8897226,
+    "ast_hash": "a5f3eee769926cf0ee5ed7164312664e",
+    "semantic_hash": "a5f3eee769926cf0ee5ed7164312664e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/CommandPalette.jsx": {
+    "mtime": 1779654466.4860272,
+    "ast_hash": "c424dd4b995cd8a7417c3925b0efab98",
+    "semantic_hash": "c424dd4b995cd8a7417c3925b0efab98"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/UsernameFilter.jsx": {
+    "mtime": 1779470459.6566346,
+    "ast_hash": "5fea2bd9289782536b418d34add1a221",
+    "semantic_hash": "5fea2bd9289782536b418d34add1a221"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/DraggableIssueCard.jsx": {
+    "mtime": 1779654146.004961,
+    "ast_hash": "5fa49f8f3385656d0042b153948b0a7d",
+    "semantic_hash": "5fa49f8f3385656d0042b153948b0a7d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/RegressionTaxChart.jsx": {
+    "mtime": 1779473721.3955145,
+    "ast_hash": "689a506f82854b5b429994ae7aa49494",
+    "semantic_hash": "689a506f82854b5b429994ae7aa49494"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/TeamTable.jsx": {
+    "mtime": 1779474548.9186726,
+    "ast_hash": "d1e5bba3a06b0abf1b9824d4a4f53a88",
+    "semantic_hash": "d1e5bba3a06b0abf1b9824d4a4f53a88"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/IssueBoard.jsx": {
+    "mtime": 1779650640.9065046,
+    "ast_hash": "d6c51728d8820086b317dbda55db8a26",
+    "semantic_hash": "d6c51728d8820086b317dbda55db8a26"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/MetricSummaryCard.jsx": {
+    "mtime": 1779470232.631343,
+    "ast_hash": "f2b4d0ee3f83c0ead02691adc0ba504e",
+    "semantic_hash": "f2b4d0ee3f83c0ead02691adc0ba504e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/MultiSelectFilterDropdown.jsx": {
+    "mtime": 1779401512.5703783,
+    "ast_hash": "778131953ba944996dde188d2f326733",
+    "semantic_hash": "778131953ba944996dde188d2f326733"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/ProjectSwitcher.jsx": {
+    "mtime": 1779481443.5010488,
+    "ast_hash": "24fd6a6cbf218a1cc3fe8d5fd21b960e",
+    "semantic_hash": "24fd6a6cbf218a1cc3fe8d5fd21b960e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/RecurrenceMatrix.jsx": {
+    "mtime": 1779473782.4747374,
+    "ast_hash": "071888ac6691191fd07edd61045488ce",
+    "semantic_hash": "071888ac6691191fd07edd61045488ce"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/RegressionFilters.jsx": {
+    "mtime": 1779475159.981733,
+    "ast_hash": "dc93f588f3bc7b401b9f7efeb31430c0",
+    "semantic_hash": "dc93f588f3bc7b401b9f7efeb31430c0"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/DroppableColumn.jsx": {
+    "mtime": 1779650653.1097953,
+    "ast_hash": "d574e727e554862bc8931da5f16053be",
+    "semantic_hash": "d574e727e554862bc8931da5f16053be"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/DateRangeFilter.jsx": {
+    "mtime": 1779472434.703877,
+    "ast_hash": "c279010ec98b3baaadf30bf7e4503ef5",
+    "semantic_hash": "c279010ec98b3baaadf30bf7e4503ef5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/LabelTrendChart.jsx": {
+    "mtime": 1779473731.6008952,
+    "ast_hash": "c254b2dfc8f4c3ed032d9aa72fb149b8",
+    "semantic_hash": "c254b2dfc8f4c3ed032d9aa72fb149b8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/common/IssueTable.jsx": {
+    "mtime": 1779654460.2724984,
+    "ast_hash": "47fbf22ab2f787be2946d04384a2856c",
+    "semantic_hash": "47fbf22ab2f787be2946d04384a2856c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/ActivateUserModal.jsx": {
+    "mtime": 1779564371.654934,
+    "ast_hash": "c90229f8fdd41596421ef8d0e26b9cb1",
+    "semantic_hash": "c90229f8fdd41596421ef8d0e26b9cb1"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/DeleteLabelModal.jsx": {
+    "mtime": 1779481193.5905545,
+    "ast_hash": "0908b1a4741463c38050055e45fb3c98",
+    "semantic_hash": "0908b1a4741463c38050055e45fb3c98"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/DeactivateUserModal.jsx": {
+    "mtime": 1779564808.7595136,
+    "ast_hash": "318164d07ce6394490c9c28e7c8fc690",
+    "semantic_hash": "318164d07ce6394490c9c28e7c8fc690"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/EditMemberModal.jsx": {
+    "mtime": 1779480569.8171012,
+    "ast_hash": "8fd4538409476c63a0cd175cc640ec62",
+    "semantic_hash": "8fd4538409476c63a0cd175cc640ec62"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/index.js": {
+    "mtime": 1779564431.6108215,
+    "ast_hash": "2d39bef26e7ef0d19f7ebf0fa989c24b",
+    "semantic_hash": "2d39bef26e7ef0d19f7ebf0fa989c24b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/EditUserModal.jsx": {
+    "mtime": 1779563213.0402725,
+    "ast_hash": "63b96bc72b2c4d23cc9a75166ce4af8f",
+    "semantic_hash": "63b96bc72b2c4d23cc9a75166ce4af8f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/CreateMemberModal.jsx": {
+    "mtime": 1779480575.573436,
+    "ast_hash": "4a55b98d385c9f781a32d09ee41cebf0",
+    "semantic_hash": "4a55b98d385c9f781a32d09ee41cebf0"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/ConfirmModal.jsx": {
+    "mtime": 1779480581.9748235,
+    "ast_hash": "138755833afd04b1934a8b6ab4afa258",
+    "semantic_hash": "138755833afd04b1934a8b6ab4afa258"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/team/InviteUserModal.jsx": {
+    "mtime": 1779563211.1288588,
+    "ast_hash": "e8b575499db992e5547614bc248c03ed",
+    "semantic_hash": "e8b575499db992e5547614bc248c03ed"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/RegressionTimelineSection.jsx": {
+    "mtime": 1779383139.0471787,
+    "ast_hash": "bd48fb4af579887d99be0fd654f88f85",
+    "semantic_hash": "bd48fb4af579887d99be0fd654f88f85"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/EnvTile.jsx": {
+    "mtime": 1779378570.5011399,
+    "ast_hash": "618abd19575902c862e7db609fd7e3ae",
+    "semantic_hash": "618abd19575902c862e7db609fd7e3ae"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/TimeMetric.jsx": {
+    "mtime": 1779378559.8851395,
+    "ast_hash": "7613b32d2a96aba202dd8de8954db8c3",
+    "semantic_hash": "7613b32d2a96aba202dd8de8954db8c3"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/index.js": {
+    "mtime": 1779659813.195063,
+    "ast_hash": "2cd1b54366c464b95dc7f9cd4175b945",
+    "semantic_hash": "2cd1b54366c464b95dc7f9cd4175b945"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/NewIssueModal.jsx": {
+    "mtime": 1779662246.1012418,
+    "ast_hash": "2044df383cb175de5c3a716e2b536062",
+    "semantic_hash": "2044df383cb175de5c3a716e2b536062"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/MarkdownComposer.jsx": {
+    "mtime": 1779400531.593995,
+    "ast_hash": "864a845a939c48818d275d8a94de7d7b",
+    "semantic_hash": "864a845a939c48818d275d8a94de7d7b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/AttachmentTile.jsx": {
+    "mtime": 1779388339.1704333,
+    "ast_hash": "14ec0f3fc820f08f6518e3ad12a2ad40",
+    "semantic_hash": "14ec0f3fc820f08f6518e3ad12a2ad40"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/IssueDetail.jsx": {
+    "mtime": 1779662176.9180589,
+    "ast_hash": "9598363ec1aed4bb07cea1918a045a62",
+    "semantic_hash": "9598363ec1aed4bb07cea1918a045a62"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/IssueTimeline.jsx": {
+    "mtime": 1779662198.6607325,
+    "ast_hash": "96c217ab55c42f0d36457870d2b946c4",
+    "semantic_hash": "96c217ab55c42f0d36457870d2b946c4"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/DescriptionSection.jsx": {
+    "mtime": 1779401095.1395442,
+    "ast_hash": "344c9dcfd0e578a2ddacf7c06de0dca8",
+    "semantic_hash": "344c9dcfd0e578a2ddacf7c06de0dca8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/MetaRow.jsx": {
+    "mtime": 1779378543.2946224,
+    "ast_hash": "6711f9174a886ba9c63a98160e761afb",
+    "semantic_hash": "6711f9174a886ba9c63a98160e761afb"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/CommentComposer.jsx": {
+    "mtime": 1779662260.7379866,
+    "ast_hash": "6dd7777ac6b3f5ef683e6caec0513341",
+    "semantic_hash": "6dd7777ac6b3f5ef683e6caec0513341"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/AttachmentsSection.jsx": {
+    "mtime": 1779647642.1800015,
+    "ast_hash": "b12e47ffc45c4353f6d5ec7017091c35",
+    "semantic_hash": "b12e47ffc45c4353f6d5ec7017091c35"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/components/issues/RegressionTimeline.jsx": {
+    "mtime": 1779265015.7368133,
+    "ast_hash": "1e599eb03dbe0507a51ae1970f591f09",
+    "semantic_hash": "1e599eb03dbe0507a51ae1970f591f09"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/hooks/useApp.js": {
+    "mtime": 1779264143.9943113,
+    "ast_hash": "bf75c83b71adebe878fe05f6dfd71e61",
+    "semantic_hash": "bf75c83b71adebe878fe05f6dfd71e61"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/hooks/useToast.js": {
+    "mtime": 1779264154.2555902,
+    "ast_hash": "c0a74da9a5139bd3e792582f53d37381",
+    "semantic_hash": "c0a74da9a5139bd3e792582f53d37381"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/upload.js": {
+    "mtime": 1779647580.6914763,
+    "ast_hash": "f76b128a628f3c5127d536a94b529b46",
+    "semantic_hash": "f76b128a628f3c5127d536a94b529b46"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/colors.js": {
+    "mtime": 1779377047.522782,
+    "ast_hash": "fac24deb6f301dbf38ecf8a75c2f5be2",
+    "semantic_hash": "fac24deb6f301dbf38ecf8a75c2f5be2"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/api.js": {
+    "mtime": 1779652424.4747336,
+    "ast_hash": "6a3eba319e4c1f70b99bf5c33f70e0b5",
+    "semantic_hash": "6a3eba319e4c1f70b99bf5c33f70e0b5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/cn.js": {
+    "mtime": 1779264173.039813,
+    "ast_hash": "6a609c14aa473cdb010c6761677e821e",
+    "semantic_hash": "6a609c14aa473cdb010c6761677e821e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/relTime.js": {
+    "mtime": 1779384079.8795092,
+    "ast_hash": "601412363463f0bbc4f8a2f8cd8fbadc",
+    "semantic_hash": "601412363463f0bbc4f8a2f8cd8fbadc"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/lib/markdown.js": {
+    "mtime": 1779264228.8162534,
+    "ast_hash": "0a013f650775af8a132ee96d9b37329e",
+    "semantic_hash": "0a013f650775af8a132ee96d9b37329e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/data/mockData.js": {
+    "mtime": 1779551205.006726,
+    "ast_hash": "42abc8398ea1c55514c8f41bcb130a5f",
+    "semantic_hash": "42abc8398ea1c55514c8f41bcb130a5f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/TeamPage.jsx": {
+    "mtime": 1779561416.7263148,
+    "ast_hash": "9913207b84d15932f3cb53af39481bfe",
+    "semantic_hash": "9913207b84d15932f3cb53af39481bfe"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/ReleasesPage.jsx": {
+    "mtime": 1779625978.6107845,
+    "ast_hash": "2ba1b340fbb30d9707aff7eaab642de2",
+    "semantic_hash": "2ba1b340fbb30d9707aff7eaab642de2"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/RegressionsPage.jsx": {
+    "mtime": 1779475225.6012518,
+    "ast_hash": "265b9869abff826752ab99a2fd336e3b",
+    "semantic_hash": "265b9869abff826752ab99a2fd336e3b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/DashboardPage.jsx": {
+    "mtime": 1779483685.798655,
+    "ast_hash": "9e92b0d285f62ed4ed4c530acb34e752",
+    "semantic_hash": "9e92b0d285f62ed4ed4c530acb34e752"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/IssuePage.jsx": {
+    "mtime": 1779652443.217273,
+    "ast_hash": "e96266efea360cf99e04188267eface5",
+    "semantic_hash": "e96266efea360cf99e04188267eface5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/SettingsPage.jsx": {
+    "mtime": 1779622793.2060685,
+    "ast_hash": "1a3e485a8d9573d241e4fb4fbe2d3c69",
+    "semantic_hash": "1a3e485a8d9573d241e4fb4fbe2d3c69"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/ReleaseDetailPage.jsx": {
+    "mtime": 1779654129.8300993,
+    "ast_hash": "63c071606ea8ce21ce6cd2822325eae3",
+    "semantic_hash": "63c071606ea8ce21ce6cd2822325eae3"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/IssuesPage.jsx": {
+    "mtime": 1779652448.9470875,
+    "ast_hash": "fe8803f4ab854d729df42db6cbd8cc17",
+    "semantic_hash": "fe8803f4ab854d729df42db6cbd8cc17"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/LoginPage.jsx": {
+    "mtime": 1779641248.651015,
+    "ast_hash": "e970965bae63641396786fc0c79917c6",
+    "semantic_hash": "e970965bae63641396786fc0c79917c6"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/ContributionsPage.jsx": {
+    "mtime": 1779473283.280667,
+    "ast_hash": "c04425f8ed2cf53d89b6ddd793c39b21",
+    "semantic_hash": "c04425f8ed2cf53d89b6ddd793c39b21"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/TriagePage.jsx": {
+    "mtime": 1779661557.2223825,
+    "ast_hash": "b460924f7aae99bee858efba36e50060",
+    "semantic_hash": "b460924f7aae99bee858efba36e50060"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/InboxPage.jsx": {
+    "mtime": 1779265189.0158646,
+    "ast_hash": "6610f58531b200ec67f705da0b61b7b0",
+    "semantic_hash": "6610f58531b200ec67f705da0b61b7b0"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/src/pages/ProfilePage.jsx": {
+    "mtime": 1779478241.3459413,
+    "ast_hash": "50f73c30c81e5b300e7249a9a6b98768",
+    "semantic_hash": "50f73c30c81e5b300e7249a9a6b98768"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/.claude/skills/sync-frontend-to-backend/.claude/settings.local.json": {
+    "mtime": 1779704374.94853,
+    "ast_hash": "20162cce492f8beafaf5ba1e2c3b6615",
+    "semantic_hash": "20162cce492f8beafaf5ba1e2c3b6615"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/config.py": {
+    "mtime": 1779639952.431758,
+    "ast_hash": "2d315152acf662ade0f491000b8fd29a",
+    "semantic_hash": "2d315152acf662ade0f491000b8fd29a"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/__init__.py": {
+    "mtime": 1779264709.216741,
+    "ast_hash": "a18c020fcd4bc419a989a5024888fb39",
+    "semantic_hash": "a18c020fcd4bc419a989a5024888fb39"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/main.py": {
+    "mtime": 1779640641.318194,
+    "ast_hash": "10796a0bc709a48bd1afdd00456d39fb",
+    "semantic_hash": "10796a0bc709a48bd1afdd00456d39fb"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/celery_app.py": {
+    "mtime": 1779265222.305341,
+    "ast_hash": "af24a475b196c31a8785215b6bbb4d47",
+    "semantic_hash": "af24a475b196c31a8785215b6bbb4d47"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/__init__.py": {
+    "mtime": 1779265212.6977139,
+    "ast_hash": "c750ba667ddb9d7a3335093b03f2cb39",
+    "semantic_hash": "c750ba667ddb9d7a3335093b03f2cb39"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/attachments.py": {
+    "mtime": 1779643809.3778317,
+    "ast_hash": "1bce1aa7be65aceadcd1bb50f7a57b25",
+    "semantic_hash": "1bce1aa7be65aceadcd1bb50f7a57b25"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/inbox.py": {
+    "mtime": 1779265282.3878424,
+    "ast_hash": "f3c0d737d390039432b91fbc6a287386",
+    "semantic_hash": "f3c0d737d390039432b91fbc6a287386"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/reports.py": {
+    "mtime": 1779265301.435772,
+    "ast_hash": "02e83e8c2f02ac4545de8cc0c8739d4d",
+    "semantic_hash": "02e83e8c2f02ac4545de8cc0c8739d4d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/tasks/notifications.py": {
+    "mtime": 1779265238.5708864,
+    "ast_hash": "8976916003b9dbcaf600a9520638f03f",
+    "semantic_hash": "8976916003b9dbcaf600a9520638f03f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/core/auth.py": {
+    "mtime": 1779552521.5371954,
+    "ast_hash": "bd9589ed26631046311737e890c9eb3f",
+    "semantic_hash": "bd9589ed26631046311737e890c9eb3f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/core/telegram.py": {
+    "mtime": 1779264973.8624144,
+    "ast_hash": "44a1435ab5a2abcd97f51928073ea3c8",
+    "semantic_hash": "44a1435ab5a2abcd97f51928073ea3c8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/core/__init__.py": {
+    "mtime": 1779264882.4186444,
+    "ast_hash": "68e4fd30651401c2155f35141840aee5",
+    "semantic_hash": "68e4fd30651401c2155f35141840aee5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/core/redis_client.py": {
+    "mtime": 1779264917.07227,
+    "ast_hash": "eeeaf13d52bb43337eb3a5731475c0ce",
+    "semantic_hash": "eeeaf13d52bb43337eb3a5731475c0ce"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/core/s3.py": {
+    "mtime": 1779647329.2427702,
+    "ast_hash": "315af6dea2bab5b117f03bdd910c230c",
+    "semantic_hash": "315af6dea2bab5b117f03bdd910c230c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/auth.py": {
+    "mtime": 1779641210.0210664,
+    "ast_hash": "496ba2e428cd91818e7cc748e612fbcd",
+    "semantic_hash": "496ba2e428cd91818e7cc748e612fbcd"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/user.py": {
+    "mtime": 1779640032.3297637,
+    "ast_hash": "fa4764b08235f59011ede12ac4c433aa",
+    "semantic_hash": "fa4764b08235f59011ede12ac4c433aa"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/release.py": {
+    "mtime": 1779623170.2661958,
+    "ast_hash": "09746befddafde0f70d8da63e59e4dfd",
+    "semantic_hash": "09746befddafde0f70d8da63e59e4dfd"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/timeline.py": {
+    "mtime": 1779265019.6630557,
+    "ast_hash": "50b3dc84724a427606df068d12af2917",
+    "semantic_hash": "50b3dc84724a427606df068d12af2917"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/__init__.py": {
+    "mtime": 1779264978.5088842,
+    "ast_hash": "68ddd817ab2d6b9463d2a2ccb24101c4",
+    "semantic_hash": "68ddd817ab2d6b9463d2a2ccb24101c4"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/team.py": {
+    "mtime": 1779561814.5022142,
+    "ast_hash": "8693586eab386a086b19df8cc6c1de68",
+    "semantic_hash": "8693586eab386a086b19df8cc6c1de68"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/attachment.py": {
+    "mtime": 1779647340.6056173,
+    "ast_hash": "8bbd5c0eb5496ff431619aa01a57bf4f",
+    "semantic_hash": "8bbd5c0eb5496ff431619aa01a57bf4f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/label.py": {
+    "mtime": 1779575211.1798666,
+    "ast_hash": "026af87e3c34495c25fbf4cb6ea8f525",
+    "semantic_hash": "026af87e3c34495c25fbf4cb6ea8f525"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/inbox.py": {
+    "mtime": 1779265032.2187228,
+    "ast_hash": "f2ad49687b830ac664db2aa415ed7a75",
+    "semantic_hash": "f2ad49687b830ac664db2aa415ed7a75"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/settings.py": {
+    "mtime": 1779578518.212646,
+    "ast_hash": "d6c503b755d1051c857f67ca70e73c02",
+    "semantic_hash": "d6c503b755d1051c857f67ca70e73c02"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/issue.py": {
+    "mtime": 1779650758.7662902,
+    "ast_hash": "462beac3d4818249ada01b762781d3f9",
+    "semantic_hash": "462beac3d4818249ada01b762781d3f9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/report.py": {
+    "mtime": 1779265042.7927148,
+    "ast_hash": "3af25b67aac1197d8818d2b9be1f43d5",
+    "semantic_hash": "3af25b67aac1197d8818d2b9be1f43d5"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/schemas/project.py": {
+    "mtime": 1779576640.8701558,
+    "ast_hash": "875d0a84e85518344cebc116cc96ed8b",
+    "semantic_hash": "875d0a84e85518344cebc116cc96ed8b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/session.py": {
+    "mtime": 1779264757.0201068,
+    "ast_hash": "de10d2e1c92826a283140093ce5c5a84",
+    "semantic_hash": "de10d2e1c92826a283140093ce5c5a84"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/__init__.py": {
+    "mtime": 1779264738.7615924,
+    "ast_hash": "586c8be3a7f82188b6d3fffc96caa44c",
+    "semantic_hash": "586c8be3a7f82188b6d3fffc96caa44c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/base.py": {
+    "mtime": 1779264747.9333162,
+    "ast_hash": "5814df37810c99e8c4269586d0cf507e",
+    "semantic_hash": "5814df37810c99e8c4269586d0cf507e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/issue_attachment.py": {
+    "mtime": 1779264857.4184828,
+    "ast_hash": "6da79a8d152fa61d770a35fc33d47ccd",
+    "semantic_hash": "6da79a8d152fa61d770a35fc33d47ccd"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/user.py": {
+    "mtime": 1779562548.1856647,
+    "ast_hash": "3a30b0a8221e6554f50116a8727a1226",
+    "semantic_hash": "3a30b0a8221e6554f50116a8727a1226"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/release.py": {
+    "mtime": 1779625607.777689,
+    "ast_hash": "78f23d9d743bd6059c61f06aa535d829",
+    "semantic_hash": "78f23d9d743bd6059c61f06aa535d829"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/system_setting.py": {
+    "mtime": 1779578226.3160977,
+    "ast_hash": "a512a6ad91de0f44582ac91bb30b2621",
+    "semantic_hash": "a512a6ad91de0f44582ac91bb30b2621"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/__init__.py": {
+    "mtime": 1779629272.2637372,
+    "ast_hash": "473a2dc409c6c7a46053ecd494f5c805",
+    "semantic_hash": "473a2dc409c6c7a46053ecd494f5c805"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/regression_history.py": {
+    "mtime": 1779264879.325938,
+    "ast_hash": "e6d4ad11b7a5e80aef87308f08849cc7",
+    "semantic_hash": "e6d4ad11b7a5e80aef87308f08849cc7"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/label.py": {
+    "mtime": 1779574841.1555624,
+    "ast_hash": "61465b81a56f51574bdde914509ba50d",
+    "semantic_hash": "61465b81a56f51574bdde914509ba50d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/issue_timeline.py": {
+    "mtime": 1779264844.3154006,
+    "ast_hash": "6f68d8cf11c66b84d5b1a9e9e3904b16",
+    "semantic_hash": "6f68d8cf11c66b84d5b1a9e9e3904b16"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/inbox_item.py": {
+    "mtime": 1779264867.7922893,
+    "ast_hash": "2dd205857f74185205866ab496cf6554",
+    "semantic_hash": "2dd205857f74185205866ab496cf6554"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/issue.py": {
+    "mtime": 1779652382.9819863,
+    "ast_hash": "441fb1e526a148206a0c93724b542c97",
+    "semantic_hash": "441fb1e526a148206a0c93724b542c97"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/db/models/project.py": {
+    "mtime": 1779575492.7128487,
+    "ast_hash": "a71fe78cd86cd1f519a195e5ea075101",
+    "semantic_hash": "a71fe78cd86cd1f519a195e5ea075101"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/__init__.py": {
+    "mtime": 1779265304.9829378,
+    "ast_hash": "d4b36b3c93aeec5051338dcff344702c",
+    "semantic_hash": "d4b36b3c93aeec5051338dcff344702c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/issues.py": {
+    "mtime": 1779654641.9350264,
+    "ast_hash": "cbe11167026973d414900fed43e5a4f4",
+    "semantic_hash": "cbe11167026973d414900fed43e5a4f4"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/auth.py": {
+    "mtime": 1779561882.3248427,
+    "ast_hash": "bf9d6c97e0371f3cda82a3fd62c14871",
+    "semantic_hash": "bf9d6c97e0371f3cda82a3fd62c14871"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/user.py": {
+    "mtime": 1779640025.6475472,
+    "ast_hash": "cdd528b9d70b120f84ed35459538b948",
+    "semantic_hash": "cdd528b9d70b120f84ed35459538b948"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/labels.py": {
+    "mtime": 1779575104.487912,
+    "ast_hash": "3baff1cf0602580598b984b1ff350924",
+    "semantic_hash": "3baff1cf0602580598b984b1ff350924"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/timeline.py": {
+    "mtime": 1779265422.1837955,
+    "ast_hash": "4d41d10d5d0e95b773359d2141fc14ef",
+    "semantic_hash": "4d41d10d5d0e95b773359d2141fc14ef"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/pre_upload.py": {
+    "mtime": 1779647530.36101,
+    "ast_hash": "aebea4f3e0e6f06550f6c7dc7632200d",
+    "semantic_hash": "aebea4f3e0e6f06550f6c7dc7632200d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/telegram.py": {
+    "mtime": 1779280193.7004948,
+    "ast_hash": "25d1cd6be3e517ee30f57e0a1efe1bad",
+    "semantic_hash": "25d1cd6be3e517ee30f57e0a1efe1bad"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/__init__.py": {
+    "mtime": 1779265308.229241,
+    "ast_hash": "13e3220236d3f0e502a3df0c00d53608",
+    "semantic_hash": "13e3220236d3f0e502a3df0c00d53608"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/team.py": {
+    "mtime": 1779564969.0597758,
+    "ast_hash": "3351d22a3c987c696d4bfa1d4523b258",
+    "semantic_hash": "3351d22a3c987c696d4bfa1d4523b258"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/attachments.py": {
+    "mtime": 1779640666.6304507,
+    "ast_hash": "28b741a93356e5ec75e1d73369799489",
+    "semantic_hash": "28b741a93356e5ec75e1d73369799489"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/ws.py": {
+    "mtime": 1779640061.339754,
+    "ast_hash": "bcc843a05bd5bd3b1af50bbf2f69c0b9",
+    "semantic_hash": "bcc843a05bd5bd3b1af50bbf2f69c0b9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/releases.py": {
+    "mtime": 1779623174.5020237,
+    "ast_hash": "b10bbc9a7cb2dfbcb915389ee5dfab0e",
+    "semantic_hash": "b10bbc9a7cb2dfbcb915389ee5dfab0e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/inbox.py": {
+    "mtime": 1779265463.6480823,
+    "ast_hash": "b51fc897b5f7d4dd514dc89122ffd286",
+    "semantic_hash": "b51fc897b5f7d4dd514dc89122ffd286"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/reports.py": {
+    "mtime": 1779280193.4882925,
+    "ast_hash": "15fda03e2989c5ab10a2ebaccc65c50b",
+    "semantic_hash": "15fda03e2989c5ab10a2ebaccc65c50b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/settings.py": {
+    "mtime": 1779578987.9031436,
+    "ast_hash": "6b50e7d2c2cda0bbc9e41d57abd0429a",
+    "semantic_hash": "6b50e7d2c2cda0bbc9e41d57abd0429a"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/router.py": {
+    "mtime": 1779647403.7370522,
+    "ast_hash": "2b0db51445df3c966755e19aaf3e530b",
+    "semantic_hash": "2b0db51445df3c966755e19aaf3e530b"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/api/v1/projects.py": {
+    "mtime": 1779623063.273232,
+    "ast_hash": "c17ea78646132fec5b5702c0c9d9087d",
+    "semantic_hash": "c17ea78646132fec5b5702c0c9d9087d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/inbox_service.py": {
+    "mtime": 1779265149.562855,
+    "ast_hash": "a1212e9f9dc6bba086476af5c0f1fcf3",
+    "semantic_hash": "a1212e9f9dc6bba086476af5c0f1fcf3"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/timeline_service.py": {
+    "mtime": 1779265208.6135814,
+    "ast_hash": "3dc97155885e3ef0248dedb1c9ea330f",
+    "semantic_hash": "3dc97155885e3ef0248dedb1c9ea330f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/__init__.py": {
+    "mtime": 1779265055.8708658,
+    "ast_hash": "6d5350a8fe17f8bdf88778a37e2ead55",
+    "semantic_hash": "6d5350a8fe17f8bdf88778a37e2ead55"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/regression_service.py": {
+    "mtime": 1779265124.7377687,
+    "ast_hash": "ae53e596dd752d84479a9892b42f4f1e",
+    "semantic_hash": "ae53e596dd752d84479a9892b42f4f1e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/report_service.py": {
+    "mtime": 1779265186.5578065,
+    "ast_hash": "490bc481e37a0ad2819a5dc05d579b58",
+    "semantic_hash": "490bc481e37a0ad2819a5dc05d579b58"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/app/services/issue_service.py": {
+    "mtime": 1779652404.2307386,
+    "ast_hash": "aec2c58caafb33269fd539397789b490",
+    "semantic_hash": "aec2c58caafb33269fd539397789b490"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/scripts/seed.py": {
+    "mtime": 1779551710.415697,
+    "ast_hash": "25c26f53ae0d97fab8b211d097ebe253",
+    "semantic_hash": "25c26f53ae0d97fab8b211d097ebe253"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/scripts/create_admin.py": {
+    "mtime": 1779551748.36192,
+    "ast_hash": "f347e6f0c8514d91e87de029668a13e1",
+    "semantic_hash": "f347e6f0c8514d91e87de029668a13e1"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/env.py": {
+    "mtime": 1779264697.641558,
+    "ast_hash": "17335b88e3c5694f5b5d867032d1f5f8",
+    "semantic_hash": "17335b88e3c5694f5b5d867032d1f5f8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/9b4f78e8f710_.py": {
+    "mtime": 1779476246.0973077,
+    "ast_hash": "b5919a3aaf29aeb6b73d3a3d4a965560",
+    "semantic_hash": "b5919a3aaf29aeb6b73d3a3d4a965560"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/6a40d3e32678_.py": {
+    "mtime": 1779574979.422647,
+    "ast_hash": "6d0c8ccbe37f06ccdfb2a0918c14cfc9",
+    "semantic_hash": "6d0c8ccbe37f06ccdfb2a0918c14cfc9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/ea199c990e64_.py": {
+    "mtime": 1779577168.3938744,
+    "ast_hash": "96f44a2b1ef6af2da359e5ebe06ae728",
+    "semantic_hash": "96f44a2b1ef6af2da359e5ebe06ae728"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/9a419680f8e8_.py": {
+    "mtime": 1779562465.3340194,
+    "ast_hash": "e8f1aee5609bc94f74f701a72cdf76d8",
+    "semantic_hash": "e8f1aee5609bc94f74f701a72cdf76d8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/985ffe397944_update_qa_to_active_releases.py": {
+    "mtime": 1779625409.5118744,
+    "ast_hash": "81dc9b136c88910e20785bef887e71c9",
+    "semantic_hash": "81dc9b136c88910e20785bef887e71c9"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/a1b2c3d4e5f6_issue_number_sequence.py": {
+    "mtime": 1779654204.1856654,
+    "ast_hash": "f78ac5b1ab887173f59f8d16bf4ba64d",
+    "semantic_hash": "f78ac5b1ab887173f59f8d16bf4ba64d"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/b849450048f2_.py": {
+    "mtime": 1779574947.6281729,
+    "ast_hash": "3a7b6ddcfc73bf68d6e7eea5729bf147",
+    "semantic_hash": "3a7b6ddcfc73bf68d6e7eea5729bf147"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/40ed5c82016a_add_release_fields.py": {
+    "mtime": 1779623080.4176433,
+    "ast_hash": "0f71fc2c0321f0ec0c8f2765100d80b1",
+    "semantic_hash": "0f71fc2c0321f0ec0c8f2765100d80b1"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/70018d5c8380_.py": {
+    "mtime": 1779562552.6298947,
+    "ast_hash": "6d18adb8a54619b931879feb45939373",
+    "semantic_hash": "6d18adb8a54619b931879feb45939373"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/b66da6523f3e_drop_issue_reproduction_steps_table.py": {
+    "mtime": 1779629250.376514,
+    "ast_hash": "b6f64a99ca32f58549decaebe0b719e3",
+    "semantic_hash": "b6f64a99ca32f58549decaebe0b719e3"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/4df586727a4d_convert_reproduction_steps_to_json.py": {
+    "mtime": 1779628832.4165971,
+    "ast_hash": "ce50392d71ee703177e4bc1fb1d3d87c",
+    "semantic_hash": "ce50392d71ee703177e4bc1fb1d3d87c"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/backend/alembic/versions/2f5d4b156c2e_.py": {
+    "mtime": 1779575698.7468426,
+    "ast_hash": "aa730cc7378599049c8c8f3a9ecefb78",
+    "semantic_hash": "aa730cc7378599049c8c8f3a9ecefb78"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/components.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "978e4cf5ec31f28de1f47291155afc7f",
+    "semantic_hash": "978e4cf5ec31f28de1f47291155afc7f"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/profile.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "9bc4aaaa2719bc4b9bfded34cbccf570",
+    "semantic_hash": "9bc4aaaa2719bc4b9bfded34cbccf570"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/contributions.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "5fc675610de33556fca5c7faa31fbbe2",
+    "semantic_hash": "5fc675610de33556fca5c7faa31fbbe2"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/data.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "46ada8123504e5404dd932c3008967d6",
+    "semantic_hash": "46ada8123504e5404dd932c3008967d6"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/timeline.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "91c9e97e1789745b964fffce8582c56e",
+    "semantic_hash": "91c9e97e1789745b964fffce8582c56e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/ui.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "3272a40be9ee64a7af7e06280313c1b7",
+    "semantic_hash": "3272a40be9ee64a7af7e06280313c1b7"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/detail.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "53c2a78d8233e00fbd1245504226a889",
+    "semantic_hash": "53c2a78d8233e00fbd1245504226a889"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/screens-a.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "feacc5cf12261e91e08c745f4b9f6836",
+    "semantic_hash": "feacc5cf12261e91e08c745f4b9f6836"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/screens-c.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "d4693068d40e4743d256048b46723e01",
+    "semantic_hash": "d4693068d40e4743d256048b46723e01"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/screens-b.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "3ea724d609675a96e45bc2d25f442176",
+    "semantic_hash": "3ea724d609675a96e45bc2d25f442176"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/main.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "dd1054eec6a62d6b0c61c268ef4a95c8",
+    "semantic_hash": "dd1054eec6a62d6b0c61c268ef4a95c8"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/inbox.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "8e0da94f9dd6151d95ad048d5b62fa57",
+    "semantic_hash": "8e0da94f9dd6151d95ad048d5b62fa57"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/tweaks-panel.jsx": {
+    "mtime": 1779373254.0,
+    "ast_hash": "dcdb365111f46e7a22ee856fa72e697e",
+    "semantic_hash": "dcdb365111f46e7a22ee856fa72e697e"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/docker-compose.dev.yml": {
+    "mtime": 1779282657.3423955,
+    "ast_hash": "1990a3ce2799d3ddeb48c934ef6f4d07",
+    "semantic_hash": "1990a3ce2799d3ddeb48c934ef6f4d07"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/docker-compose.yml": {
+    "mtime": 1779282739.4681997,
+    "ast_hash": "c309cf2f5bdb45577e9f4db211a42306",
+    "semantic_hash": "c309cf2f5bdb45577e9f4db211a42306"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/CLAUDE.md": {
+    "mtime": 1779280306.9982395,
+    "ast_hash": "f1f3ebed26b7b3b5a2678d84ca041eda",
+    "semantic_hash": "f1f3ebed26b7b3b5a2678d84ca041eda"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/frontend/index.html": {
+    "mtime": 1779264105.7177258,
+    "ast_hash": "e4de6c31a95e584a6eff8546f688e0dc",
+    "semantic_hash": "e4de6c31a95e584a6eff8546f688e0dc"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/.claude/skills/sync-frontend-to-backend/SKILL.md": {
+    "mtime": 1779649686.095732,
+    "ast_hash": "28eaa795e3d759dddf43a698e57b0413",
+    "semantic_hash": "28eaa795e3d759dddf43a698e57b0413"
+  },
+  "/Users/sajjad.saharkhan/Projects/Personal/Releasewatch/prototype/index.html": {
+    "mtime": 1779373254.0,
+    "ast_hash": "ab9972d6f2b777f7e659f9d617e1198d",
+    "semantic_hash": "ab9972d6f2b777f7e659f9d617e1198d"
+  }
+}

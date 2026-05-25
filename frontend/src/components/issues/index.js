@@ -1,3 +1,4 @@
+export { CommentComposer } from './CommentComposer'
 export { IssueTimeline } from './IssueTimeline'
 export { MarkdownComposer } from './MarkdownComposer'
 export { IssueDetail } from './IssueDetail'
