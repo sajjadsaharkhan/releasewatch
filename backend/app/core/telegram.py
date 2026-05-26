@@ -35,7 +35,7 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "Severity: `{severity}` | Release: `{version}`\n"
         "[View issue]({issue_url})"
     ),
-    "fix_ready": (
+    "fixed": (
         "✅ *Fix ready for verification* — #{issue_number}\n"
         "*{title}*\n"
         "Fixed by: {developer}\n"

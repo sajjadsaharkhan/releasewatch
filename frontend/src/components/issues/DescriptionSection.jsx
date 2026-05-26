@@ -65,10 +65,12 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
   const [isEditing, setIsEditing] = useState(false)
   const [isEditingCurl, setIsEditingCurl] = useState(false)
   const [isEditingSteps, setIsEditingSteps] = useState(false)
-  const [editedCurl, setEditedCurl] = useState(issue?.curlCommand || '')
-  const [editedSteps, setEditedSteps] = useState(issue?.steps || [''])
+  const [editedCurl, setEditedCurl] = useState(issue?.curl_command || '')
+  const [editedSteps, setEditedSteps] = useState(
+    issue?.reproduction_steps?.map(s => s.description) || ['']
+  )
 
-  const curlSample = issue?.curlCommand
+  const curlSample = issue?.curl_command
 
   return (
     <div>
@@ -106,7 +108,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 dark:text-zinc-400">Repro: cURL</div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setIsEditingCurl(false); setEditedCurl(issue?.curlCommand || ''); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setIsEditingCurl(false); setEditedCurl(issue?.curl_command || ''); }}>
                 Cancel
               </Button>
               <Button size="sm" onClick={() => { onCurlUpdate?.(editedCurl); setIsEditingCurl(false); }}>
@@ -153,7 +155,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Steps to Reproduce</h3>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setIsEditingSteps(false); setEditedSteps(issue?.steps || ['']); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setIsEditingSteps(false); setEditedSteps(issue?.reproduction_steps?.map(s => s.description) || ['']); }}>
                 Cancel
               </Button>
               <Button size="sm" onClick={() => { onStepsUpdate?.(editedSteps.filter(s => s.trim())); setIsEditingSteps(false); }}>
@@ -186,7 +188,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
             </Button>
           </div>
         </div>
-      ) : issue.steps && issue.steps.length > 0 ? (
+      ) : issue.reproduction_steps && issue.reproduction_steps.length > 0 ? (
         <div className="mt-5">
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 dark:text-zinc-400">Reproduction steps</div>
@@ -195,8 +197,8 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
             </button>
           </div>
           <ol className="space-y-1.5 text-[13px] text-zinc-700 dark:text-zinc-200 list-decimal pl-5 marker:text-zinc-400">
-            {issue.steps.map((step, idx) => (
-              <li key={idx}>{step}</li>
+            {issue.reproduction_steps.map((step, idx) => (
+              <li key={idx}>{typeof step === 'string' ? step : step.description}</li>
             ))}
           </ol>
         </div>
@@ -204,7 +206,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
         <div className="mt-5 flex items-center gap-3 py-3 px-4 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
           <Icon name="list-ordered" size={16} className="text-zinc-400" />
           <span className="text-sm text-zinc-500">No reproduction steps</span>
-          <button onClick={() => { setEditedSteps(['']); setIsEditingSteps(true); }} className="ml-auto text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
+          <button onClick={() => { setEditedSteps(issue?.reproduction_steps?.map(s => s.description) || ['']); setIsEditingSteps(true); }} className="ml-auto text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 inline-flex items-center gap-1">
             <Icon name="plus" size={11} /> Add
           </button>
         </div>

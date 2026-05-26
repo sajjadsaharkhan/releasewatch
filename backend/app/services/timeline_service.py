@@ -5,6 +5,7 @@ so that the audit trail is consistent and pagination is predictable.
 """
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -29,6 +30,7 @@ class TimelineService:
         body: str | None,
         meta: dict[str, Any] | None,
         is_internal: bool = False,
+        mentioned_user_ids: list[uuid.UUID] | None = None,
     ) -> IssueTimeline:
         """Append a timeline event to an issue's log.
 
@@ -54,6 +56,9 @@ class TimelineService:
         IssueTimeline
             The newly created, flushed event row.
         """
+        if mentioned_user_ids:
+            meta = {**(meta or {}), "mentioned_user_ids": [str(u) for u in mentioned_user_ids]}
+
         event = IssueTimeline(
             issue_id=issue_id,
             actor_id=actor_id,
@@ -175,8 +180,11 @@ class TimelineService:
             )
 
         event.body = body
-        # Record edit in meta for audit trail
-        event.meta = {**(event.meta or {}), "edited_by": str(current_user.id)}
+        event.meta = {
+            **(event.meta or {}),
+            "edited_by": str(current_user.id),
+            "edited_at": datetime.now(tz=timezone.utc).isoformat(),
+        }
         db.add(event)
         await db.flush()
         return event

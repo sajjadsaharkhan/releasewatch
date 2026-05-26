@@ -1,41 +1,59 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { MessageSquare, MoreVertical, Trash2, Edit3 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Avatar, UserHoverCard } from '../ui'
 import { Icon } from '../ui/Icon'
-import { StatusBadge, RoleBadge } from '../ui/Badge'
+import { Badge, StatusBadge, SeverityBadge, RoleBadge } from '../ui/Badge'
+import { ENVIRONMENT } from './DescriptionSection'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
-import { userById } from '../../data/mockData'
 import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
 
-// Current user ID - in a real app this would come from auth context
-const CURRENT_USER_ID = 'u-1'
-
 const EVENT_STYLES = {
-  filed: { dot: 'bg-blue-500', label: 'filed this issue' },
-  status_changed: { dot: 'bg-zinc-400', label: (detail) => `changed status to ${detail}` },
-  assigned: { dot: 'bg-violet-500', label: (detail) => `assigned to ${userById(detail)?.name ?? detail}` },
-  fixed: { dot: 'bg-green-500', label: 'marked as fixed' },
-  regression: { dot: 'bg-red-500', label: 'marked as regression' },
-  verified: { dot: 'bg-teal-500', label: 'verified the fix' },
-  reopened: { dot: 'bg-amber-500', label: 'reopened this issue' },
-  comment: { dot: 'bg-zinc-400', label: 'commented' },
+  filed:               { dot: 'bg-blue-500',   label: 'filed this issue' },
+  status_changed:      { dot: 'bg-zinc-400',   label: (e) => `changed status to ${e.detail ?? e.meta?.to ?? ''}` },
+  assigned:            { dot: 'bg-violet-500', label: (e) => null },
+  fixed:               { dot: 'bg-green-500',  label: 'marked as fixed' },
+  regression:          { dot: 'bg-red-500',    label: 'marked as regression' },
+  verified:            { dot: 'bg-teal-500',   label: 'verified the fix' },
+  reopened:            { dot: 'bg-amber-500',  label: 'reopened this issue' },
+  comment:             { dot: 'bg-zinc-400',   label: 'commented' },
+  severity_changed:    { dot: 'bg-amber-500',  label: (e) => null },
+  label_added:         { dot: 'bg-blue-500',   label: (e) => null },
+  label_removed:       { dot: 'bg-zinc-400',   label: (e) => null },
+  blocker_flagged:     { dot: 'bg-red-500',    label: (e) => null },
+  blocker_cleared:     { dot: 'bg-green-500',  label: (e) => null },
+  duplicate_linked:    { dot: 'bg-zinc-400',   label: (e) => `marked as duplicate of #${e.meta?.parent_number ?? ''}` },
+  title_changed:       { dot: 'bg-zinc-400',   label: 'changed the title' },
+  description_changed: { dot: 'bg-zinc-400',   label: 'updated the description' },
+  steps_changed:       { dot: 'bg-zinc-400',   label: 'updated reproduction steps' },
+  release_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to release ${e.meta?.to_version ?? ''}` },
+  project_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to project ${e.meta?.to_name ?? ''}` },
+  environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
 }
 
 const EVENT_ICONS = {
-  filed: 'file-plus',
-  assigned: 'user-plus',
-  severity_changed: 'arrow-up-down',
-  status_changed: 'git-pull-request',
-  label_added: 'tag',
-  label_removed: 'tag',
-  fixed: 'check',
-  verified: 'shield-check',
-  regression: 'refresh-ccw',
-  blocker_flagged: 'octagon-alert',
-  duplicate_linked: 'copy',
+  filed:               'file-plus',
+  assigned:            'user-plus',
+  severity_changed:    'arrow-up-down',
+  status_changed:      'git-pull-request',
+  label_added:         'tag',
+  label_removed:       'tag',
+  fixed:               'check',
+  verified:            'shield-check',
+  regression:          'refresh-ccw',
+  blocker_flagged:     'octagon-alert',
+  blocker_cleared:     'shield-check',
+  duplicate_linked:    'copy',
+  reopened:            'rotate-ccw',
+  title_changed:       'pencil',
+  description_changed: 'file-text',
+  steps_changed:       'list',
+  release_changed:     'package',
+  project_changed:     'folder',
+  environment_changed: 'monitor',
+  comment:             'message-square',
 }
 
 function EventDot({ type }) {
@@ -48,27 +66,162 @@ function EventDot({ type }) {
   )
 }
 
-function getLabel(event) {
-  const style = EVENT_STYLES[event.type]
-  if (!style) return event.type
+export function IssueTimeline({ events = [], comments = [], issue, users = [], labels = [], currentUser, onAddComment, onUpdateComment, onDeleteComment, hasMore = false, loadingMore = false, onLoadMore }) {
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const sentinelRef = useRef(null)
 
-  // Handle status_changed with from/to for proper display like prototype
-  if (event.type === 'status_changed' && event.from && event.to) {
-    return (
-      <>
-        changed status <StatusBadge status={event.from} size="sm" />
-        <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
-        <StatusBadge status={event.to} size="sm" />
-      </>
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || loadingMore) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onLoadMore?.() },
+      { threshold: 0.1 }
     )
+    obs.observe(sentinelRef.current)
+    return () => obs.disconnect()
+  }, [hasMore, loadingMore, onLoadMore])
+
+  function resolveUser(userOrId) {
+    if (!userOrId) return null
+    if (typeof userOrId === 'object' && userOrId.name) return userOrId
+    return users.find(u => String(u.id) === String(userOrId)) ?? null
   }
 
-  if (typeof style.label === 'function') return style.label(event.detail)
-  return style.label
-}
+  function getLabel(event) {
+    const style = EVENT_STYLES[event.type]
+    if (!style) return event.type
 
-export function IssueTimeline({ events = [], comments = [], issue, users = [], onAddComment, onUpdateComment, onDeleteComment }) {
-  const [editingCommentId, setEditingCommentId] = useState(null)
+    const from = event.from ?? event.meta?.from
+    const to = event.to ?? event.meta?.to
+
+    if (event.type === 'status_changed' && from && to) {
+      return (
+        <>
+          changed status <StatusBadge status={from} size="sm" />
+          <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+          <StatusBadge status={to} size="sm" />
+        </>
+      )
+    }
+
+    if (event.type === 'severity_changed' && from && to) {
+      return (
+        <>
+          changed severity <SeverityBadge severity={from} size="sm" dot />
+          <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+          <SeverityBadge severity={to} size="sm" dot />
+        </>
+      )
+    }
+
+    if (event.type === 'assigned') {
+      const assigneeId = event.detail ?? event.meta?.assignee_id
+      const assignee = event.assignee_user ?? resolveUser(assigneeId)
+      return (
+        <>
+          assigned to{' '}
+          {assignee ? (
+            <UserHoverCard user={assignee}>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] font-medium align-middle cursor-pointer">
+                <Avatar user={assignee} size={14} />
+                {assignee.name}
+              </span>
+            </UserHoverCard>
+          ) : (
+            assigneeId ?? 'someone'
+          )}
+        </>
+      )
+    }
+
+    if (event.type === 'label_added' || event.type === 'label_removed') {
+      const name = event.meta?.label_name ?? ''
+      const lbl = labels.find(l => l.name === name) ?? null
+      const chip = lbl ? (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium align-middle"
+          style={{ backgroundColor: lbl.color + '22', color: lbl.color, border: `1px solid ${lbl.color}44` }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
+          {name}
+        </span>
+      ) : (
+        <code className="text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{name}</code>
+      )
+      return event.type === 'label_added'
+        ? <>{' added label '}{chip}</>
+        : <>{' removed label '}{chip}</>
+    }
+
+    if (event.type === 'blocker_flagged') {
+      return (
+        <>
+          flagged as{' '}
+          <Badge tone="red" className="align-middle gap-1">
+            <Icon name="octagon-alert" size={10} strokeWidth={2.5} />
+            Release Blocker
+          </Badge>
+        </>
+      )
+    }
+    if (event.type === 'blocker_cleared') {
+      return (
+        <>
+          cleared the{' '}
+          <Badge tone="green" className="align-middle gap-1">
+            <Icon name="shield-check" size={10} strokeWidth={2.5} />
+            Release Blocker
+          </Badge>
+        </>
+      )
+    }
+
+    if (event.type === 'environment_changed' && to) {
+      const fromEnv = from ? ENVIRONMENT[from] : null
+      const toEnv = ENVIRONMENT[to]
+      return (
+        <>
+          {fromEnv ? (
+            <>
+              changed environment{' '}
+              <Badge tone={fromEnv.tone} className="align-middle">{fromEnv.label}</Badge>
+              <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+              <Badge tone={toEnv?.tone ?? 'default'} className="align-middle">{toEnv?.label ?? to}</Badge>
+            </>
+          ) : (
+            <>
+              set environment to{' '}
+              <Badge tone={toEnv?.tone ?? 'default'} className="align-middle">{toEnv?.label ?? to}</Badge>
+            </>
+          )}
+        </>
+      )
+    }
+
+    if (event.type === 'release_changed') {
+      const toVersion = event.meta?.to_version ?? ''
+      const fromVersion = event.meta?.from_version
+      return (
+        <>
+          {fromVersion ? (
+            <>
+              moved release{' '}
+              <Badge tone="blue" className="align-middle font-mono">{fromVersion}</Badge>
+              <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+              <Badge tone="blue" className="align-middle font-mono">{toVersion}</Badge>
+            </>
+          ) : (
+            <>
+              moved to release{' '}
+              <Badge tone="blue" className="align-middle font-mono">{toVersion}</Badge>
+            </>
+          )}
+        </>
+      )
+    }
+
+    if (typeof style.label === 'function') return style.label(event)
+    return style.label
+  }
 
   // Merge events and comments, sort by time
   const items = [
@@ -91,12 +244,11 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], o
 
   const isOwnComment = (comment) => {
     const authorId = comment.actor ?? comment.author
-    return authorId === CURRENT_USER_ID
+    return currentUser && String(authorId) === String(currentUser.id)
   }
 
   return (
     <div>
-      {/* Timeline header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
           <MessageSquare size={14} /> Activity & comments
@@ -111,7 +263,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], o
           {items.map((item, idx) => {
             const isComment = item._kind === 'comment'
             const actorId = item.actor ?? item.author
-            const actor = userById(actorId)
+            const actor = item.actor_user ?? resolveUser(actorId)
             const time = item.timestamp ?? item.createdAt
 
             if (isComment) {
@@ -187,17 +339,19 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], o
                         {renderMarkdown(item.body)}
                       </div>
 
-                      {/* Mentioned users */}
                       {item.mentionedUsers && item.mentionedUsers.length > 0 && (
-                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground">Mentioned:</span>
+                        <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Icon name="at-sign" size={11} />
+                            Mentioned:
+                          </span>
                           {item.mentionedUsers.map(userId => {
-                            const user = userById(userId)
+                            const user = resolveUser(userId)
                             if (!user) return null
                             return (
-                              <UserHoverCard key={userId} user={user} size={16}>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium cursor-pointer">
-                                  <Avatar user={user} size={16} />
+                              <UserHoverCard key={String(userId)} user={user}>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[11px] font-medium cursor-pointer border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                                  <Avatar user={user} size={14} />
                                   {user.name}
                                 </span>
                               </UserHoverCard>
@@ -228,11 +382,23 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], o
         </ol>
       )}
 
+      {/* Infinite scroll sentinel */}
+      {hasMore && <div ref={sentinelRef} className="h-1" />}
+      {loadingMore && (
+        <div className="flex items-center justify-center py-3 text-xs text-zinc-400 gap-2">
+          <svg className="animate-spin h-3.5 w-3.5 text-zinc-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          Loading more…
+        </div>
+      )}
+
       {/* Comment composer */}
       <div className="relative pl-10 mt-4">
         <div className="absolute left-0 top-1">
-          <UserHoverCard user={userById('u-1')} size={30}>
-            <Avatar user={userById('u-1')} size={30} />
+          <UserHoverCard user={currentUser} size={30}>
+            <Avatar user={currentUser} size={30} />
           </UserHoverCard>
         </div>
         <CommentComposer

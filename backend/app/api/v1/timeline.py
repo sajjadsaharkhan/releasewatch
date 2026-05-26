@@ -1,19 +1,24 @@
 """Timeline endpoints — nested under issues.
 
-GET   /issues/{id}/timeline                    — list timeline events
-POST  /issues/{id}/timeline                    — add a comment
-PATCH /issues/{id}/timeline/{event_id}         — edit a comment
+GET    /issues/{id}/timeline                    — list timeline events
+POST   /issues/{id}/timeline                    — add a comment
+PATCH  /issues/{id}/timeline/{event_id}         — edit a comment
+DELETE /issues/{id}/timeline/{event_id}         — delete a comment
 """
 
 import uuid
 from typing import List
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
-from app.db.models.user import User
+from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
+from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.schemas.issue import UserSummary
 from app.schemas.timeline import (
     TimelineEventCreate,
     TimelineEventResponse,
@@ -21,9 +26,15 @@ from app.schemas.timeline import (
     TimelineListResponse,
 )
 from app.services.timeline_service import timeline_service
-from app.db.models.issue_timeline import TimelineEventType
 
 router = APIRouter()
+
+
+def _enrich_event(event: IssueTimeline) -> TimelineEventResponse:
+    resp = TimelineEventResponse.model_validate(event)
+    if event.actor:
+        resp.actor_user = UserSummary.model_validate(event.actor)
+    return resp
 
 
 @router.get(
@@ -38,15 +49,25 @@ async def list_timeline(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TimelineListResponse:
-    """Return paginated, chronological timeline events for an issue.
-
-    Internal events are visible to all authenticated team members.
-    """
+    """Return paginated, chronological timeline events for an issue."""
     events, total = await timeline_service.list_timeline(
         db, issue_id, page=page, size=size, include_internal=True
     )
+
+    # Re-fetch with actor relationship loaded for enrichment
+    if events:
+        result = await db.execute(
+            select(IssueTimeline)
+            .options(selectinload(IssueTimeline.actor))
+            .where(IssueTimeline.issue_id == issue_id)
+            .order_by(IssueTimeline.created_at.asc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+        events = list(result.scalars().all())
+
     return TimelineListResponse(
-        items=[TimelineEventResponse.model_validate(e) for e in events],
+        items=[_enrich_event(e) for e in events],
         total=total,
         page=page,
         size=size,
@@ -65,11 +86,7 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TimelineEventResponse:
-    """Append a comment (or internal note) to the issue timeline.
-
-    Mention parsing (``@username``) and inbox fan-out are handled asynchronously
-    via the ``fan_out_inbox`` Celery task.
-    """
+    """Append a comment (or internal note) to the issue timeline."""
     event = await timeline_service.create_event(
         db=db,
         issue_id=issue_id,
@@ -78,11 +95,17 @@ async def create_comment(
         body=payload.body,
         meta=None,
         is_internal=payload.is_internal,
+        mentioned_user_ids=payload.mentioned_user_ids or [],
     )
     await db.commit()
-    await db.refresh(event)
 
-    # Enqueue mention detection + inbox fan-out
+    result = await db.execute(
+        select(IssueTimeline)
+        .options(selectinload(IssueTimeline.actor))
+        .where(IssueTimeline.id == event.id)
+    )
+    event = result.scalar_one()
+
     from app.tasks.inbox import fan_out_inbox
     from app.db.models.inbox_item import InboxEventType
 
@@ -92,11 +115,14 @@ async def create_comment(
             "issue_id": str(issue_id),
             "actor_id": str(current_user.id),
             "timeline_event_id": str(event.id),
-            "extra_meta": {"body": payload.body},
+            "extra_meta": {
+                "body": payload.body,
+                "mentioned_user_ids": [str(u) for u in (payload.mentioned_user_ids or [])],
+            },
         }
     )
 
-    return TimelineEventResponse.model_validate(event)
+    return _enrich_event(event)
 
 
 @router.patch(
@@ -114,5 +140,45 @@ async def edit_comment(
     """Edit the body of a comment. Only the author (or admin) may edit."""
     event = await timeline_service.edit_comment(db, event_id, payload.body, current_user)
     await db.commit()
-    await db.refresh(event)
-    return TimelineEventResponse.model_validate(event)
+
+    result = await db.execute(
+        select(IssueTimeline)
+        .options(selectinload(IssueTimeline.actor))
+        .where(IssueTimeline.id == event_id)
+    )
+    event = result.scalar_one()
+    return _enrich_event(event)
+
+
+@router.delete(
+    "/{issue_id}/timeline/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a timeline comment",
+)
+async def delete_comment(
+    issue_id: uuid.UUID,
+    event_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Delete a comment from the timeline. Only the author or admin may delete."""
+    result = await db.execute(
+        select(IssueTimeline).where(
+            IssueTimeline.id == event_id,
+            IssueTimeline.issue_id == issue_id,
+        )
+    )
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timeline event not found")
+
+    if event.event_type != TimelineEventType.comment:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only comments can be deleted")
+
+    is_admin = current_user.role == UserRole.admin
+    is_author = event.actor_id == current_user.id
+    if not (is_author or is_admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the author or admin can delete this comment")
+
+    await db.delete(event)
+    await db.commit()

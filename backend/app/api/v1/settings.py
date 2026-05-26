@@ -31,7 +31,7 @@ _DEFAULT_NOTIFICATION_MATRIX = {
     "comment": {"reporter": True, "assignee": True, "triage": False, "cto": False},
     "mention": {"reporter": True, "assignee": True, "triage": True, "cto": True},
     "regression": {"reporter": True, "assignee": True, "triage": True, "cto": True},
-    "fix_ready": {"reporter": True, "assignee": False, "triage": False, "cto": False},
+    "fixed": {"reporter": True, "assignee": False, "triage": False, "cto": False},
     "fix_verified": {"reporter": False, "assignee": True, "triage": False, "cto": False},
     "release_gate": {"reporter": False, "assignee": False, "triage": True, "cto": True},
 }

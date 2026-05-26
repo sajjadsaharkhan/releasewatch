@@ -136,6 +136,7 @@ async def _build_enriched_responses(
                 if n in label_map
             ],
             "release_version": issue.release.version if issue.release else None,
+            "project_name": issue.project.name if issue.project else None,
         })
         responses.append(enriched)
     return responses
@@ -180,6 +181,7 @@ async def list_issues(
         selectinload(Issue.assignee),
         selectinload(Issue.reporter),
         selectinload(Issue.release),
+        selectinload(Issue.project),
     )
     fetch_q = _apply_filters(fetch_q, **filter_kwargs)
     fetch_q = _apply_sort(fetch_q, sort)
@@ -276,6 +278,7 @@ async def get_issue_by_number(
             selectinload(Issue.assignee),
             selectinload(Issue.reporter),
             selectinload(Issue.release),
+            selectinload(Issue.project),
         ).where(Issue.issue_number == issue_number)
     )
     issue = result.scalar_one_or_none()
@@ -324,19 +327,17 @@ async def update_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Partially update editable fields of an issue (title, description, labels, etc.)."""
-    result = await db.execute(select(Issue).where(Issue.id == issue_id))
-    issue = result.scalar_one_or_none()
-    if issue is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(issue, field, value)
-    db.add(issue)
+    """Partially update editable fields of an issue; emits a timeline event per changed field."""
+    issue = await issue_service.update(
+        db=db,
+        issue_id=issue_id,
+        payload=payload.model_dump(exclude_unset=True),
+        actor=current_user,
+    )
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    await db.refresh(issue, attribute_names=['assignee', 'reporter', 'release', 'project'])
+    enriched = await _build_enriched_responses([issue], db)
+    return enriched[0]
 
 
 @router.delete(

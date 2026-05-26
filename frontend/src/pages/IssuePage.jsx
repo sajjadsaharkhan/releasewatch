@@ -21,14 +21,9 @@ export default function IssuePage() {
       .catch(() => { setError('Issue not found'); setLoading(false) })
   }, [issueNum])
 
-  const handleUpdate = async (patch) => {
-    if (!issue) return
-    try {
-      const res = await issuesApi.update(issue.id, patch)
-      setIssue(res.data)
-    } catch {
-      setIssue(prev => ({ ...prev, ...patch }))
-    }
+  const handleUpdate = (_freshIssue) => {
+    // useIssueDetail owns the live issue copy; no page-level sync needed.
+    // issue_number is immutable so handleNavigate still works from initial fetch.
   }
 
   const handleClose = () => navigate('/issues')
@@ -65,5 +60,5 @@ export default function IssuePage() {
     )
   }
 
-  return <IssueDetail issue={issue} onUpdate={handleUpdate} onClose={handleClose} onNavigate={handleNavigate} />
+  return <IssueDetail key={issue.id} issue={issue} onUpdate={handleUpdate} onClose={handleClose} onNavigate={handleNavigate} />
 }

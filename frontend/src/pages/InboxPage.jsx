@@ -10,14 +10,15 @@ import { relTime } from '../lib/relTime'
 import { CheckCheck } from 'lucide-react'
 
 const TYPE_DESCRIPTIONS = {
-  mention: 'mentioned you in',
-  assigned: 'assigned you to',
-  status_changed: 'changed status on',
-  comment: 'commented on',
-  fixed: 'fixed',
-  verified: 'verified',
-  filed: 'filed',
-  regression: 'marked regression on',
+  mention:       'mentioned you in',
+  assigned:      'assigned you to',
+  status_changed:'changed status on',
+  comment:       'commented on',
+  fixed:         'marked as fixed',
+  verified:      'verified the fix on',
+  filed:         'filed a new issue',
+  regression:    'marked regression on',
+  blocker_filed: 'filed a blocker on',
 }
 
 export default function InboxPage() {
