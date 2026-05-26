@@ -12,14 +12,42 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.db.models.inbox_item import InboxItem
 from app.db.models.user import User
 from app.db.session import get_db
-from app.schemas.inbox import InboxItemResponse, InboxListResponse, UnreadCountResponse
+from app.schemas.inbox import ActorInfo, InboxItemResponse, InboxListResponse, UnreadCountResponse
 
 router = APIRouter()
+
+
+def _build_response(item: InboxItem) -> InboxItemResponse:
+    actor_info = None
+    if item.actor:
+        actor_info = ActorInfo(
+            id=item.actor.id,
+            name=item.actor.name,
+            avatar_color=item.actor.avatar_color,
+            avatar_url=item.actor.avatar_url,
+        )
+
+    issue_id = None
+    issue_title = None
+    if item.issue:
+        issue_id = f"issue-{item.issue.issue_number}"
+        issue_title = item.issue.title
+
+    return InboxItemResponse(
+        id=item.id,
+        type=item.event_type,
+        read=item.is_read,
+        actor=actor_info,
+        issue_id=issue_id,
+        issue_title=issue_title,
+        created_at=item.created_at,
+    )
 
 
 @router.get("", response_model=InboxListResponse, summary="Get inbox")
@@ -47,14 +75,18 @@ async def get_inbox(
     unread_count = unread_result.scalar_one()
 
     result = await db.execute(
-        base_query.order_by(InboxItem.created_at.desc())
+        base_query.options(
+            selectinload(InboxItem.actor),
+            selectinload(InboxItem.issue),
+        )
+        .order_by(InboxItem.created_at.desc())
         .offset((page - 1) * size)
         .limit(size)
     )
     items = result.scalars().all()
 
     return InboxListResponse(
-        items=[InboxItemResponse.model_validate(i) for i in items],
+        items=[_build_response(i) for i in items],
         total=total,
         page=page,
         size=size,
@@ -114,7 +146,12 @@ async def mark_item_read(
     from fastapi import HTTPException
 
     result = await db.execute(
-        select(InboxItem).where(
+        select(InboxItem)
+        .options(
+            selectinload(InboxItem.actor),
+            selectinload(InboxItem.issue),
+        )
+        .where(
             InboxItem.id == item_id,
             InboxItem.user_id == current_user.id,
         )
@@ -130,4 +167,4 @@ async def mark_item_read(
         await db.commit()
         await db.refresh(item)
 
-    return InboxItemResponse.model_validate(item)
+    return _build_response(item)

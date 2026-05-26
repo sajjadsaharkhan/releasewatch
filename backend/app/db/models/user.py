@@ -80,7 +80,7 @@ class User(Base):
     projects = relationship("Project", back_populates="creator", foreign_keys="Project.created_by_id")
     reported_issues = relationship("Issue", back_populates="reporter", foreign_keys="Issue.reporter_id")
     assigned_issues = relationship("Issue", back_populates="assignee", foreign_keys="Issue.assignee_id")
-    inbox_items = relationship("InboxItem", back_populates="user")
+    inbox_items = relationship("InboxItem", foreign_keys="InboxItem.user_id", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username!r} role={self.role}>"

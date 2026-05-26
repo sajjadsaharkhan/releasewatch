@@ -140,6 +140,7 @@ class InboxFanOutService:
         for user_id_str in recipients:
             item = InboxItem(
                 user_id=uuid.UUID(user_id_str),
+                actor_id=actor.id,
                 issue_id=issue.id,
                 timeline_id=timeline_event.id if timeline_event else None,
                 event_type=trigger,

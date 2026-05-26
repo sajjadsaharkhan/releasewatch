@@ -5,27 +5,34 @@ from typing import Optional
 import uuid
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from app.db.models.inbox_item import InboxEventType
 
 
-class InboxItemResponse(BaseModel):
-    """A single inbox notification entry."""
-
+class ActorInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    user_id: uuid.UUID
-    issue_id: uuid.UUID
-    timeline_id: Optional[uuid.UUID] = None
-    event_type: InboxEventType
-    is_read: bool
-    read_at: Optional[datetime] = None
+    name: str
+    avatar_color: str
+    avatar_url: Optional[str] = None
+
+
+class InboxItemResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    id: uuid.UUID
+    type: InboxEventType
+    read: bool
+    actor: Optional[ActorInfo] = None
+    issue_id: Optional[str] = None   # "issue-{number}" format
+    issue_title: Optional[str] = None
     created_at: datetime
 
 
 class InboxListResponse(BaseModel):
-    """Paginated inbox."""
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     items: list[InboxItemResponse]
     total: int
@@ -35,6 +42,6 @@ class InboxListResponse(BaseModel):
 
 
 class UnreadCountResponse(BaseModel):
-    """Unread inbox count."""
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     unread_count: int
