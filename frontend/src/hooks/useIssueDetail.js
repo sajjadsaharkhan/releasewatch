@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
@@ -37,42 +37,46 @@ function normalizeTimelineItems(apiItems) {
 }
 
 export function useIssueDetail(initialIssue, { onUpdate } = {}) {
-  const queryClient = useQueryClient()
   const { user: currentUser } = useApp()
   const { toast } = useToast()
 
   const [localIssue, setLocalIssue] = useState(initialIssue)
   const issueId = localIssue?.id
 
-  // Timeline — TanStack Query owns fetching; invalidateQueries triggers re-fetch after mutations
-  const { data: timelineData } = useQuery({
-    queryKey: ['timeline', issueId],
-    queryFn: () => timelineApi.list(issueId, { page: 1, size: 50 }).then(r => r.data),
-    enabled: !!issueId,
-    staleTime: 0,
-  })
-
-  // Extra pages loaded via loadMoreTimeline — reset when base query refreshes
+  // ── Timeline — managed in local state, fetched directly ──────────────────
+  const [timelineBaseItems, setTimelineBaseItems] = useState([])
+  const [timelineTotal, setTimelineTotal] = useState(0)
   const [extraItems, setExtraItems] = useState([])
   const [timelinePage, setTimelinePage] = useState(1)
   const [timelineLoadingMore, setTimelineLoadingMore] = useState(false)
   const timelineLoadingRef = useRef(false)
-  const prevTimelineDataRef = useRef(null)
 
-  useEffect(() => {
-    if (timelineData !== prevTimelineDataRef.current) {
-      prevTimelineDataRef.current = timelineData
+  // Ref so async callbacks always see the latest issueId without stale closure
+  const issueIdRef = useRef(issueId)
+  issueIdRef.current = issueId
+
+  const fetchTimeline = useCallback(async (id) => {
+    if (!id) return
+    try {
+      const res = await timelineApi.list(id, { page: 1, size: 50 })
+      setTimelineBaseItems(res.data?.items || [])
+      setTimelineTotal(res.data?.total || 0)
       setExtraItems([])
       setTimelinePage(1)
+    } catch (err) {
+      console.error('[useIssueDetail] Timeline fetch failed:', err)
     }
-  }, [timelineData])
+  }, [])
 
-  const baseItems = timelineData?.items || []
-  const allRawItems = [...baseItems, ...extraItems]
+  useEffect(() => {
+    fetchTimeline(issueId)
+  }, [issueId, fetchTimeline])
+
+  const allRawItems = [...timelineBaseItems, ...extraItems]
   const { events, comments } = normalizeTimelineItems(allRawItems)
-  const timelineHasMore = (timelineData?.total ?? 0) > allRawItems.length
+  const timelineHasMore = timelineTotal > allRawItems.length
 
-  // Reference data — long staleTime since these change rarely
+  // ── Reference data ────────────────────────────────────────────────────────
   const { data: teamUsers = [] } = useQuery({
     queryKey: ['team'],
     queryFn: () => teamApi.list().then(r => r.data || []),
@@ -93,13 +97,16 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     staleTime: 5 * 60 * 1000,
   })
 
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
   const loadMoreTimeline = async () => {
-    if (!issueId || timelineLoadingRef.current) return
+    const id = issueIdRef.current
+    if (!id || timelineLoadingRef.current) return
     timelineLoadingRef.current = true
     setTimelineLoadingMore(true)
     const nextPage = timelinePage + 1
     try {
-      const res = await timelineApi.list(issueId, { page: nextPage, size: 50 })
+      const res = await timelineApi.list(id, { page: nextPage, size: 50 })
       setExtraItems(prev => [...prev, ...(res.data?.items || [])])
       setTimelinePage(nextPage)
     } catch (err) {
@@ -111,76 +118,64 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
   }
 
   const applyUpdate = async (patch, successMsg) => {
-    let updatedIssue
+    const id = issueIdRef.current
     try {
-      const res = await issuesApi.update(issueId, patch)
-      updatedIssue = res.data
+      const res = await issuesApi.update(id, patch)
+      const updatedIssue = res.data
       setLocalIssue(updatedIssue)
       onUpdate?.(updatedIssue)
-      if (successMsg) toast.success(successMsg)
+      if (successMsg) toast({ title: successMsg })
     } catch {
-      toast.error('Failed to update issue')
+      toast({ title: 'Failed to update issue' })
       return
     }
-    // Fetch fresh timeline and write directly to cache — setQueryData bypasses
-    // observer-state checks that invalidateQueries depends on, so it works even
-    // when a dialog state change is batched in the same event (e.g. release blocker confirm).
-    try {
-      const tlRes = await timelineApi.list(updatedIssue.id, { page: 1, size: 50 })
-      queryClient.setQueryData(['timeline', updatedIssue.id], tlRes.data)
-    } catch (err) {
-      console.error('[applyUpdate] Timeline refresh failed:', err)
-    }
+    await fetchTimeline(id)
   }
 
   const addComment = async (body, isInternal, mentionedUserIds) => {
+    const id = issueIdRef.current
     try {
-      const res = await timelineApi.addComment(issueId, {
+      const res = await timelineApi.addComment(id, {
         body,
         is_internal: isInternal,
         mentioned_user_ids: mentionedUserIds || [],
       })
       const newItem = { ...res.data, actor_user: res.data.actor_user ?? currentUser }
-      queryClient.setQueryData(['timeline', issueId], (old) => {
-        if (!old) return { items: [newItem], total: 1, page: 1, size: 50 }
-        return { ...old, items: [...old.items, newItem], total: (old.total || 0) + 1 }
-      })
-      toast.success('Comment added')
+      setTimelineBaseItems(prev => [...prev, newItem])
+      setTimelineTotal(prev => prev + 1)
+      toast({ title: 'Comment added' })
     } catch {
-      toast.error('Failed to add comment')
+      toast({ title: 'Failed to add comment' })
     }
   }
 
   const updateComment = async (commentId, body, isInternal, mentionedUserIds, editedAt) => {
+    const id = issueIdRef.current
     try {
-      await timelineApi.updateComment(issueId, commentId, { body })
+      await timelineApi.updateComment(id, commentId, { body })
       const patchItem = (item) =>
         item.id === commentId
           ? { ...item, body, is_internal: isInternal, mentioned_user_ids: mentionedUserIds || [], edited_at: editedAt }
           : item
-      queryClient.setQueryData(['timeline', issueId], (old) => {
-        if (!old) return old
-        return { ...old, items: old.items.map(patchItem) }
-      })
+      setTimelineBaseItems(prev => prev.map(patchItem))
       setExtraItems(prev => prev.map(patchItem))
-      toast.success('Comment updated')
+      toast({ title: 'Comment updated' })
     } catch {
-      toast.error('Failed to update comment')
+      toast({ title: 'Failed to update comment' })
     }
   }
 
   const deleteComment = async (commentId) => {
+    const id = issueIdRef.current
     try {
-      await timelineApi.deleteComment(issueId, commentId)
+      await timelineApi.deleteComment(id, commentId)
       const filterItems = (items) => items.filter(item => item.id !== commentId)
-      queryClient.setQueryData(['timeline', issueId], (old) => {
-        if (!old) return old
-        return { ...old, items: filterItems(old.items), total: Math.max(0, (old.total || 0) - 1) }
-      })
+      setTimelineBaseItems(prev => filterItems(prev))
       setExtraItems(prev => filterItems(prev))
-      toast.success('Comment deleted')
+      setTimelineTotal(prev => Math.max(0, prev - 1))
+      toast({ title: 'Comment deleted' })
     } catch {
-      toast.error('Failed to delete comment')
+      toast({ title: 'Failed to delete comment' })
     }
   }
 

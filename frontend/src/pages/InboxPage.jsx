@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { Empty } from '../components/ui/Empty'
-import { MOCK_INBOX, userById } from '../data/mockData'
+import { inboxApi } from '../lib/api'
+import { useToast } from '../hooks/useToast'
 import { relTime } from '../lib/relTime'
 import { CheckCheck } from 'lucide-react'
 
@@ -23,7 +24,22 @@ const TYPE_DESCRIPTIONS = {
 
 export default function InboxPage() {
   const [activeTab, setActiveTab] = useState('all')
-  const [items, setItems] = useState(MOCK_INBOX)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    setLoading(true)
+    inboxApi.list({ size: 100 })
+      .then(res => {
+        setItems(res.data.items)
+        setLoading(false)
+      })
+      .catch(() => {
+        toast.error('Failed to load inbox')
+        setLoading(false)
+      })
+  }, [])
 
   const unreadCount = items.filter((i) => !i.read).length
   const mentionCount = items.filter((i) => i.type === 'mention').length
@@ -43,12 +59,31 @@ export default function InboxPage() {
     return true
   })
 
-  function markAllRead() {
-    setItems((prev) => prev.map((i) => ({ ...i, read: true })))
+  async function markAllRead() {
+    try {
+      await inboxApi.readAll()
+      setItems((prev) => prev.map((i) => ({ ...i, read: true })))
+    } catch {
+      toast.error('Failed to mark all as read')
+    }
   }
 
-  function markRead(id) {
-    setItems((prev) => prev.map((i) => i.id === id ? { ...i, read: true } : i))
+  async function markRead(id) {
+    if (items.find(i => i.id === id)?.read) return
+    try {
+      await inboxApi.read(id)
+      setItems((prev) => prev.map((i) => i.id === id ? { ...i, read: true } : i))
+    } catch {
+      toast.error('Failed to mark as read')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="text-sm text-muted-foreground">Loading inbox…</div>
+      </div>
+    )
   }
 
   return (
@@ -79,7 +114,7 @@ export default function InboxPage() {
       ) : (
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
           {filtered.map((item) => {
-            const actor = userById(item.actor)
+            const actor = item.actor
             const desc = TYPE_DESCRIPTIONS[item.type] ?? item.type
 
             return (

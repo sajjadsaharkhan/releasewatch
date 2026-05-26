@@ -41,6 +41,9 @@ class InboxItem(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     issue_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -62,7 +65,8 @@ class InboxItem(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    user = relationship("User", back_populates="inbox_items")
+    user = relationship("User", foreign_keys=[user_id], back_populates="inbox_items")
+    actor = relationship("User", foreign_keys=[actor_id])
     issue = relationship("Issue", back_populates="inbox_items")
     timeline_event = relationship("IssueTimeline", back_populates="inbox_items")
 
