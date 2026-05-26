@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
   Bold, Italic, Strikethrough, Code, Link2, List, ListOrdered,
   Quote, Image, Eye, Edit3
@@ -50,16 +50,6 @@ export function MarkdownComposer({
   const [mentionedUserIds, setMentionedUserIds] = useState(initialMentionedUsers)
   const taRef = useRef(null)
 
-  // Reset form when initialValue changes (for edit mode)
-  // Only reset when switching to edit mode or when values actually change
-  useEffect(() => {
-    if (mode === 'edit') {
-      setBody(initialValue)
-      setIsInternal(initialInternal)
-      setMentionedUserIds(initialMentionedUsers)
-    }
-  }, [mode, initialValue, initialInternal, initialMentionedUsers])
-
   const insert = useCallback((before, after = before) => {
     const ta = taRef.current
     if (!ta) return
@@ -94,6 +84,8 @@ export function MarkdownComposer({
     setMentionedUserIds(initialMentionedUsers)
     onCancelEdit?.()
   }
+
+  const preview = useMemo(() => renderMarkdown(body), [body])
 
   return (
     <div className={cn('rounded-xl border border-border overflow-hidden', showInternal && isInternal && 'border-amber-300 dark:border-amber-700')}>
@@ -145,7 +137,7 @@ export function MarkdownComposer({
         />
       ) : (
         <div className="min-h-[120px] px-4 py-3 text-sm">
-          {body.trim() ? renderMarkdown(body) : <p className="text-muted-foreground italic">Nothing to preview.</p>}
+          {body.trim() ? preview : <p className="text-muted-foreground italic">Nothing to preview.</p>}
         </div>
       )}
 

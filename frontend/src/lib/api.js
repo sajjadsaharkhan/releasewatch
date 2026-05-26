@@ -68,7 +68,7 @@ export const issuesApi = {
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),
   verify: (id, data) => api.post(`/issues/${id}/verify`, data),
   reopen: (id) => api.post(`/issues/${id}/reopen`),
-  duplicate: (id, parentId) => api.post(`/issues/${id}/duplicate`, { parent_issue_id: parentId }),
+  duplicate: (id, parentId) => api.post(`/issues/${id}/duplicate`, { parent_id: parentId }),
 }
 
 // ─── Inbox ───────────────────────────────────────────────────────────────────
@@ -146,7 +146,10 @@ export const preUploadApi = {
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
 export const timelineApi = {
-  list: (issueId) => api.get(`/issues/${issueId}/timeline`),
+  list: (issueId, params) => api.get(`/issues/${issueId}/timeline`, { params }),
+  addComment: (issueId, data) => api.post(`/issues/${issueId}/timeline`, data),
+  updateComment: (issueId, eventId, data) => api.patch(`/issues/${issueId}/timeline/${eventId}`, data),
+  deleteComment: (issueId, eventId) => api.delete(`/issues/${issueId}/timeline/${eventId}`),
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────

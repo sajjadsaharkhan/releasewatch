@@ -90,6 +90,10 @@ class Issue(Base):
     environment_build_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     environment_staging_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     curl_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    environment_name: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        doc="Named environment: production | staging | development | local | qa"
+    )
     reproduction_steps: Mapped[list | None] = mapped_column(
         JSON, nullable=True, default=list,
         doc="JSON array of reproduction steps: [{step_order, description, expected_result, actual_result}]"

@@ -2,7 +2,7 @@
 
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -27,6 +27,13 @@ class TimelineEventType(str, enum.Enum):
     verified = "verified"
     regression = "regression"
     duplicate_linked = "duplicate_linked"
+    reopened = "reopened"
+    title_changed = "title_changed"
+    description_changed = "description_changed"
+    steps_changed = "steps_changed"
+    release_changed = "release_changed"
+    project_changed = "project_changed"
+    environment_changed = "environment_changed"
 
 
 class IssueTimeline(Base):
@@ -62,7 +69,8 @@ class IssueTimeline(Base):
         doc="Structured diff payload, e.g. {from: 'new', to: 'triaged'} for status_changed."
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False,
+        default=lambda: datetime.now(tz=timezone.utc)
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────

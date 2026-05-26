@@ -5,7 +5,7 @@ Fan-out notification matrix
 Event              → Who receives an inbox item
 ------             → -----------------------------------
 assigned           → assignee
-fix_ready          → reporter + triage_lead users
+fixed              → reporter + triage_lead users
 comment            → reporter + assignee (if different from actor)
 mention            → mentioned users (parsed from body)
 regression         → reporter + assignee + triage leads
@@ -69,7 +69,7 @@ class InboxFanOutService:
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
 
-        elif trigger == InboxEventType.fix_ready:
+        elif trigger == InboxEventType.fixed:
             # Notify the reporter
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
@@ -85,20 +85,43 @@ class InboxFanOutService:
             # Mentions parsed separately below
 
         elif trigger == InboxEventType.mention:
-            body = (extra_meta or {}).get("body", "")
-            mentioned_usernames = _MENTION_RE.findall(body)
-            if mentioned_usernames:
-                result = await db.execute(
-                    select(User).where(User.username.in_(mentioned_usernames))
-                )
-                for user in result.scalars().all():
-                    recipients.add(str(user.id))
+            meta = extra_meta or {}
+            # Fast path: explicit user IDs provided by the comment route
+            explicit_ids = meta.get("mentioned_user_ids", [])
+            if explicit_ids:
+                recipients.update(str(uid) for uid in explicit_ids)
+            else:
+                # Fallback: parse @username mentions from comment body
+                body = meta.get("body", "")
+                mentioned_usernames = _MENTION_RE.findall(body)
+                if mentioned_usernames:
+                    result = await db.execute(
+                        select(User).where(User.username.in_(mentioned_usernames))
+                    )
+                    for user in result.scalars().all():
+                        recipients.add(str(user.id))
 
         elif trigger == InboxEventType.regression:
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
+            leads = await self._users_with_role(db, UserRole.triage_lead)
+            recipients.update(str(u.id) for u in leads)
+
+        elif trigger == InboxEventType.status_changed:
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+
+        elif trigger == InboxEventType.verified:
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+
+        elif trigger == InboxEventType.filed:
             leads = await self._users_with_role(db, UserRole.triage_lead)
             recipients.update(str(u.id) for u in leads)
 

@@ -53,6 +53,9 @@ class IssueBase(BaseModel):
     environment_os: Optional[str] = Field(None, max_length=128)
     environment_build_hash: Optional[str] = Field(None, max_length=64)
     environment_staging_url: Optional[str] = Field(None, max_length=512)
+    environment_name: Optional[str] = Field(
+        None, pattern=r'^(production|staging|development|local|qa)$'
+    )
     curl_command: Optional[str] = None
 
 
@@ -73,11 +76,17 @@ class IssueUpdate(BaseModel):
     status: Optional[IssueStatus] = None
     labels: Optional[List[str]] = None
     is_release_blocker: Optional[bool] = None
+    assignee_id: Optional[Any] = None
+    release_id: Optional[Any] = None
     environment_browser: Optional[str] = None
     environment_os: Optional[str] = None
     environment_build_hash: Optional[str] = None
     environment_staging_url: Optional[str] = None
+    environment_name: Optional[str] = Field(
+        None, pattern=r'^(production|staging|development|local|qa)$'
+    )
     curl_command: Optional[str] = None
+    reproduction_steps: Optional[List[Any]] = None
 
 
 class TriageRequest(BaseModel):
@@ -118,6 +127,7 @@ class IssueResponse(IssueBase):
     id: uuid.UUID
     issue_number: int
     project_id: uuid.UUID
+    project_name: Optional[str] = None
     release_id: uuid.UUID
     release_version: Optional[str] = None
     status: IssueStatus
@@ -128,6 +138,7 @@ class IssueResponse(IssueBase):
     labels_detail: List[LabelDetail] = Field(default_factory=list)
     is_regression: bool
     regression_count: int
+    environment_name: Optional[str] = None
     parent_issue_id: Optional[uuid.UUID] = None
     time_to_triage_h: Optional[float] = None
     time_to_fix_h: Optional[float] = None

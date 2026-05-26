@@ -334,7 +334,7 @@ export const MOCK_ISSUES = [
       { id: 'att-2', name: 'network-trace.log', type: 'file', url: '#', size: 8400, createdAt: '2026-05-10T09:25:00Z' },
     ],
     comments: [
-      { id: 'cmt-1', author: 'u-3', body: 'Investigating now. The issue seems related to the SameSite=None cookie requirement on Safari. Will push a fix today.', createdAt: '2026-05-10T14:00:00Z', isInternal: false },
+      { id: 'cmt-1', author: 'u-3', body: 'Investigating now. The issue seems related to the SameSite=None cookie requirement on Safari. Will push a fix today.', createdAt: '2026-05-10T14:00:00Z', isInternal: false, mentionedUsers: ['u-1', 'u-2'] },
       { id: 'cmt-2', author: 'u-2', body: 'Confirmed. Also affects iOS 17 Safari.', createdAt: '2026-05-10T15:30:00Z', isInternal: true },
       { id: 'cmt-3', author: 'u-1', body: 'I can test this on my Mac once the fix is ready. Let me know when you have a staging build deployed.', createdAt: '2026-05-10T16:45:00Z', isInternal: false, editedAt: '2026-05-10T17:30:00Z' },
     ],
@@ -998,6 +998,9 @@ export const MOCK_INBOX = [
   { id: 'inbox-8', type: 'comment', actor: 'u-2', issueId: 'BUG-001', issueTitle: 'Login fails with Google OAuth on Safari 17', body: 'left an internal note', createdAt: '2026-05-10T15:30:00Z', read: true },
   { id: 'inbox-9', type: 'mention', actor: 'u-1', issueId: 'BUG-014', issueTitle: 'Data pipeline: incremental sync skips deletes', body: 'mentioned you in a description', createdAt: '2026-05-15T12:05:00Z', read: true },
   { id: 'inbox-10', type: 'filed', actor: 'u-7', issueId: 'BUG-006', issueTitle: 'Mobile: crash on swipe-to-dismiss notification', body: 'filed a new blocker', createdAt: '2026-05-15T09:00:00Z', read: true },
+  { id: 'inbox-11', type: 'status_changed', actor: 'u-3', issueId: 'BUG-001', issueTitle: 'Login fails with Google OAuth on Safari 17', body: 'changed status to in_progress', createdAt: '2026-05-10T13:00:00Z', read: false },
+  { id: 'inbox-12', type: 'verified', actor: 'u-2', issueId: 'BUG-004', issueTitle: 'Search returns stale results after 5 minutes', body: 'verified the fix', createdAt: '2026-04-06T09:00:00Z', read: true },
+  { id: 'inbox-13', type: 'blocker_filed', actor: 'u-7', issueId: 'BUG-006', issueTitle: 'Mobile: crash on swipe-to-dismiss notification', body: 'filed a release blocker', createdAt: '2026-05-15T09:05:00Z', read: false },
 ]
 
 // ─── Contributions data ───────────────────────────────────────────────────────
@@ -1722,6 +1725,10 @@ export const MOCK_LABELS_PER_PERSON = [
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+export function labelByName(name) {
+  return MOCK_LABELS.find((l) => l.name === name) ?? null
+}
+
 export function userById(id) {
   return MOCK_TEAM.find((u) => u.id === id) ?? null
 }

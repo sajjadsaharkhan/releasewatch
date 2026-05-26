@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
 from app.db.models.issue_timeline import TimelineEventType
+from app.db.models.inbox_item import InboxEventType
 from app.db.models.user import User
 from app.schemas.issue import IssueCreate, IssueUpdate
 
@@ -32,25 +33,11 @@ class IssueService:
 
         Automatically assigns the next ``issue_number`` within the project and
         appends a ``filed`` timeline event.
-
-        Parameters
-        ----------
-        db:
-            Active async session (will be flushed but not committed).
-        data:
-            Validated ``IssueCreate`` payload.
-        current_user:
-            The authenticated user filing the issue (becomes the reporter).
-
-        Returns
-        -------
-        Issue
-            The newly created, flushed (but not committed) ``Issue`` row.
         """
         from app.db.models.release import Release
         from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
 
-        # Resolve the release to get the project_id
         release_result = await db.execute(
             select(Release).where(Release.id == data.release_id)
         )
@@ -60,7 +47,6 @@ class IssueService:
 
         now = datetime.now(tz=timezone.utc)
 
-        # Convert reproduction steps to dict list for JSON storage
         reproduction_steps_json = [
             {
                 "step_order": step.step_order,
@@ -83,6 +69,7 @@ class IssueService:
             environment_os=data.environment_os,
             environment_build_hash=data.environment_build_hash,
             environment_staging_url=data.environment_staging_url,
+            environment_name=data.environment_name,
             curl_command=data.curl_command,
             reporter_id=current_user.id,
             status=IssueStatus.new,
@@ -90,9 +77,8 @@ class IssueService:
             reproduction_steps=reproduction_steps_json or [],
         )
         db.add(issue)
-        await db.flush()  # get issue.id before adding timeline + attachments
+        await db.flush()
 
-        # Timeline: filed event
         timeline_svc = TimelineService()
         await timeline_svc.create_event(
             db=db,
@@ -104,7 +90,6 @@ class IssueService:
             is_internal=False,
         )
 
-        # Link any pre-uploaded attachments to this issue
         if data.pending_attachments:
             from app.db.models.issue_attachment import IssueAttachment
 
@@ -120,6 +105,24 @@ class IssueService:
                 ))
 
         await db.flush()
+
+        # Fan-out: notify triage leads of new issue
+        await InboxFanOutService().fan_out(
+            db=db,
+            trigger=InboxEventType.filed,
+            issue=issue,
+            actor=current_user,
+        )
+
+        # Fan-out: notify triage leads + CTOs if blocker
+        if data.is_release_blocker:
+            await InboxFanOutService().fan_out(
+                db=db,
+                trigger=InboxEventType.blocker_filed,
+                issue=issue,
+                actor=current_user,
+            )
+
         return issue
 
     # ── Triage ────────────────────────────────────────────────────────────────
@@ -136,28 +139,10 @@ class IssueService:
     ) -> Issue:
         """Triage an issue: assign it and set severity.
 
-        Transitions status ``new → triaged``.  Also computes ``time_to_triage_h``
-        from ``filed_at`` → now.
-
-        Parameters
-        ----------
-        db:
-            Active async session.
-        issue_id:
-            UUID of the issue to triage.
-        assignee_id:
-            UUID of the user being assigned the issue.
-        severity:
-            Confirmed severity after triage.
-        current_user:
-            The triage lead performing the action.
-
-        Returns
-        -------
-        Issue
-            Updated issue row.
+        Transitions status ``new → triaged``.
         """
         from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
 
         issue = await self._get_issue_or_404(db, issue_id)
         if issue.status not in (IssueStatus.new,):
@@ -168,6 +153,7 @@ class IssueService:
 
         now = datetime.now(tz=timezone.utc)
         prev_severity = issue.severity
+        prev_assignee = issue.assignee_id
 
         issue.assignee_id = assignee_id
         issue.severity = severity
@@ -207,12 +193,22 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.assigned,
             body=None,
-            meta={"assignee_id": str(assignee_id)},
+            meta={"assignee_id": str(assignee_id), "prev_assignee_id": str(prev_assignee) if prev_assignee else None},
             is_internal=False,
         )
 
         db.add(issue)
         await db.flush()
+
+        # Fan-out: assignee gets notified
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.assigned, issue=issue, actor=current_user,
+        )
+        # Fan-out: reporter + old assignee get status-changed notification
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+        )
+
         return issue
 
     # ── Fix ───────────────────────────────────────────────────────────────────
@@ -227,24 +223,9 @@ class IssueService:
         """Mark an issue as fixed (developer submits MR).
 
         Transitions ``triaged | in_progress → fixed``.
-
-        Parameters
-        ----------
-        db:
-            Active async session.
-        issue_id:
-            UUID of the issue being fixed.
-        mr_url:
-            Optional GitLab / GitHub merge-request URL.
-        current_user:
-            The developer marking the fix.
-
-        Returns
-        -------
-        Issue
-            Updated issue row.
         """
         from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
 
         issue = await self._get_issue_or_404(db, issue_id)
         if issue.status not in (IssueStatus.triaged, IssueStatus.in_progress, IssueStatus.regression):
@@ -274,6 +255,12 @@ class IssueService:
 
         db.add(issue)
         await db.flush()
+
+        # Fan-out: reporter + triage leads notified of fix
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.fixed, issue=issue, actor=current_user,
+        )
+
         return issue
 
     # ── Verify ────────────────────────────────────────────────────────────────
@@ -290,18 +277,9 @@ class IssueService:
         - ``pass`` → transitions to ``verified``
         - ``fail`` → transitions back to ``in_progress``
         - ``partial`` → stays ``fixed`` with a timeline comment
-
-        Parameters
-        ----------
-        db, issue_id, outcome, current_user:
-            As described above.
-
-        Returns
-        -------
-        Issue
-            Updated issue row.
         """
         from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
 
         issue = await self._get_issue_or_404(db, issue_id)
         if issue.status != IssueStatus.fixed:
@@ -337,6 +315,17 @@ class IssueService:
 
         db.add(issue)
         await db.flush()
+
+        if outcome == "pass":
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.verified, issue=issue, actor=current_user,
+            )
+        else:
+            # fail/partial — notify assignee + reporter of status change
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+            )
+
         return issue
 
     # ── Reopen ────────────────────────────────────────────────────────────────
@@ -350,18 +339,9 @@ class IssueService:
         """Reopen a closed or verified issue.
 
         Transitions ``verified | closed → in_progress``.
-
-        Parameters
-        ----------
-        db, issue_id, current_user:
-            Standard arguments.
-
-        Returns
-        -------
-        Issue
-            Updated issue row.
         """
         from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
 
         issue = await self._get_issue_or_404(db, issue_id)
         if issue.status not in (IssueStatus.verified, IssueStatus.closed):
@@ -379,14 +359,19 @@ class IssueService:
             db=db,
             issue_id=issue.id,
             actor_id=current_user.id,
-            event_type=TimelineEventType.status_changed,
-            body="Issue reopened.",
+            event_type=TimelineEventType.reopened,
+            body=None,
             meta={"from": getattr(prev_status, 'value', prev_status), "to": IssueStatus.in_progress.value},
             is_internal=False,
         )
 
         db.add(issue)
         await db.flush()
+
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+        )
+
         return issue
 
     # ── Duplicate linking ─────────────────────────────────────────────────────
@@ -401,16 +386,6 @@ class IssueService:
         """Mark ``issue_id`` as a duplicate of ``parent_id``.
 
         Sets ``parent_issue_id`` and transitions to ``closed``.
-
-        Parameters
-        ----------
-        db, issue_id, parent_id, current_user:
-            Standard arguments.
-
-        Returns
-        -------
-        Issue
-            Updated duplicate issue row.
         """
         from app.services.timeline_service import TimelineService
 
@@ -440,6 +415,185 @@ class IssueService:
 
         db.add(issue)
         await db.flush()
+        return issue
+
+    # ── Generic update with field diffing ─────────────────────────────────────
+
+    async def update(
+        self,
+        db: AsyncSession,
+        issue_id: uuid.UUID,
+        payload: dict,
+        actor: User,
+    ) -> Issue:
+        """Apply a partial update to an issue, emitting a timeline event per changed field.
+
+        Parameters
+        ----------
+        db:
+            Active async session.
+        issue_id:
+            UUID of the issue to update.
+        payload:
+            Dict of only the fields to change (``exclude_unset=True`` in the route).
+        actor:
+            The authenticated user making the change.
+
+        Returns
+        -------
+        Issue
+            Updated issue row (flushed, not committed).
+        """
+        from app.db.models.release import Release
+        from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
+
+        # Lock the row to prevent concurrent diff races
+        result = await db.execute(
+            select(Issue).where(Issue.id == issue_id).with_for_update()
+        )
+        issue = result.scalar_one_or_none()
+        if issue is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+
+        timeline_svc = TimelineService()
+        inbox_svc = InboxFanOutService()
+        events_to_emit: list[tuple[TimelineEventType, dict]] = []
+        inbox_triggers: list[InboxEventType] = []
+
+        # ── Title ─────────────────────────────────────────────────────────────
+        if "title" in payload and payload["title"] != issue.title:
+            events_to_emit.append((
+                TimelineEventType.title_changed,
+                {"from": issue.title, "to": payload["title"]},
+            ))
+            issue.title = payload["title"]
+
+        # ── Description ───────────────────────────────────────────────────────
+        if "description" in payload and payload["description"] != issue.description:
+            events_to_emit.append((TimelineEventType.description_changed, {}))
+            issue.description = payload["description"]
+
+        # ── Severity ──────────────────────────────────────────────────────────
+        if "severity" in payload:
+            new_sev = payload["severity"]
+            old_sev = getattr(issue.severity, 'value', issue.severity)
+            new_sev_val = getattr(new_sev, 'value', new_sev)
+            if old_sev != new_sev_val:
+                events_to_emit.append((
+                    TimelineEventType.severity_changed,
+                    {"from": old_sev, "to": new_sev_val},
+                ))
+                issue.severity = new_sev
+
+        # ── Environment name ──────────────────────────────────────────────────
+        if "environment_name" in payload and payload["environment_name"] != issue.environment_name:
+            events_to_emit.append((
+                TimelineEventType.environment_changed,
+                {"from": issue.environment_name, "to": payload["environment_name"]},
+            ))
+            issue.environment_name = payload["environment_name"]
+
+        # ── Release blocker ───────────────────────────────────────────────────
+        if "is_release_blocker" in payload and payload["is_release_blocker"] != issue.is_release_blocker:
+            if payload["is_release_blocker"]:
+                events_to_emit.append((TimelineEventType.blocker_flagged, {}))
+                inbox_triggers.append(InboxEventType.blocker_filed)
+            else:
+                events_to_emit.append((TimelineEventType.blocker_cleared, {}))
+            issue.is_release_blocker = payload["is_release_blocker"]
+
+        # ── Assignee ──────────────────────────────────────────────────────────
+        if "assignee_id" in payload:
+            new_assignee = payload["assignee_id"]
+            new_assignee_str = str(new_assignee) if new_assignee else None
+            old_assignee_str = str(issue.assignee_id) if issue.assignee_id else None
+            if new_assignee_str != old_assignee_str:
+                events_to_emit.append((
+                    TimelineEventType.assigned,
+                    {"assignee_id": new_assignee_str, "prev_assignee_id": old_assignee_str},
+                ))
+                inbox_triggers.append(InboxEventType.assigned)
+                issue.assignee_id = new_assignee
+
+        # ── Labels ────────────────────────────────────────────────────────────
+        if "labels" in payload:
+            old_labels = set(issue.labels or [])
+            new_labels = set(payload["labels"] or [])
+            for added in sorted(new_labels - old_labels):
+                events_to_emit.append((TimelineEventType.label_added, {"label_name": added}))
+            for removed in sorted(old_labels - new_labels):
+                events_to_emit.append((TimelineEventType.label_removed, {"label_name": removed}))
+            issue.labels = list(new_labels)
+
+        # ── Reproduction steps ────────────────────────────────────────────────
+        if "reproduction_steps" in payload and payload["reproduction_steps"] != issue.reproduction_steps:
+            events_to_emit.append((TimelineEventType.steps_changed, {}))
+            issue.reproduction_steps = payload["reproduction_steps"]
+
+        # ── Release ───────────────────────────────────────────────────────────
+        if "release_id" in payload:
+            new_release_id = payload["release_id"]
+            if new_release_id != issue.release_id:
+                # Resolve version strings for the diff meta
+                from_version = None
+                to_version = None
+                if issue.release_id:
+                    from_rel = await db.execute(select(Release).where(Release.id == issue.release_id))
+                    from_rel_obj = from_rel.scalar_one_or_none()
+                    if from_rel_obj:
+                        from_version = from_rel_obj.version
+                if new_release_id:
+                    to_rel = await db.execute(select(Release).where(Release.id == new_release_id))
+                    to_rel_obj = to_rel.scalar_one_or_none()
+                    if to_rel_obj:
+                        to_version = to_rel_obj.version
+                events_to_emit.append((
+                    TimelineEventType.release_changed,
+                    {"from_version": from_version, "to_version": to_version},
+                ))
+                issue.release_id = new_release_id
+
+        # ── Status (direct patch, e.g. closing) ───────────────────────────────
+        if "status" in payload:
+            new_status = payload["status"]
+            old_status_val = getattr(issue.status, 'value', issue.status)
+            new_status_val = getattr(new_status, 'value', new_status)
+            if old_status_val != new_status_val:
+                events_to_emit.append((
+                    TimelineEventType.status_changed,
+                    {"from": old_status_val, "to": new_status_val},
+                ))
+                inbox_triggers.append(InboxEventType.status_changed)
+                issue.status = new_status
+
+        # ── Passthrough fields with no timeline event ─────────────────────────
+        for field in ("environment_browser", "environment_os", "environment_build_hash",
+                      "environment_staging_url", "curl_command"):
+            if field in payload:
+                setattr(issue, field, payload[field])
+
+        db.add(issue)
+        await db.flush()
+
+        # Emit timeline events
+        for event_type, meta in events_to_emit:
+            await timeline_svc.create_event(
+                db=db,
+                issue_id=issue.id,
+                actor_id=actor.id,
+                event_type=event_type,
+                body=None,
+                meta=meta,
+                is_internal=False,
+            )
+
+        # Fan-out inbox notifications
+        for trigger in inbox_triggers:
+            await inbox_svc.fan_out(
+                db=db, trigger=trigger, issue=issue, actor=actor,
+            )
+
         return issue
 
     # ── Internal helpers ──────────────────────────────────────────────────────

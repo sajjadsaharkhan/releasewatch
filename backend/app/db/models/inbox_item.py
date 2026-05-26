@@ -15,11 +15,14 @@ class InboxEventType(str, enum.Enum):
     """The kind of event that generated this inbox notification."""
 
     assigned = "assigned"
-    fix_ready = "fix_ready"
+    fixed = "fixed"
     comment = "comment"
     mention = "mention"
     regression = "regression"
     blocker_filed = "blocker_filed"
+    status_changed = "status_changed"
+    verified = "verified"
+    filed = "filed"
 
 
 class InboxItem(Base):
