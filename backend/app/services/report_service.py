@@ -5,7 +5,6 @@ on every request.  Cache is invalidated by the ``invalidate_report_cache``
 Celery task whenever issues or releases are mutated.
 """
 
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,7 +24,7 @@ class ReportService:
     async def get_release_report(
         self,
         db: AsyncSession,
-        release_id: uuid.UUID,
+        release_id: int,
     ) -> dict[str, Any]:
         """Return aggregate statistics for a single release.
 
@@ -125,16 +124,16 @@ class ReportService:
         """
         query = select(Issue)
         if pid := filters.get("project_id"):
-            query = query.where(Issue.project_id == uuid.UUID(str(pid)))
+            query = query.where(Issue.project_id == int(pid))
         if rid := filters.get("release_id"):
-            query = query.where(Issue.release_id == uuid.UUID(str(rid)))
+            query = query.where(Issue.release_id == int(rid))
 
         result = await db.execute(query)
         issues = result.scalars().all()
 
         stats: dict[str, dict[str, Any]] = {}
 
-        def _user_entry(user_id: uuid.UUID) -> dict[str, Any]:
+        def _user_entry(user_id: int) -> dict[str, Any]:
             return {
                 "user_id": str(user_id),
                 "name": "",
@@ -162,7 +161,7 @@ class ReportService:
 
         # Hydrate names from DB
         if stats:
-            user_ids = [uuid.UUID(uid) for uid in stats]
+            user_ids = [int(uid) for uid in stats]
             user_result = await db.execute(select(User).where(User.id.in_(user_ids)))
             for user in user_result.scalars().all():
                 uid = str(user.id)
@@ -207,7 +206,7 @@ class ReportService:
             .group_by(Issue.assignee_id)
         )
         if pid := filters.get("project_id"):
-            query = query.where(Issue.project_id == uuid.UUID(str(pid)))
+            query = query.where(Issue.project_id == int(pid))
 
         rows = (await db.execute(query)).all()
 
@@ -233,7 +232,7 @@ class ReportService:
     async def get_regressions(
         self,
         db: AsyncSession,
-        project_id: uuid.UUID,
+        project_id: int,
     ) -> dict[str, Any]:
         """Return issues sorted by regression frequency for a project.
 
@@ -279,7 +278,7 @@ class ReportService:
     async def get_dashboard(
         self,
         db: AsyncSession,
-        project_ids: list[uuid.UUID],
+        project_ids: list[int],
     ) -> dict[str, Any]:
         """Return a high-level dashboard aggregation across multiple projects.
 

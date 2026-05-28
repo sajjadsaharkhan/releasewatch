@@ -15,7 +15,6 @@ POST   /issues/{id}/duplicate      — link as duplicate
 
 import csv
 import io
-import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -27,16 +26,20 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import get_current_user, require_role
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
 from app.db.models.label import Label
+from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.db.models.issue_cycle import IssueCycle
 from app.schemas.issue import (
     DuplicateRequest,
     FixRequest,
     IssueCreate,
+    IssueCycleResponse,
     IssueListResponse,
     IssueResponse,
     IssueUpdate,
     LabelDetail,
+    RegressionHistoryResponse,
     TriageRequest,
     UserSummary,
     VerifyRequest,
@@ -144,11 +147,11 @@ async def _build_enriched_responses(
 
 @router.get("", response_model=IssueListResponse, summary="List issues")
 async def list_issues(
-    project_id: Optional[uuid.UUID] = Query(None),
-    release_id: Optional[uuid.UUID] = Query(None),
+    project_id: Optional[int] = Query(None),
+    release_id: Optional[int] = Query(None),
     status: Optional[IssueStatus] = Query(None),
     severity: Optional[IssueSeverity] = Query(None),
-    assignee_id: Optional[uuid.UUID] = Query(None),
+    assignee_id: Optional[int] = Query(None),
     is_regression: Optional[bool] = Query(None),
     is_release_blocker: Optional[bool] = Query(None),
     unassigned: Optional[bool] = Query(None),
@@ -196,11 +199,11 @@ async def list_issues(
 
 @router.get("/export", summary="Export issues as CSV")
 async def export_issues(
-    project_id: Optional[uuid.UUID] = Query(None),
-    release_id: Optional[uuid.UUID] = Query(None),
+    project_id: Optional[int] = Query(None),
+    release_id: Optional[int] = Query(None),
     status: Optional[IssueStatus] = Query(None),
     severity: Optional[IssueSeverity] = Query(None),
-    assignee_id: Optional[uuid.UUID] = Query(None),
+    assignee_id: Optional[int] = Query(None),
     is_regression: Optional[bool] = Query(None),
     is_release_blocker: Optional[bool] = Query(None),
     unassigned: Optional[bool] = Query(None),
@@ -308,7 +311,7 @@ async def create_issue(
 
 @router.get("/{issue_id}", response_model=IssueResponse, summary="Get issue detail")
 async def get_issue(
-    issue_id: uuid.UUID,
+    issue_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
@@ -322,7 +325,7 @@ async def get_issue(
 
 @router.patch("/{issue_id}", response_model=IssueResponse, summary="Update issue fields")
 async def update_issue(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: IssueUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -346,7 +349,7 @@ async def update_issue(
     summary="Delete issue (admin only)",
 )
 async def delete_issue(
-    issue_id: uuid.UUID,
+    issue_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
 ) -> None:
@@ -361,7 +364,7 @@ async def delete_issue(
 
 @router.post("/{issue_id}/triage", response_model=IssueResponse, summary="Triage an issue")
 async def triage_issue(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: TriageRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
@@ -380,7 +383,7 @@ async def triage_issue(
 
 @router.post("/{issue_id}/fix", response_model=IssueResponse, summary="Mark issue as fixed")
 async def mark_fixed(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: FixRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -394,7 +397,7 @@ async def mark_fixed(
 
 @router.post("/{issue_id}/verify", response_model=IssueResponse, summary="Verify a fix")
 async def verify_fix(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: VerifyRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -408,7 +411,7 @@ async def verify_fix(
 
 @router.post("/{issue_id}/reopen", response_model=IssueResponse, summary="Reopen issue")
 async def reopen_issue(
-    issue_id: uuid.UUID,
+    issue_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
@@ -425,7 +428,7 @@ async def reopen_issue(
     summary="Link issue as duplicate",
 )
 async def link_duplicate(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: DuplicateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -435,3 +438,60 @@ async def link_duplicate(
     await db.commit()
     await db.refresh(issue)
     return IssueResponse.model_validate(issue)
+
+
+@router.get(
+    "/{issue_id}/cycles",
+    response_model=list[IssueCycleResponse],
+    summary="List per-iteration cycles for an issue",
+)
+async def list_issue_cycles(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[IssueCycleResponse]:
+    """Return all workflow cycles for an issue, ordered by cycle number."""
+    result = await db.execute(
+        select(IssueCycle)
+        .where(IssueCycle.issue_id == issue_id)
+        .order_by(IssueCycle.cycle_number.asc())
+    )
+    cycles = result.scalars().all()
+    return [IssueCycleResponse.from_orm_with_flag(c) for c in cycles]
+
+
+@router.get(
+    "/{issue_id}/regressions",
+    response_model=list[RegressionHistoryResponse],
+    summary="List regression history for an issue",
+)
+async def list_regression_history(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[RegressionHistoryResponse]:
+    """Return all regression events recorded for an issue, ordered oldest-first."""
+    result = await db.execute(
+        select(RegressionHistory)
+        .options(
+            selectinload(RegressionHistory.release),
+            selectinload(RegressionHistory.detected_by),
+            selectinload(RegressionHistory.previous_fix_by),
+        )
+        .where(RegressionHistory.issue_id == issue_id)
+        .order_by(RegressionHistory.detected_at.asc())
+    )
+    histories = result.scalars().all()
+
+    responses = []
+    for h in histories:
+        responses.append(RegressionHistoryResponse(
+            id=h.id,
+            regression_number=h.regression_number,
+            detected_at=h.detected_at,
+            release_id=h.release_id,
+            release_version=h.release.version if h.release else None,
+            detected_by=UserSummary.model_validate(h.detected_by) if h.detected_by else None,
+            previous_fix_by=UserSummary.model_validate(h.previous_fix_by) if h.previous_fix_by else None,
+        ))
+    return responses

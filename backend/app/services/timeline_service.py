@@ -4,7 +4,6 @@ All events (system-generated or user-authored) are written through this service
 so that the audit trail is consistent and pagination is predictable.
 """
 
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -24,13 +23,13 @@ class TimelineService:
     async def create_event(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
-        actor_id: uuid.UUID | None,
+        issue_id: int,
+        actor_id: int | None,
         event_type: TimelineEventType,
         body: str | None,
         meta: dict[str, Any] | None,
         is_internal: bool = False,
-        mentioned_user_ids: list[uuid.UUID] | None = None,
+        mentioned_user_ids: list[int] | None = None,
     ) -> IssueTimeline:
         """Append a timeline event to an issue's log.
 
@@ -76,7 +75,7 @@ class TimelineService:
     async def list_timeline(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
+        issue_id: int,
         page: int = 1,
         size: int = 50,
         include_internal: bool = True,
@@ -123,7 +122,7 @@ class TimelineService:
     async def edit_comment(
         self,
         db: AsyncSession,
-        event_id: uuid.UUID,
+        event_id: int,
         body: str,
         current_user: User,
     ) -> IssueTimeline:

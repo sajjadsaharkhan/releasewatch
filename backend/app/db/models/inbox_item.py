@@ -1,11 +1,9 @@
 """InboxItem ORM model — per-user notification feed."""
 
-import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -23,6 +21,9 @@ class InboxEventType(str, enum.Enum):
     status_changed = "status_changed"
     verified = "verified"
     filed = "filed"
+    environment_changed = "environment_changed"
+    release_changed = "release_changed"
+    attachment_added = "attachment_added"
 
 
 class InboxItem(Base):
@@ -35,20 +36,18 @@ class InboxItem(Base):
 
     __tablename__ = "inbox_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    actor_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    actor_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    timeline_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+    timeline_id: Mapped[int | None] = mapped_column(
+        Integer,
         ForeignKey("issue_timeline.id", ondelete="SET NULL"),
         nullable=True,
     )

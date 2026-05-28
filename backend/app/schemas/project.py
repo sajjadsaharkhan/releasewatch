@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import List, Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -46,9 +45,9 @@ class ProjectResponse(ProjectBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     slug: str
-    created_by_id: Optional[uuid.UUID] = None
+    created_by_id: Optional[int] = None
     archived_at: Optional[datetime] = None
     created_at: datetime
 

@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,7 +13,7 @@ class UserResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     name: str
     username: str
     role: UserRole

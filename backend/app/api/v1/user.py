@@ -6,7 +6,6 @@ PUT  /me/profile          — update profile (name, title, bio, avatar_url, pass
 DELETE /me/avatar         — remove avatar
 """
 
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

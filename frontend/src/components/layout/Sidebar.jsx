@@ -6,15 +6,14 @@ import { NavItem } from './NavItem'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { Avatar } from '../ui/Avatar'
 import { useApp } from '../../hooks/useApp'
-import { MOCK_PROJECTS, MOCK_ISSUES, MOCK_INBOX, userById } from '../../data/mockData'
+import { MOCK_ISSUES, userById } from '../../data/mockData'
 
 export function Sidebar() {
-  const { activeProjectId, setActiveProjectId } = useApp()
+  const { activeProjectId, setActiveProjectId, inboxUnreadCount } = useApp()
   const [issuesOpen, setIssuesOpen] = useState(true)
   const [reportsOpen, setReportsOpen] = useState(true)
 
   const currentUser = userById('u-1')
-  const unreadCount = MOCK_INBOX.filter((i) => !i.read).length
   const regressionCount = MOCK_ISSUES.filter((i) => i.is_regression && i.status !== 'verified' && i.status !== 'closed').length
 
   return (
@@ -32,7 +31,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-0.5">
         <NavItem to="/dashboard" icon="layout-dashboard" label="Dashboard" />
-        <NavItem to="/inbox" icon="inbox" label="Inbox" badge={unreadCount} />
+        <NavItem to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
 
         {/* Issues section */}
         <div className="pt-1">

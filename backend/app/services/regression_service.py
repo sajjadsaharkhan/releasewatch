@@ -4,8 +4,8 @@ A regression occurs when an issue transitions back to ``regression`` status
 in a new release after previously being ``verified`` or ``closed``.
 """
 
-import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import func, select
@@ -64,6 +64,7 @@ class RegressionService:
         )
         last_fix_event = fix_event_result.scalar_one_or_none()
 
+        now = datetime.now(tz=timezone.utc)
         regression_number = (issue.regression_count or 0) + 1
         issue.regression_count = regression_number
         issue.is_regression = True
@@ -73,12 +74,23 @@ class RegressionService:
             issue_id=issue.id,
             release_id=release.id,
             regression_number=regression_number,
+            detected_at=now,
             detected_by_id=detected_by.id,
             previous_fix_by_id=last_fix_event.actor_id if last_fix_event else None,
             previous_fix_timeline_id=last_fix_event.id if last_fix_event else None,
         )
         db.add(history)
         await db.flush()
+
+        from app.db.models.issue_cycle import IssueCycle
+        db.add(IssueCycle(
+            issue_id=issue.id,
+            cycle_number=regression_number + 1,
+            regression_history_id=history.id,
+            cycle_start_at=now,
+        ))
+        await db.flush()
+
         return history
 
     # ── Fragility analysis ────────────────────────────────────────────────────
@@ -86,7 +98,7 @@ class RegressionService:
     async def get_component_fragility(
         self,
         db: AsyncSession,
-        project_id: uuid.UUID,
+        project_id: int,
         n_releases: int = 10,
     ) -> list[dict[str, Any]]:
         """Return the components (labels) with the highest regression frequency.
@@ -151,7 +163,7 @@ class RegressionService:
     async def get_recurrence_matrix(
         self,
         db: AsyncSession,
-        project_id: uuid.UUID,
+        project_id: int,
     ) -> dict[str, Any]:
         """Build a recurrence matrix: releases × issue regression counts.
 
@@ -179,9 +191,9 @@ class RegressionService:
         histories = result.scalars().all()
 
         # Collect unique release and issue IDs (preserving order)
-        seen_releases: list[uuid.UUID] = []
-        seen_issues: list[uuid.UUID] = []
-        cell: dict[tuple[uuid.UUID, uuid.UUID], int] = defaultdict(int)
+        seen_releases: list[int] = []
+        seen_issues: list[int] = []
+        cell: dict[tuple[int, int], int] = defaultdict(int)
 
         for h in histories:
             if h.release_id not in seen_releases:

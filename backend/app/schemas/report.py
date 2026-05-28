@@ -1,7 +1,6 @@
 """Report schemas — analytics and dashboard response shapes."""
 
 from typing import Any, Dict, List, Optional
-import uuid
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +26,7 @@ class StatusBreakdown(BaseModel):
 class ReleaseReportResponse(BaseModel):
     """Aggregate stats for a single release — GET /reports/releases/{release_id}."""
 
-    release_id: uuid.UUID
+    release_id: int
     version: str
     project_name: str
     total_issues: int
@@ -43,7 +42,7 @@ class ReleaseReportResponse(BaseModel):
 
 
 class ContributorStat(BaseModel):
-    user_id: uuid.UUID
+    user_id: int
     name: str
     username: str
     issues_filed: int = 0
@@ -60,7 +59,7 @@ class ContributionsResponse(BaseModel):
 
 
 class TimeToFixEntry(BaseModel):
-    user_id: uuid.UUID
+    user_id: int
     name: str
     avg_time_to_fix_h: float
     sample_size: int
@@ -73,7 +72,7 @@ class TimeToFixResponse(BaseModel):
 
 
 class RegressionEntry(BaseModel):
-    issue_id: uuid.UUID
+    issue_id: int
     issue_number: int
     title: str
     regression_count: int
@@ -83,7 +82,7 @@ class RegressionEntry(BaseModel):
 class RegressionsResponse(BaseModel):
     """Regression frequency report — GET /reports/regressions."""
 
-    project_id: uuid.UUID
+    project_id: int
     entries: List[RegressionEntry]
 
 

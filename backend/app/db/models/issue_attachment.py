@@ -1,11 +1,9 @@
 """IssueAttachment ORM model — files uploaded against an issue."""
 
-import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -31,14 +29,12 @@ class IssueAttachment(Base):
 
     __tablename__ = "issue_attachments"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    uploaded_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    uploaded_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     file_name: Mapped[str] = mapped_column(String(512), nullable=False)
     s3_key: Mapped[str] = mapped_column(

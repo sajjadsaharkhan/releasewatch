@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi } from '../lib/api'
+import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
+
+function normalizeAttachment(att) {
+  return {
+    ...att,
+    name: att.file_name,
+    size: att.file_size_bytes,
+    createdAt: att.created_at,
+    type: att.mime_type?.startsWith('image/') ? 'image' : att.mime_type?.startsWith('video/') ? 'video' : 'file',
+    url: att.public_url || att.download_url,
+    uploading: false,
+  }
+}
 
 function normalizeTimelineItems(apiItems) {
   const events = []
@@ -72,9 +84,58 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     fetchTimeline(issueId)
   }, [issueId, fetchTimeline])
 
+  const fetchAttachments = useCallback(async (id) => {
+    if (!id) return
+    try {
+      const res = await attachmentsApi.list(id)
+      const normalized = (res.data || []).map(normalizeAttachment)
+      setLocalIssue(prev => ({ ...prev, attachments: normalized }))
+    } catch (err) {
+      console.error('[useIssueDetail] Attachments fetch failed:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAttachments(issueId)
+  }, [issueId, fetchAttachments])
+
   const allRawItems = [...timelineBaseItems, ...extraItems]
   const { events, comments } = normalizeTimelineItems(allRawItems)
   const timelineHasMore = timelineTotal > allRawItems.length
+
+  // ── Regression history ────────────────────────────────────────────────────
+  const [regressions, setRegressions] = useState([])
+
+  const fetchRegressions = useCallback(async (id) => {
+    if (!id) return
+    try {
+      const res = await regressionsApi.list(id)
+      setRegressions(res.data || [])
+    } catch (err) {
+      console.error('[useIssueDetail] Regressions fetch failed:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchRegressions(issueId)
+  }, [issueId, fetchRegressions])
+
+  // ── Issue cycles ──────────────────────────────────────────────────────────
+  const [cycles, setCycles] = useState([])
+
+  const fetchCycles = useCallback(async (id) => {
+    if (!id) return
+    try {
+      const res = await cyclesApi.list(id)
+      setCycles(res.data || [])
+    } catch (err) {
+      console.error('[useIssueDetail] Cycles fetch failed:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCycles(issueId)
+  }, [issueId, fetchCycles])
 
   // ── Reference data ────────────────────────────────────────────────────────
   const { data: teamUsers = [] } = useQuery({
@@ -130,6 +191,12 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       return
     }
     await fetchTimeline(id)
+    if (patch.status === 'regression') {
+      await fetchRegressions(id)
+    }
+    if (['regression', 'triaged', 'fixed', 'verified'].includes(patch.status)) {
+      await fetchCycles(id)
+    }
   }
 
   const addComment = async (body, isInternal, mentionedUserIds) => {
@@ -179,6 +246,8 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
+  const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null
+
   return {
     localIssue,
     setLocalIssue,
@@ -189,10 +258,14 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     teamUsers,
     availableLabels,
     availableReleases,
+    regressions,
+    cycles,
+    currentCycle,
     applyUpdate,
     addComment,
     updateComment,
     deleteComment,
     loadMoreTimeline,
+    fetchAttachments,
   }
 }

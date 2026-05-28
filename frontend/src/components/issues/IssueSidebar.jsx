@@ -30,14 +30,27 @@ const STATUS = {
   regression: { label: 'Regression' },
 }
 
-export function IssueSidebar({ issue, teamUsers, availableLabels, availableReleases, applyUpdate, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, applyUpdate, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
 
-  const ttTriage = issue.time_to_triage_h
-  const ttFix = issue.time_to_fix_h
-  const ttVerify = issue.time_to_verify_h
+  // Use current-cycle metrics so regression re-runs are measured from the
+  // regression event, not the original filed_at.
+  const ttTriage = currentCycle?.time_to_triage_h ?? issue.time_to_triage_h
+  const ttFix    = currentCycle?.time_to_fix_h    ?? issue.time_to_fix_h
+  const ttVerify = currentCycle?.time_to_verify_h ?? issue.time_to_verify_h
+  const cycleNum = currentCycle?.cycle_number ?? 1
+
+  // Format hours into a human-readable string, showing minutes for sub-hour values
+  const fmtH = (h) => {
+    if (h == null) return null
+    if (h < 1 / 60) return '< 1m'
+    if (h < 1) return `${Math.round(h * 60)}m`
+    const hrs = Math.floor(h)
+    const mins = Math.round((h % 1) * 60)
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
+  }
 
   const changeStatus = (newStatus) =>
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
@@ -245,9 +258,15 @@ export function IssueSidebar({ issue, teamUsers, availableLabels, availableRelea
       </MetaRow>
 
       <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-        <TimeMetric label="Time in triage" value={ttTriage ? `${Math.floor(ttTriage)}h ${Math.round((ttTriage % 1) * 60)}m` : '0h 0m'} tone="green" />
-        <TimeMetric label="Time to fix" value={ttFix ? `${Math.floor(ttFix)}h` : 'in-flight'} tone={ttFix ? 'default' : 'amber'} />
-        <TimeMetric label="Time to verify" value={issue.status === 'verified' && ttVerify ? `${Math.floor(ttVerify)}h` : '—'} />
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cycle {cycleNum} metrics</span>
+          {cycleNum > 1 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium">regression</span>
+          )}
+        </div>
+        <TimeMetric label="Time in triage" value={fmtH(ttTriage) ?? '0m'} tone="green" />
+        <TimeMetric label="Time to fix" value={ttFix != null ? fmtH(ttFix) : 'in-flight'} tone={ttFix != null ? 'default' : 'amber'} />
+        <TimeMetric label="Time to verify" value={issue.status === 'verified' && ttVerify != null ? (fmtH(ttVerify) ?? '< 1m') : '—'} />
       </div>
 
       <div className="mt-5 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">

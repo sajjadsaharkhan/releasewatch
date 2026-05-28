@@ -14,7 +14,6 @@ not rejection.
 import asyncio
 import io
 import logging
-import uuid
 
 from app.tasks.celery_app import celery_app
 
@@ -186,7 +185,7 @@ async def _delete_attachment(attachment_id: str, s3_key: str, s3_service) -> Non
         async with factory() as session:
             await session.execute(
                 delete(IssueAttachment).where(
-                    IssueAttachment.id == uuid.UUID(attachment_id)
+                    IssueAttachment.id == int(attachment_id)
                 )
             )
             await session.commit()
@@ -212,7 +211,7 @@ async def _update_attachment_record(
         async with factory() as session:
             await session.execute(
                 update(IssueAttachment)
-                .where(IssueAttachment.id == uuid.UUID(attachment_id))
+                .where(IssueAttachment.id == int(attachment_id))
                 .values(file_size_bytes=file_size_bytes, mime_type=mime_type)
             )
             await session.commit()

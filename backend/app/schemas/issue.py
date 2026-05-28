@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +15,7 @@ class UserSummary(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     name: str
     username: str
     role: UserRole
@@ -29,7 +28,7 @@ class LabelDetail(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     name: str
     color: str
 
@@ -62,7 +61,7 @@ class IssueBase(BaseModel):
 class IssueCreate(IssueBase):
     """Payload for POST /issues."""
 
-    release_id: uuid.UUID
+    release_id: int
     reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
     pending_attachments: List[PendingAttachment] = Field(default_factory=list)
 
@@ -92,7 +91,7 @@ class IssueUpdate(BaseModel):
 class TriageRequest(BaseModel):
     """Payload for POST /issues/{id}/triage."""
 
-    assignee_id: uuid.UUID
+    assignee_id: int
     severity: IssueSeverity
     labels: Optional[List[str]] = None
     is_release_blocker: Optional[bool] = None
@@ -116,7 +115,7 @@ class VerifyRequest(BaseModel):
 class DuplicateRequest(BaseModel):
     """Payload for POST /issues/{id}/duplicate."""
 
-    parent_id: uuid.UUID
+    parent_id: int
 
 
 class IssueResponse(IssueBase):
@@ -124,22 +123,22 @@ class IssueResponse(IssueBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     issue_number: int
-    project_id: uuid.UUID
+    project_id: int
     project_name: Optional[str] = None
-    release_id: uuid.UUID
+    release_id: int
     release_version: Optional[str] = None
     status: IssueStatus
-    reporter_id: Optional[uuid.UUID] = None
-    assignee_id: Optional[uuid.UUID] = None
+    reporter_id: Optional[int] = None
+    assignee_id: Optional[int] = None
     assignee_user: Optional[UserSummary] = None
     reporter_user: Optional[UserSummary] = None
     labels_detail: List[LabelDetail] = Field(default_factory=list)
     is_regression: bool
     regression_count: int
     environment_name: Optional[str] = None
-    parent_issue_id: Optional[uuid.UUID] = None
+    parent_issue_id: Optional[int] = None
     time_to_triage_h: Optional[float] = None
     time_to_fix_h: Optional[float] = None
     time_to_verify_h: Optional[float] = None
@@ -160,3 +159,41 @@ class IssueListResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class IssueCycleResponse(BaseModel):
+    """Per-iteration timing metrics for one issue workflow pass."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    issue_id: int
+    cycle_number: int
+    is_regression_cycle: bool = False
+    cycle_start_at: datetime
+    triaged_at: Optional[datetime] = None
+    fixed_at: Optional[datetime] = None
+    verified_at: Optional[datetime] = None
+    time_to_triage_h: Optional[float] = None
+    time_to_fix_h: Optional[float] = None
+    time_to_verify_h: Optional[float] = None
+
+    @classmethod
+    def from_orm_with_flag(cls, cycle) -> "IssueCycleResponse":
+        obj = cls.model_validate(cycle)
+        obj.is_regression_cycle = cycle.cycle_number > 1
+        return obj
+
+
+class RegressionHistoryResponse(BaseModel):
+    """A single regression event for an issue."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    regression_number: int
+    detected_at: datetime
+    release_id: int
+    release_version: Optional[str] = None
+    detected_by: Optional[UserSummary] = None
+    previous_fix_by: Optional[UserSummary] = None

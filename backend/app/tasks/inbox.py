@@ -7,7 +7,6 @@ its own DB session and calls ``InboxFanOutService.fan_out``.
 
 import asyncio
 import logging
-import uuid
 from typing import Any
 
 from app.tasks.celery_app import celery_app
@@ -88,12 +87,12 @@ async def _fan_out_async(
     try:
         async with factory() as db:
             issue_result = await db.execute(
-                select(Issue).where(Issue.id == uuid.UUID(issue_id))
+                select(Issue).where(Issue.id == int(issue_id))
             )
             issue = issue_result.scalar_one_or_none()
 
             actor_result = await db.execute(
-                select(User).where(User.id == uuid.UUID(actor_id))
+                select(User).where(User.id == int(actor_id))
             )
             actor = actor_result.scalar_one_or_none()
 
@@ -101,7 +100,7 @@ async def _fan_out_async(
             if timeline_event_id:
                 te_result = await db.execute(
                     select(IssueTimeline).where(
-                        IssueTimeline.id == uuid.UUID(timeline_event_id)
+                        IssueTimeline.id == int(timeline_event_id)
                     )
                 )
                 timeline_event = te_result.scalar_one_or_none()
