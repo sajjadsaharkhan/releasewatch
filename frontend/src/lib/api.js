@@ -115,6 +115,7 @@ export const releasesApi = {
   update: (id, data) => api.patch(`/releases/${id}`, data),
   approve: (id) => api.post(`/releases/${id}/approve`),
   block: (id, reason) => api.post(`/releases/${id}/block`, { reason }),
+  analytics: (id) => api.get(`/releases/${id}/analytics`),
 }
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
@@ -142,6 +143,16 @@ export const preUploadApi = {
   startMultipart: (data) => api.post('/attachments/multipart/start', data),
   getPartUploadUrl: (data) => api.post('/attachments/multipart/part', data),
   completeMultipart: (data) => api.post('/attachments/multipart/complete', data),
+}
+
+// ─── Regression history ───────────────────────────────────────────────────────
+export const regressionsApi = {
+  list: (issueId) => api.get(`/issues/${issueId}/regressions`),
+}
+
+// ─── Issue cycles (per-iteration analytics) ───────────────────────────────────
+export const cyclesApi = {
+  list: (issueId) => api.get(`/issues/${issueId}/cycles`),
 }
 
 // ─── Timeline ────────────────────────────────────────────────────────────────

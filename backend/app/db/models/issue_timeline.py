@@ -1,11 +1,10 @@
 """IssueTimeline ORM model — append-only audit trail for every issue event."""
 
-import uuid
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -46,14 +45,12 @@ class IssueTimeline(Base):
 
     __tablename__ = "issue_timeline"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    actor_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    actor_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     event_type: Mapped[TimelineEventType] = mapped_column(String(32), nullable=False)
     body: Mapped[str | None] = mapped_column(

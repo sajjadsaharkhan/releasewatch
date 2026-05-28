@@ -7,7 +7,6 @@ PATCH  /labels/{id}         — update label
 DELETE /labels/{id}         — delete label
 """
 
-import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -95,7 +94,7 @@ async def get_label(
 ) -> LabelWithCount:
     """Return a single label with its issue count."""
     try:
-        label_uid = uuid.UUID(label_id)
+        label_int_id = int(label_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -103,7 +102,7 @@ async def get_label(
         )
 
     # Get the label
-    result = await db.execute(select(Label).where(Label.id == label_uid))
+    result = await db.execute(select(Label).where(Label.id == label_int_id))
     label = result.scalar_one_or_none()
 
     if label is None:
@@ -138,14 +137,14 @@ async def update_label(
 ) -> LabelResponse:
     """Partially update a label's metadata."""
     try:
-        label_uid = uuid.UUID(label_id)
+        label_int_id = int(label_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid label ID format.",
         )
 
-    label = await _get_label_or_404(db, label_uid)
+    label = await _get_label_or_404(db, label_int_id)
     update_data = payload.model_dump(exclude_unset=True)
 
     # Check name uniqueness if name is being updated
@@ -177,21 +176,21 @@ async def delete_label(
 ) -> None:
     """Delete a label (admin / CTO only)."""
     try:
-        label_uid = uuid.UUID(label_id)
+        label_int_id = int(label_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid label ID format.",
         )
 
-    label = await _get_label_or_404(db, label_uid)
+    label = await _get_label_or_404(db, label_int_id)
     await db.delete(label)
     await db.commit()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _get_label_or_404(db: AsyncSession, label_id: uuid.UUID) -> Label:
+async def _get_label_or_404(db: AsyncSession, label_id: int) -> Label:
     result = await db.execute(select(Label).where(Label.id == label_id))
     label = result.scalar_one_or_none()
     if label is None:

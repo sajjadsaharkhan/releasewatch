@@ -1,7 +1,5 @@
 """Team management API — list members, invite, change role, deactivate."""
 
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,7 +102,6 @@ async def invite_member(
 
     connect_token = secrets.token_urlsafe(32)
     user = User(
-        id=uuid.uuid4(),
         name=body.name,
         username=body.username,
         hashed_password=get_password_hash(body.temporary_password),
@@ -139,7 +136,7 @@ async def invite_member(
 
 @router.patch("/{user_id}/role")
 async def change_role(
-    user_id: uuid.UUID,
+    user_id: int,
     body: ChangeRoleRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
@@ -156,7 +153,7 @@ async def change_role(
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
-    user_id: uuid.UUID,
+    user_id: int,
     body: UserUpdateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -213,7 +210,7 @@ async def update_user(
 
 @router.patch("/{user_id}/deactivate")
 async def deactivate_member(
-    user_id: uuid.UUID,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
 ):
@@ -231,7 +228,7 @@ async def deactivate_member(
 
 @router.patch("/{user_id}/activate")
 async def activate_member(
-    user_id: uuid.UUID,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
 ):

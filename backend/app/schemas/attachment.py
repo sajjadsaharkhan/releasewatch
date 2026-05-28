@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,9 +46,9 @@ class AttachmentResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    issue_id: uuid.UUID
-    uploaded_by_id: Optional[uuid.UUID] = None
+    id: int
+    issue_id: int
+    uploaded_by_id: Optional[int] = None
     file_name: str
     s3_key: str
     mime_type: str

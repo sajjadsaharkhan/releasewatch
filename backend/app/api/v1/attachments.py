@@ -9,7 +9,6 @@ GET  /issues/{id}/attachments                   — list attachments with downlo
 DELETE /issues/{id}/attachments/{aid}           — delete an attachment
 """
 
-import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -49,7 +48,7 @@ CHUNK_SIZE_BYTES = 5 * 1024 * 1024
     summary="Generate pre-signed S3 upload URL",
 )
 async def presign_upload(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: PresignRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -97,7 +96,7 @@ async def presign_upload(
     summary="Confirm upload and register attachment",
 )
 async def confirm_upload(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: ConfirmRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -130,6 +129,19 @@ async def confirm_upload(
         queue="attachments",
     )
 
+    # Fan-out: notify assignee + reporter of new attachment
+    from app.db.models.inbox_item import InboxEventType
+    from app.services.inbox_service import inbox_service
+
+    issue_for_fanout = await _get_issue_or_404(db, issue_id)
+    await inbox_service.fan_out(
+        db=db,
+        trigger=InboxEventType.attachment_added,
+        issue=issue_for_fanout,
+        actor=current_user,
+    )
+    await db.commit()
+
     response = AttachmentResponse.model_validate(attachment)
 
     # Determine URL type based on settings
@@ -155,7 +167,7 @@ async def confirm_upload(
     summary="Start multipart upload for large files",
 )
 async def start_multipart_upload(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: MultipartPresignRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -195,7 +207,7 @@ async def start_multipart_upload(
     summary="Get upload URL for a part",
 )
 async def get_part_upload_url(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: MultipartPartRequest,
     current_user: User = Depends(get_current_user),
 ) -> MultipartPartResponse:
@@ -228,7 +240,7 @@ async def get_part_upload_url(
     summary="Complete multipart upload",
 )
 async def complete_multipart_upload(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: MultipartCompleteRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -261,6 +273,19 @@ async def complete_multipart_upload(
     await db.commit()
     await db.refresh(attachment)
 
+    # Fan-out: notify assignee + reporter of new attachment
+    from app.db.models.inbox_item import InboxEventType
+    from app.services.inbox_service import inbox_service
+
+    issue_for_fanout = await _get_issue_or_404(db, issue_id)
+    await inbox_service.fan_out(
+        db=db,
+        trigger=InboxEventType.attachment_added,
+        issue=issue_for_fanout,
+        actor=current_user,
+    )
+    await db.commit()
+
     response = AttachmentResponse.model_validate(attachment)
 
     # Determine URL type based on settings
@@ -282,7 +307,7 @@ async def complete_multipart_upload(
     summary="List issue attachments",
 )
 async def list_attachments(
-    issue_id: uuid.UUID,
+    issue_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[AttachmentResponse]:
@@ -323,8 +348,8 @@ async def list_attachments(
     summary="Delete an attachment",
 )
 async def delete_attachment(
-    issue_id: uuid.UUID,
-    attachment_id: uuid.UUID,
+    issue_id: int,
+    attachment_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
@@ -354,7 +379,7 @@ async def delete_attachment(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _get_issue_or_404(db: AsyncSession, issue_id: uuid.UUID) -> Issue:
+async def _get_issue_or_404(db: AsyncSession, issue_id: int) -> Issue:
     result = await db.execute(select(Issue).where(Issue.id == issue_id))
     issue = result.scalar_one_or_none()
     if issue is None:
@@ -362,11 +387,11 @@ async def _get_issue_or_404(db: AsyncSession, issue_id: uuid.UUID) -> Issue:
     return issue
 
 
-async def _get_release(db: AsyncSession, release_id: uuid.UUID) -> Release:
+async def _get_release(db: AsyncSession, release_id: int) -> Release:
     result = await db.execute(select(Release).where(Release.id == release_id))
     return result.scalar_one()
 
 
-async def _get_project(db: AsyncSession, project_id: uuid.UUID) -> Project:
+async def _get_project(db: AsyncSession, project_id: int) -> Project:
     result = await db.execute(select(Project).where(Project.id == project_id))
     return result.scalar_one()

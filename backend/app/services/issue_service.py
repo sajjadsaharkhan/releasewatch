@@ -4,7 +4,6 @@ All public methods are ``async`` and accept an ``AsyncSession`` as their first
 argument so they can be composed inside a single DB transaction when needed.
 """
 
-import uuid
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -79,6 +78,10 @@ class IssueService:
         db.add(issue)
         await db.flush()
 
+        from app.db.models.issue_cycle import IssueCycle
+        db.add(IssueCycle(issue_id=issue.id, cycle_number=1, cycle_start_at=now))
+        await db.flush()
+
         timeline_svc = TimelineService()
         await timeline_svc.create_event(
             db=db,
@@ -130,8 +133,8 @@ class IssueService:
     async def triage(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
-        assignee_id: uuid.UUID,
+        issue_id: int,
+        assignee_id: int,
         severity: IssueSeverity,
         current_user: User,
         labels: list[str] | None = None,
@@ -216,7 +219,7 @@ class IssueService:
     async def mark_fixed(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
+        issue_id: int,
         mr_url: str | None,
         current_user: User,
     ) -> Issue:
@@ -268,7 +271,7 @@ class IssueService:
     async def verify_fix(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
+        issue_id: int,
         outcome: str,  # "pass" | "fail" | "partial"
         current_user: User,
     ) -> Issue:
@@ -333,7 +336,7 @@ class IssueService:
     async def reopen(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
+        issue_id: int,
         current_user: User,
     ) -> Issue:
         """Reopen a closed or verified issue.
@@ -379,8 +382,8 @@ class IssueService:
     async def link_duplicate(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
-        parent_id: uuid.UUID,
+        issue_id: int,
+        parent_id: int,
         current_user: User,
     ) -> Issue:
         """Mark ``issue_id`` as a duplicate of ``parent_id``.
@@ -422,7 +425,7 @@ class IssueService:
     async def update(
         self,
         db: AsyncSession,
-        issue_id: uuid.UUID,
+        issue_id: int,
         payload: dict,
         actor: User,
     ) -> Issue:
@@ -492,6 +495,7 @@ class IssueService:
                 TimelineEventType.environment_changed,
                 {"from": issue.environment_name, "to": payload["environment_name"]},
             ))
+            inbox_triggers.append(InboxEventType.environment_changed)
             issue.environment_name = payload["environment_name"]
 
         # ── Release blocker ───────────────────────────────────────────────────
@@ -552,6 +556,7 @@ class IssueService:
                     TimelineEventType.release_changed,
                     {"from_version": from_version, "to_version": to_version},
                 ))
+                inbox_triggers.append(InboxEventType.release_changed)
                 issue.release_id = new_release_id
 
         # ── Status (direct patch, e.g. closing) ───────────────────────────────
@@ -566,6 +571,66 @@ class IssueService:
                 ))
                 inbox_triggers.append(InboxEventType.status_changed)
                 issue.status = new_status
+
+                now = datetime.now(tz=timezone.utc)
+                if new_status_val == IssueStatus.triaged.value and not issue.triaged_at:
+                    issue.triaged_at = now
+                    if issue.filed_at:
+                        issue.time_to_triage_h = round((now - issue.filed_at).total_seconds() / 3600, 2)
+                elif new_status_val == IssueStatus.fixed.value and not issue.fixed_at:
+                    issue.fixed_at = now
+                    ref = issue.triaged_at or issue.filed_at
+                    if ref:
+                        issue.time_to_fix_h = round((now - ref).total_seconds() / 3600, 2)
+                elif new_status_val == IssueStatus.verified.value and not issue.verified_at:
+                    issue.verified_at = now
+                    if issue.fixed_at:
+                        issue.time_to_verify_h = round((now - issue.fixed_at).total_seconds() / 3600, 2)
+
+                # ── Update active cycle timestamps ─────────────────────────
+                from app.db.models.issue_cycle import IssueCycle
+                active_cycle_result = await db.execute(
+                    select(IssueCycle)
+                    .where(IssueCycle.issue_id == issue_id)
+                    .order_by(IssueCycle.cycle_number.desc())
+                    .limit(1)
+                )
+                active_cycle = active_cycle_result.scalar_one_or_none()
+                if active_cycle:
+                    if new_status_val == IssueStatus.triaged.value and not active_cycle.triaged_at:
+                        active_cycle.triaged_at = now
+                        active_cycle.time_to_triage_h = round(
+                            (now - active_cycle.cycle_start_at).total_seconds() / 3600, 2
+                        )
+                        db.add(active_cycle)
+                    elif new_status_val == IssueStatus.fixed.value and not active_cycle.fixed_at:
+                        active_cycle.fixed_at = now
+                        ref = active_cycle.triaged_at or active_cycle.cycle_start_at
+                        active_cycle.time_to_fix_h = round(
+                            (now - ref).total_seconds() / 3600, 2
+                        )
+                        # Retroactively fill time_to_verify_h if verified was
+                        # stamped out-of-order (e.g. status jumped to verified
+                        # before fixed in the same cycle).
+                        if active_cycle.verified_at and active_cycle.time_to_verify_h is None:
+                            delta = abs((active_cycle.verified_at - now).total_seconds())
+                            active_cycle.time_to_verify_h = round(delta / 3600, 2)
+                        db.add(active_cycle)
+                    elif new_status_val == IssueStatus.verified.value and not active_cycle.verified_at:
+                        active_cycle.verified_at = now
+                        if active_cycle.fixed_at:
+                            active_cycle.time_to_verify_h = round(
+                                (now - active_cycle.fixed_at).total_seconds() / 3600, 2
+                            )
+                        db.add(active_cycle)
+
+                if new_status_val == IssueStatus.regression.value:
+                    from app.db.models.release import Release
+                    from app.services.regression_service import regression_service
+                    release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
+                    release = release_result.scalar_one_or_none()
+                    if release:
+                        await regression_service.record_regression(db, issue, release, actor)
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
@@ -599,8 +664,8 @@ class IssueService:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     @staticmethod
-    async def _get_issue_or_404(db: AsyncSession, issue_id: uuid.UUID) -> Issue:
-        """Fetch an issue by UUID or raise 404."""
+    async def _get_issue_or_404(db: AsyncSession, issue_id: int) -> Issue:
+        """Fetch an issue by ID or raise 404."""
         result = await db.execute(select(Issue).where(Issue.id == issue_id))
         issue = result.scalar_one_or_none()
         if issue is None:

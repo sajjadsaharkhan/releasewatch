@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -13,7 +12,7 @@ from app.db.models.inbox_item import InboxEventType
 class ActorInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
+    id: int
     name: str
     avatar_color: str
     avatar_url: Optional[str] = None
@@ -22,7 +21,7 @@ class ActorInfo(BaseModel):
 class InboxItemResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
-    id: uuid.UUID
+    id: int
     type: InboxEventType
     read: bool
     actor: Optional[ActorInfo] = None

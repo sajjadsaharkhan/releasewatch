@@ -5,7 +5,6 @@ Provides cross-project release list and CRUD operations.
 
 from datetime import datetime, timezone
 from typing import Optional
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
@@ -17,7 +16,9 @@ from app.db.models.issue import Issue, IssueStatus, IssueSeverity
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.release import (
+    AnalyticsCycleRow,
     GoNogoRequest,
+    ReleaseAnalyticsResponse,
     ReleaseCreate,
     ReleaseListResponse,
     ReleaseResponse,
@@ -27,15 +28,9 @@ from app.schemas.release import (
 router = APIRouter()
 
 
-async def _get_release_or_404(db: AsyncSession, release_id: str) -> Release:
+async def _get_release_or_404(db: AsyncSession, release_id: int) -> Release:
     """Get a release by ID or raise 404."""
-    try:
-        release_uuid = uuid.UUID(release_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid release ID format"
-        )
-    result = await db.execute(select(Release).where(Release.id == release_uuid))
+    result = await db.execute(select(Release).where(Release.id == release_id))
     release = result.scalar_one_or_none()
     if release is None:
         raise HTTPException(
@@ -114,7 +109,7 @@ async def _release_to_response(
 
 @router.get("", response_model=ReleaseListResponse, summary="List all releases")
 async def list_releases(
-    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    project_id: Optional[int] = Query(None, description="Filter by project ID"),
     status: Optional[str] = Query(None, description="Filter by status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -123,13 +118,7 @@ async def list_releases(
     query = select(Release).order_by(Release.created_at.desc())
 
     if project_id:
-        try:
-            project_uuid = uuid.UUID(project_id)
-            query = query.where(Release.project_id == project_uuid)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format"
-            )
+        query = query.where(Release.project_id == project_id)
 
     if status:
         query = query.where(Release.status == status)
@@ -186,7 +175,7 @@ async def create_release(
 
 @router.get("/{release_id}", response_model=ReleaseResponse, summary="Get a release")
 async def get_release(
-    release_id: str,
+    release_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
@@ -201,7 +190,7 @@ async def get_release(
     summary="Update release metadata",
 )
 async def update_release(
-    release_id: str,
+    release_id: int,
     payload: ReleaseUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -217,13 +206,85 @@ async def update_release(
     return await _release_to_response(db, release)
 
 
+@router.get(
+    "/{release_id}/analytics",
+    response_model=ReleaseAnalyticsResponse,
+    summary="Cycle-accurate analytics for a release",
+)
+async def get_release_analytics(
+    release_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ReleaseAnalyticsResponse:
+    """Return all issue cycles for a release so the frontend can compute
+    accurate per-iteration MTTF / MTTV / MTTT and regression rate.
+
+    Each row carries the parent issue's severity and labels so the caller
+    can group/filter without extra requests.
+    """
+    from app.db.models.issue_cycle import IssueCycle
+
+    release = await _get_release_or_404(db, release_id)
+
+    # Fetch all cycles joined to their parent issue
+    rows = await db.execute(
+        select(IssueCycle, Issue)
+        .join(Issue, IssueCycle.issue_id == Issue.id)
+        .where(Issue.release_id == release.id)
+        .order_by(IssueCycle.issue_id, IssueCycle.cycle_number)
+    )
+    pairs = rows.all()
+
+    # Aggregate totals
+    issue_ids = {issue.id for _, issue in pairs}
+    total_issues = len(issue_ids)
+
+    verified_q = await db.execute(
+        select(func.count(Issue.id))
+        .where(Issue.release_id == release.id)
+        .where(Issue.status == IssueStatus.verified)
+    )
+    verified_issues = verified_q.scalar_one()
+
+    regression_q = await db.execute(
+        select(func.count(Issue.id))
+        .where(Issue.release_id == release.id)
+        .where(Issue.is_regression.is_(True))
+    )
+    regression_count = regression_q.scalar_one()
+
+    cycles = [
+        AnalyticsCycleRow(
+            issue_id=cycle.issue_id,
+            issue_severity=getattr(issue.severity, "value", issue.severity),
+            issue_labels=issue.labels or [],
+            cycle_number=cycle.cycle_number,
+            is_regression_cycle=cycle.cycle_number > 1,
+            triaged_at=cycle.triaged_at,
+            fixed_at=cycle.fixed_at,
+            verified_at=cycle.verified_at,
+            time_to_triage_h=cycle.time_to_triage_h,
+            time_to_fix_h=cycle.time_to_fix_h,
+            time_to_verify_h=cycle.time_to_verify_h,
+        )
+        for cycle, issue in pairs
+    ]
+
+    return ReleaseAnalyticsResponse(
+        total_issues=total_issues,
+        verified_issues=verified_issues,
+        regression_count=regression_count,
+        cycles=cycles,
+    )
+
+
 @router.post(
     "/{release_id}/approve",
     response_model=ReleaseResponse,
     summary="Approve a release",
 )
 async def approve_release(
-    release_id: str,
+    release_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
@@ -244,7 +305,7 @@ async def approve_release(
     summary="Block a release",
 )
 async def block_release(
-    release_id: str,
+    release_id: int,
     payload: GoNogoRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

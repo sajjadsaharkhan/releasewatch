@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi, projectsApi, releasesApi } from '../lib/api'
+import { authApi, projectsApi, releasesApi, inboxApi } from '../lib/api'
 
 const AppContext = createContext(null)
 
@@ -29,6 +29,9 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+
+  // Inbox state
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
 
   // Theme effect
   useEffect(() => {
@@ -128,6 +131,21 @@ export function AppProvider({ children }) {
     fetchReleases()
   }, [activeProjectId])
 
+  // Poll inbox unread count every 30s while authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setInboxUnreadCount(0)
+      return
+    }
+    const fetchCount = () =>
+      inboxApi.unreadCount()
+        .then((r) => setInboxUnreadCount(r.data.unreadCount))
+        .catch(() => {})
+    fetchCount()
+    const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated])
+
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
@@ -218,6 +236,9 @@ export function AppProvider({ children }) {
     authLoading,
     login,
     logout,
+    // Inbox
+    inboxUnreadCount,
+    setInboxUnreadCount,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

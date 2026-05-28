@@ -1,11 +1,10 @@
 """Issue ORM model — the core entity in Releasewatch."""
 
-import uuid
 import enum
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, SmallInteger, String, Text, text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -42,19 +41,17 @@ class Issue(Base):
 
     __tablename__ = "issues"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     issue_number: Mapped[int] = mapped_column(
         Integer, nullable=False,
         server_default=text("nextval('issue_number_seq')"),
         doc="Global sequential number assigned by DB sequence, starts at 10."
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    release_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
+    release_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -66,11 +63,11 @@ class Issue(Base):
     )
 
     # People
-    reporter_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    reporter_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    assignee_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    assignee_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # Taxonomy
@@ -80,8 +77,8 @@ class Issue(Base):
     regression_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 
     # Duplicate linking
-    parent_issue_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issues.id", ondelete="SET NULL"), nullable=True
+    parent_issue_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="SET NULL"), nullable=True
     )
 
     # Environment / repro context
@@ -133,6 +130,10 @@ class Issue(Base):
     )
     inbox_items = relationship("InboxItem", back_populates="issue")
     regression_histories = relationship("RegressionHistory", back_populates="issue")
+    cycles = relationship(
+        "IssueCycle", back_populates="issue", cascade="all, delete-orphan",
+        order_by="IssueCycle.cycle_number",
+    )
 
     def __repr__(self) -> str:
         return f"<Issue #{self.issue_number} status={self.status} severity={self.severity}>"

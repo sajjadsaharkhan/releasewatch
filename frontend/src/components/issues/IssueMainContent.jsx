@@ -18,6 +18,7 @@ export function IssueMainContent({
   teamUsers,
   availableLabels,
   currentUser,
+  regressions,
   applyUpdate,
   addComment,
   updateComment,
@@ -25,6 +26,7 @@ export function IssueMainContent({
   timelineHasMore,
   timelineLoadingMore,
   loadMoreTimeline,
+  fetchAttachments,
 }) {
   const [tab, setTab] = useState('activity')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -86,8 +88,8 @@ export function IssueMainContent({
           onValueChange={setTab}
           options={[
             { value: 'activity', label: 'Activity', icon: 'activity', badge: events.length + comments.length },
-            { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: null },
-            { value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: null },
+            { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: issue.attachments?.length || null },
+            { value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: regressions.length || null },
           ]}
         />
       </div>
@@ -125,9 +127,10 @@ export function IssueMainContent({
             issue={issue}
             onAttachmentsChange={(atts) => setLocalIssue(prev => ({ ...prev, attachments: atts }))}
             issueId={issue.id}
+            onUploadComplete={() => fetchAttachments?.(issue.id)}
           />
         )}
-        {tab === 'regression' && <RegressionTimelineSection issue={issue} />}
+        {tab === 'regression' && <RegressionTimelineSection regressions={regressions} />}
       </div>
     </div>
   )

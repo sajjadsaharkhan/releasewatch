@@ -1,8 +1,7 @@
 """Release schemas."""
 
 from datetime import datetime
-from typing import Optional
-import uuid
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -19,7 +18,7 @@ class ReleaseBase(BaseModel):
 class ReleaseCreate(ReleaseBase):
     """Payload for POST /releases."""
 
-    project_id: uuid.UUID = Field(description="Project ID to create the release under")
+    project_id: int = Field(description="Project ID to create the release under")
 
 
 class ReleaseUpdate(BaseModel):
@@ -43,8 +42,8 @@ class ReleaseResponse(ReleaseBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    project_id: uuid.UUID
+    id: int
+    project_id: int
     version: str
     description: Optional[str] = None
     status: ReleaseStatus
@@ -52,9 +51,9 @@ class ReleaseResponse(ReleaseBase):
     staging_url: Optional[str] = None
     go_nogo_status: GoNogoStatus
     go_nogo_note: Optional[str] = None
-    go_nogo_by_id: Optional[uuid.UUID] = None
+    go_nogo_by_id: Optional[int] = None
     go_nogo_at: Optional[datetime] = None
-    created_by_id: Optional[uuid.UUID] = None
+    created_by_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -67,7 +66,7 @@ class ReleaseResponse(ReleaseBase):
     # Frontend-friendly aliases
     @computed_field  # type: ignore[misc]
     @property
-    def projectId(self) -> uuid.UUID:
+    def projectId(self) -> int:
         return self.project_id
 
     @computed_field  # type: ignore[misc]
@@ -87,7 +86,7 @@ class ReleaseResponse(ReleaseBase):
 
     @computed_field  # type: ignore[misc]
     @property
-    def goNoGoBy(self) -> Optional[uuid.UUID]:
+    def goNoGoBy(self) -> Optional[int]:
         return self.go_nogo_by_id
 
     @computed_field  # type: ignore[misc]
@@ -116,3 +115,32 @@ class ReleaseListResponse(BaseModel):
 
     releases: list[ReleaseResponse]
     total: int
+
+
+class AnalyticsCycleRow(BaseModel):
+    """Flattened cycle row returned by the release analytics endpoint.
+
+    Carries enough issue context (severity, labels) for the frontend to group
+    and filter without additional requests.
+    """
+
+    issue_id: int
+    issue_severity: str
+    issue_labels: List[str]
+    cycle_number: int
+    is_regression_cycle: bool
+    triaged_at: Optional[datetime] = None
+    fixed_at: Optional[datetime] = None
+    verified_at: Optional[datetime] = None
+    time_to_triage_h: Optional[float] = None
+    time_to_fix_h: Optional[float] = None
+    time_to_verify_h: Optional[float] = None
+
+
+class ReleaseAnalyticsResponse(BaseModel):
+    """Aggregated analytics payload for a single release."""
+
+    total_issues: int
+    verified_issues: int
+    regression_count: int
+    cycles: List[AnalyticsCycleRow]

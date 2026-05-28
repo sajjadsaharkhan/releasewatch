@@ -1,12 +1,11 @@
-import React, { useState, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
 import { EditReleaseModal } from '../components/releases/EditReleaseModal'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
-import { MetricCard } from '../components/common/MetricCard'
 import { Tabs } from '../components/ui/Tabs'
 import { Tooltip } from '../components/ui/Tooltip'
 import { InfoTooltip } from '../components/ui/InfoTooltip'
@@ -18,12 +17,10 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import {
-  MOCK_RELEASES, MOCK_ISSUES, MOCK_TEAM, MOCK_LABELS, SEVERITY,
-  releaseById, issuesByRelease, userById
-} from '../data/mockData'
+import { SEVERITY } from '../data/mockData'
+import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
-import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Info } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship } from 'lucide-react'
 
 const SEVERITY_COLORS = {
   blocker: '#ef4444',
@@ -40,187 +37,88 @@ const SEVERITY_ITEMS = Object.keys(SEVERITY).map((key) => ({
   color: SEVERITY_COLORS[key],
 }))
 
-// Calculate label-level metrics from issues
-// TODO: In production, this should come from the backend API
-function calculateLabelMetrics(issues, labels) {
+// ── Analytics helpers that operate on cycle rows from the API ────────────────
+// Each cycle carries issue_severity, issue_labels, and per-iteration timings so
+// measurements from regression re-runs are isolated from the original pass.
+
+function avg(values) {
+  const valid = values.filter(v => v != null)
+  if (!valid.length) return null
+  return Math.round(valid.reduce((s, v) => s + v, 0) / valid.length * 10) / 10
+}
+
+function calculateLabelMetrics(cycles) {
   const metrics = {}
+  const issueLabelsMap = {}
 
-  issues.forEach(issue => {
-    issue.labels.forEach(labelId => {
-      const label = labels.find(l => l.id === labelId)
-      if (!label) return
-
-      if (!metrics[label.name]) {
-        metrics[label.name] = {
-          label: label.name,
-          mttfSum: 0,
-          mttfCount: 0,
-          mttvSum: 0,
-          mttvCount: 0,
-          mtttSum: 0,
-          mtttCount: 0,
-          bugCount: 0,
-          regressionCount: 0,
-          verifiedCount: 0
-        }
+  cycles.forEach(c => {
+    issueLabelsMap[c.issue_id] = c.issue_labels || []
+    ;(c.issue_labels || []).forEach(label => {
+      if (!metrics[label]) {
+        metrics[label] = { label, mttf: [], mttv: [], mttt: [], issueIds: new Set(), regressionCycles: 0, verifiedCycles: 0 }
       }
-
-      metrics[label.name].bugCount++
-      if (issue.is_regression || issue.regressionCount > 0) metrics[label.name].regressionCount++
-      if (issue.status === 'verified') metrics[label.name].verifiedCount++
-
-      if (issue.time_to_triage_h) {
-        metrics[label.name].mtttSum += issue.time_to_triage_h
-        metrics[label.name].mtttCount++
-      }
-      if (issue.time_to_fix_h) {
-        metrics[label.name].mttfSum += issue.time_to_fix_h
-        metrics[label.name].mttfCount++
-      }
-      if (issue.time_to_verify_h) {
-        metrics[label.name].mttvSum += issue.time_to_verify_h
-        metrics[label.name].mttvCount++
-      }
+      metrics[label].issueIds.add(c.issue_id)
+      if (c.time_to_triage_h != null) metrics[label].mttt.push(c.time_to_triage_h)
+      if (c.time_to_fix_h    != null) metrics[label].mttf.push(c.time_to_fix_h)
+      if (c.time_to_verify_h != null) metrics[label].mttv.push(c.time_to_verify_h)
+      if (c.is_regression_cycle) metrics[label].regressionCycles++
+      if (c.verified_at)         metrics[label].verifiedCycles++
     })
   })
 
   return Object.values(metrics).map(m => ({
     label: m.label,
-    mttf: m.mttfCount > 0 ? Math.round(m.mttfSum / m.mttfCount * 10) / 10 : 0,
-    mttv: m.mttvCount > 0 ? Math.round(m.mttvSum / m.mttvCount * 10) / 10 : 0,
-    mttt: m.mtttCount > 0 ? Math.round(m.mtttSum / m.mtttCount * 10) / 10 : 0,
-    bugCount: m.bugCount,
-    regressionCount: m.regressionCount,
-    regressionRate: m.verifiedCount > 0
-      ? Math.round((m.regressionCount / (m.verifiedCount + m.regressionCount)) * 100)
-      : 0
-  })).filter(d => d.bugCount > 0) // Only include labels with bugs
+    mttf: avg(m.mttf) ?? 0,
+    mttv: avg(m.mttv) ?? 0,
+    mttt: avg(m.mttt) ?? 0,
+    bugCount: m.issueIds.size,
+    regressionCount: m.regressionCycles,
+    regressionRate: m.verifiedCycles > 0
+      ? Math.round((m.regressionCycles / (m.verifiedCycles + m.regressionCycles)) * 100)
+      : 0,
+  })).filter(d => d.bugCount > 0)
 }
 
-// Calculate severity-level metrics from issues
-function calculateSeverityMetrics(issues) {
-  const severityOrder = ['blocker', 'critical', 'major', 'minor', 'enhancement']
+function calculateSeverityMetrics(cycles) {
+  const order = ['blocker', 'critical', 'major', 'minor', 'enhancement']
   const metrics = {}
+  order.forEach(sev => { metrics[sev] = { severity: SEVERITY[sev]?.label ?? sev, mttf: [], mttv: [], mttt: [], bugCount: 0, color: SEVERITY_COLORS[sev] } })
 
-  // Initialize all severities
-  severityOrder.forEach(sev => {
-    metrics[sev] = {
-      severity: SEVERITY[sev].label,
-      mttfSum: 0,
-      mttfCount: 0,
-      mttvSum: 0,
-      mttvCount: 0,
-      mtttSum: 0,
-      mtttCount: 0,
-      bugCount: 0,
-      color: SEVERITY_COLORS[sev]
-    }
+  cycles.forEach(c => {
+    const sev = c.issue_severity
+    if (!metrics[sev]) return
+    metrics[sev].bugCount++
+    if (c.time_to_triage_h != null) metrics[sev].mttt.push(c.time_to_triage_h)
+    if (c.time_to_fix_h    != null) metrics[sev].mttf.push(c.time_to_fix_h)
+    if (c.time_to_verify_h != null) metrics[sev].mttv.push(c.time_to_verify_h)
   })
 
-  // Aggregate metrics by severity
-  issues.forEach(issue => {
-    const sev = issue.severity
-    if (metrics[sev]) {
-      metrics[sev].bugCount++
-      if (issue.time_to_triage_h) {
-        metrics[sev].mtttSum += issue.time_to_triage_h
-        metrics[sev].mtttCount++
-      }
-      if (issue.time_to_fix_h) {
-        metrics[sev].mttfSum += issue.time_to_fix_h
-        metrics[sev].mttfCount++
-      }
-      if (issue.time_to_verify_h) {
-        metrics[sev].mttvSum += issue.time_to_verify_h
-        metrics[sev].mttvCount++
-      }
-    }
-  })
-
-  // Transform to chart data format, only include severities with bugs
   return Object.values(metrics)
     .filter(m => m.bugCount > 0)
-    .map(m => ({
-      severity: m.severity,
-      mttf: m.mttfCount > 0 ? Math.round(m.mttfSum / m.mttfCount * 10) / 10 : 0,
-      mttv: m.mttvCount > 0 ? Math.round(m.mttvSum / m.mttvCount * 10) / 10 : 0,
-      mttt: m.mtttCount > 0 ? Math.round(m.mtttSum / m.mtttCount * 10) / 10 : 0,
-      bugCount: m.bugCount,
-      color: m.color
-    }))
+    .map(m => ({ severity: m.severity, mttf: avg(m.mttf) ?? 0, mttv: avg(m.mttv) ?? 0, mttt: avg(m.mttt) ?? 0, bugCount: m.bugCount, color: m.color }))
 }
 
-// Calculate daily time metrics for time-series chart
-function calculateDailyTimeMetrics(issues) {
-  if (issues.length === 0) return []
-
-  // Collect all relevant dates
-  const dates = issues.flatMap(i => [
-    new Date(i.createdAt),
-    i.fixedAt ? new Date(i.fixedAt) : null,
-    i.verifiedAt ? new Date(i.verifiedAt) : null,
-    i.triagedAt ? new Date(i.triagedAt) : null,
-  ]).filter(Boolean)
-
-  if (dates.length === 0) return []
+function calculateDailyTimeMetrics(cycles) {
+  const dates = cycles.flatMap(c => [c.triaged_at, c.fixed_at, c.verified_at]).filter(Boolean).map(d => new Date(d))
+  if (!dates.length) return []
 
   const minDate = new Date(Math.min(...dates))
   const maxDate = new Date(Math.max(...dates))
-  const dayCount = Math.max(7, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)))
+  const dayCount = Math.max(7, Math.ceil((maxDate - minDate) / 86400000) + 1)
 
-  // Generate daily buckets
-  const dailyBuckets = Array.from({ length: dayCount }, (_, i) => {
-    const dayDate = new Date(minDate)
-    dayDate.setDate(dayDate.getDate() + i)
-    return {
-      date: dayDate,
-      dateLabel: dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      mttfSum: 0,
-      mttfCount: 0,
-      mttvSum: 0,
-      mttvCount: 0,
-      mtttSum: 0,
-      mtttCount: 0
-    }
+  const buckets = Array.from({ length: dayCount }, (_, i) => {
+    const d = new Date(minDate); d.setDate(d.getDate() + i)
+    return { dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), mttf: [], mttv: [], mttt: [] }
   })
 
-  // Aggregate metrics by day based on completion date
-  issues.forEach(issue => {
-    if (issue.triagedAt && issue.createdAt) {
-      const triageDate = new Date(issue.triagedAt)
-      const triageHours = (triageDate - new Date(issue.createdAt)) / (1000 * 60 * 60)
-      const dayIndex = Math.floor((triageDate - minDate) / (1000 * 60 * 60 * 24))
-      if (dayIndex >= 0 && dayIndex < dayCount) {
-        dailyBuckets[dayIndex].mtttSum += triageHours
-        dailyBuckets[dayIndex].mtttCount++
-      }
-    }
-    if (issue.fixedAt && issue.triagedAt) {
-      const fixDate = new Date(issue.fixedAt)
-      const fixHours = (fixDate - new Date(issue.triagedAt)) / (1000 * 60 * 60)
-      const dayIndex = Math.floor((fixDate - minDate) / (1000 * 60 * 60 * 24))
-      if (dayIndex >= 0 && dayIndex < dayCount) {
-        dailyBuckets[dayIndex].mttfSum += fixHours
-        dailyBuckets[dayIndex].mttfCount++
-      }
-    }
-    if (issue.verifiedAt && issue.fixedAt) {
-      const verifyDate = new Date(issue.verifiedAt)
-      const verifyHours = (verifyDate - new Date(issue.fixedAt)) / (1000 * 60 * 60)
-      const dayIndex = Math.floor((verifyDate - minDate) / (1000 * 60 * 60 * 24))
-      if (dayIndex >= 0 && dayIndex < dayCount) {
-        dailyBuckets[dayIndex].mttvSum += verifyHours
-        dailyBuckets[dayIndex].mttvCount++
-      }
-    }
+  cycles.forEach(c => {
+    const idx = (ts) => ts ? Math.max(0, Math.min(dayCount - 1, Math.floor((new Date(ts) - minDate) / 86400000))) : null
+    if (c.triaged_at && c.time_to_triage_h != null) { const i = idx(c.triaged_at); if (i != null) buckets[i].mttt.push(c.time_to_triage_h) }
+    if (c.fixed_at   && c.time_to_fix_h    != null) { const i = idx(c.fixed_at);   if (i != null) buckets[i].mttf.push(c.time_to_fix_h) }
+    if (c.verified_at && c.time_to_verify_h != null) { const i = idx(c.verified_at); if (i != null) buckets[i].mttv.push(c.time_to_verify_h) }
   })
 
-  return dailyBuckets.map(d => ({
-    date: d.dateLabel,
-    mttf: d.mttfCount > 0 ? Math.round(d.mttfSum / d.mttfCount * 10) / 10 : null,
-    mttv: d.mttvCount > 0 ? Math.round(d.mttvSum / d.mttvCount * 10) / 10 : null,
-    mttt: d.mtttCount > 0 ? Math.round(d.mtttSum / d.mtttCount * 10) / 10 : null
-  }))
+  return buckets.map(b => ({ date: b.dateLabel, mttf: avg(b.mttf), mttv: avg(b.mttv), mttt: avg(b.mttt) }))
 }
 
 // KPI Card with improved tooltip
@@ -277,193 +175,128 @@ function generateDiscoveryData(releaseId) {
 
 export default function ReleaseDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('overview')
-  const [localRelease, setLocalRelease] = useState(() => releaseById(id))
   const [editModalOpen, setEditModalOpen] = useState(false)
 
-  const release = localRelease
-  const issues = issuesByRelease(id)
+  // ── Data loading ──────────────────────────────────────────────────────────
+  const [release, setRelease] = useState(null)
+  const [issues, setIssues] = useState([])
+  const [team, setTeam] = useState([])
+  const [labels, setLabels] = useState([])
+  const [analytics, setAnalytics] = useState(null) // { total_issues, verified_issues, regression_count, cycles }
+  const [loading, setLoading] = useState(true)
 
-  // Calculate days information for the release
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    Promise.all([
+      releasesApi.get(id),
+      issuesApi.list({ release_id: id, size: 500 }),
+      teamApi.list(),
+      labelsApi.list(),
+      releasesApi.analytics(id),
+    ]).then(([rel, iss, tm, lbl, anl]) => {
+      setRelease(rel.data)
+      setIssues(iss.data?.items || [])
+      setTeam(tm.data || [])
+      setLabels(lbl.data || [])
+      setAnalytics(anl.data)
+    }).catch(console.error).finally(() => setLoading(false))
+  }, [id])
+
+  const cycles = analytics?.cycles || []
+
+  const userById = (uid) => team.find(u => String(u.id) === String(uid))
+
+  // ── Overview tab helpers ──────────────────────────────────────────────────
   const daysInfo = useMemo(() => {
+    if (!release) return { daysSinceCreated: 0, daysUntilTarget: 0, isDelayed: false, isToday: false }
     const now = new Date()
-    const createdDate = new Date(release.createdAt)
-    const targetDate = new Date(release.targetDate)
+    const createdDate = new Date(release.created_at)
+    const targetDate = release.target_date ? new Date(release.target_date) : now
+    const daysSinceCreated = Math.max(0, Math.floor((now - createdDate) / 86400000))
+    const daysUntilTarget = Math.ceil((targetDate - now) / 86400000)
+    return { daysSinceCreated, daysUntilTarget, isDelayed: daysUntilTarget < 0, isToday: daysUntilTarget === 0 }
+  }, [release])
 
-    const daysSinceCreated = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24))
-    const daysUntilTarget = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24))
-
-    return {
-      daysSinceCreated: Math.max(0, daysSinceCreated),
-      daysUntilTarget,
-      isDelayed: daysUntilTarget < 0,
-      isToday: daysUntilTarget === 0
-    }
-  }, [release.createdAt, release.targetDate])
-
-  // Calculate label metrics for analytics dashboard
-  const labelMetrics = useMemo(() =>
-    calculateLabelMetrics(issues, MOCK_LABELS),
-    [issues]
-  )
-
-  // Calculate severity metrics for analytics dashboard
-  const severityMetrics = useMemo(() =>
-    calculateSeverityMetrics(issues),
-    [issues]
-  )
-
-  // Get active blockers for analytics dashboard
   const activeBlockers = useMemo(() =>
-    issues.filter(i => i.is_release_blocker && i.status !== 'verified' && i.status !== 'closed'),
+    issues.filter(i => i.is_release_blocker && !['verified', 'closed'].includes(i.status)),
     [issues]
   )
 
-  // Get top fragile labels
-  const topFragileLabels = useMemo(() =>
-    [...labelMetrics]
-      .sort((a, b) => b.regressionCount - a.regressionCount)
-      .slice(0, 5)
-      .filter(c => c.regressionCount > 0),
-    [labelMetrics]
+  const contributors = useMemo(() =>
+    team.slice(0, 6).map(u => ({
+      user: u,
+      filed: issues.filter(i => String(i.reporter_id) === String(u.id)).length,
+      fixed: issues.filter(i => String(i.assignee_id) === String(u.id) && ['fixed', 'verified'].includes(i.status)).length,
+      inProgress: issues.filter(i => String(i.assignee_id) === String(u.id) && i.status === 'in_progress').length,
+      totalAssigned: issues.filter(i => String(i.assignee_id) === String(u.id)).length,
+    })).filter(c => c.filed + c.fixed + c.totalAssigned > 0),
+    [team, issues]
   )
 
-  // Calculate KPI values
-  const verifiedIssues = useMemo(() =>
-    issues.filter(i => i.status === 'verified').length,
+  const sevCounts = useMemo(() =>
+    Object.keys(SEVERITY).map(sev => ({
+      name: SEVERITY[sev].label,
+      value: issues.filter(i => i.severity === sev).length,
+      color: SEVERITY_COLORS[sev],
+    })).filter(d => d.value > 0),
     [issues]
   )
-  const regressionCount = useMemo(() =>
-    issues.filter(i => i.is_regression || (i.regressionCount && i.regressionCount > 0)).length,
-    [issues]
-  )
-  const regressionRate = useMemo(() =>
-    verifiedIssues > 0 ? Math.round((regressionCount / (verifiedIssues + regressionCount)) * 100) : 0,
-    [verifiedIssues, regressionCount]
-  )
 
-  // Calculate average times from issues
-  const avgTimeToFix = useMemo(() => {
-    const withFixTime = issues.filter(i => i.time_to_fix_h)
-    return withFixTime.length > 0
-      ? Math.round(withFixTime.reduce((sum, i) => sum + i.time_to_fix_h, 0) / withFixTime.length * 10) / 10
-      : null
-  }, [issues])
-
-  const avgTimeToVerify = useMemo(() => {
-    const withVerifyTime = issues.filter(i => i.time_to_verify_h)
-    return withVerifyTime.length > 0
-      ? Math.round(withVerifyTime.reduce((sum, i) => sum + i.time_to_verify_h, 0) / withVerifyTime.length * 10) / 10
-      : null
-  }, [issues])
-
-  // Calculate average time to triage
-  const avgTimeToTriage = useMemo(() => {
-    const withTriageTime = issues.filter(i => i.time_to_triage_h)
-    return withTriageTime.length > 0
-      ? Math.round(withTriageTime.reduce((sum, i) => sum + i.time_to_triage_h, 0) / withTriageTime.length * 10) / 10
-      : null
-  }, [issues])
-
-  // Filter state for analytics
-  const [filterBy, setFilterBy] = useState('all') // 'all', 'severity', 'labels'
+  // ── Analytics tab: filter state + derived metrics from cycles ─────────────
+  const [filterBy, setFilterBy] = useState('all')
   const [selectedSeverity, setSelectedSeverity] = useState(null)
   const [selectedLabel, setSelectedLabel] = useState(null)
 
-  // Filter issues based on selection
-  const filteredIssues = useMemo(() => {
-    if (filterBy === 'all') return issues
-    if (filterBy === 'severity' && selectedSeverity) {
-      return issues.filter(i => i.severity === selectedSeverity)
-    }
-    if (filterBy === 'labels' && selectedLabel) {
-      return issues.filter(i => i.labels.includes(selectedLabel))
-    }
-    return issues
-  }, [issues, filterBy, selectedSeverity, selectedLabel])
+  const filteredCycles = useMemo(() => {
+    if (filterBy === 'severity' && selectedSeverity)
+      return cycles.filter(c => c.issue_severity === selectedSeverity)
+    if (filterBy === 'labels' && selectedLabel)
+      return cycles.filter(c => (c.issue_labels || []).includes(selectedLabel))
+    return cycles
+  }, [cycles, filterBy, selectedSeverity, selectedLabel])
 
-  // Calculate daily time metrics for time-series chart
-  const dailyTimeMetrics = useMemo(() =>
-    calculateDailyTimeMetrics(filteredIssues),
-    [filteredIssues]
+  const filteredLabelMetrics    = useMemo(() => calculateLabelMetrics(filteredCycles),    [filteredCycles])
+  const filteredSeverityMetrics = useMemo(() => calculateSeverityMetrics(filteredCycles), [filteredCycles])
+  const dailyTimeMetrics        = useMemo(() => calculateDailyTimeMetrics(filteredCycles), [filteredCycles])
+
+  const filteredAvgTimeToFix    = useMemo(() => avg(filteredCycles.map(c => c.time_to_fix_h)),    [filteredCycles])
+  const filteredAvgTimeToVerify = useMemo(() => avg(filteredCycles.map(c => c.time_to_verify_h)), [filteredCycles])
+  const filteredAvgTimeToTriage = useMemo(() => avg(filteredCycles.map(c => c.time_to_triage_h)), [filteredCycles])
+
+  const filteredRegressionCount  = useMemo(() => filteredCycles.filter(c => c.is_regression_cycle).length, [filteredCycles])
+  const filteredVerifiedCycles   = useMemo(() => filteredCycles.filter(c => c.verified_at).length,         [filteredCycles])
+  const filteredRegressionRate   = useMemo(() =>
+    filteredVerifiedCycles > 0
+      ? Math.round((filteredRegressionCount / (filteredVerifiedCycles + filteredRegressionCount)) * 100)
+      : 0,
+    [filteredRegressionCount, filteredVerifiedCycles]
   )
 
-  // Recalculate metrics based on filtered issues
-  const filteredLabelMetrics = useMemo(() =>
-    calculateLabelMetrics(filteredIssues, MOCK_LABELS),
-    [filteredIssues]
+  const topFragileLabels = useMemo(() =>
+    [...filteredLabelMetrics].sort((a, b) => b.regressionCount - a.regressionCount).slice(0, 5).filter(c => c.regressionCount > 0),
+    [filteredLabelMetrics]
   )
 
-  const filteredSeverityMetrics = useMemo(() =>
-    calculateSeverityMetrics(filteredIssues),
-    [filteredIssues]
-  )
+  const LABEL_ITEMS = useMemo(() => labels.map(l => ({ value: l.name, label: l.name, color: l.color })), [labels])
 
-  // Calculate filtered KPI values
-  const filteredVerifiedIssues = useMemo(() =>
-    filteredIssues.filter(i => i.status === 'verified').length,
-    [filteredIssues]
-  )
-  const filteredRegressionCount = useMemo(() =>
-    filteredIssues.filter(i => i.is_regression || (i.regressionCount && i.regressionCount > 0)).length,
-    [filteredIssues]
-  )
-  const filteredRegressionRate = useMemo(() =>
-    filteredVerifiedIssues > 0 ? Math.round((filteredRegressionCount / (filteredVerifiedIssues + filteredRegressionCount)) * 100) : 0,
-    [filteredVerifiedIssues, filteredRegressionCount]
-  )
-
-  const filteredAvgTimeToFix = useMemo(() => {
-    const withFixTime = filteredIssues.filter(i => i.time_to_fix_h)
-    return withFixTime.length > 0
-      ? Math.round(withFixTime.reduce((sum, i) => sum + i.time_to_fix_h, 0) / withFixTime.length * 10) / 10
-      : null
-  }, [filteredIssues])
-
-  const filteredAvgTimeToVerify = useMemo(() => {
-    const withVerifyTime = filteredIssues.filter(i => i.time_to_verify_h)
-    return withVerifyTime.length > 0
-      ? Math.round(withVerifyTime.reduce((sum, i) => sum + i.time_to_verify_h, 0) / withVerifyTime.length * 10) / 10
-      : null
-  }, [filteredIssues])
-
-  const filteredAvgTimeToTriage = useMemo(() => {
-    const withTriageTime = filteredIssues.filter(i => i.time_to_triage_h)
-    return withTriageTime.length > 0
-      ? Math.round(withTriageTime.reduce((sum, i) => sum + i.time_to_triage_h, 0) / withTriageTime.length * 10) / 10
-      : null
-  }, [filteredIssues])
-
-  if (!release) {
+  if (loading || !release) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Release not found</h2>
-          <Link to="/releases" className="text-blue-600 dark:text-blue-400 hover:underline">
-            Back to releases
-          </Link>
-        </div>
+        {loading
+          ? <div className="text-sm text-zinc-400">Loading release…</div>
+          : <div className="text-center">
+              <h2 className="text-xl font-semibold mb-2">Release not found</h2>
+              <Link to="/releases" className="text-blue-600 dark:text-blue-400 hover:underline">Back to releases</Link>
+            </div>
+        }
       </div>
     )
   }
 
-  // Severity donut data
-  const sevCounts = Object.keys(SEVERITY).map((sev) => ({
-    name: SEVERITY[sev].label,
-    value: issues.filter((i) => i.severity === sev).length,
-    color: SEVERITY_COLORS[sev],
-  })).filter((d) => d.value > 0)
-
   const discoveryData = generateDiscoveryData(id)
-
-  // Top contributors for this release
-  const contributors = MOCK_TEAM.slice(0, 4).map((u) => ({
-    user: u,
-    filed: issues.filter((i) => i.reporter === u.id).length,
-    fixed: issues.filter((i) => i.assignee === u.id && ['fixed', 'verified'].includes(i.status)).length,
-    inProgress: issues.filter((i) => i.assignee === u.id && i.status === 'in_progress').length,
-    totalAssigned: issues.filter((i) => i.assignee === u.id).length,
-  })).filter((c) => c.filed + c.fixed > 0)
 
   // Beautiful release status indicator
   const getStatusIndicator = () => {
@@ -885,7 +718,7 @@ export default function ReleaseDetailPage() {
               )}
               {filterBy === 'labels' && (
                 <ColorSelectDropdown
-                  items={MOCK_LABELS.map((l) => ({ value: l.id, label: l.name, color: l.color }))}
+                  items={LABEL_ITEMS}
                   value={selectedLabel}
                   onChange={setSelectedLabel}
                   placeholder="All Labels"
@@ -1126,9 +959,9 @@ export default function ReleaseDetailPage() {
                             </div>
                           </td>
                           <td className="px-4 py-2.5">
-                            {issue.assignee ? (
-                              <UserHoverCard user={userById(issue.assignee)} size={24}>
-                                <Avatar user={userById(issue.assignee)} size={24} ring />
+                            {issue.assignee_id ? (
+                              <UserHoverCard user={issue.assignee_user ?? userById(issue.assignee_id)} size={24}>
+                                <Avatar user={issue.assignee_user ?? userById(issue.assignee_id)} size={24} ring />
                               </UserHoverCard>
                             ) : (
                               <span className="text-muted-foreground text-sm italic">Unassigned</span>
@@ -1160,7 +993,7 @@ export default function ReleaseDetailPage() {
                 {topFragileLabels.length > 0 ? (
                   <div className="space-y-2">
                     {topFragileLabels.map((comp, idx) => {
-                      const label = MOCK_LABELS.find(l => l.name === comp.label)
+                      const label = labels.find(l => l.name === comp.label)
                       return (
                         <div
                           key={comp.label}
@@ -1207,7 +1040,7 @@ export default function ReleaseDetailPage() {
           open={editModalOpen}
           onClose={() => setEditModalOpen(false)}
           release={release}
-          onSave={(updatedRelease) => setLocalRelease(updatedRelease)}
+          onSave={(updatedRelease) => setRelease(updatedRelease)}
         />
       </div>
     </div>

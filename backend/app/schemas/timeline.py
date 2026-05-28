@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -17,7 +16,7 @@ class TimelineEventCreate(BaseModel):
     is_internal: bool = Field(
         False, description="Internal note — hidden from external stakeholders."
     )
-    mentioned_user_ids: List[uuid.UUID] = Field(
+    mentioned_user_ids: List[int] = Field(
         default_factory=list,
         description="User IDs @mentioned in this comment.",
     )
@@ -34,9 +33,9 @@ class TimelineEventResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    issue_id: uuid.UUID
-    actor_id: Optional[uuid.UUID] = None
+    id: int
+    issue_id: int
+    actor_id: Optional[int] = None
     actor_user: Optional[UserSummary] = None
     event_type: TimelineEventType
     body: Optional[str] = None
@@ -45,14 +44,20 @@ class TimelineEventResponse(BaseModel):
     created_at: datetime
 
     # Derived from meta — populated by the validator below
-    mentioned_user_ids: List[uuid.UUID] = Field(default_factory=list)
+    mentioned_user_ids: List[int] = Field(default_factory=list)
     edited_at: Optional[datetime] = None
 
     @model_validator(mode='after')
     def extract_meta_fields(self) -> 'TimelineEventResponse':
         if self.meta:
             raw_ids = self.meta.get('mentioned_user_ids', [])
-            self.mentioned_user_ids = [uuid.UUID(u) for u in raw_ids if u]
+            ids = []
+            for u in raw_ids:
+                try:
+                    ids.append(int(u))
+                except (ValueError, TypeError):
+                    pass
+            self.mentioned_user_ids = ids
             if ea := self.meta.get('edited_at'):
                 try:
                     self.edited_at = datetime.fromisoformat(ea)

@@ -21,11 +21,14 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
     teamUsers,
     availableLabels,
     availableReleases,
+    regressions,
+    currentCycle,
     applyUpdate,
     addComment,
     updateComment,
     deleteComment,
     loadMoreTimeline,
+    fetchAttachments,
   } = useIssueDetail(issue, { onUpdate })
 
   const [pendingChange, setPendingChange] = useState(null)
@@ -48,6 +51,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
           teamUsers={teamUsers}
           availableLabels={availableLabels}
           currentUser={currentUser}
+          regressions={regressions}
           applyUpdate={applyUpdate}
           addComment={addComment}
           updateComment={updateComment}
@@ -55,10 +59,12 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
           timelineHasMore={timelineHasMore}
           timelineLoadingMore={timelineLoadingMore}
           loadMoreTimeline={loadMoreTimeline}
+          fetchAttachments={fetchAttachments}
         />
 
         <IssueSidebar
           issue={localIssue}
+          currentCycle={currentCycle}
           teamUsers={teamUsers}
           availableLabels={availableLabels}
           availableReleases={availableReleases}

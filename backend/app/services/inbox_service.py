@@ -2,14 +2,20 @@
 
 Fan-out notification matrix
 ----------------------------
-Event              → Who receives an inbox item
-------             → -----------------------------------
-assigned           → assignee
-fixed              → reporter + triage_lead users
-comment            → reporter + assignee (if different from actor)
-mention            → mentioned users (parsed from body)
-regression         → reporter + assignee + triage leads
-blocker_filed      → all triage leads + CTOs
+Event                → Who receives an inbox item
+------               → -----------------------------------
+assigned             → assignee
+fixed                → reporter + triage_lead users
+comment              → reporter + assignee (if different from actor)
+mention              → mentioned users (parsed from body)
+regression           → reporter + assignee + triage leads
+blocker_filed        → all triage leads + CTOs
+status_changed       → assignee + reporter
+verified             → reporter + assignee
+filed                → triage leads
+environment_changed  → assignee + reporter
+release_changed      → assignee + reporter
+attachment_added     → assignee + reporter
 """
 
 import re
@@ -131,15 +137,24 @@ class InboxFanOutService:
             admins = await self._users_with_role(db, UserRole.admin)
             recipients.update(str(u.id) for u in leads + ctos + admins)
 
+        elif trigger in (
+            InboxEventType.environment_changed,
+            InboxEventType.release_changed,
+            InboxEventType.attachment_added,
+        ):
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+
         # Remove the actor — they don't get notified of their own actions
         recipients.discard(str(actor.id))
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
-        import uuid
         items: list[InboxItem] = []
         for user_id_str in recipients:
             item = InboxItem(
-                user_id=uuid.UUID(user_id_str),
+                user_id=int(user_id_str),
                 actor_id=actor.id,
                 issue_id=issue.id,
                 timeline_id=timeline_event.id if timeline_event else None,

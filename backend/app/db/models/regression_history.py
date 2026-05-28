@@ -1,10 +1,8 @@
 """RegressionHistory ORM model — tracks each time an issue regresses."""
 
-import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, SmallInteger
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,14 +19,12 @@ class RegressionHistory(Base):
 
     __tablename__ = "regression_history"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    release_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
+    release_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
     )
     regression_number: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, default=1,
@@ -37,15 +33,15 @@ class RegressionHistory(Base):
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"
     )
-    detected_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    detected_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    previous_fix_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    previous_fix_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         doc="The developer who submitted the fix that later regressed."
     )
-    previous_fix_timeline_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+    previous_fix_timeline_id: Mapped[int | None] = mapped_column(
+        Integer,
         ForeignKey("issue_timeline.id", ondelete="SET NULL"),
         nullable=True,
         doc="Timeline event (type=fixed) for the fix that later regressed."

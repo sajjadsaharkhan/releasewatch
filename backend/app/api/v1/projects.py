@@ -14,8 +14,6 @@ POST   /projects/{slug}/releases/{version}/go-nogo — submit go/no-go decision
 
 from datetime import datetime, timezone
 from typing import List
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -140,10 +138,10 @@ async def get_project_by_id(
 ) -> ProjectResponse:
     """Return a single project identified by its ID (UUID)."""
     try:
-        project_uuid = uuid.UUID(project_id)
+        project_int_id = int(project_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
-    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    result = await db.execute(select(Project).where(Project.id == project_int_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
@@ -164,10 +162,10 @@ async def update_project_by_id(
 ) -> ProjectResponse:
     """Partially update a project's metadata by ID."""
     try:
-        project_uuid = uuid.UUID(project_id)
+        project_int_id = int(project_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
-    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    result = await db.execute(select(Project).where(Project.id == project_int_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
@@ -194,10 +192,10 @@ async def archive_project_by_id(
 ) -> ProjectResponse:
     """Archive or restore a project by ID."""
     try:
-        project_uuid = uuid.UUID(project_id)
+        project_int_id = int(project_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid project ID format")
-    result = await db.execute(select(Project).where(Project.id == project_uuid))
+    result = await db.execute(select(Project).where(Project.id == project_int_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")

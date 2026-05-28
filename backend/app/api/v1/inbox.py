@@ -6,7 +6,6 @@ POST /inbox/read-all         — mark all as read
 POST /inbox/{item_id}/read   — mark single item as read
 """
 
-import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, status
@@ -138,7 +137,7 @@ async def mark_all_read(
     summary="Mark a single inbox item as read",
 )
 async def mark_item_read(
-    item_id: uuid.UUID,
+    item_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> InboxItemResponse:

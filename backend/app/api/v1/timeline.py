@@ -6,7 +6,6 @@ PATCH  /issues/{id}/timeline/{event_id}         — edit a comment
 DELETE /issues/{id}/timeline/{event_id}         — delete a comment
 """
 
-import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -43,7 +42,7 @@ def _enrich_event(event: IssueTimeline) -> TimelineEventResponse:
     summary="List timeline events for an issue",
 )
 async def list_timeline(
-    issue_id: uuid.UUID,
+    issue_id: int,
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -81,7 +80,7 @@ async def list_timeline(
     summary="Add a comment to an issue",
 )
 async def create_comment(
-    issue_id: uuid.UUID,
+    issue_id: int,
     payload: TimelineEventCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -109,6 +108,10 @@ async def create_comment(
     from app.tasks.inbox import fan_out_inbox
     from app.db.models.inbox_item import InboxEventType
 
+    mentioned_ids = [str(u) for u in (payload.mentioned_user_ids or [])]
+    body = payload.body or ""
+
+    # Notify reporter + assignee of new comment
     fan_out_inbox.apply_async(
         kwargs={
             "trigger": InboxEventType.comment.value,
@@ -116,11 +119,27 @@ async def create_comment(
             "actor_id": str(current_user.id),
             "timeline_event_id": str(event.id),
             "extra_meta": {
-                "body": payload.body,
-                "mentioned_user_ids": [str(u) for u in (payload.mentioned_user_ids or [])],
+                "body": body,
+                "mentioned_user_ids": mentioned_ids,
             },
         }
     )
+
+    # Notify mentioned users — enqueue whenever there are explicit IDs or
+    # the body contains an @-sign (regex fallback handles the lookup)
+    if mentioned_ids or "@" in body:
+        fan_out_inbox.apply_async(
+            kwargs={
+                "trigger": InboxEventType.mention.value,
+                "issue_id": str(issue_id),
+                "actor_id": str(current_user.id),
+                "timeline_event_id": str(event.id),
+                "extra_meta": {
+                    "body": body,
+                    "mentioned_user_ids": mentioned_ids,
+                },
+            }
+        )
 
     return _enrich_event(event)
 
@@ -131,8 +150,8 @@ async def create_comment(
     summary="Edit a timeline comment",
 )
 async def edit_comment(
-    issue_id: uuid.UUID,
-    event_id: uuid.UUID,
+    issue_id: int,
+    event_id: int,
     payload: TimelineEventUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -156,8 +175,8 @@ async def edit_comment(
     summary="Delete a timeline comment",
 )
 async def delete_comment(
-    issue_id: uuid.UUID,
-    event_id: uuid.UUID,
+    issue_id: int,
+    event_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:

@@ -1,11 +1,9 @@
 """Release ORM model."""
 
-import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -37,11 +35,9 @@ class Release(Base):
 
     __tablename__ = "releases"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     version: Mapped[str] = mapped_column(
         String(64), nullable=False, doc="Semantic version string, e.g. '2.4.1'"
@@ -62,14 +58,14 @@ class Release(Base):
         String(32), nullable=False, default=GoNogoStatus.pending
     )
     go_nogo_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    go_nogo_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    go_nogo_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     go_nogo_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Audit
-    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    created_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"

@@ -6,20 +6,24 @@ import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { Empty } from '../components/ui/Empty'
 import { inboxApi } from '../lib/api'
+import { useApp } from '../context/AppContext'
 import { useToast } from '../hooks/useToast'
 import { relTime } from '../lib/relTime'
 import { CheckCheck } from 'lucide-react'
 
 const TYPE_DESCRIPTIONS = {
-  mention:       'mentioned you in',
-  assigned:      'assigned you to',
-  status_changed:'changed status on',
-  comment:       'commented on',
-  fixed:         'marked as fixed',
-  verified:      'verified the fix on',
-  filed:         'filed a new issue',
-  regression:    'marked regression on',
-  blocker_filed: 'filed a blocker on',
+  mention:             'mentioned you in',
+  assigned:            'assigned you to',
+  status_changed:      'changed status on',
+  comment:             'commented on',
+  fixed:               'marked as fixed',
+  verified:            'verified the fix on',
+  filed:               'filed a new issue',
+  regression:          'marked regression on',
+  blocker_filed:       'filed a blocker on',
+  environment_changed: 'changed environment on',
+  release_changed:     'changed release on',
+  attachment_added:    'added an attachment to',
 }
 
 export default function InboxPage() {
@@ -27,12 +31,14 @@ export default function InboxPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const { setInboxUnreadCount } = useApp()
 
   useEffect(() => {
     setLoading(true)
     inboxApi.list({ size: 100 })
       .then(res => {
         setItems(res.data.items)
+        setInboxUnreadCount(res.data.unreadCount)
         setLoading(false)
       })
       .catch(() => {
@@ -63,6 +69,7 @@ export default function InboxPage() {
     try {
       await inboxApi.readAll()
       setItems((prev) => prev.map((i) => ({ ...i, read: true })))
+      setInboxUnreadCount(0)
     } catch {
       toast.error('Failed to mark all as read')
     }
@@ -73,6 +80,7 @@ export default function InboxPage() {
     try {
       await inboxApi.read(id)
       setItems((prev) => prev.map((i) => i.id === id ? { ...i, read: true } : i))
+      setInboxUnreadCount((c) => Math.max(0, c - 1))
     } catch {
       toast.error('Failed to mark as read')
     }

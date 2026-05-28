@@ -14,6 +14,7 @@ export function AttachmentsSection({
   issueId = null,
   onUploadingChange = null,
   onPendingAttachment = null,
+  onUploadComplete = null,
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({})
@@ -85,6 +86,7 @@ export function AttachmentsSection({
           onAttachmentsChange?.(updatedAttachments.map(a =>
             a.id === attId ? completedAttachment : a
           ))
+          onUploadComplete?.()
         } else {
           setUploadProgress(prev => ({ ...prev, [attId]: -1 }))
           onAttachmentsChange?.(updatedAttachments.map(a =>

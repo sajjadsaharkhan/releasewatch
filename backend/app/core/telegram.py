@@ -221,7 +221,6 @@ class TelegramService:
         str
             A human-readable reply describing the issue state.
         """
-        import uuid as _uuid
         from app.db.models.issue import Issue
         from app.db.models.user import User
 
@@ -233,18 +232,15 @@ class TelegramService:
         if requesting_user is None:
             return "❌ Your Telegram account is not linked. Use /connect <token> to link it."
 
-        # Try to look up by UUID first, then by issue_number
+        # Look up by issue_number (numeric string) or by integer id
         issue = None
-        try:
-            issue_uuid = _uuid.UUID(issue_id)
-            res = await db.execute(select(Issue).where(Issue.id == issue_uuid))
+        if issue_id.isdigit():
+            res = await db.execute(
+                select(Issue).where(Issue.issue_number == int(issue_id))
+            )
             issue = res.scalar_one_or_none()
-        except ValueError:
-            # Not a UUID — try numeric
-            if issue_id.isdigit():
-                res = await db.execute(
-                    select(Issue).where(Issue.issue_number == int(issue_id))
-                )
+            if issue is None:
+                res = await db.execute(select(Issue).where(Issue.id == int(issue_id)))
                 issue = res.scalar_one_or_none()
 
         if issue is None:
