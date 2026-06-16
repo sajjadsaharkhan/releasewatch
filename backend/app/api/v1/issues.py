@@ -66,6 +66,7 @@ def _apply_filters(
     status,
     severity,
     assignee_id,
+    reporter_id=None,
     is_regression,
     is_release_blocker,
     unassigned,
@@ -82,6 +83,8 @@ def _apply_filters(
         query = query.where(Issue.severity == severity)
     if assignee_id:
         query = query.where(Issue.assignee_id == assignee_id)
+    if reporter_id:
+        query = query.where(Issue.reporter_id == reporter_id)
     if is_regression is not None:
         query = query.where(Issue.is_regression == is_regression)
     if is_release_blocker is not None:
@@ -152,6 +155,7 @@ async def list_issues(
     status: Optional[IssueStatus] = Query(None),
     severity: Optional[IssueSeverity] = Query(None),
     assignee_id: Optional[int] = Query(None),
+    reporter_id: Optional[int] = Query(None),
     is_regression: Optional[bool] = Query(None),
     is_release_blocker: Optional[bool] = Query(None),
     unassigned: Optional[bool] = Query(None),
@@ -159,7 +163,7 @@ async def list_issues(
     sort: str = Query("newest"),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueListResponse:
@@ -170,6 +174,7 @@ async def list_issues(
         status=status,
         severity=severity,
         assignee_id=assignee_id,
+        reporter_id=reporter_id,
         is_regression=is_regression,
         is_release_blocker=is_release_blocker,
         unassigned=unassigned,

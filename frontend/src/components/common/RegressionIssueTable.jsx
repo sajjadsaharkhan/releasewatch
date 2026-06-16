@@ -1,28 +1,14 @@
 import React from 'react'
-import { RefreshCw, ArrowUpDown } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { SeverityBadge, StatusBadge, Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
-import { relTime } from '../../lib/relTime'
-import { userById, MOCK_LABELS, SEVERITY } from '../../data/mockData'
 
-const LABEL_COLORS = {
-  auth: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  payments: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  notifications: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  search: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  reports: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  mobile: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  api: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-  infra: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  security: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  data: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
-  uiux: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-  performance: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-}
-
-export function RegressionIssueTable({ issues = [], title, description, className }) {
+export function RegressionIssueTable({ issues = [], labels = [], title, description, className }) {
+  // Build a lookup from label name → label object so we can resolve colors
+  // and silently drop any raw IDs (e.g. "lbl-6") that aren't in the label list.
+  const labelByName = Object.fromEntries(labels.map((l) => [l.label, l]))
   if (issues.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -54,8 +40,10 @@ export function RegressionIssueTable({ issues = [], title, description, classNam
           </thead>
           <tbody>
             {issues.map((issue) => {
-              const assignee = userById(issue.assignee)
-              const labels = issue.labels || []
+              const assignee = issue.assignee || null
+              const issueLabels = (issue.labels || [])
+                .map((name) => labelByName[name])
+                .filter(Boolean)
 
               return (
                 <tr
@@ -64,11 +52,11 @@ export function RegressionIssueTable({ issues = [], title, description, classNam
                 >
                   <td className="px-4 py-3">
                     <Link
-                      to={`/issue/${issue.id}`}
+                      to={`/issue/issue-${issue.id}`}
                       className="font-mono text-xs text-blue-600 dark:text-blue-400 hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {issue.id}
+                      issue-{issue.id}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
@@ -76,16 +64,8 @@ export function RegressionIssueTable({ issues = [], title, description, classNam
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {labels.map((label) => (
-                        <span
-                          key={label}
-                          className={cn(
-                            "px-2 py-0.5 rounded-full text-xs font-medium",
-                            LABEL_COLORS[label] || "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                          )}
-                        >
-                          {label}
-                        </span>
+                      {issueLabels.map((lbl) => (
+                        <LabelChip key={lbl.label} label={{ name: lbl.label, color: lbl.color }} />
                       ))}
                     </div>
                   </td>

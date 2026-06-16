@@ -7,6 +7,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Bare instance used only for the refresh call — no interceptors, no retry loop
+const rawApi = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+})
+
 // Request interceptor: attach auth token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('rw:token')
@@ -16,15 +22,67 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+let isRefreshing = false
+let failedQueue = []
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)))
+  failedQueue = []
+}
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('rw:token')
+  localStorage.removeItem('rw:refresh_token')
+  window.location.hash = '/login'
+}
+
 // Response interceptor: handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('rw:token')
-      localStorage.removeItem('rw:refresh_token')
-      window.location.hash = '/login'
-    } else if (error.response?.status === 429) {
+  async (error) => {
+    const originalRequest = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('rw:refresh_token')
+
+      if (!refreshToken) {
+        clearAuthAndRedirect()
+        return Promise.reject(error)
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return api(originalRequest)
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        const { data } = await rawApi.post('/auth/refresh', { refresh_token: refreshToken })
+        const newToken = data.access_token
+        localStorage.setItem('rw:token', newToken)
+        if (data.refresh_token) {
+          localStorage.setItem('rw:refresh_token', data.refresh_token)
+        }
+        api.defaults.headers.common.Authorization = `Bearer ${newToken}`
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        processQueue(null, newToken)
+        return api(originalRequest)
+      } catch (refreshError) {
+        processQueue(refreshError, null)
+        clearAuthAndRedirect()
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+
+    if (error.response?.status === 429) {
       console.warn('[Releasewatch] Rate limited — slow down requests')
     }
 
@@ -32,8 +90,6 @@ api.interceptors.response.use(
     if (error.response?.data?.detail) {
       const detail = error.response.data.detail
       if (Array.isArray(detail)) {
-        // FastAPI validation error: [{type, loc, msg, input}]
-        // Extract the first error message
         error.normalizedMessage = detail[0]?.msg || 'Validation error'
       } else if (typeof detail === 'string') {
         error.normalizedMessage = detail
@@ -83,6 +139,7 @@ export const inboxApi = {
 export const reportsApi = {
   release: (releaseId) => api.get(`/reports/releases/${releaseId}`),
   contributions: (params) => api.get('/reports/contributions', { params }),
+  contributionMetrics: (params) => api.get('/reports/contributions/metrics', { params }),
   timeToFix: (params) => api.get('/reports/contributions/time-to-fix', { params }),
   regressions: (params) => api.get('/reports/regressions', { params }),
   dashboard: (params) => api.get('/reports/dashboard', { params }),
@@ -169,6 +226,8 @@ export const userApi = {
   confirmAvatar: (data) => api.post('/me/avatar/confirm', data),
   updateProfile: (data) => api.put('/me/profile', data),
   deleteAvatar: () => api.delete('/me/avatar'),
+  getByUsername: (username) => api.get(`/users/by-username/${username}`),
+  getActivity: (userId) => api.get(`/users/${userId}/activity`),
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

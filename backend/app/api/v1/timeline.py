@@ -86,6 +86,10 @@ async def create_comment(
     current_user: User = Depends(get_current_user),
 ) -> TimelineEventResponse:
     """Append a comment (or internal note) to the issue timeline."""
+    from app.db.models.inbox_item import InboxEventType
+    from app.db.models.issue import Issue
+    from app.services.inbox_service import inbox_service
+
     event = await timeline_service.create_event(
         db=db,
         issue_id=issue_id,
@@ -105,41 +109,40 @@ async def create_comment(
     )
     event = result.scalar_one()
 
-    from app.tasks.inbox import fan_out_inbox
-    from app.db.models.inbox_item import InboxEventType
+    # Fan-out inbox notifications inline — simple, synchronous, traceable
+    issue_result = await db.execute(select(Issue).where(Issue.id == issue_id))
+    issue = issue_result.scalar_one_or_none()
 
-    mentioned_ids = [str(u) for u in (payload.mentioned_user_ids or [])]
-    body = payload.body or ""
+    if issue is not None:
+        mentioned_ids = [str(u) for u in (payload.mentioned_user_ids or [])]
+        body = payload.body or ""
+        extra = {"body": body, "mentioned_user_ids": mentioned_ids}
 
-    # Notify reporter + assignee of new comment
-    fan_out_inbox.apply_async(
-        kwargs={
-            "trigger": InboxEventType.comment.value,
-            "issue_id": str(issue_id),
-            "actor_id": str(current_user.id),
-            "timeline_event_id": str(event.id),
-            "extra_meta": {
-                "body": body,
-                "mentioned_user_ids": mentioned_ids,
-            },
-        }
-    )
+        body_snippet = body[:100] if body else None
+        snippet_meta = {"body_snippet": body_snippet} if body_snippet else None
 
-    # Notify mentioned users — enqueue whenever there are explicit IDs or
-    # the body contains an @-sign (regex fallback handles the lookup)
-    if mentioned_ids or "@" in body:
-        fan_out_inbox.apply_async(
-            kwargs={
-                "trigger": InboxEventType.mention.value,
-                "issue_id": str(issue_id),
-                "actor_id": str(current_user.id),
-                "timeline_event_id": str(event.id),
-                "extra_meta": {
-                    "body": body,
-                    "mentioned_user_ids": mentioned_ids,
-                },
-            }
+        await inbox_service.fan_out(
+            db=db,
+            trigger=InboxEventType.comment,
+            issue=issue,
+            actor=current_user,
+            timeline_event=event,
+            extra_meta=extra,
+            meta=snippet_meta,
         )
+
+        if mentioned_ids or "@" in body:
+            await inbox_service.fan_out(
+                db=db,
+                trigger=InboxEventType.mention,
+                issue=issue,
+                actor=current_user,
+                timeline_event=event,
+                extra_meta=extra,
+                meta=snippet_meta,
+            )
+
+        await db.commit()
 
     return _enrich_event(event)
 

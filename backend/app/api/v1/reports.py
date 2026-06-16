@@ -24,16 +24,31 @@ async def get_release_report(
 
 @router.get("/contributions")
 async def get_contributions(
-    release_id: str | None = Query(None),
-    role: str | None = Query(None),
+    project_id: int | None = Query(None),
+    release_id: int | None = Query(None),
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Member contribution metrics: reporter and solver leaderboards."""
-    filters = {"release_id": release_id, "role": role, "date_from": date_from, "date_to": date_to}
+    """Member contribution metrics: table rows, segmented chart, and label distribution."""
+    filters = {"project_id": project_id, "release_id": release_id, "date_from": date_from, "date_to": date_to}
     return await _svc.get_contributions(db, filters)
+
+
+@router.get("/contributions/metrics")
+async def get_contribution_metrics(
+    project_id: int | None = Query(None),
+    release_id: int | None = Query(None),
+    user_id: int | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Weekly time-series of regression rate and mean times (triage, fix, verify)."""
+    filters = {"project_id": project_id, "release_id": release_id, "user_id": user_id, "date_from": date_from, "date_to": date_to}
+    return await _svc.get_contribution_metrics(db, filters)
 
 
 @router.get("/contributions/time-to-fix")
@@ -52,18 +67,20 @@ async def get_time_to_fix(
 async def get_regressions(
     project_id: str | None = Query(None),
     n_releases: int = Query(6, ge=1, le=20),
+    date_from: str | None = Query(None, description="ISO date YYYY-MM-DD — filter releases created on or after this date"),
+    date_to: str | None = Query(None, description="ISO date YYYY-MM-DD — filter releases created on or before this date"),
+    label: str | None = Query(None, description="Filter all metrics to issues that have this label name"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Regression analysis: component fragility, recurrence matrix."""
-    return await _svc.get_regressions(db, project_id, n_releases)
+    """Regression analysis: KPIs, chart series, team tables, top issues."""
+    return await _svc.get_regressions(db, project_id, n_releases, date_from, date_to, label)
 
 
 @router.get("/dashboard")
 async def get_dashboard(
-    project_ids: list[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """CTO dashboard aggregates: open blockers, criticals, regression rate, activity feed."""
-    return await _svc.get_dashboard(db, project_ids or [])
+    """Full dashboard payload: hero metrics, release health, stale items, activity stream."""
+    return await _svc.get_dashboard(db, current_user)

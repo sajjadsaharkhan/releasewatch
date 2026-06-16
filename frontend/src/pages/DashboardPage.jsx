@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { MetricCard } from '../components/common/MetricCard'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
-import { SeverityBadge, StatusBadge } from '../components/ui/Badge'
-import { userById, MOCK_DASHBOARD_GENERAL } from '../data/mockData'
+import { SeverityBadge } from '../components/ui/Badge'
+import { reportsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
+import { useToast } from '../hooks/useToast'
 
 const ACTIVITY_ICONS = {
   filed: { color: 'bg-blue-500', label: 'filed' },
@@ -40,30 +41,43 @@ function TrendArrow({ trend }) {
 }
 
 export default function DashboardPage() {
-  const {
-    heroMetrics,
-    releases,
-    staleItems,
-    activityStream,
-    myIssues,
-  } = MOCK_DASHBOARD_GENERAL
+  const { toast } = useToast()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  // Calculate days remaining for releases
+  useEffect(() => {
+    setLoading(true)
+    reportsApi.dashboard()
+      .then(res => setData(res.data))
+      .catch(() => toast.error('Failed to load dashboard'))
+      .finally(() => setLoading(false))
+  }, [])
+
   const getDaysRemaining = (targetDate) => {
-    const now = new Date()
-    const target = new Date(targetDate)
-    const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24))
-    return diff
+    if (!targetDate) return null
+    return Math.ceil((new Date(targetDate) - new Date()) / (1000 * 60 * 60 * 24))
   }
 
-  // Stale items grouped by category
   const staleByCategory = useMemo(() => {
+    const items = data?.staleItems ?? []
     return {
-      awaiting_triage: staleItems.filter(i => i.category === 'awaiting_triage'),
-      awaiting_verification: staleItems.filter(i => i.category === 'awaiting_verification'),
-      low_hanging_fruit: staleItems.filter(i => i.category === 'low_hanging_fruit'),
+      awaiting_triage: items.filter(i => i.category === 'awaiting_triage'),
+      awaiting_verification: items.filter(i => i.category === 'awaiting_verification'),
+      low_hanging_fruit: items.filter(i => i.category === 'low_hanging_fruit'),
     }
-  }, [staleItems])
+  }, [data?.staleItems])
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-64">
+        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  const { heroMetrics, releases, activityStream } = data
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -77,7 +91,6 @@ export default function DashboardPage() {
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* My Action Items */}
         <Link to="/issues?filter=assigned" className="group">
           <MetricCard
             label="My Action Items"
@@ -90,7 +103,6 @@ export default function DashboardPage() {
           />
         </Link>
 
-        {/* Active Releases */}
         <Link to="/releases" className="group">
           <MetricCard
             label="Active Releases"
@@ -103,7 +115,6 @@ export default function DashboardPage() {
           />
         </Link>
 
-        {/* Team Velocity */}
         <MetricCard
           label="Team Velocity"
           value={heroMetrics.teamVelocity.thisWeek}
@@ -118,7 +129,6 @@ export default function DashboardPage() {
           description="Issues fixed this week"
         />
 
-        {/* Quality Score */}
         <MetricCard
           label="Quality Score"
           value={heroMetrics.qualityScore.value}
@@ -143,7 +153,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {releases.map((release) => {
             const daysRemaining = getDaysRemaining(release.targetDate)
-            const isOverdue = daysRemaining < 0
+            const isOverdue = daysRemaining !== null && daysRemaining < 0
 
             return (
               <Link
@@ -151,7 +161,6 @@ export default function DashboardPage() {
                 to={`/releases/${release.id}`}
                 className="group relative rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all"
               >
-                {/* Health indicator badge */}
                 <div className="absolute top-4 right-4 flex items-center gap-2">
                   <HealthIndicator health={release.health} />
                   {release.goNoGoStatus === 'blocked' && (
@@ -161,13 +170,11 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Version and project */}
                 <div className="pr-16">
                   <p className="font-mono text-sm font-semibold">{release.version}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{release.projectName}</p>
                 </div>
 
-                {/* Progress bar */}
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-1.5 text-xs">
                     <span className="text-muted-foreground">Progress</span>
@@ -193,16 +200,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Stats */}
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center">
                     <p className="font-semibold">{release.openIssues}</p>
                     <p className="text-muted-foreground">Open</p>
                   </div>
-                  <div className={cn(
-                    'text-center',
-                    release.blockers > 0 ? 'text-red-600 dark:text-red-400' : ''
-                  )}>
+                  <div className={cn('text-center', release.blockers > 0 ? 'text-red-600 dark:text-red-400' : '')}>
                     <p className="font-semibold">{release.blockers}</p>
                     <p className="text-muted-foreground">Blocker{release.blockers !== 1 ? 's' : ''}</p>
                   </div>
@@ -212,20 +215,21 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Days remaining */}
-                <div className={cn(
-                  'mt-3 text-xs font-medium',
-                  isOverdue ? 'text-red-600 dark:text-red-400' :
-                  daysRemaining <= 3 ? 'text-amber-600 dark:text-amber-400' :
-                  'text-muted-foreground'
-                )}>
-                  {isOverdue
-                    ? `${Math.abs(daysRemaining)} days overdue`
-                    : daysRemaining === 0
-                      ? 'Due today'
-                      : `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`
-                  }
-                </div>
+                {daysRemaining !== null && (
+                  <div className={cn(
+                    'mt-3 text-xs font-medium',
+                    isOverdue ? 'text-red-600 dark:text-red-400' :
+                    daysRemaining <= 3 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-muted-foreground'
+                  )}>
+                    {isOverdue
+                      ? `${Math.abs(daysRemaining)} days overdue`
+                      : daysRemaining === 0
+                        ? 'Due today'
+                        : `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`
+                    }
+                  </div>
+                )}
               </Link>
             )
           })}
@@ -239,7 +243,6 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold px-4 pt-4">Team Activity</h2>
           <div className="divide-y divide-border">
             {activityStream.slice(0, 6).map((activity) => {
-              const actor = userById(activity.actor)
               const iconStyle = ACTIVITY_ICONS[activity.type] ?? ACTIVITY_ICONS.filed
 
               return (
@@ -251,23 +254,20 @@ export default function DashboardPage() {
                        iconStyle.label === 'verified' ? '✓' :
                        iconStyle.label === 'triaged' ? 'T' :
                        iconStyle.label === 'assigned' ? '→' :
-                       iconStyle.label === 'commented' ? '"' :
+                       iconStyle.label === 'commented on' ? '"' :
                        '◀'}
                     </span>
                   </div>
-                  <UserHoverCard user={actor} size={28} className="shrink-0" />
+                  <UserHoverCard user={activity.actor} size={28} className="shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">
-                      <span className="font-medium">{actor?.name}</span>
+                      <span className="font-medium">{activity.actor?.name}</span>
                       {' '}
                       <span className="text-muted-foreground">{iconStyle.label}</span>
                       {activity.toActor && (
                         <>
                           {' '}to{' '}
-                          {(() => {
-                            const toUser = userById(activity.toActor)
-                            return <span className="font-medium">{toUser?.name}</span>
-                          })()}
+                          <span className="font-medium">{activity.toActor.name}</span>
                         </>
                       )}
                       {' '}
@@ -297,7 +297,6 @@ export default function DashboardPage() {
         <section className="rounded-xl border border-border bg-card">
           <h2 className="text-sm font-semibold px-4 pt-4">Stale Items</h2>
           <div className="divide-y divide-border">
-            {/* Awaiting Triage */}
             {staleByCategory.awaiting_triage.length > 0 && (
               <div className="px-4 py-2 bg-amber-50/50 dark:bg-amber-900/10">
                 <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-2">
@@ -310,7 +309,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />
-                    <span className="font-mono text-xs text-muted-foreground">{item.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">{item.waitingHours}h</span>
                   </Link>
@@ -318,32 +317,27 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Awaiting Verification */}
             {staleByCategory.awaiting_verification.length > 0 && (
               <div className="px-4 py-2 bg-blue-50/50 dark:bg-blue-900/10">
                 <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-2">
                   Awaiting Verification ({staleByCategory.awaiting_verification.length})
                 </p>
-                {staleByCategory.awaiting_verification.slice(0, 2).map((item) => {
-                  const fixer = userById(item.fixerId)
-                  return (
-                    <Link
-                      key={item.id}
-                      to={`/issue/${item.id}`}
-                      className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                      <span className="font-mono text-xs text-muted-foreground">{item.id}</span>
-                      <p className="text-sm truncate flex-1">{item.title}</p>
-                      <UserHoverCard user={fixer} size={18} />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">{Math.round(item.waitingHours / 24)}d</span>
-                    </Link>
-                  )
-                })}
+                {staleByCategory.awaiting_verification.slice(0, 2).map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/issue/${item.id}`}
+                    className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
+                    <p className="text-sm truncate flex-1">{item.title}</p>
+                    {item.fixer && <UserHoverCard user={item.fixer} size={18} />}
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{Math.round(item.waitingHours / 24)}d</span>
+                  </Link>
+                ))}
               </div>
             )}
 
-            {/* Low Hanging Fruit */}
             {staleByCategory.low_hanging_fruit.length > 0 && (
               <div className="px-4 py-2 bg-green-50/50 dark:bg-green-900/10">
                 <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-2">
@@ -356,13 +350,21 @@ export default function DashboardPage() {
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />
-                    <span className="font-mono text-xs text-muted-foreground">{item.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
                       ~{item.estimatedTime}
                     </span>
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {staleByCategory.awaiting_triage.length === 0 &&
+             staleByCategory.awaiting_verification.length === 0 &&
+             staleByCategory.low_hanging_fruit.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                No stale items — great work!
               </div>
             )}
           </div>

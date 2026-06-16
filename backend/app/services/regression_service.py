@@ -88,6 +88,7 @@ class RegressionService:
             cycle_number=regression_number + 1,
             regression_history_id=history.id,
             cycle_start_at=now,
+            assignee_id=issue.assignee_id,
         ))
         await db.flush()
 

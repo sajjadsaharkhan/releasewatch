@@ -220,6 +220,15 @@ export default function ReleaseDetailPage() {
     return { daysSinceCreated, daysUntilTarget, isDelayed: daysUntilTarget < 0, isToday: daysUntilTarget === 0 }
   }, [release])
 
+  const timelineMilestones = useMemo(() => {
+    if (!release) return []
+    const fmt = (ts) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+    return [
+      { label: 'Created',  date: fmt(release.created_at), done: true },
+      { label: 'Released', date: fmt(release.target_date), done: release.status === 'released' },
+    ]
+  }, [release])
+
   const activeBlockers = useMemo(() =>
     issues.filter(i => i.is_release_blocker && !['verified', 'closed'].includes(i.status)),
     [issues]
@@ -328,6 +337,18 @@ export default function ReleaseDetailPage() {
           </div>
         </div>
       )
+    } else if (release.status === 'released') {
+      return (
+        <div className="flex items-center gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+            <Ship className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">Shipped</p>
+            <p className="text-sm text-muted-foreground">Release has been shipped to production</p>
+          </div>
+        </div>
+      )
     } else if (release.blockers > 0) {
       return (
         <div className="flex items-center gap-3">
@@ -385,6 +406,13 @@ export default function ReleaseDetailPage() {
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
           <XCircle className="h-3.5 w-3.5" />
           NO-GO
+        </span>
+      )
+    } else if (release.status === 'released') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-semibold">
+          <Ship className="h-3.5 w-3.5" />
+          Shipped
         </span>
       )
     } else if (release.blockers > 0) {
@@ -461,6 +489,7 @@ export default function ReleaseDetailPage() {
                 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
                 release.goNoGo === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
                 release.goNoGo === 'blocked' ? 'bg-red-100 dark:bg-red-900/30' :
+                release.status === 'released' ? 'bg-blue-100 dark:bg-blue-900/30' :
                 release.blockers > 0 ? 'bg-red-100 dark:bg-red-900/30' :
                 release.openIssues > 0 ? 'bg-amber-100 dark:bg-amber-900/30' :
                 'bg-green-100 dark:bg-green-900/30'
@@ -469,6 +498,8 @@ export default function ReleaseDetailPage() {
                   <Ship className="h-6 w-6 text-green-600 dark:text-green-400" />
                 ) : release.goNoGo === 'blocked' ? (
                   <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                ) : release.status === 'released' ? (
+                  <Ship className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 ) : release.blockers > 0 ? (
                   <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
                 ) : release.openIssues > 0 ? (
@@ -487,6 +518,8 @@ export default function ReleaseDetailPage() {
                     ? `Approved by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Ready for deployment.`
                     : release.goNoGo === 'blocked'
                     ? `Blocked by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Critical issues must be resolved.`
+                    : release.status === 'released'
+                    ? 'This release has been shipped to production.'
                     : release.blockers > 0
                     ? `${release.blockers} critical issue${release.blockers > 1 ? 's' : ''} blocking release.`
                     : release.openIssues > 0
@@ -496,34 +529,68 @@ export default function ReleaseDetailPage() {
               </div>
             </div>
 
-            {/* Timeline Progress Bar */}
+            {/* Timeline Progress */}
             <div className="mb-5">
               <div className="flex items-center justify-between text-xs mb-2">
                 <span className="text-muted-foreground">Timeline Progress</span>
-                <InfoTooltip
-                  content={`${daysInfo.daysSinceCreated} days elapsed since release creation`}
-                  side="top"
-                />
+                {release.status === 'released'
+                  ? <InfoTooltip content="Actual milestones reached in this release's QA lifecycle" side="top" />
+                  : <InfoTooltip content={`${daysInfo.daysSinceCreated} days elapsed since release creation`} side="top" />
+                }
               </div>
-              <div className="relative h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    'absolute top-0 left-0 h-full rounded-full transition-all duration-500',
-                    daysInfo.isDelayed
-                      ? 'bg-red-500'
-                      : daysInfo.isToday
-                      ? 'bg-amber-500'
-                      : 'bg-green-500'
-                  )}
-                  style={{
-                    width: `${Math.min(100, (daysInfo.daysSinceCreated / (daysInfo.daysSinceCreated + Math.max(0, daysInfo.daysUntilTarget))) * 100)}%`
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                <span>Created {new Date(release.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                <span>Target {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-              </div>
+              {release.status === 'released' ? (() => {
+                const n = timelineMilestones.length
+                const lastDone = timelineMilestones.reduce((acc, m, i) => m.done ? i : acc, -1)
+                const factor = lastDone <= 0 ? 0 : lastDone / (n - 1)
+                return (
+                  <div className="relative">
+                    <div className="absolute top-[5px] left-[5px] right-[5px] h-0.5 bg-zinc-200 dark:bg-zinc-700" />
+                    {factor > 0 && (
+                      <div
+                        className="absolute top-[5px] left-[5px] h-0.5 bg-indigo-500 transition-all duration-500"
+                        style={{ width: `calc(${factor * 100}% - ${factor * 10}px)` }}
+                      />
+                    )}
+                    <div className="relative flex justify-between">
+                      {timelineMilestones.map((m) => (
+                        <div key={m.label} className="flex flex-col items-center gap-1">
+                          <div className={cn(
+                            'w-2.5 h-2.5 rounded-full border-2 z-10',
+                            m.done
+                              ? 'bg-indigo-500 border-indigo-500'
+                              : 'bg-card border-zinc-300 dark:border-zinc-600'
+                          )} />
+                          <span className={cn(
+                            'text-[9px] font-medium text-center leading-tight',
+                            m.done ? 'text-foreground' : 'text-muted-foreground'
+                          )}>{m.label}</span>
+                          {m.date && (
+                            <span className="text-[8px] text-muted-foreground text-center leading-none">{m.date}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })() : (
+                <>
+                  <div className="relative h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        'absolute top-0 left-0 h-full rounded-full transition-all duration-500',
+                        daysInfo.isDelayed ? 'bg-red-500' : daysInfo.isToday ? 'bg-amber-500' : 'bg-green-500'
+                      )}
+                      style={{
+                        width: `${Math.min(100, (daysInfo.daysSinceCreated / (daysInfo.daysSinceCreated + Math.max(0, daysInfo.daysUntilTarget))) * 100)}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
+                    <span>Created {new Date(release.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    <span>Target {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Stats Row */}
@@ -761,7 +828,7 @@ export default function ReleaseDetailPage() {
                 icon="trending-down"
                 tone={filteredRegressionRate > 15 ? 'red' : filteredRegressionRate > 8 ? 'amber' : 'green'}
                 delta={filteredRegressionRate > 15 ? 'High' : filteredRegressionRate > 8 ? 'Moderate' : 'Low'}
-                description={`${filteredRegressionCount} regressions out of ${filteredVerifiedIssues + filteredRegressionCount} verified`}
+                description={`${filteredRegressionCount} regressions out of ${filteredVerifiedCycles + filteredRegressionCount} verified`}
                 tooltip="The percentage of fixed issues that failed QA and were sent back to development. Insight: High rates indicate poor developer testing or fragile code architecture. It directly causes QA fatigue."
               />
             </div>

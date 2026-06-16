@@ -14,6 +14,7 @@ class ActorInfo(BaseModel):
 
     id: int
     name: str
+    username: str
     avatar_color: str
     avatar_url: Optional[str] = None
 
@@ -27,6 +28,8 @@ class InboxItemResponse(BaseModel):
     actor: Optional[ActorInfo] = None
     issue_id: Optional[str] = None   # "issue-{number}" format
     issue_title: Optional[str] = None
+    timeline_id: Optional[int] = None
+    meta: Optional[dict] = None
     created_at: datetime
 
 

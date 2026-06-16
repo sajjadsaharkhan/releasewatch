@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { TrendingDown, Clock, Layers, Info } from 'lucide-react'
-import { reportsApi } from '../lib/api'
-import { MOCK_REGRESSION_DATA, MOCK_LABELS } from '../data/mockData'
+import { reportsApi, labelsApi } from '../lib/api'
+import { useToast } from '../hooks/useToast'
 import {
   RegressionFilters,
   MetricCard,
@@ -17,6 +17,17 @@ import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { cn } from '../lib/cn'
 
+const PRESET_DAYS = { '1d': 1, '7d': 7, '14d': 14, '30d': 30, '90d': 90 }
+
+function dateRangeToParams(dateRange) {
+  if (!dateRange?.preset || dateRange.preset === 'all') return {}
+  const days = PRESET_DAYS[dateRange.preset]
+  if (!days) return {}
+  const from = new Date()
+  from.setDate(from.getDate() - days)
+  return { date_from: from.toISOString().slice(0, 10) }
+}
+
 export default function RegressionsPage() {
   const [filters, setFilters] = useState({
     dateRange: { preset: '30d' },
@@ -24,26 +35,29 @@ export default function RegressionsPage() {
   })
 
   const [data, setData] = useState(null)
+  const [labels, setLabels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        // In production, replace with actual API call
-        // const response = await reportsApi.regressions({
-        //   project_id: filters.project === 'all' ? null : filters.project,
-        //   n_releases: 6
-        // })
-        // setData(response.data)
-
-        // For now, use mock data
-        setData(MOCK_REGRESSION_DATA)
+        const [reportRes, labelsRes] = await Promise.all([
+          reportsApi.regressions({
+            n_releases: 6,
+            ...dateRangeToParams(filters.dateRange),
+            ...(filters.selectedLabel ? { label: filters.selectedLabel } : {}),
+          }),
+          labelsApi.list(),
+        ])
+        setData(reportRes.data)
+        // Use label name as value so selectedLabel is the raw name string the API accepts
+        setLabels(labelsRes.data.map((l) => ({ value: l.name, label: l.name, color: l.color })))
       } catch (err) {
         setError(err)
-        // Fallback to mock data on error
-        setData(MOCK_REGRESSION_DATA)
+        toast.error('Failed to load regression data')
       } finally {
         setLoading(false)
       }
@@ -62,18 +76,18 @@ export default function RegressionsPage() {
     )
   }
 
-  if (error) {
+  if (error || !data) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
           <Info className="w-5 h-5" />
-          <span>Using demo data. API unavailable.</span>
+          <span>Failed to load regression data. Please try again.</span>
         </div>
       </div>
     )
   }
 
-  const kpi = data || MOCK_REGRESSION_DATA
+  const kpi = data
 
   // Prepare team table columns
   const detectorColumns = [
@@ -153,7 +167,7 @@ export default function RegressionsPage() {
         <RegressionFilters
           filters={filters}
           onFiltersChange={setFilters}
-          labels={MOCK_LABELS.map((l) => ({ value: l.id, label: l.name, color: l.color }))}
+          labels={labels}
         />
       </div>
 
@@ -293,6 +307,7 @@ export default function RegressionsPage() {
           title="Chronic & Recurring Issues"
           description="Issues that have regressed multiple times. These require focused attention to identify and fix the underlying root cause."
           issues={kpi.topRegressionIssues}
+          labels={labels}
         />
       </div>
     </div>

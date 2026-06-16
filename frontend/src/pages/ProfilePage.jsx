@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import React, { useState, useRef, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Camera } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
@@ -11,8 +11,9 @@ import { Textarea } from '../components/ui/Textarea'
 import { ImageCropper } from '../components/ui/ImageCropper'
 import { MetricCard } from '../components/common/MetricCard'
 import { IssueTable } from '../components/common/IssueTable'
-import { MOCK_ISSUES, userByUsername } from '../data/mockData'
-import { userApi } from '../lib/api'
+import { userApi, issuesApi } from '../lib/api'
+import { useApp } from '../hooks/useApp'
+import { useToast } from '../hooks/useToast'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -27,7 +28,6 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-// Extract dominant colors from an image URL
 function extractDominantColors(imageUrl, callback) {
   const img = new Image()
   img.crossOrigin = 'Anonymous'
@@ -63,59 +63,90 @@ function extractDominantColors(imageUrl, callback) {
   img.src = imageUrl
 }
 
-// Generate mock activity data
-function generateActivity() {
-  return Array.from({ length: 12 }, (_, i) => ({
-    month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
-    reported: Math.max(0, Math.round(Math.random() * 10)),
-    fixed: Math.max(0, Math.round(Math.random() * 8)),
-  }))
-}
-
-const CURRENT_USER = 'u-1'
-
 export default function ProfilePage() {
   const { username } = useParams()
-  const user = userByUsername(username ?? 'sajjad')
+  const navigate = useNavigate()
+  const { user: currentUser } = useApp()
+  const { toast } = useToast()
+
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
+  const [reportedIssues, setReportedIssues] = useState([])
+  const [assignedIssues, setAssignedIssues] = useState([])
+  const [activityData, setActivityData] = useState([])
+
   const [activeTab, setActiveTab] = useState('public')
-  const [editForm, setEditForm] = useState(user ? {
-    name: user.name,
-    username: user.username,
-    title: user.title,
-    bio: user.bio,
-    avatar_url: user.avatar_url,
-  } : {})
+  const [editForm, setEditForm] = useState({})
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
   const [cropperImage, setCropperImage] = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
   const [headerColors, setHeaderColors] = useState([])
   const fileInputRef = useRef(null)
 
+  const effectiveUsername = username ?? currentUser?.username
+
+  useEffect(() => {
+    if (!effectiveUsername) return
+    setLoading(true)
+    setNotFound(false)
+
+    userApi.getByUsername(effectiveUsername)
+      .then(res => {
+        const u = res.data
+        setUser(u)
+        setEditForm({
+          name: u.name,
+          username: u.username,
+          title: u.title ?? '',
+          bio: u.bio ?? '',
+          avatar_url: u.avatar_url,
+        })
+        setAvatarPreview(u.avatar_url)
+        if (u.avatar_url) {
+          extractDominantColors(u.avatar_url, setHeaderColors)
+        }
+        return u
+      })
+      .then(u => {
+        Promise.all([
+          issuesApi.list({ reporter_id: u.id, size: 200 }),
+          issuesApi.list({ assignee_id: u.id, size: 200 }),
+          userApi.getActivity(u.id),
+        ]).then(([reportedRes, assignedRes, activityRes]) => {
+          setReportedIssues(reportedRes.data?.items ?? [])
+          setAssignedIssues(assignedRes.data?.items ?? [])
+          setActivityData(activityRes.data ?? [])
+        }).catch(() => {
+          toast.error('Failed to load profile data')
+        })
+      })
+      .catch(err => {
+        if (err?.response?.status === 404) {
+          setNotFound(true)
+        } else {
+          toast.error('Failed to load profile')
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [effectiveUsername])
+
   const updateHeaderColors = (url) => {
     if (url) {
-      extractDominantColors(url, (colors) => {
-        setHeaderColors(colors)
-      })
+      extractDominantColors(url, setHeaderColors)
     } else {
       setHeaderColors([])
     }
   }
 
-  React.useEffect(() => {
-    updateHeaderColors(user?.avatar_url)
-  }, [user?.avatar_url])
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click()
-  }
+  const handleAvatarClick = () => fileInputRef.current?.click()
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader()
-      reader.onload = (event) => {
-        setCropperImage(event.target.result)
-      }
+      reader.onload = (event) => setCropperImage(event.target.result)
       reader.readAsDataURL(file)
     }
     e.target.value = ''
@@ -129,45 +160,47 @@ export default function ProfilePage() {
     setCropperImage(null)
   }
 
-  const handleCropCancel = () => {
-    setCropperImage(null)
-  }
+  const handleCropCancel = () => setCropperImage(null)
 
   const handleSave = async () => {
     try {
       const data = {}
       if (editForm.name !== user.name) data.name = editForm.name
       if (editForm.username !== user.username) data.username = editForm.username
-      if (editForm.title !== user.title) data.title = editForm.title
-      if (editForm.bio !== user.bio) data.bio = editForm.bio
+      if (editForm.title !== (user.title ?? '')) data.title = editForm.title
+      if (editForm.bio !== (user.bio ?? '')) data.bio = editForm.bio
       if (editForm.avatar_url !== user.avatar_url) data.avatar_url = editForm.avatar_url
 
       if (Object.keys(data).length > 0) {
         await userApi.updateProfile(data)
-        alert('Profile updated successfully!')
+        setUser(u => ({ ...u, ...data }))
+        toast.success('Profile updated')
       }
-    } catch (error) {
-      console.error('Failed to update profile:', error)
-      alert('Failed to update profile. Please try again.')
+    } catch {
+      toast.error('Failed to update profile')
     }
   }
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">User @{username} not found.</p>
+        <p className="text-muted-foreground">Loading…</p>
       </div>
     )
   }
 
-  const isOwnProfile = user.id === CURRENT_USER
-  const reportedIssues = MOCK_ISSUES.filter((i) => i.reporter === user.id)
-  const assignedIssues = MOCK_ISSUES.filter((i) => i.assignee === user.id)
+  if (notFound || !user) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">User @{effectiveUsername} not found.</p>
+      </div>
+    )
+  }
+
+  const isOwnProfile = currentUser?.username === user.username
   const fixedIssues = assignedIssues.filter((i) => ['fixed', 'verified'].includes(i.status))
   const fixRate = assignedIssues.length > 0 ? Math.round((fixedIssues.length / assignedIssues.length) * 100) : 0
-  const activityData = generateActivity()
 
-  // Severity breakdown
   const sevBreakdown = Object.keys(SEV_COLORS).map((sev) => ({
     name: sev,
     value: reportedIssues.filter((i) => i.severity === sev).length,
@@ -202,10 +235,7 @@ export default function ProfilePage() {
         {/* Avatar row */}
         <div className="flex items-end justify-between -mt-12 mb-4">
           {isOwnProfile ? (
-            <div
-              className="relative group cursor-pointer"
-              onClick={handleAvatarClick}
-            >
+            <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
               <Avatar user={{ ...user, avatar_url: avatarPreview }} size={80} ring className="border-4 border-background" />
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                 <Camera className="h-6 w-6 text-white" />
@@ -230,16 +260,14 @@ export default function ProfilePage() {
 
         {/* Top section: cards (2/3) + severity breakdown (1/3) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-          {/* Metric cards - 2 columns worth */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" description="Total issues reported by this user" />
             <MetricCard label="Fixed" value={fixedIssues.length} icon="check-circle" tone="green" description="Issues resolved and verified" />
             <MetricCard label="Regression Rate" value={`${user.regressionRate ?? 0}%`} icon="trending-down" tone="red" description="Percentage of fixed issues that regressed" />
-            <MetricCard label="Mean Time to Triage" value={`${user.mtt ?? 0}h`} icon="clock" tone="blue" description="Average time from report to triage" />
-            <MetricCard label="Mean Time to Verify" value={`${user.mtv ?? 0}h`} icon="shield-check" tone="green" description="Average time from fix to verification" />
-            <MetricCard label="Mean Time to Fix" value={`${user.mtf ?? 0}h`} icon="wrench" tone="amber" description="Average time from triage to fix" />
+            <MetricCard label="Mean Time to Triage" value={user.mtt != null ? `${user.mtt}h` : '—'} icon="clock" tone="blue" description="Average time from report to triage" />
+            <MetricCard label="Mean Time to Verify" value={user.mtv != null ? `${user.mtv}h` : '—'} icon="shield-check" tone="green" description="Average time from fix to verification" />
+            <MetricCard label="Mean Time to Fix" value={user.mtf != null ? `${user.mtf}h` : '—'} icon="wrench" tone="amber" description="Average time from triage to fix" />
           </div>
-          {/* Severity breakdown - 1 column */}
           <div>
             <div className="rounded-xl border border-border bg-card p-5 h-full min-h-[344px] flex flex-col">
               <h3 className="text-sm font-semibold mb-3">Severity breakdown</h3>
@@ -262,7 +290,6 @@ export default function ProfilePage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} className="mb-5" />
 
-        {/* Tab content */}
         {activeTab === 'public' && (
           <div>
             <h3 className="text-sm font-semibold mb-3">Activity (this year)</h3>
@@ -284,20 +311,19 @@ export default function ProfilePage() {
 
         {activeTab === 'assigned' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <IssueTable issues={assignedIssues} />
+            <IssueTable issues={assignedIssues} onOpen={(i) => navigate(`/issue/issue-${i.issue_number}`)} />
           </div>
         )}
 
         {activeTab === 'reported' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <IssueTable issues={reportedIssues} />
+            <IssueTable issues={reportedIssues} onOpen={(i) => navigate(`/issue/issue-${i.issue_number}`)} />
           </div>
         )}
 
         {activeTab === 'edit' && isOwnProfile && (
           <div className="max-w-md space-y-4">
             <h3 className="text-sm font-semibold">Edit Profile</h3>
-
             {[
               ['name', 'Full name'],
               ['username', 'Username'],
@@ -323,7 +349,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Cropper modal */}
         {cropperImage && (
           <ImageCropper
             image={cropperImage}
@@ -354,7 +379,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -362,15 +386,6 @@ export default function ProfilePage() {
         accept="image/*"
         className="hidden"
       />
-
-      {/* Cropper modal */}
-      {cropperImage && (
-        <ImageCropper
-          image={cropperImage}
-          onSave={handleCropSave}
-          onCancel={handleCropCancel}
-        />
-      )}
     </div>
   )
 }

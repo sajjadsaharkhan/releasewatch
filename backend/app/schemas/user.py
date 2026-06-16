@@ -8,6 +8,42 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.db.models.user import UserRole
 
 
+class UserProfileResponse(BaseModel):
+    """Extended user profile with computed stats — used by GET /users/by-username/:username."""
+
+    id: int
+    name: str
+    username: str
+    role: UserRole
+    title: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    avatar_color: str
+    is_active: bool
+
+    # Camelcase aliases matching frontend expectations
+    joinedAt: Optional[str] = None
+    tgConnected: bool = False
+    tgHandle: Optional[str] = None
+
+    # Computed issue stats
+    reported: int = 0
+    fixed: int = 0
+    fixRate: Optional[float] = None
+    regressionRate: int = 0
+    mtt: Optional[float] = None
+    mtv: Optional[float] = None
+    mtf: Optional[float] = None
+
+
+class ActivityDataPoint(BaseModel):
+    """Monthly activity data point for profile chart."""
+
+    month: str
+    reported: int
+    fixed: int
+
+
 class UserResponse(BaseModel):
     """User profile response."""
 

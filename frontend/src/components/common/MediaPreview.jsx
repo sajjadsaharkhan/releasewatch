@@ -124,10 +124,11 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProg
   const hasError = uploadProgress === -1
 
   return (
-    <button
+    <div
       onClick={() => !uploading && !hasError && onClick?.(attachment)}
       className={cn(
         'group relative rounded-lg border border-border overflow-hidden bg-muted transition-colors',
+        onClick && !uploading && !hasError && 'cursor-pointer',
         uploading && 'opacity-80',
         hasError && 'border-red-500/50',
         !uploading && !hasError && 'hover:border-primary/50'
@@ -255,7 +256,7 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProg
           {attachment.type}
         </span>
       </div>
-    </button>
+    </div>
   )
 }
 

@@ -40,6 +40,13 @@ class IssueCycle(Base):
         nullable=True,
         doc="Regression event that started this cycle. NULL for cycle 1."
     )
+    assignee_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="Developer assigned during this cycle. Set at cycle start from issue.assignee_id and updated on reassignment."
+    )
     cycle_start_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
         doc="filed_at for cycle 1; regression detected_at for later cycles."
@@ -54,6 +61,7 @@ class IssueCycle(Base):
 
     issue = relationship("Issue", back_populates="cycles")
     regression_history = relationship("RegressionHistory", foreign_keys=[regression_history_id])
+    assignee = relationship("User", foreign_keys=[assignee_id])
 
     def __repr__(self) -> str:
         return f"<IssueCycle issue={self.issue_id} cycle={self.cycle_number}>"

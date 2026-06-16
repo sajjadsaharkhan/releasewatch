@@ -170,6 +170,18 @@ class IssueService:
             delta = now - issue.filed_at
             issue.time_to_triage_h = round(delta.total_seconds() / 3600, 2)
 
+        from app.db.models.issue_cycle import IssueCycle
+        active_cycle_result = await db.execute(
+            select(IssueCycle)
+            .where(IssueCycle.issue_id == issue_id)
+            .order_by(IssueCycle.cycle_number.desc())
+            .limit(1)
+        )
+        active_cycle = active_cycle_result.scalar_one_or_none()
+        if active_cycle and active_cycle.assignee_id != assignee_id:
+            active_cycle.assignee_id = assignee_id
+            db.add(active_cycle)
+
         timeline_svc = TimelineService()
         await timeline_svc.create_event(
             db=db,
@@ -505,6 +517,7 @@ class IssueService:
                 inbox_triggers.append(InboxEventType.blocker_filed)
             else:
                 events_to_emit.append((TimelineEventType.blocker_cleared, {}))
+                inbox_triggers.append(InboxEventType.blocker_cleared)
             issue.is_release_blocker = payload["is_release_blocker"]
 
         # ── Assignee ──────────────────────────────────────────────────────────
@@ -519,6 +532,18 @@ class IssueService:
                 ))
                 inbox_triggers.append(InboxEventType.assigned)
                 issue.assignee_id = new_assignee
+
+                from app.db.models.issue_cycle import IssueCycle as _IssueCycle
+                _cycle_result = await db.execute(
+                    select(_IssueCycle)
+                    .where(_IssueCycle.issue_id == issue_id)
+                    .order_by(_IssueCycle.cycle_number.desc())
+                    .limit(1)
+                )
+                _active_cycle = _cycle_result.scalar_one_or_none()
+                if _active_cycle:
+                    _active_cycle.assignee_id = new_assignee
+                    db.add(_active_cycle)
 
         # ── Labels ────────────────────────────────────────────────────────────
         if "labels" in payload:
@@ -569,7 +594,8 @@ class IssueService:
                     TimelineEventType.status_changed,
                     {"from": old_status_val, "to": new_status_val},
                 ))
-                inbox_triggers.append(InboxEventType.status_changed)
+                if new_status_val != IssueStatus.regression.value:
+                    inbox_triggers.append(InboxEventType.status_changed)
                 issue.status = new_status
 
                 now = datetime.now(tz=timezone.utc)
@@ -631,6 +657,7 @@ class IssueService:
                     release = release_result.scalar_one_or_none()
                     if release:
                         await regression_service.record_regression(db, issue, release, actor)
+                    inbox_triggers.append(InboxEventType.regression)
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",

@@ -4,21 +4,20 @@ import { cn } from '../../lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { StatusBadge } from '../ui/Badge'
-import { MOCK_PROJECTS } from '../../data/mockData'
+import { releasesApi } from '../../lib/api'
+import { useToast } from '../../hooks/useToast'
 
 export function EditReleaseModal({ open, onClose, release, onSave }) {
+  const { toast } = useToast()
   const [form, setForm] = useState({
     version: '',
     targetDate: '',
     description: '',
     status: 'active',
-    goNoGo: null,
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
-  // Initialize form when release changes
   useEffect(() => {
     if (release) {
       setForm({
@@ -26,7 +25,6 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
         targetDate: release.targetDate ? new Date(release.targetDate).toISOString().split('T')[0] : '',
         description: release.description || '',
         status: release.status || 'active',
-        goNoGo: release.goNoGo || null,
       })
     }
   }, [release])
@@ -40,8 +38,6 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
     const newErrors = {}
     if (!form.version.trim()) {
       newErrors.version = 'Version is required'
-    } else if (!/^[v]?\d+\.\d+\.\d+$/.test(form.version.trim())) {
-      newErrors.version = 'Version must be in format v1.2.3 or 1.2.3'
     }
     if (!form.targetDate) {
       newErrors.targetDate = 'Target date is required'
@@ -56,22 +52,18 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
 
     setLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 600))
-
-      const updatedRelease = {
-        ...release,
+      const res = await releasesApi.update(release.id, {
         version: form.version,
-        targetDate: new Date(form.targetDate).toISOString(),
-        description: form.description,
+        target_date: form.targetDate ? new Date(form.targetDate).toISOString() : null,
+        description: form.description || null,
         status: form.status,
-        goNoGo: form.goNoGo,
-      }
-
-      onSave?.(updatedRelease)
+      })
+      toast({ title: 'Release updated' })
+      onSave?.(res.data)
       onClose()
     } catch (err) {
-      console.error('Failed to update release:', err)
+      toast({ title: 'Failed to update release' })
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -185,7 +177,7 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
             <div className="text-xs text-muted-foreground">
               <p className="font-medium mb-1 text-foreground">Release Details</p>
               <p>
-                Project: <span className="font-medium text-foreground">{MOCK_PROJECTS.find(p => p.id === release?.projectId)?.name || 'Unknown'}</span>
+                Project: <span className="font-medium text-foreground">{release?.projectName || 'Unknown'}</span>
               </p>
               <p>
                 Created: <span className="font-medium text-foreground">{release?.createdAt ? new Date(release.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}</span>
