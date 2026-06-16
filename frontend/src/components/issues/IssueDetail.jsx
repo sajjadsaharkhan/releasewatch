@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { cn } from '../../lib/cn'
@@ -10,6 +11,10 @@ import { IssueSidebar } from './IssueSidebar'
 
 export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
   const { user: currentUser } = useApp()
+  const location = useLocation()
+  const { commentId } = location.state ?? {}
+  const hashTarget = location.hash?.slice(1) // e.g. "event-42" or "comment-7"
+  const scrolledRef = useRef(false)
 
   const {
     localIssue,
@@ -33,6 +38,25 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
 
   const [pendingChange, setPendingChange] = useState(null)
   const [labelPickerOpen, setLabelPickerOpen] = useState(false)
+
+  useEffect(() => {
+    if (scrolledRef.current) return
+    const targetId = commentId ? `comment-${commentId}` : hashTarget
+    if (!targetId) return
+    // Wait for the first page to arrive
+    if (!comments.length && !events.length) return
+    const el = document.getElementById(targetId)
+    if (el) {
+      scrolledRef.current = true
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('timeline-highlighted')
+      return
+    }
+    // Element not in DOM yet — keep loading pages until it appears or we run out
+    if (timelineHasMore && !timelineLoadingMore) {
+      loadMoreTimeline()
+    }
+  }, [commentId, hashTarget, comments, events, timelineHasMore, timelineLoadingMore, loadMoreTimeline])
 
   function confirm({ title, body, confirmLabel = 'Confirm', tone = 'default', onConfirm }) {
     setPendingChange({ title, body, confirmLabel, tone, onConfirm })

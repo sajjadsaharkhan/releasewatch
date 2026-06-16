@@ -17,6 +17,7 @@ export function Topbar() {
 
   // Use authenticated user if available, otherwise fall back to mock user
   const currentUser = user ? { ...user, username: user.username, name: user.name, avatar_color: user.avatar_color || '#6366f1' } : userById('u-1')
+  const isAdmin = ['admin', 'cto'].includes(user?.role)
 
   const handleLogout = async () => {
     await logout()
@@ -101,9 +102,11 @@ export function Topbar() {
         <DropdownItem icon={User} onClick={() => navigate(`/u/${currentUser?.username}`)}>
           Profile
         </DropdownItem>
-        <DropdownItem icon={Settings} onClick={() => navigate('/settings')}>
-          Settings
-        </DropdownItem>
+        {isAdmin && (
+          <DropdownItem icon={Settings} onClick={() => navigate('/settings')}>
+            Settings
+          </DropdownItem>
+        )}
         <DropdownSep />
         <DropdownItem icon={LogOut} destructive onClick={handleLogout}>
           Sign out
@@ -150,16 +153,18 @@ export function Topbar() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => {
-              navigate('/settings')
-              setMobileMenuOpen(false)
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent text-sm"
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                navigate('/settings')
+                setMobileMenuOpen(false)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent text-sm"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
+          )}
         </div>
       )}
     </header>

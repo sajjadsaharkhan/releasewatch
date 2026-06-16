@@ -10,6 +10,7 @@ comment              → reporter + assignee (if different from actor)
 mention              → mentioned users (parsed from body)
 regression           → reporter + assignee + triage leads
 blocker_filed        → all triage leads + CTOs
+blocker_cleared      → all triage leads + CTOs + assignee + reporter
 status_changed       → assignee + reporter
 verified             → reporter + assignee
 filed                → triage leads
@@ -18,6 +19,7 @@ release_changed      → assignee + reporter
 attachment_added     → assignee + reporter
 """
 
+import logging
 import re
 from typing import Any
 
@@ -29,6 +31,7 @@ from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User, UserRole
 
+logger = logging.getLogger(__name__)
 
 # Regex to find @username mentions in comment bodies
 _MENTION_RE = re.compile(r"@([a-z0-9_.-]+)", re.IGNORECASE)
@@ -45,6 +48,7 @@ class InboxFanOutService:
         actor: User,
         timeline_event: IssueTimeline | None = None,
         extra_meta: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> list[InboxItem]:
         """Create inbox items for all users who should be notified.
 
@@ -69,11 +73,15 @@ class InboxFanOutService:
             All newly created inbox items (already added to the session).
         """
         recipients: set[str] = set()  # collect user IDs as strings to avoid duplicates
+        # Users in this set always receive a notification, even if they are the actor
+        # (e.g. self-assignment — you assigned it to yourself, you should still see it).
+        forced_recipients: set[str] = set()
 
         # ── Determine recipient set by trigger type ────────────────────────────
         if trigger == InboxEventType.assigned:
             if issue.assignee_id:
-                recipients.add(str(issue.assignee_id))
+                # Use forced_recipients so self-assignment still creates a notification.
+                forced_recipients.add(str(issue.assignee_id))
 
         elif trigger == InboxEventType.fixed:
             # Notify the reporter
@@ -88,24 +96,34 @@ class InboxFanOutService:
                 recipients.add(str(issue.reporter_id))
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
-            # Mentions parsed separately below
+            # Prefer 'mention' over 'comment': mentioned users are excluded here
+            # and will receive a separate mention notification instead.
+            for uid in (extra_meta or {}).get("mentioned_user_ids", []):
+                recipients.discard(str(uid))
 
         elif trigger == InboxEventType.mention:
-            meta = extra_meta or {}
+            _mention_extra = extra_meta or {}
             # Fast path: explicit user IDs provided by the comment route
-            explicit_ids = meta.get("mentioned_user_ids", [])
+            explicit_ids = _mention_extra.get("mentioned_user_ids", [])
+            logger.info("[fan_out] mention trigger explicit_ids=%s meta_keys=%s", explicit_ids, list(_mention_extra.keys()))
             if explicit_ids:
                 recipients.update(str(uid) for uid in explicit_ids)
+                logger.info("[fan_out] mention fast-path recipients from explicit_ids=%s", explicit_ids)
             else:
                 # Fallback: parse @username mentions from comment body
-                body = meta.get("body", "")
-                mentioned_usernames = _MENTION_RE.findall(body)
+                body = _mention_extra.get("body", "")
+                mentioned_usernames = [u.lower() for u in _MENTION_RE.findall(body)]
+                logger.info("[fan_out] mention regex fallback body_len=%d found_usernames=%s", len(body), mentioned_usernames)
                 if mentioned_usernames:
                     result = await db.execute(
                         select(User).where(User.username.in_(mentioned_usernames))
                     )
-                    for user in result.scalars().all():
+                    matched_users = list(result.scalars().all())
+                    logger.info("[fan_out] mention DB matched %d users for usernames=%s", len(matched_users), mentioned_usernames)
+                    for user in matched_users:
                         recipients.add(str(user.id))
+                else:
+                    logger.warning("[fan_out] mention fallback: no @usernames found in body")
 
         elif trigger == InboxEventType.regression:
             if issue.reporter_id:
@@ -137,6 +155,16 @@ class InboxFanOutService:
             admins = await self._users_with_role(db, UserRole.admin)
             recipients.update(str(u.id) for u in leads + ctos + admins)
 
+        elif trigger == InboxEventType.blocker_cleared:
+            leads = await self._users_with_role(db, UserRole.triage_lead)
+            ctos = await self._users_with_role(db, UserRole.cto)
+            admins = await self._users_with_role(db, UserRole.admin)
+            recipients.update(str(u.id) for u in leads + ctos + admins)
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+
         elif trigger in (
             InboxEventType.environment_changed,
             InboxEventType.release_changed,
@@ -147,8 +175,12 @@ class InboxFanOutService:
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
 
-        # Remove the actor — they don't get notified of their own actions
+        # Remove the actor — they don't get notified of their own actions,
+        # then re-add any forced recipients (e.g. self-assignment).
+        logger.info("[fan_out] trigger=%s recipients_before_discard=%s actor_id=%s", trigger, recipients, actor.id)
         recipients.discard(str(actor.id))
+        recipients.update(forced_recipients)
+        logger.info("[fan_out] trigger=%s final_recipients=%s", trigger, recipients)
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
         items: list[InboxItem] = []
@@ -160,6 +192,7 @@ class InboxFanOutService:
                 timeline_id=timeline_event.id if timeline_event else None,
                 event_type=trigger,
                 is_read=False,
+                meta=meta,
             )
             db.add(item)
             items.append(item)

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MessageSquare, MoreVertical, Trash2, Edit3 } from 'lucide-react'
+import { MessageSquare, MoreVertical, Trash2, Edit3, Link2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { useToast } from '../../hooks/useToast'
 import { Avatar, UserHoverCard } from '../ui'
 import { Icon } from '../ui/Icon'
 import { Badge, StatusBadge, SeverityBadge, RoleBadge } from '../ui/Badge'
@@ -68,6 +69,13 @@ function EventDot({ type }) {
 
 export function IssueTimeline({ events = [], comments = [], issue, users = [], labels = [], currentUser, onAddComment, onUpdateComment, onDeleteComment, hasMore = false, loadingMore = false, onLoadMore }) {
   const [editingCommentId, setEditingCommentId] = useState(null)
+  const { toast } = useToast()
+
+  const handleCopyLink = (commentId) => {
+    const url = `${window.location.origin}${window.location.pathname}#comment-${commentId}`
+    navigator.clipboard.writeText(url)
+    toast({ title: 'Link copied to clipboard' })
+  }
   const sentinelRef = useRef(null)
 
   useEffect(() => {
@@ -271,7 +279,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
               const ownComment = isOwnComment(item)
 
               return (
-                <li key={item.id ?? idx} className="relative pl-10 pr-2 py-2">
+                <li key={item.id ?? idx} id={`comment-${item.id}`} className="relative pl-10 pr-2 py-2">
                   <div className="absolute left-0 top-2">
                     <UserHoverCard user={actor} size={30}>
                       <Avatar user={actor} size={30} />
@@ -310,29 +318,35 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                               <span className="ml-1 text-zinc-400 dark:text-zinc-500 italic">(edited)</span>
                             )}
                           </span>
-                          {ownComment && (
-                            <Dropdown
-                              align="end"
-                              width={140}
-                              trigger={
-                                <button className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                  <MoreVertical size={13} />
-                                </button>
-                              }
-                            >
-                              {({ close }) => (
-                                <>
-                                  <DropdownItem onClick={() => { setEditingCommentId(item.id); close(); }}>
-                                    <Edit3 size={12} /> Edit
-                                  </DropdownItem>
-                                  <DropdownSep />
-                                  <DropdownItem destructive onClick={() => { handleDeleteComment(item.id); close(); }}>
-                                    <Trash2 size={12} /> Delete
-                                  </DropdownItem>
-                                </>
-                              )}
-                            </Dropdown>
-                          )}
+                          <Dropdown
+                            align="end"
+                            width={150}
+                            trigger={
+                              <button className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                <MoreVertical size={13} />
+                              </button>
+                            }
+                          >
+                            {({ close }) => (
+                              <>
+                                <DropdownItem onClick={() => { handleCopyLink(item.id); close(); }}>
+                                  <Link2 size={12} /> Copy link
+                                </DropdownItem>
+                                {ownComment && (
+                                  <>
+                                    <DropdownSep />
+                                    <DropdownItem onClick={() => { setEditingCommentId(item.id); close(); }}>
+                                      <Edit3 size={12} /> Edit
+                                    </DropdownItem>
+                                    <DropdownSep />
+                                    <DropdownItem destructive onClick={() => { handleDeleteComment(item.id); close(); }}>
+                                      <Trash2 size={12} /> Delete
+                                    </DropdownItem>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </Dropdown>
                         </div>
                       </div>
                       <div className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed">
@@ -367,7 +381,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
 
             // Plain event row
             return (
-              <li key={item.id ?? idx} className="relative pl-10 pr-2 py-1.5 group rounded hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
+              <li key={item.id ?? idx} id={`event-${item.id ?? idx}`} className="relative pl-10 pr-2 py-1.5 group rounded hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
                 <EventDot type={item.type} />
                 <div className="flex items-baseline gap-1.5 text-[13px] flex-wrap text-zinc-500 dark:text-zinc-400">
                   <span className="font-medium text-zinc-700 dark:text-zinc-200">{actor?.name ?? actorId}</span>

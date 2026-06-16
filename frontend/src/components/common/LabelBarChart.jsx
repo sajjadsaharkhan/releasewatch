@@ -3,7 +3,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { cn } from '../../lib/cn'
-import { MOCK_LABELS } from '../../data/mockData'
 
 const LABEL_COLORS = {
   auth: '#6366f1',

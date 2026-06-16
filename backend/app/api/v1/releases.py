@@ -84,9 +84,15 @@ async def _release_to_response(
     db: AsyncSession, release: Release
 ) -> ReleaseResponse:
     """Convert a Release ORM to ReleaseResponse with metrics."""
+    from app.db.models.project import Project
+
     metrics = await _add_release_metrics(db, release)
 
-    # Build the response data
+    project_result = await db.execute(
+        select(Project).where(Project.id == release.project_id)
+    )
+    project = project_result.scalar_one_or_none()
+
     data = {
         "id": release.id,
         "project_id": release.project_id,
@@ -102,6 +108,7 @@ async def _release_to_response(
         "created_by_id": release.created_by_id,
         "created_at": release.created_at,
         "updated_at": release.updated_at,
+        "project_name": project.name if project else None,
         **metrics,
     }
     return ReleaseResponse(**data)

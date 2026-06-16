@@ -4,6 +4,7 @@ from app.db.models.user import User
 from app.db.models.label import Label
 from app.db.models.project import Project
 from app.db.models.release import Release
+from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.issue_attachment import IssueAttachment
@@ -16,6 +17,7 @@ __all__ = [
     "Label",
     "Project",
     "Release",
+    "IssueCycle",
     "Issue",
     "IssueTimeline",
     "IssueAttachment",

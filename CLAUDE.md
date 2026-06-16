@@ -204,3 +204,9 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## IMPORTANT: Token Efficiency
+
+**Always** run `graphify query "<question>"` before using Grep/Glob/Read on this codebase.
+The graph is at graphify-out/graph.json (222 files, 1657 nodes).
+Direct file searching without consulting the graph first is wasteful and forbidden.

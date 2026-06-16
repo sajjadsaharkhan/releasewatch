@@ -23,6 +23,8 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
 
+const ADMIN_ROLES = ['admin', 'cto']
+
 // Protected route wrapper
 function ProtectedRoute({ children }) {
   const { isAuthenticated, authLoading } = useApp()
@@ -38,6 +40,30 @@ function ProtectedRoute({ children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return children
+}
+
+// Role-protected route — only admin and cto can access
+function AdminRoute({ children }) {
+  const { isAuthenticated, authLoading, user } = useApp()
+  const location = useLocation()
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (!ADMIN_ROLES.includes(user?.role)) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return children
@@ -120,9 +146,9 @@ function AppInner() {
             <Route path="triage" element={<TriagePage />} />
             <Route path="releases" element={<ReleasesPage />} />
             <Route path="releases/:id" element={<ReleaseDetailPage />} />
-            <Route path="regressions" element={<RegressionsPage />} />
-            <Route path="contributions" element={<ContributionsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="regressions" element={<AdminRoute><RegressionsPage /></AdminRoute>} />
+            <Route path="contributions" element={<AdminRoute><ContributionsPage /></AdminRoute>} />
+            <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
             <Route path="team" element={<TeamPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
             <Route path="issue/:slug" element={<IssuePage />} />

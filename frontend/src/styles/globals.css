@@ -161,3 +161,37 @@
 pre code {
   @apply font-mono text-sm;
 }
+
+/* Timeline deep-link highlight — amber flash that fades out */
+@keyframes timeline-highlight-light {
+  0%, 25% {
+    background-color: rgb(254 243 199 / 0.9);
+    box-shadow: 0 0 0 2px rgb(251 191 36 / 0.55);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+@keyframes timeline-highlight-dark {
+  0%, 25% {
+    background-color: rgb(120 53 15 / 0.35);
+    box-shadow: 0 0 0 2px rgb(217 119 6 / 0.5);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.timeline-highlighted {
+  animation: timeline-highlight-light 3s ease-out forwards;
+  border-radius: 0.5rem;
+  position: relative;
+  z-index: 0;
+}
+
+.dark .timeline-highlighted {
+  animation: timeline-highlight-dark 3s ease-out forwards;
+}

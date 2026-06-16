@@ -13,7 +13,7 @@ services:
 
   worker:
     build: ./backend
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,celery,attachments
     env_file: .env
     depends_on:
       postgres:

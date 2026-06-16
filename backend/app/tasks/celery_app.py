@@ -17,7 +17,6 @@ celery_app = Celery(
     include=[
         "app.tasks.notifications",
         "app.tasks.attachments",
-        "app.tasks.inbox",
         "app.tasks.reports",
     ],
 )

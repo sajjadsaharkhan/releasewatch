@@ -3,6 +3,7 @@ import { RefreshCw, Check, Tag } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
+import { UserHoverCard } from '../ui/UserHoverCard'
 
 export function RegressionTimelineSection({ regressions = [] }) {
   // Group regression events by release version
@@ -95,7 +96,7 @@ function RegressionRow({ regression }) {
         </span>
         {regression.detected_by && (
           <span className="inline-flex items-center gap-1 text-[12px] text-zinc-700 dark:text-zinc-200">
-            <Avatar user={regression.detected_by} size={14} />
+            <UserHoverCard user={regression.detected_by} size={14} />
             <span className="font-medium">{regression.detected_by.name}</span>
             <span className="text-zinc-400 font-normal">detected</span>
           </span>
@@ -104,8 +105,14 @@ function RegressionRow({ regression }) {
       </div>
 
       {regression.previous_fix_by && (
-        <div className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-          Previous fix by <span className="font-medium text-zinc-700 dark:text-zinc-300">{regression.previous_fix_by.name}</span>
+        <div className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400 inline-flex items-center gap-1">
+          Previous fix by{' '}
+          <UserHoverCard user={regression.previous_fix_by} size={14}>
+            <span className="inline-flex items-center gap-1 cursor-pointer">
+              <Avatar user={regression.previous_fix_by} size={14} />
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">{regression.previous_fix_by.name}</span>
+            </span>
+          </UserHoverCard>
         </div>
       )}
     </li>

@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn'
 import { attachmentsApi } from '../../lib/api'
 import { uploadIssueAttachment, uploadAttachment, formatFileSize } from '../../lib/upload'
 import { MediaCard, FullscreenMediaOverlay } from '../common/MediaPreview'
+import { useToast } from '../../hooks/useToast'
 
 export function AttachmentsSection({
   issue,
@@ -16,6 +17,7 @@ export function AttachmentsSection({
   onPendingAttachment = null,
   onUploadComplete = null,
 }) {
+  const { toast } = useToast()
   const [dragOver, setDragOver] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({})
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -188,12 +190,16 @@ export function AttachmentsSection({
 
   async function confirmDelete() {
     if (attachmentToDelete) {
-      // Only call the API if we have an issue-scoped DB record (issueId + real UUID id)
+      // Only call the API if we have an issue-scoped DB record (real integer id)
       if (attachmentToDelete.s3_key && issueId && !String(attachmentToDelete.id).startsWith('temp-')) {
         try {
           await attachmentsApi.remove(issueId, attachmentToDelete.id)
         } catch (err) {
-          console.error('Failed to delete from S3:', err)
+          console.error('Failed to delete attachment:', err)
+          toast({ title: 'Failed to delete attachment' })
+          setDeleteConfirmOpen(false)
+          setAttachmentToDelete(null)
+          return
         }
       }
       // Pre-upload files (no issueId) only exist on S3 and will expire via lifecycle rule

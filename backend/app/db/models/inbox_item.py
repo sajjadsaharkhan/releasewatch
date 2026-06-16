@@ -3,7 +3,8 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,6 +19,7 @@ class InboxEventType(str, enum.Enum):
     mention = "mention"
     regression = "regression"
     blocker_filed = "blocker_filed"
+    blocker_cleared = "blocker_cleared"
     status_changed = "status_changed"
     verified = "verified"
     filed = "filed"
@@ -54,8 +56,9 @@ class InboxItem(Base):
     event_type: Mapped[InboxEventType] = mapped_column(String(32), nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     # ── Composite index to speed up unread-count and per-user inbox queries ───

@@ -98,7 +98,7 @@ export function EditUserModal({ open, onClose, user, onUpdated, currentUser, can
       }
 
       // Handle password change
-      if (form.password && isEditingSelf) {
+      if (form.password && (isEditingSelf || canEditRole)) {
         updateData.password = form.password
       }
 
@@ -249,10 +249,11 @@ export function EditUserModal({ open, onClose, user, onUpdated, currentUser, can
           </div>
         </div>
 
-        {isEditingSelf && (
+        {(isEditingSelf || canEditRole) && (
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-              New password <span className="text-zinc-500">(leave blank to keep current)</span>
+              {isEditingSelf ? 'New password' : 'Set password'}{' '}
+              <span className="text-zinc-500">(leave blank to keep current)</span>
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">

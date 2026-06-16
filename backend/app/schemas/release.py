@@ -24,6 +24,7 @@ class ReleaseCreate(ReleaseBase):
 class ReleaseUpdate(BaseModel):
     """Partial payload for PATCH /releases/{id}."""
 
+    version: Optional[str] = Field(None, max_length=64)
     status: Optional[ReleaseStatus] = None
     staging_url: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = None
@@ -62,12 +63,18 @@ class ReleaseResponse(ReleaseBase):
     blocker_count: int = Field(default=0, description="Count of blocker issues")
     total_issues: int = Field(default=0, description="Total issue count")
     fixed_issues: int = Field(default=0, description="Count of fixed/verified issues")
+    project_name: Optional[str] = None
 
     # Frontend-friendly aliases
     @computed_field  # type: ignore[misc]
     @property
     def projectId(self) -> int:
         return self.project_id
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def projectName(self) -> Optional[str]:
+        return self.project_name
 
     @computed_field  # type: ignore[misc]
     @property

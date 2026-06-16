@@ -1,15 +1,33 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
+import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Empty } from '../components/ui/Empty'
 import { inboxApi } from '../lib/api'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../hooks/useToast'
 import { relTime } from '../lib/relTime'
-import { CheckCheck } from 'lucide-react'
+import { CheckCheck, Loader2 } from 'lucide-react'
+
+const PAGE_SIZE = 25
+
+// Maps tab value → event_type query param (null means no filter)
+const TAB_EVENT_TYPE = {
+  all:      null,
+  unread:   null,
+  mentions: 'mention',
+  assigned: 'assigned',
+}
+
+const COMMENT_TYPES = new Set(['comment', 'mention'])
+
+function timelineAnchor(item) {
+  if (!item.timelineId) return null
+  return COMMENT_TYPES.has(item.type) ? `comment-${item.timelineId}` : `event-${item.timelineId}`
+}
 
 const TYPE_DESCRIPTIONS = {
   mention:             'mentioned you in',
@@ -21,72 +39,170 @@ const TYPE_DESCRIPTIONS = {
   filed:               'filed a new issue',
   regression:          'marked regression on',
   blocker_filed:       'filed a blocker on',
+  blocker_cleared:     'cleared the blocker on',
   environment_changed: 'changed environment on',
   release_changed:     'changed release on',
   attachment_added:    'added an attachment to',
 }
 
+// Per-tab state shape
+function makeTabState() {
+  return { items: [], total: 0, unreadCount: 0, page: 1, loading: true, loadingMore: false }
+}
+
 export default function InboxPage() {
   const [activeTab, setActiveTab] = useState('all')
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [tabs, setTabs] = useState({
+    all:      makeTabState(),
+    unread:   makeTabState(),
+    mentions: makeTabState(),
+    assigned: makeTabState(),
+  })
+
   const { toast } = useToast()
   const { setInboxUnreadCount } = useApp()
 
-  useEffect(() => {
-    setLoading(true)
-    inboxApi.list({ size: 100 })
-      .then(res => {
-        setItems(res.data.items)
-        setInboxUnreadCount(res.data.unreadCount)
-        setLoading(false)
-      })
-      .catch(() => {
-        toast.error('Failed to load inbox')
-        setLoading(false)
-      })
+  // Track which tabs have been loaded (lazy-load on first visit)
+  const loadedTabs = useRef(new Set())
+
+  // Refs so IntersectionObserver never captures stale closure values
+  const activeTabRef = useRef(activeTab)
+  activeTabRef.current = activeTab
+
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+
+  const sentinelRef = useRef(null)
+
+  // ── Load a tab (page 1 or next page) ──────────────────────────────────────
+  const loadTab = useCallback(async (tab, nextPage = 1) => {
+    const isMore = nextPage > 1
+    setTabs(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], loading: !isMore, loadingMore: isMore },
+    }))
+
+    const params = { page: nextPage, size: PAGE_SIZE }
+    const eventType = TAB_EVENT_TYPE[tab]
+    if (eventType) params.event_type = eventType
+    if (tab === 'unread') params.is_read = false
+
+    try {
+      const res = await inboxApi.list(params)
+      const data = res.data
+      setTabs(prev => ({
+        ...prev,
+        [tab]: {
+          items: isMore ? [...prev[tab].items, ...data.items] : data.items,
+          total: data.total,
+          unreadCount: data.unreadCount,
+          page: nextPage,
+          loading: false,
+          loadingMore: false,
+        },
+      }))
+      // Keep global unread badge in sync from the "all" tab
+      if (tab === 'all') setInboxUnreadCount(data.unreadCount)
+    } catch {
+      toast({ title: 'Failed to load inbox' })
+      setTabs(prev => ({
+        ...prev,
+        [tab]: { ...prev[tab], loading: false, loadingMore: false },
+      }))
+    }
   }, [])
 
-  const unreadCount = items.filter((i) => !i.read).length
-  const mentionCount = items.filter((i) => i.type === 'mention').length
-  const assignedCount = items.filter((i) => i.type === 'assigned').length
+  // ── Load active tab on mount / tab switch ─────────────────────────────────
+  useEffect(() => {
+    if (!loadedTabs.current.has(activeTab)) {
+      loadedTabs.current.add(activeTab)
+      loadTab(activeTab, 1)
+    }
+  }, [activeTab, loadTab])
+
+  // ── Infinite scroll ────────────────────────────────────────────────────────
+  const fetchMore = useCallback(() => {
+    const tab = activeTabRef.current
+    const state = tabsRef.current[tab]
+    if (state.loadingMore || state.loading) return
+    if (state.items.length >= state.total) return
+    loadTab(tab, state.page + 1)
+  }, [loadTab])
+
+  useEffect(() => {
+    const state = tabs[activeTab]
+    if (state.loading) return
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) fetchMore() },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [activeTab, tabs[activeTab].loading, tabs[activeTab].total, tabs[activeTab].items.length, fetchMore])
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const allUnread  = tabs.all.unreadCount
+  const mentUnread = tabs.mentions.unreadCount
+  const asgUnread  = tabs.assigned.unreadCount
 
   const TAB_OPTIONS = [
-    { value: 'all', label: 'All', badge: items.length },
-    { value: 'unread', label: 'Unread', badge: unreadCount },
-    { value: 'mentions', label: 'Mentions', badge: mentionCount },
-    { value: 'assigned', label: 'Assigned', badge: assignedCount },
+    { value: 'all',      label: 'All',      badge: allUnread  || null },
+    { value: 'unread',   label: 'Unread',   badge: allUnread  || null },
+    { value: 'mentions', label: 'Mentions', badge: mentUnread || null },
+    { value: 'assigned', label: 'Assigned', badge: asgUnread  || null },
   ]
 
-  const filtered = items.filter((item) => {
-    if (activeTab === 'unread') return !item.read
-    if (activeTab === 'mentions') return item.type === 'mention'
-    if (activeTab === 'assigned') return item.type === 'assigned'
-    return true
-  })
+  const current = tabs[activeTab]
+  const hasMore = current.total > current.items.length
 
+  // ── Actions ────────────────────────────────────────────────────────────────
   async function markAllRead() {
     try {
       await inboxApi.readAll()
-      setItems((prev) => prev.map((i) => ({ ...i, read: true })))
+      setTabs(prev => {
+        const next = { ...prev }
+        for (const tab of Object.keys(next)) {
+          next[tab] = {
+            ...next[tab],
+            items: next[tab].items.map(i => ({ ...i, read: true })),
+            unreadCount: 0,
+          }
+        }
+        return next
+      })
       setInboxUnreadCount(0)
     } catch {
-      toast.error('Failed to mark all as read')
+      toast({ title: 'Failed to mark all as read' })
     }
   }
 
   async function markRead(id) {
-    if (items.find(i => i.id === id)?.read) return
+    if (current.items.find(i => i.id === id)?.read) return
     try {
       await inboxApi.read(id)
-      setItems((prev) => prev.map((i) => i.id === id ? { ...i, read: true } : i))
-      setInboxUnreadCount((c) => Math.max(0, c - 1))
+      setTabs(prev => {
+        const next = { ...prev }
+        for (const tab of Object.keys(next)) {
+          const item = next[tab].items.find(i => i.id === id)
+          if (!item) continue
+          next[tab] = {
+            ...next[tab],
+            items: next[tab].items.map(i => i.id === id ? { ...i, read: true } : i),
+            unreadCount: Math.max(0, next[tab].unreadCount - 1),
+          }
+        }
+        return next
+      })
+      setInboxUnreadCount(c => Math.max(0, c - 1))
     } catch {
-      toast.error('Failed to mark as read')
+      toast({ title: 'Failed to mark as read' })
     }
   }
 
-  if (loading) {
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (current.loading) {
     return (
       <div className="max-w-3xl mx-auto p-6">
         <div className="text-sm text-muted-foreground">Loading inbox…</div>
@@ -96,14 +212,17 @@ export default function InboxPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold">Inbox</h1>
-          {unreadCount > 0 && (
-            <p className="text-sm text-muted-foreground">{unreadCount} unread notification{unreadCount > 1 ? 's' : ''}</p>
+          {allUnread > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {allUnread} unread notification{allUnread !== 1 ? 's' : ''}
+            </p>
           )}
         </div>
-        {unreadCount > 0 && (
+        {allUnread > 0 && (
           <Button variant="outline" size="sm" onClick={markAllRead}>
             <CheckCheck className="h-3.5 w-3.5" />
             Mark all read
@@ -113,59 +232,79 @@ export default function InboxPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} className="mb-4" />
 
-      {filtered.length === 0 ? (
-        <Empty
-          icon="inbox"
-          title="All caught up"
-          body="No notifications in this category."
-        />
+      {current.items.length === 0 ? (
+        <Empty icon="inbox" title="All caught up" body="No notifications in this category." />
       ) : (
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
-          {filtered.map((item) => {
+          {current.items.map((item) => {
             const actor = item.actor
             const desc = TYPE_DESCRIPTIONS[item.type] ?? item.type
-
+            const anchor = timelineAnchor(item)
+            const issueTo = anchor ? `/issue/${item.issueId}#${anchor}` : `/issue/${item.issueId}`
+            const snippet = COMMENT_TYPES.has(item.type) ? (item.meta?.body_snippet ?? null) : null
             return (
               <div
                 key={item.id}
                 className={cn(
-                  'flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors',
-                  !item.read ? 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'hover:bg-accent'
+                  'flex gap-3 px-4 py-3.5 cursor-pointer transition-colors',
+                  !item.read
+                    ? 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    : 'hover:bg-accent'
                 )}
                 onClick={() => markRead(item.id)}
               >
                 {/* Unread dot */}
-                <div className="flex w-3 justify-center mt-2 shrink-0">
-                  {!item.read && (
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  )}
+                <div className="flex w-2 shrink-0 mt-[7px]">
+                  {!item.read && <span className="h-2 w-2 rounded-full bg-blue-500" />}
                 </div>
 
-                <Avatar user={actor} size={32} className="shrink-0" />
+                <UserHoverCard user={actor} size={34} className="shrink-0 mt-0.5" />
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm">
+                  {/* Action line */}
+                  <p className="text-sm leading-snug">
                     <span className="font-medium">{actor?.name}</span>
                     {' '}
                     <span className="text-muted-foreground">{desc}</span>
                     {' '}
                     <Link
-                      to={`/issue/${item.issueId}`}
+                      to={issueTo}
                       className="font-medium hover:text-primary transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {item.issueTitle}
                     </Link>
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-mono text-xs text-muted-foreground">{item.issueId}</span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{relTime(item.createdAt)}</span>
+
+                  {/* Comment/mention preview */}
+                  {snippet && (
+                    <p className="mt-1.5 text-xs text-muted-foreground pl-2.5 border-l-2 border-border/60 truncate">
+                      {snippet.slice(0, 20)}{snippet.length > 20 ? '…' : ''}
+                    </p>
+                  )}
+
+                  {/* Meta row */}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="font-mono text-[11px] text-muted-foreground">{item.issueId}</span>
+                    <span className="text-[11px] text-muted-foreground">·</span>
+                    <span className="text-[11px] text-muted-foreground">{relTime(item.createdAt)}</span>
                   </div>
                 </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Infinite scroll sentinel */}
+      {hasMore && (
+        <div ref={sentinelRef} className="flex justify-center py-6">
+          <Loader2
+            className={cn(
+              'h-5 w-5 text-muted-foreground transition-opacity',
+              current.loadingMore ? 'animate-spin opacity-100' : 'opacity-0'
+            )}
+          />
         </div>
       )}
     </div>
