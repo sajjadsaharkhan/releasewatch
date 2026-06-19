@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -109,6 +109,8 @@ export const authApi = {
   logout: (refreshToken) => api.post('/auth/logout', { refresh_token: refreshToken }),
   me: () => api.get('/auth/me'),
   getTelegramToken: () => api.get('/auth/telegram/token'),
+  getTelegramStatus: () => api.get('/auth/me/telegram'),
+  disconnectTelegram: () => api.delete('/auth/me/telegram'),
 }
 
 // ─── Issues ──────────────────────────────────────────────────────────────────
@@ -233,6 +235,7 @@ export const userApi = {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export const settingsApi = {
   getTelegramIntegration: () => api.get('/settings/integrations/telegram'),
+  saveTelegramIntegration: (data) => api.put('/settings/integrations/telegram', data),
   getNotifications: () => api.get('/settings/notifications'),
   saveNotifications: (data) => api.put('/settings/notifications', data),
   getGitlabConfig: () => api.get('/settings/integrations/gitlab'),

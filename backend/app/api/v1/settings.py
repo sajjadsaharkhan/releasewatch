@@ -1,11 +1,17 @@
 """Settings API — notification preferences and integrations."""
 
+import asyncio
+import logging
+from urllib.parse import urlparse, urlunparse
 import httpx
 from sqlalchemy import select, func
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
+
 from app.core.auth import get_current_user, require_role
+from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User, UserRole
 from app.db.models.system_setting import SystemSetting
 from app.db.session import get_db
@@ -18,6 +24,7 @@ from app.schemas.settings import (
     ConfigurationResponse,
     LLMTestRequest,
     LLMTestResponse,
+    TelegramBotConfigRequest,
 )
 
 router = APIRouter()
@@ -79,21 +86,150 @@ async def save_gitlab_config(
     return {"connected": True, **_gitlab_config}
 
 
+def _mask_bot_token(token: str) -> str:
+    """Return a partially-masked token preview for display."""
+    if ":" not in token:
+        return token[:4] + "..." if len(token) > 4 else "***"
+    bot_id, key = token.split(":", 1)
+    return bot_id + ":" + key[:4] + "..." + key[-4:]
+
+
+def _mask_proxy_url(url: str) -> str:
+    """Mask credentials in a proxy URL so it is safe to return to the frontend."""
+    try:
+        parsed = urlparse(url)
+        if parsed.password:
+            host = f"{parsed.hostname}:{parsed.port}" if parsed.port else (parsed.hostname or "")
+            netloc = f"{parsed.username}:***@{host}" if parsed.username else f"***@{host}"
+            return urlunparse(parsed._replace(netloc=netloc))
+    except Exception:
+        pass
+    return url
+
+
+async def _call_get_me(token: str, proxy_url: str | None):
+    """Call Telegram getMe with a 5-second timeout. Returns (bot_info, error_str)."""
+    from telegram import Bot
+    from telegram.request import HTTPXRequest
+    try:
+        http_request = HTTPXRequest(proxy=proxy_url) if proxy_url else HTTPXRequest()
+        async with Bot(token=token, request=http_request) as bot:
+            info = await asyncio.wait_for(bot.get_me(), timeout=5.0)
+        return info, None
+    except asyncio.TimeoutError:
+        return None, "Request timed out (5 s)"
+    except Exception as exc:
+        return None, str(exc)
+
+
 @router.get("/integrations/telegram", response_model=TelegramIntegrationResponse)
 async def get_telegram_integration(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return Telegram bot integration status and connected member count."""
-    # Count users with connected Telegram accounts
+    """Return Telegram bot status including live getMe result and connectivity state."""
     result = await db.execute(
-        select(func.count(User.id)).where(User.telegram_handle.is_not(None))
+        select(func.count(TelegramIntegration.id)).where(
+            TelegramIntegration.is_active.is_(True)
+        )
     )
     connected_count = result.scalar_one()
 
+    tg_config = await _get_setting(db, "telegram", "config")
+    stored_token = tg_config.get("bot_token") if tg_config else None
+    stored_username = tg_config.get("bot_username") if tg_config else None
+
+    if not stored_token:
+        return TelegramIntegrationResponse(
+            bot_username="Bot not configured",
+            connected_count=connected_count,
+            bot_token_set=False,
+        )
+
+    # Read proxy config
+    proxy_val = await _get_setting(db, "proxy", "config")
+    proxy_url: str | None = None
+    via_proxy = False
+    if proxy_val and proxy_val.get("enabled"):
+        proxy_url = proxy_val.get("http") or proxy_val.get("https") or None
+        via_proxy = bool(proxy_url)
+
+    # Live getMe call
+    bot_info, error = await _call_get_me(stored_token, proxy_url)
+
+    if bot_info:
+        # Update stored username/id if they changed
+        updated_username = f"@{bot_info.username}"
+        if updated_username != stored_username or not tg_config.get("bot_id"):
+            tg_config["bot_username"] = updated_username
+            tg_config["bot_id"] = bot_info.id
+            tg_config["bot_first_name"] = bot_info.first_name
+            await _set_setting(db, "telegram", "config", tg_config)
+
     return TelegramIntegrationResponse(
-        bot_username="@ReleasewatchBot",
+        bot_username=bot_info.username and f"@{bot_info.username}" or stored_username or "Unknown",
         connected_count=connected_count,
+        bot_token_set=True,
+        bot_token_preview=_mask_bot_token(stored_token),
+        bot_id=bot_info.id if bot_info else tg_config.get("bot_id"),
+        bot_first_name=bot_info.first_name if bot_info else tg_config.get("bot_first_name"),
+        connectivity_ok=bot_info is not None,
+        via_proxy=via_proxy,
+        proxy_url_preview=_mask_proxy_url(proxy_url) if proxy_url else None,
+        connectivity_error=error,
+    )
+
+
+@router.put("/integrations/telegram", response_model=TelegramIntegrationResponse)
+async def save_telegram_integration(
+    body: TelegramBotConfigRequest,
+    current_user: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save Telegram bot token (admin only).
+
+    After storing the token, calls Telegram getMe to auto-populate the bot username.
+    Restart the backend for the new token to take effect in the polling loop.
+    """
+    existing = await _get_setting(db, "telegram", "config") or {}
+
+    if body.bot_token is not None:
+        existing["bot_token"] = body.bot_token
+        # Auto-fetch bot username from Telegram getMe API
+        try:
+            from telegram import Bot
+            from telegram.request import HTTPXRequest
+            proxy_val = await _get_setting(db, "proxy", "config")
+            proxy_url = None
+            if proxy_val and proxy_val.get("enabled"):
+                proxy_url = proxy_val.get("http") or proxy_val.get("https")
+            http_request = HTTPXRequest(proxy=proxy_url) if proxy_url else HTTPXRequest()
+            async with Bot(token=body.bot_token, request=http_request) as tg_bot:
+                bot_info = await tg_bot.get_me()
+            existing["bot_username"] = f"@{bot_info.username}"
+            logger.info("Bot identity confirmed: %s (id=%s)", bot_info.username, bot_info.id)
+        except Exception as exc:
+            logger.warning("Could not fetch bot info via getMe (token saved anyway): %s", exc)
+
+    if body.bot_username is not None:
+        existing["bot_username"] = body.bot_username
+
+    await _set_setting(db, "telegram", "config", existing)
+
+    stored_token = existing.get("bot_token")
+    connected_count = (
+        await db.execute(
+            select(func.count(TelegramIntegration.id)).where(
+                TelegramIntegration.is_active.is_(True)
+            )
+        )
+    ).scalar_one()
+
+    return TelegramIntegrationResponse(
+        bot_username=existing.get("bot_username") or "Bot not configured",
+        connected_count=connected_count,
+        bot_token_set=bool(stored_token),
+        bot_token_preview=_mask_bot_token(stored_token) if stored_token else None,
     )
 
 
@@ -151,7 +287,14 @@ async def _get_setting(db: AsyncSession, category: str, key: str) -> dict | None
 
 
 async def _set_setting(db: AsyncSession, category: str, key: str, value: dict) -> None:
-    """Set a setting value in the database (upsert)."""
+    """Set a setting value in the database (upsert).
+
+    Always uses a fresh dict copy + flag_modified so SQLAlchemy detects the
+    change even when the caller mutated the same dict object that came from the DB.
+    JSONB columns are not mutation-tracked by default.
+    """
+    from sqlalchemy.orm import attributes as sa_attrs
+
     result = await db.execute(
         select(SystemSetting)
         .where(SystemSetting.category == category)
@@ -160,9 +303,10 @@ async def _set_setting(db: AsyncSession, category: str, key: str, value: dict) -
     setting = result.scalar_one_or_none()
 
     if setting:
-        setting.value = value
+        setting.value = dict(value)          # new object — avoids same-reference no-op
+        sa_attrs.flag_modified(setting, "value")  # force dirty even if ORM disagrees
     else:
-        setting = SystemSetting(category=category, key=key, value=value)
+        setting = SystemSetting(category=category, key=key, value=dict(value))
         db.add(setting)
 
     await db.commit()

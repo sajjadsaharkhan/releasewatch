@@ -4,6 +4,8 @@ Call ``create_app()`` to get a configured FastAPI instance.
 The module-level ``app`` is used by uvicorn.
 """
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -13,6 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.redis_client import close_redis, init_redis
 from app.db.session import close_engine, init_engine
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -28,12 +32,21 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         s3_service.ensure_bucket_exists()
         s3_service.ensure_lifecycle_policy()
     except Exception as e:
-        import logging
         logging.warning(f"S3 initialization skipped: {e}")
+
+    # Start Telegram bot long-poll loop as a background task in the same event loop
+    from app.bot.poller import start_polling
+    bot_task = asyncio.create_task(start_polling(), name="telegram-bot-poller")
 
     yield  # application is now running
 
     # ── shutdown ──────────────────────────────────────────────────────────────
+    bot_task.cancel()
+    try:
+        await bot_task
+    except asyncio.CancelledError:
+        pass
+
     await close_redis()
     await close_engine()
 

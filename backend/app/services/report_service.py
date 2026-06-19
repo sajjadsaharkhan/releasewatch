@@ -18,6 +18,7 @@ from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.release import GoNogoStatus, Release, ReleaseStatus
+from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User
 
 
@@ -621,11 +622,12 @@ class ReportService:
                 User.avatar_url,
                 User.title,
                 User.bio,
-                User.telegram_user_id,
-                User.telegram_handle,
+                TelegramIntegration.telegram_user_id.label("tg_user_id"),
+                TelegramIntegration.telegram_username.label("tg_username"),
             )
             .join(User, User.id == RegressionHistory.detected_by_id)
             .join(Issue, Issue.id == RegressionHistory.issue_id)
+            .outerjoin(TelegramIntegration, TelegramIntegration.user_id == User.id)
             .where(
                 RegressionHistory.release_id.in_(release_ids),
                 *([Issue.labels.contains([label])] if label else []),
@@ -639,8 +641,8 @@ class ReportService:
                 User.avatar_url,
                 User.title,
                 User.bio,
-                User.telegram_user_id,
-                User.telegram_handle,
+                TelegramIntegration.telegram_user_id,
+                TelegramIntegration.telegram_username,
             )
             .order_by(func.count(RegressionHistory.id).desc())
             .limit(5)
@@ -656,8 +658,8 @@ class ReportService:
                     "avatar_url": r.avatar_url,
                     "title": r.title,
                     "bio": r.bio,
-                    "tgConnected": r.telegram_user_id is not None,
-                    "tgHandle": r.telegram_handle,
+                    "tgConnected": r.tg_user_id is not None,
+                    "tgHandle": r.tg_username,
                 },
                 "detected": r.detected,
             }
@@ -722,9 +724,10 @@ class ReportService:
                     User.avatar_url,
                     User.title,
                     User.bio,
-                    User.telegram_user_id,
-                    User.telegram_handle,
+                    TelegramIntegration.telegram_user_id.label("tg_user_id"),
+                    TelegramIntegration.telegram_username.label("tg_username"),
                 )
+                .outerjoin(TelegramIntegration, TelegramIntegration.user_id == User.id)
                 .where(User.id.in_(dev_ids))
             )
             rework_by_dev = sorted(
@@ -739,8 +742,8 @@ class ReportService:
                             "avatar_url": u.avatar_url,
                             "title": u.title,
                             "bio": u.bio,
-                            "tgConnected": u.telegram_user_id is not None,
-                            "tgHandle": u.telegram_handle,
+                            "tgConnected": u.tg_user_id is not None,
+                            "tgHandle": u.tg_username,
                         },
                         "reworkHours": round(rework_hrs_map.get(u.id, 0.0), 1),
                         "regressionCount": reg_count_map.get(u.id, 0),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trash2, Plus, Send, Sun, Moon, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff } from 'lucide-react'
+import { Trash2, Plus, Send, Sun, Moon, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
@@ -94,8 +94,21 @@ export default function SettingsPage() {
     })
     return map
   })
-  const [tgToken] = useState('abc123XYZ-token-placeholder')
-  const [telegramIntegration, setTelegramIntegration] = useState({ botUsername: '@ReleasewatchBot', connectedCount: 0 })
+  const [telegramIntegration, setTelegramIntegration] = useState({
+    botUsername: '',
+    botFirstName: null,
+    botId: null,
+    connectedCount: 0,
+    botTokenSet: false,
+    botTokenPreview: null,
+    connectivityOk: null,
+    viaProxy: false,
+    proxyUrlPreview: null,
+    connectivityError: null,
+  })
+  const [botTokenInput, setBotTokenInput] = useState('')
+  const [showBotToken, setShowBotToken] = useState(false)
+  const [telegramSaving, setTelegramSaving] = useState(false)
   const [telegramLoading, setTelegramLoading] = useState(true)
   const [team, setTeam] = useState([])
   const [teamLoading, setTeamLoading] = useState(true)
@@ -134,13 +147,21 @@ export default function SettingsPage() {
     setTelegramLoading(true)
     try {
       const response = await settingsApi.getTelegramIntegration()
+      const d = response.data
       setTelegramIntegration({
-        botUsername: response.data.bot_username,
-        connectedCount: response.data.connected_count,
+        botUsername: d.bot_username,
+        botFirstName: d.bot_first_name ?? null,
+        botId: d.bot_id ?? null,
+        connectedCount: d.connected_count,
+        botTokenSet: d.bot_token_set,
+        botTokenPreview: d.bot_token_preview,
+        connectivityOk: d.connectivity_ok ?? null,
+        viaProxy: d.via_proxy ?? false,
+        proxyUrlPreview: d.proxy_url_preview ?? null,
+        connectivityError: d.connectivity_error ?? null,
       })
     } catch (err) {
       console.error('Failed to fetch Telegram integration:', err)
-      // Keep default values on error
     } finally {
       setTelegramLoading(false)
     }
@@ -432,6 +453,34 @@ export default function SettingsPage() {
       })
     } finally {
       setGeneralSaving(false)
+    }
+  }
+
+  async function saveTelegramConfig() {
+    if (!botTokenInput.trim()) return
+    setTelegramSaving(true)
+    try {
+      const response = await settingsApi.saveTelegramIntegration({ botToken: botTokenInput.trim() })
+      const d = response.data
+      setTelegramIntegration({
+        botUsername: d.bot_username,
+        botFirstName: d.bot_first_name ?? null,
+        botId: d.bot_id ?? null,
+        connectedCount: d.connected_count,
+        botTokenSet: d.bot_token_set,
+        botTokenPreview: d.bot_token_preview,
+        connectivityOk: d.connectivity_ok ?? null,
+        viaProxy: d.via_proxy ?? false,
+        proxyUrlPreview: d.proxy_url_preview ?? null,
+        connectivityError: d.connectivity_error ?? null,
+      })
+      setBotTokenInput('')
+      toast({ title: 'Telegram bot configured', body: `Connected as ${d.bot_username}. Restart the backend for the new token to take effect.` })
+    } catch (err) {
+      console.error('Failed to save Telegram config:', err)
+      toast({ title: 'Failed to save', body: err.response?.data?.detail || 'Could not save Telegram configuration.' })
+    } finally {
+      setTelegramSaving(false)
     }
   }
 
@@ -733,7 +782,7 @@ export default function SettingsPage() {
 
       {/* Integrations */}
       {activeTab === 'integrations' && (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-2xl">
           {/* Telegram */}
           <div>
             <SectionTitle>Telegram Bot</SectionTitle>
@@ -744,27 +793,139 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                      <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  {/* Bot identity card — shown only when token is set */}
+                  {telegramIntegration.botTokenSet && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+                      {/* Bot name row */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                          <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">
+                            {telegramIntegration.botFirstName || telegramIntegration.botUsername}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono">{telegramIntegration.botUsername}</p>
+                          {telegramIntegration.botId && (
+                            <p className="text-xs text-muted-foreground">ID: {telegramIntegration.botId}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Connectivity status */}
+                      {telegramIntegration.connectivityOk === true && (
+                        <div className="flex items-start gap-2">
+                          <Wifi className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400">Connected to Telegram</p>
+                            {telegramIntegration.viaProxy ? (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <ShieldCheck className="h-3 w-3" />
+                                via proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground mt-0.5">Direct connection</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {telegramIntegration.connectivityOk === false && (
+                        <div className="flex items-start gap-2">
+                          <WifiOff className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-red-600 dark:text-red-400">Cannot reach Telegram</p>
+                            {telegramIntegration.connectivityError && (
+                              <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">
+                                {telegramIntegration.connectivityError}
+                              </p>
+                            )}
+                            {telegramIntegration.viaProxy && telegramIntegration.proxyUrlPreview && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stats row */}
+                      <div className="flex items-center gap-4 pt-1 border-t border-border">
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground">{telegramIntegration.connectedCount}</span> team members connected
+                        </p>
+                        {telegramIntegration.botTokenPreview && (
+                          <p className="text-xs text-muted-foreground font-mono ml-auto">
+                            {telegramIntegration.botTokenPreview}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{telegramIntegration.botUsername}</p>
-                      <p className="text-xs text-muted-foreground">{telegramIntegration.connectedCount} team members connected</p>
+                  )}
+
+                  {/* No token yet placeholder */}
+                  {!telegramIntegration.botTokenSet && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted shrink-0">
+                        <Bot className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">No bot configured</p>
+                        <p className="text-xs">Enter a token from @BotFather to activate the bot.</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Token input */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Bot token</label>
-                    <Input value={tgToken} readOnly className="font-mono text-xs" />
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      {telegramIntegration.botTokenSet ? 'Replace bot token' : 'Bot token'}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={botTokenInput}
+                        onChange={(e) => setBotTokenInput(e.target.value)}
+                        placeholder={telegramIntegration.botTokenSet ? 'Enter new token to replace current' : '1234567890:ABCDef...'}
+                        type={showBotToken ? 'text' : 'password'}
+                        className="font-mono text-xs pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowBotToken((s) => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showBotToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Get your token from <span className="font-mono">@BotFather</span> on Telegram.
+                    </p>
                   </div>
-                  <div className="rounded-lg bg-muted p-3">
-                    <p className="text-xs font-semibold mb-2">How to connect</p>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Open Telegram and search for <code className="font-mono">{telegramIntegration.botUsername}</code></li>
-                      <li>Send <code className="font-mono">/connect {tgToken}</code></li>
-                      <li>Your account will be linked automatically</li>
-                    </ol>
+
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Restart backend after changing token.</p>
+                    <Button
+                      size="sm"
+                      onClick={saveTelegramConfig}
+                      disabled={telegramSaving || !botTokenInput.trim()}
+                    >
+                      {telegramSaving
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                      Save token
+                    </Button>
                   </div>
+
+                  {telegramIntegration.botTokenSet && telegramIntegration.connectivityOk && (
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-xs font-semibold mb-2">How team members connect</p>
+                      <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                        <li>Open Telegram and find <code className="font-mono">{telegramIntegration.botUsername}</code></li>
+                        <li>Go to Profile → Telegram tab to get your integration token</li>
+                        <li>Send <code className="font-mono">/integration &lt;your-token&gt;</code> to the bot</li>
+                        <li>Account links automatically — notifications start immediately</li>
+                      </ol>
+                    </div>
+                  )}
                 </>
               )}
             </div>

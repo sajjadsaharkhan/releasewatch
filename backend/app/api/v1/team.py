@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_role, get_password_hash, verify_password
 from app.db.models.user import User, UserRole
@@ -21,12 +22,12 @@ async def list_team(
     """List all active team members with Telegram connection status."""
     result = await db.execute(
         select(User)
+        .options(selectinload(User.telegram_integration))
         .where(User.is_active == True)
         .order_by(User.is_active.desc(), User.name)
     )
     users = result.scalars().all()
 
-    # Convert to MemberResponse with computed fields
     return [
         MemberResponse(
             id=user.id,
@@ -35,14 +36,14 @@ async def list_team(
             role=user.role,
             avatar_url=user.avatar_url,
             avatar_color=user.avatar_color,
-            telegram_handle=user.telegram_handle,
             is_active=user.is_active,
             created_at=user.created_at,
             title=user.title,
             bio=user.bio,
-            tgConnected=user.telegram_handle is not None,
-            reported=0,  # TODO: compute from issues
-            fixed=0,     # TODO: compute from issues
+            tgConnected=user.telegram_integration is not None and user.telegram_integration.is_active,
+            tgHandle=user.telegram_integration.telegram_username if user.telegram_integration else None,
+            reported=0,
+            fixed=0,
             avgFixTime=None,
             fixRate=None,
         )
@@ -57,11 +58,12 @@ async def list_all_team(
 ):
     """List all team members including inactive ones (for Settings page)."""
     result = await db.execute(
-        select(User).order_by(User.is_active.desc(), User.name)
+        select(User)
+        .options(selectinload(User.telegram_integration))
+        .order_by(User.is_active.desc(), User.name)
     )
     users = result.scalars().all()
 
-    # Convert to MemberResponse with computed fields
     return [
         MemberResponse(
             id=user.id,
@@ -70,14 +72,14 @@ async def list_all_team(
             role=user.role,
             avatar_url=user.avatar_url,
             avatar_color=user.avatar_color,
-            telegram_handle=user.telegram_handle,
             is_active=user.is_active,
             created_at=user.created_at,
             title=user.title,
             bio=user.bio,
-            tgConnected=user.telegram_handle is not None,
-            reported=0,  # TODO: compute from issues
-            fixed=0,     # TODO: compute from issues
+            tgConnected=user.telegram_integration is not None and user.telegram_integration.is_active,
+            tgHandle=user.telegram_integration.telegram_username if user.telegram_integration else None,
+            reported=0,
+            fixed=0,
             avgFixTime=None,
             fixRate=None,
         )
@@ -121,12 +123,12 @@ async def invite_member(
         role=user.role,
         avatar_url=user.avatar_url,
         avatar_color=user.avatar_color,
-        telegram_handle=user.telegram_handle,
         is_active=user.is_active,
         created_at=user.created_at,
         title=user.title,
         bio=user.bio,
-        tgConnected=user.telegram_handle is not None,
+        tgConnected=False,
+        tgHandle=None,
         reported=0,
         fixed=0,
         avgFixTime=None,

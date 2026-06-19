@@ -37,7 +37,7 @@ class _AsyncTask(Task):
 )
 def send_telegram_notification(
     self: Task,
-    telegram_user_id: int,
+    chat_id: int,
     template_name: str,
     context: dict[str, Any],
 ) -> bool:
@@ -47,8 +47,8 @@ def send_telegram_notification(
 
     Parameters
     ----------
-    telegram_user_id:
-        Recipient's Telegram user ID.
+    chat_id:
+        Recipient's Telegram chat ID (from ``telegram_integrations.chat_id``).
     template_name:
         Key in ``MESSAGE_TEMPLATES`` (e.g. ``"assigned"``).
     context:
@@ -62,21 +62,20 @@ def send_telegram_notification(
     from app.core.telegram import telegram_service
 
     async def _send():
-        return await telegram_service.send_notification(
-            telegram_user_id=telegram_user_id,
+        success = await telegram_service.send_notification(
+            chat_id=chat_id,
             template_name=template_name,
             context=context,
         )
+        if success:
+            await telegram_service.update_last_sent(chat_id)
+        return success
 
     try:
         result = self.run_async(_send())
         if not result:
             raise RuntimeError("Telegram send returned False (possibly blocked by user).")
-        logger.info(
-            "Telegram notification '%s' delivered to user %s",
-            template_name,
-            telegram_user_id,
-        )
+        logger.info("Telegram notification '%s' delivered to chat %s", template_name, chat_id)
         return True
     except Exception as exc:
         logger.warning(
@@ -91,8 +90,8 @@ def send_telegram_notification(
             raise self.retry(exc=exc, countdown=countdown)
         except MaxRetriesExceededError:
             logger.error(
-                "Exhausted retries for Telegram notification to user %s (template=%s)",
-                telegram_user_id,
+                "Exhausted retries for Telegram notification to chat %s (template=%s)",
+                chat_id,
                 template_name,
             )
             return False
@@ -103,32 +102,24 @@ def send_telegram_notification(
     queue="notifications",
 )
 def bulk_notify_team(
-    user_ids: list[int],
+    chat_ids: list[int],
     template_name: str,
     context: dict[str, Any],
 ) -> dict[str, Any]:
-    """Enqueue individual Telegram notifications for a list of users.
-
-    Rather than sending in-line, this spawns one ``send_telegram_notification``
-    subtask per user so each can retry independently.
+    """Enqueue individual Telegram notifications for a list of chat IDs.
 
     Parameters
     ----------
-    user_ids:
-        List of Telegram user IDs to notify.
+    chat_ids:
+        List of ``telegram_integrations.chat_id`` values to notify.
     template_name:
         Notification template key.
     context:
         Template context shared across all recipients.
-
-    Returns
-    -------
-    dict
-        ``{enqueued: N}`` — the number of subtasks spawned.
     """
-    for uid in user_ids:
+    for cid in chat_ids:
         send_telegram_notification.apply_async(
-            args=[uid, template_name, context],
+            args=[cid, template_name, context],
             queue="notifications",
         )
-    return {"enqueued": len(user_ids)}
+    return {"enqueued": len(chat_ids)}

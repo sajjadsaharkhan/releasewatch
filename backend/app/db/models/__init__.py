@@ -11,6 +11,7 @@ from app.db.models.issue_attachment import IssueAttachment
 from app.db.models.inbox_item import InboxItem
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.system_setting import SystemSetting
+from app.db.models.telegram_integration import TelegramIntegration
 
 __all__ = [
     "User",
@@ -24,4 +25,5 @@ __all__ = [
     "InboxItem",
     "RegressionHistory",
     "SystemSetting",
+    "TelegramIntegration",
 ]

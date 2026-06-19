@@ -19,7 +19,6 @@ class TeamMemberResponse(BaseModel):
     role: UserRole
     avatar_url: Optional[str] = None
     avatar_color: str
-    telegram_handle: Optional[str] = None
     is_active: bool
     created_at: datetime
 
@@ -33,15 +32,16 @@ class MemberResponse(TeamMemberResponse):
 
     Extends TeamMemberResponse with:
     - Additional profile fields (title, bio)
-    - Computed connection status (tgConnected)
+    - Computed Telegram connection status (tgConnected, tgHandle)
     - Additional metrics (avgFixTime, fixRate)
     """
 
     title: Optional[str] = None
     bio: Optional[str] = None
 
-    # Telegram connection status (computed from telegram_handle)
+    # Telegram connection status (computed from telegram_integrations table)
     tgConnected: bool = False
+    tgHandle: Optional[str] = None
 
     # Additional computed metrics
     avgFixTime: Optional[float] = None
