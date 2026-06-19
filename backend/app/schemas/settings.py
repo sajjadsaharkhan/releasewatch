@@ -75,3 +75,12 @@ class LLMTestResponse(BaseModel):
 
     success: bool
     message: str
+
+
+class TelegramBotConfigRequest(BaseModel):
+    """Payload for PUT /settings/integrations/telegram."""
+
+    bot_token: str | None = Field(None, alias="botToken")
+    bot_username: str | None = Field(None, alias="botUsername")
+
+    model_config = ConfigDict(populate_by_name=True)

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.config import settings
@@ -54,6 +55,7 @@ class S3Service:
             aws_access_key_id=settings.S3_ACCESS_KEY or None,
             aws_secret_access_key=settings.S3_SECRET_KEY or None,
             region_name=settings.S3_REGION,
+            config=Config(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}),
             **client_config,
         )
         self.bucket = settings.S3_BUCKET_NAME

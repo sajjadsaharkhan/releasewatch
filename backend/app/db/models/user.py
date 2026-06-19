@@ -4,7 +4,7 @@ from datetime import datetime
 
 import enum
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -37,14 +37,7 @@ class User(Base):
         String(32), nullable=False, default=UserRole.qa
     )
 
-    # Telegram integration
-    telegram_user_id: Mapped[int | None] = mapped_column(
-        BigInteger, unique=True, nullable=True, index=True
-    )
-    telegram_handle: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    telegram_connected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    # Telegram linking — token used to pair via /integration command in the bot
     connect_token: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     connect_token_expires: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -77,6 +70,9 @@ class User(Base):
     reported_issues = relationship("Issue", back_populates="reporter", foreign_keys="Issue.reporter_id")
     assigned_issues = relationship("Issue", back_populates="assignee", foreign_keys="Issue.assignee_id")
     inbox_items = relationship("InboxItem", foreign_keys="InboxItem.user_id", back_populates="user")
+    telegram_integration = relationship(
+        "TelegramIntegration", back_populates="user", uselist=False
+    )
 
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username!r} role={self.role}>"

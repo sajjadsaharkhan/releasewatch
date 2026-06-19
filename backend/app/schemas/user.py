@@ -57,7 +57,6 @@ class UserResponse(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     avatar_color: str
-    telegram_handle: Optional[str] = None
     is_active: bool
     created_at: datetime
 

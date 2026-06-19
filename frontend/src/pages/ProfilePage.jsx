@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Camera } from 'lucide-react'
+import { Camera, CheckCircle2, Copy, Loader2, Send } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
@@ -11,7 +11,7 @@ import { Textarea } from '../components/ui/Textarea'
 import { ImageCropper } from '../components/ui/ImageCropper'
 import { MetricCard } from '../components/common/MetricCard'
 import { IssueTable } from '../components/common/IssueTable'
-import { userApi, issuesApi } from '../lib/api'
+import { userApi, issuesApi, authApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import {
@@ -84,6 +84,12 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [headerColors, setHeaderColors] = useState([])
   const fileInputRef = useRef(null)
+
+  // Telegram integration state (own profile only)
+  const [telegramStatus, setTelegramStatus] = useState(null)
+  const [telegramLoading, setTelegramLoading] = useState(false)
+  const [telegramActionLoading, setTelegramActionLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const effectiveUsername = username ?? currentUser?.username
 
@@ -214,8 +220,63 @@ export default function ProfilePage() {
     ...(isOwnProfile ? [
       { value: 'edit', label: 'Edit Profile' },
       { value: 'security', label: 'Security' },
+      { value: 'telegram', label: 'Telegram' },
     ] : []),
   ]
+
+  async function loadTelegramStatus() {
+    setTelegramLoading(true)
+    try {
+      const res = await authApi.getTelegramStatus()
+      let status = res.data
+      // Auto-generate a token if not connected and none exists
+      if (!status.connected && !status.token) {
+        const tokenRes = await authApi.getTelegramToken()
+        status = { ...status, token: tokenRes.data.connect_token, token_expires_at: tokenRes.data.expires_at }
+      }
+      setTelegramStatus(status)
+    } catch {
+      toast({ title: 'Failed to load Telegram status' })
+    } finally {
+      setTelegramLoading(false)
+    }
+  }
+
+  async function handleGenerateToken() {
+    setTelegramActionLoading(true)
+    try {
+      const res = await authApi.getTelegramToken()
+      setTelegramStatus((s) => ({ ...s, token: res.data.connect_token, token_expires_at: res.data.expires_at }))
+    } catch {
+      toast({ title: 'Failed to generate token' })
+    } finally {
+      setTelegramActionLoading(false)
+    }
+  }
+
+  async function handleDisconnect() {
+    setTelegramActionLoading(true)
+    try {
+      await authApi.disconnectTelegram()
+      // After disconnect, generate a fresh token immediately
+      const tokenRes = await authApi.getTelegramToken()
+      setTelegramStatus({
+        connected: false,
+        token: tokenRes.data.connect_token,
+        token_expires_at: tokenRes.data.expires_at,
+      })
+    } catch {
+      toast({ title: 'Failed to disconnect Telegram' })
+    } finally {
+      setTelegramActionLoading(false)
+    }
+  }
+
+  function handleCopyToken(token) {
+    navigator.clipboard.writeText(`/integration ${token}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="w-full">
@@ -288,7 +349,17 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} className="mb-5" />
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab)
+            if (tab === 'telegram' && isOwnProfile && !telegramStatus) {
+              loadTelegramStatus()
+            }
+          }}
+          options={TAB_OPTIONS}
+          className="mb-5"
+        />
 
         {activeTab === 'public' && (
           <div>
@@ -375,6 +446,144 @@ export default function ProfilePage() {
               </div>
             ))}
             <Button>Update password</Button>
+          </div>
+        )}
+
+        {activeTab === 'telegram' && isOwnProfile && (
+          <div className="w-full">
+            {telegramLoading ? (
+              <div className="rounded-xl border border-border bg-card flex items-center justify-center py-16">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : telegramStatus?.connected ? (
+              <div className="rounded-xl border border-border bg-card p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+                  {/* Left: identity */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                      <Send className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">Connected</span>
+                      </div>
+                      <p className="text-base font-semibold">
+                        {telegramStatus.telegram_full_name || telegramStatus.telegram_username || 'Telegram account'}
+                      </p>
+                      {telegramStatus.telegram_username && (
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">@{telegramStatus.telegram_username}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: stats grid */}
+                  <div className="flex flex-wrap gap-x-8 gap-y-3 sm:text-right">
+                    {telegramStatus.telegram_user_id && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Telegram ID</p>
+                        <p className="text-sm font-mono">{telegramStatus.telegram_user_id}</p>
+                      </div>
+                    )}
+                    {telegramStatus.connected_at && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Linked</p>
+                        <p className="text-sm">{new Date(telegramStatus.connected_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      </div>
+                    )}
+                    {telegramStatus.last_event_sent_at && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Last notified</p>
+                        <p className="text-sm">{new Date(telegramStatus.last_event_sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-5 border-t border-border flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">You will receive issue notifications and mentions via @ReleasewatchBot.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnect}
+                    disabled={telegramActionLoading}
+                    className="shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                  >
+                    {telegramActionLoading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card p-6">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                    <Send className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold">Connect Telegram</p>
+                    <p className="text-sm text-muted-foreground">Receive issue notifications and mentions via @ReleasewatchBot</p>
+                  </div>
+                </div>
+
+                {/* Two-column: token + instructions */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    {telegramStatus?.token && (
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                          Integration token
+                          {telegramStatus.token_expires_at && (
+                            <span className="ml-1 text-amber-500">
+                              · expires {new Date(telegramStatus.token_expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input value={telegramStatus.token} readOnly className="font-mono text-xs flex-1" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopyToken(telegramStatus.token)}
+                            className="shrink-0"
+                          >
+                            {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copied ? 'Copied' : 'Copy command'}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Copies the full <span className="font-mono">/integration {'<token>'}</span> command ready to paste.
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleGenerateToken}
+                      disabled={telegramActionLoading}
+                    >
+                      {telegramActionLoading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                      Generate new token
+                    </Button>
+                  </div>
+
+                  <div className="rounded-lg bg-muted p-4">
+                    <p className="text-xs font-semibold mb-3">How to connect</p>
+                    <ol className="text-xs text-muted-foreground space-y-2.5 list-decimal list-inside">
+                      <li>Open Telegram and search for <span className="font-mono text-foreground">@ReleasewatchBot</span></li>
+                      <li>
+                        Copy the command above and send it to the bot
+                        <div className="mt-1 font-mono text-foreground bg-background rounded px-2 py-1 select-all">
+                          /integration {telegramStatus?.token ?? '<token>'}
+                        </div>
+                      </li>
+                      <li>Your account will be linked automatically</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

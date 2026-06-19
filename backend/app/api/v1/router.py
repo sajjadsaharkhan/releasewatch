@@ -20,7 +20,6 @@ from app.api.v1 import (
     reports,
     team,
     settings as settings_router,
-    telegram,
     user,
     users,
     ws,
@@ -44,5 +43,4 @@ api_router.include_router(team.router, prefix="/team", tags=["team"])
 api_router.include_router(user.router, tags=["user"])
 api_router.include_router(users.router, tags=["users"])
 api_router.include_router(settings_router.router, prefix="/settings", tags=["settings"])
-api_router.include_router(telegram.router, prefix="/telegram", tags=["telegram"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])

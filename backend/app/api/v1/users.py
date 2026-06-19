@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.db.models.issue import Issue, IssueStatus
@@ -53,8 +54,8 @@ async def _build_profile(user: User, db: AsyncSession) -> UserProfileResponse:
         avatar_color=user.avatar_color,
         is_active=user.is_active,
         joinedAt=user.created_at.isoformat() if user.created_at else None,
-        tgConnected=user.telegram_handle is not None,
-        tgHandle=user.telegram_handle,
+        tgConnected=user.telegram_integration is not None and user.telegram_integration.is_active,
+        tgHandle=user.telegram_integration.telegram_username if user.telegram_integration else None,
         reported=reported_count,
         fixed=fixed_count,
         fixRate=fix_rate,
@@ -71,7 +72,11 @@ async def get_user_by_username(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UserProfileResponse:
-    result = await db.execute(select(User).where(User.username == username))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.telegram_integration))
+        .where(User.username == username)
+    )
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
