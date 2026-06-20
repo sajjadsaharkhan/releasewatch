@@ -311,6 +311,8 @@ async def create_issue(
     issue = await issue_service.create(db, payload, current_user)
     await db.commit()
     await db.refresh(issue)
+    from app.tasks.search import embed_issue
+    embed_issue.apply_async((issue.id,), countdown=0)
     return IssueResponse.model_validate(issue)
 
 
@@ -344,6 +346,8 @@ async def update_issue(
     )
     await db.commit()
     await db.refresh(issue, attribute_names=['assignee', 'reporter', 'release', 'project'])
+    from app.tasks.search import embed_issue
+    embed_issue.apply_async((issue.id,), countdown=10)
     enriched = await _build_enriched_responses([issue], db)
     return enriched[0]
 

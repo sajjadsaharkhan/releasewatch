@@ -32,16 +32,7 @@ router = APIRouter()
 # In production these would be stored per-user/workspace in a settings table.
 # For now they are returned as a default matrix and accepted as-is.
 
-_DEFAULT_NOTIFICATION_MATRIX = {
-    "filed": {"reporter": True, "assignee": False, "triage": True, "cto": True},
-    "assigned": {"reporter": False, "assignee": True, "triage": False, "cto": False},
-    "comment": {"reporter": True, "assignee": True, "triage": False, "cto": False},
-    "mention": {"reporter": True, "assignee": True, "triage": True, "cto": True},
-    "regression": {"reporter": True, "assignee": True, "triage": True, "cto": True},
-    "fixed": {"reporter": True, "assignee": False, "triage": False, "cto": False},
-    "fix_verified": {"reporter": False, "assignee": True, "triage": False, "cto": False},
-    "release_gate": {"reporter": False, "assignee": False, "triage": True, "cto": True},
-}
+from app.core.notification_defaults import DEFAULT_NOTIFICATION_MATRIX as _DEFAULT_NOTIFICATION_MATRIX
 
 _gitlab_config: dict = {}
 
@@ -49,19 +40,27 @@ _gitlab_config: dict = {}
 @router.get("/notifications")
 async def get_notifications(
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return the notification preference matrix (event types × roles)."""
-    return _DEFAULT_NOTIFICATION_MATRIX
+    stored = await _get_setting(db, "notifications", "matrix")
+    matrix = dict(_DEFAULT_NOTIFICATION_MATRIX)
+    if stored:
+        matrix.update(stored)
+    return matrix
 
 
 @router.put("/notifications")
 async def save_notifications(
     body: dict,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Persist notification preferences. Body must match the matrix shape."""
-    _DEFAULT_NOTIFICATION_MATRIX.update(body)
-    return _DEFAULT_NOTIFICATION_MATRIX
+    current = await _get_setting(db, "notifications", "matrix") or dict(_DEFAULT_NOTIFICATION_MATRIX)
+    current.update(body)
+    await _set_setting(db, "notifications", "matrix", current)
+    return current
 
 
 @router.get("/integrations/gitlab")
@@ -177,6 +176,7 @@ async def get_telegram_integration(
         via_proxy=via_proxy,
         proxy_url_preview=_mask_proxy_url(proxy_url) if proxy_url else None,
         connectivity_error=error,
+        frontend_url=tg_config.get("frontend_url"),
     )
 
 
@@ -214,6 +214,9 @@ async def save_telegram_integration(
     if body.bot_username is not None:
         existing["bot_username"] = body.bot_username
 
+    if body.frontend_url is not None:
+        existing["frontend_url"] = body.frontend_url.rstrip("/")
+
     await _set_setting(db, "telegram", "config", existing)
 
     stored_token = existing.get("bot_token")
@@ -230,6 +233,7 @@ async def save_telegram_integration(
         connected_count=connected_count,
         bot_token_set=bool(stored_token),
         bot_token_preview=_mask_bot_token(stored_token) if stored_token else None,
+        frontend_url=existing.get("frontend_url"),
     )
 
 
@@ -326,9 +330,13 @@ async def get_configuration(
     llm_value = await _get_setting(db, "llm", "config")
     if llm_value:
         llm_config = LLMConfig(
+            embedding_provider=llm_value.get("embedding_provider", "local"),
+            local_model=llm_value.get("local_model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
             base_url=llm_value.get("base_url", ""),
             api_key=llm_value.get("api_key", ""),
             embedding_model=llm_value.get("embedding_model", ""),
+            embedding_dimension=llm_value.get("embedding_dimension", 384),
+            rerank_enabled=llm_value.get("rerank_enabled", False),
         )
     else:
         llm_config = LLMConfig()
@@ -366,9 +374,13 @@ async def save_configuration(
         "llm",
         "config",
         {
+            "embedding_provider": body.llm.embedding_provider,
+            "local_model": body.llm.local_model,
             "base_url": body.llm.base_url,
             "api_key": body.llm.api_key,
             "embedding_model": body.llm.embedding_model,
+            "embedding_dimension": body.llm.embedding_dimension,
+            "rerank_enabled": body.llm.rerank_enabled,
         },
     )
 

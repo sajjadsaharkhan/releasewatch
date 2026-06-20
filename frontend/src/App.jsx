@@ -19,6 +19,7 @@ const ContributionsPage = lazy(() => import('./pages/ContributionsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const TeamPage = lazy(() => import('./pages/TeamPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SearchPage = lazy(() => import('./pages/SearchPage'))
 
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
@@ -149,6 +150,7 @@ function AppInner() {
             <Route path="regressions" element={<AdminRoute><RegressionsPage /></AdminRoute>} />
             <Route path="contributions" element={<AdminRoute><ContributionsPage /></AdminRoute>} />
             <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+            <Route path="search" element={<SearchPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
             <Route path="issue/:slug" element={<IssuePage />} />

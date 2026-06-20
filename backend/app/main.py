@@ -34,6 +34,23 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logging.warning(f"S3 initialization skipped: {e}")
 
+    # Pre-load the local embedding model so the first search request is instant
+    async def _warm_embedder() -> None:
+        try:
+            from sqlalchemy.ext.asyncio import AsyncSession
+            from app.db.session import get_engine
+            from app.services.search_service import _load_llm_config, _embed_local, _E5_MODELS
+            async with AsyncSession(get_engine()) as db:
+                cfg = await _load_llm_config(db)
+            if cfg.get("provider") == "local":
+                prefix = "query: " if cfg["model"] in _E5_MODELS else ""
+                await _embed_local(cfg["model"], ["warmup"], prefix=prefix)
+                logging.info("Embedding model '%s' loaded and ready.", cfg["model"])
+        except Exception as exc:
+            logging.warning("Embedding model pre-load skipped: %s", exc)
+
+    asyncio.create_task(_warm_embedder(), name="embedding-warmup")
+
     # Start Telegram bot long-poll loop as a background task in the same event loop
     from app.bot.poller import start_polling
     bot_task = asyncio.create_task(start_polling(), name="telegram-bot-poller")

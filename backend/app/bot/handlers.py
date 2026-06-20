@@ -6,8 +6,10 @@ Each handler receives the incoming ``telegram.Message`` object and an active
 
 import logging
 from datetime import datetime, timezone
+from html import escape as html_escape
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Bot, Message
 from telegram.constants import ParseMode
@@ -166,7 +168,6 @@ async def _handle_status(
     tg_user_id: int,
 ) -> None:
     """Return the current status of an issue (requires a linked account)."""
-    # Verify the sender is linked
     result = await db.execute(
         select(TelegramIntegration).where(
             TelegramIntegration.telegram_user_id == tg_user_id,
@@ -177,51 +178,63 @@ async def _handle_status(
     if integration is None:
         await bot.send_message(
             chat_id=chat_id,
-            text="❌ Your Telegram account is not linked\\. Use `/integration <token>` to connect\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            text="❌ Your Telegram account is not linked. Use /integration &lt;token&gt; to connect.",
+            parse_mode=ParseMode.HTML,
         )
         return
 
     if not issue_ref:
         await bot.send_message(
             chat_id=chat_id,
-            text="❌ Usage: `/status <issue\\-number>`",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            text="❌ Usage: /status &lt;issue-number&gt;",
+            parse_mode=ParseMode.HTML,
         )
         return
 
-    # Support "42" or "ISSUE-42" or "issue-42" formats
+    # Support "42" or "ISSUE-42" or "BUG-42" formats
     number_str = issue_ref.upper().removeprefix("ISSUE-").removeprefix("BUG-")
     if not number_str.isdigit():
         await bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Could not parse issue number from `{_escape(issue_ref)}`\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            text=f"❌ Could not parse issue number from <code>{html_escape(issue_ref)}</code>.",
+            parse_mode=ParseMode.HTML,
         )
         return
 
     res = await db.execute(
-        select(Issue).where(Issue.issue_number == int(number_str))
+        select(Issue)
+        .where(Issue.issue_number == int(number_str))
+        .options(selectinload(Issue.project), selectinload(Issue.release))
     )
     issue = res.scalar_one_or_none()
     if issue is None:
         await bot.send_message(
             chat_id=chat_id,
-            text=f"❌ Issue `{_escape(issue_ref)}` not found\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            text=f"❌ Issue <code>{html_escape(issue_ref)}</code> not found.",
+            parse_mode=ParseMode.HTML,
         )
         return
 
-    regression_flag = "Yes" if issue.is_regression else "No"
+    project_name = html_escape(issue.project.name) if issue.project else "—"
+    release_version = html_escape(issue.release.version) if issue.release else "—"
+    blocker_line = "\n🚨 <b>Release blocker</b>" if issue.is_release_blocker else ""
+    regression_line = (
+        f"\n🔁 Regression · appeared {issue.regression_count}×"
+        if issue.is_regression else ""
+    )
+
     await bot.send_message(
         chat_id=chat_id,
         text=(
-            f"📋 *Issue \\#{issue.issue_number}*\n"
-            f"{_escape(issue.title)}\n\n"
-            f"Status: `{_escape(str(issue.status))}` \\| Severity: `{_escape(str(issue.severity))}`\n"
-            f"Regression: {regression_flag}"
+            f"📋 <b>Issue #{issue.issue_number} — {html_escape(issue.title)}</b>\n"
+            f"📦 <b>{project_name}</b> · <code>{release_version}</code>\n"
+            f"\n"
+            f"Status: <code>{html_escape(str(issue.status))}</code> · "
+            f"Severity: <code>{html_escape(str(issue.severity))}</code>"
+            f"{blocker_line}"
+            f"{regression_line}"
         ),
-        parse_mode=ParseMode.MARKDOWN_V2,
+        parse_mode=ParseMode.HTML,
     )
 
 

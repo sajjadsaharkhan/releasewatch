@@ -60,6 +60,7 @@ class TelegramIntegrationResponse(BaseModel):
     via_proxy: bool = False
     proxy_url_preview: str | None = None
     connectivity_error: str | None = None
+    frontend_url: str | None = None
 
 
 class TelegramStatusResponse(BaseModel):

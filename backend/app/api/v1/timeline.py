@@ -118,7 +118,7 @@ async def create_comment(
         body = payload.body or ""
         extra = {"body": body, "mentioned_user_ids": mentioned_ids}
 
-        body_snippet = body[:100] if body else None
+        body_snippet = (body[:200] + "…") if body and len(body) > 200 else (body or None)
         snippet_meta = {"body_snippet": body_snippet} if body_snippet else None
 
         await inbox_service.fan_out(
@@ -143,6 +143,9 @@ async def create_comment(
             )
 
         await db.commit()
+
+    from app.tasks.search import embed_issue
+    embed_issue.apply_async((issue_id,), countdown=10)
 
     return _enrich_event(event)
 
@@ -169,6 +172,10 @@ async def edit_comment(
         .where(IssueTimeline.id == event_id)
     )
     event = result.scalar_one()
+
+    from app.tasks.search import embed_issue
+    embed_issue.apply_async((issue_id,), countdown=10)
+
     return _enrich_event(event)
 
 

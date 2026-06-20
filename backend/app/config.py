@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     S3_LARGE_FILE_RETENTION_DAYS: int = Field(60, description="Days before auto-deletion of large files")
     S3_PUBLIC_URL_BASE: str = Field("", description="Base URL for public S3 access (e.g., CDN)")
 
+    # ── Frontend ──────────────────────────────────────────────────────────────
+    FRONTEND_URL: str = Field("http://localhost:5173", description="Public base URL of the frontend app (used in Telegram links)")
+
     # ── Telegram ──────────────────────────────────────────────────────────────
     TELEGRAM_BOT_TOKEN: str = Field("", description="Telegram bot token from @BotFather")
     TELEGRAM_BOT_USERNAME: str = Field("", description="Bot username without @")

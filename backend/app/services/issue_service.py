@@ -222,6 +222,7 @@ class IssueService:
         # Fan-out: reporter + old assignee get status-changed notification
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+            meta={"from": IssueStatus.new.value, "to": IssueStatus.triaged.value},
         )
 
         return issue
@@ -339,6 +340,10 @@ class IssueService:
             # fail/partial — notify assignee + reporter of status change
             await InboxFanOutService().fan_out(
                 db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+                meta={
+                    "from": IssueStatus.fixed.value,
+                    "to": getattr(issue.status, "value", str(issue.status)),
+                },
             )
 
         return issue
@@ -385,6 +390,10 @@ class IssueService:
 
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
+            meta={
+                "from": getattr(prev_status, "value", str(prev_status)),
+                "to": IssueStatus.in_progress.value,
+            },
         )
 
         return issue
@@ -474,7 +483,7 @@ class IssueService:
         timeline_svc = TimelineService()
         inbox_svc = InboxFanOutService()
         events_to_emit: list[tuple[TimelineEventType, dict]] = []
-        inbox_triggers: list[InboxEventType] = []
+        inbox_triggers: list[tuple[InboxEventType, dict | None]] = []
 
         # ── Title ─────────────────────────────────────────────────────────────
         if "title" in payload and payload["title"] != issue.title:
@@ -499,25 +508,28 @@ class IssueService:
                     TimelineEventType.severity_changed,
                     {"from": old_sev, "to": new_sev_val},
                 ))
+                inbox_triggers.append((InboxEventType.severity_changed, {"from": old_sev, "to": new_sev_val}))
                 issue.severity = new_sev
 
         # ── Environment name ──────────────────────────────────────────────────
         if "environment_name" in payload and payload["environment_name"] != issue.environment_name:
+            _old_env = issue.environment_name
+            _new_env = payload["environment_name"]
             events_to_emit.append((
                 TimelineEventType.environment_changed,
-                {"from": issue.environment_name, "to": payload["environment_name"]},
+                {"from": _old_env, "to": _new_env},
             ))
-            inbox_triggers.append(InboxEventType.environment_changed)
-            issue.environment_name = payload["environment_name"]
+            inbox_triggers.append((InboxEventType.environment_changed, {"from": _old_env, "to": _new_env}))
+            issue.environment_name = _new_env
 
         # ── Release blocker ───────────────────────────────────────────────────
         if "is_release_blocker" in payload and payload["is_release_blocker"] != issue.is_release_blocker:
             if payload["is_release_blocker"]:
                 events_to_emit.append((TimelineEventType.blocker_flagged, {}))
-                inbox_triggers.append(InboxEventType.blocker_filed)
+                inbox_triggers.append((InboxEventType.blocker_filed, None))
             else:
                 events_to_emit.append((TimelineEventType.blocker_cleared, {}))
-                inbox_triggers.append(InboxEventType.blocker_cleared)
+                inbox_triggers.append((InboxEventType.blocker_cleared, None))
             issue.is_release_blocker = payload["is_release_blocker"]
 
         # ── Assignee ──────────────────────────────────────────────────────────
@@ -530,7 +542,7 @@ class IssueService:
                     TimelineEventType.assigned,
                     {"assignee_id": new_assignee_str, "prev_assignee_id": old_assignee_str},
                 ))
-                inbox_triggers.append(InboxEventType.assigned)
+                inbox_triggers.append((InboxEventType.assigned, None))
                 issue.assignee_id = new_assignee
 
                 from app.db.models.issue_cycle import IssueCycle as _IssueCycle
@@ -581,7 +593,10 @@ class IssueService:
                     TimelineEventType.release_changed,
                     {"from_version": from_version, "to_version": to_version},
                 ))
-                inbox_triggers.append(InboxEventType.release_changed)
+                inbox_triggers.append((
+                    InboxEventType.release_changed,
+                    {"from": from_version or "—", "to": to_version or "—"},
+                ))
                 issue.release_id = new_release_id
 
         # ── Status (direct patch, e.g. closing) ───────────────────────────────
@@ -595,7 +610,7 @@ class IssueService:
                     {"from": old_status_val, "to": new_status_val},
                 ))
                 if new_status_val != IssueStatus.regression.value:
-                    inbox_triggers.append(InboxEventType.status_changed)
+                    inbox_triggers.append((InboxEventType.status_changed, {"from": old_status_val, "to": new_status_val}))
                 issue.status = new_status
 
                 now = datetime.now(tz=timezone.utc)
@@ -657,7 +672,7 @@ class IssueService:
                     release = release_result.scalar_one_or_none()
                     if release:
                         await regression_service.record_regression(db, issue, release, actor)
-                    inbox_triggers.append(InboxEventType.regression)
+                    inbox_triggers.append((InboxEventType.regression, None))
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
@@ -681,9 +696,9 @@ class IssueService:
             )
 
         # Fan-out inbox notifications
-        for trigger in inbox_triggers:
+        for trigger, trigger_meta in inbox_triggers:
             await inbox_svc.fan_out(
-                db=db, trigger=trigger, issue=issue, actor=actor,
+                db=db, trigger=trigger, issue=issue, actor=actor, meta=trigger_meta,
             )
 
         return issue
