@@ -21,6 +21,7 @@ services:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
     build: null
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    ports: []   # not exposed — frontend nginx proxies /api/ and /ws/ internally
     logging: *default-logging
     deploy:
       resources:

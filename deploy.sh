@@ -60,14 +60,14 @@ echo "▶ Starting services..."
 $COMPOSE up -d --no-build --remove-orphans
 
 # ── Health check ──────────────────────────────────────────────────────────────
-echo "▶ Waiting for API to become healthy..."
+echo "▶ Waiting for frontend to become healthy..."
 for i in $(seq 1 30); do
-  if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-    echo "▶ API is healthy ✓"
+  if curl -sf http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+    echo "▶ Stack is healthy ✓"
     break
   fi
   if [ "$i" -eq 30 ]; then
-    echo "✗ API did not become healthy in 30 seconds"
+    echo "✗ Stack did not become healthy in 30 seconds"
     $COMPOSE logs --tail=30 api
     exit 1
   fi
