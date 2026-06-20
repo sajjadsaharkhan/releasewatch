@@ -29,15 +29,30 @@ echo "▶ Pulling images from GHCR..."
 docker pull "${REGISTRY}/api:${IMAGE_TAG}"
 docker pull "${REGISTRY}/frontend:${IMAGE_TAG}"
 
-# ── Run database migrations before swapping containers ────────────────────────
-echo "▶ Running database migrations..."
-$COMPOSE run --rm \
-  --no-deps \
-  api \
-  alembic upgrade head
+# ── Ensure postgres and redis are up before migrating ────────────────────────
+echo "▶ Starting database services..."
+$COMPOSE up -d --no-build postgres redis
 
-# ── Restart services with zero-downtime rolling update ────────────────────────
-echo "▶ Restarting services..."
+echo "▶ Waiting for postgres to be healthy..."
+for i in $(seq 1 30); do
+  if $COMPOSE exec -T postgres pg_isready -U "${POSTGRES_USER:-rw_user}" -d "${POSTGRES_DB:-releasewatch}" > /dev/null 2>&1; then
+    echo "▶ Postgres is ready ✓"
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "✗ Postgres did not become healthy in 30 seconds"
+    $COMPOSE logs --tail=20 postgres
+    exit 1
+  fi
+  sleep 1
+done
+
+# ── Run database migrations ───────────────────────────────────────────────────
+echo "▶ Running database migrations..."
+$COMPOSE run --rm --no-deps api alembic upgrade head
+
+# ── Start / restart all services ─────────────────────────────────────────────
+echo "▶ Starting services..."
 $COMPOSE up -d --no-build --remove-orphans
 
 # ── Health check ──────────────────────────────────────────────────────────────
@@ -49,7 +64,6 @@ for i in $(seq 1 30); do
   fi
   if [ "$i" -eq 30 ]; then
     echo "✗ API did not become healthy in 30 seconds"
-    echo "  Last logs:"
     $COMPOSE logs --tail=30 api
     exit 1
   fi
