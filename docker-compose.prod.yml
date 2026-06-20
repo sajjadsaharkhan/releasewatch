@@ -60,6 +60,8 @@ services:
 
   postgres:
     ports: []   # not exposed in production — access via Docker network only
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
     logging: *default-logging
     deploy:
       resources:
@@ -69,6 +71,8 @@ services:
 
   redis:
     ports: []   # not exposed in production
+    volumes:
+      - ./data/redis:/data
     logging: *default-logging
     deploy:
       resources:
