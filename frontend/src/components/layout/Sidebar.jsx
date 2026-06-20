@@ -6,6 +6,7 @@ import { NavItem } from './NavItem'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { Avatar } from '../ui/Avatar'
 import { useApp } from '../../hooks/useApp'
+import logoUrl from '../../assets/logo.svg'
 
 const ADMIN_ROLES = ['admin', 'cto']
 
@@ -21,9 +22,7 @@ export function Sidebar() {
       {/* Logo / Project Switcher */}
       <div className="border-b border-border p-3">
         <Link to="/dashboard" className="flex items-center gap-2.5 px-1 py-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-            RW
-          </div>
+          <img src={logoUrl} alt="Releasewatch" className="h-7 w-7 rounded-lg object-contain" />
           <span className="font-semibold text-sm">Releasewatch</span>
         </Link>
       </div>
@@ -32,6 +31,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-0.5">
         <NavItem to="/dashboard" icon="layout-dashboard" label="Dashboard" />
         <NavItem to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
+        <NavItem to="/search" icon="search" label="Search" />
 
         {/* Issues section */}
         <div className="pt-1">

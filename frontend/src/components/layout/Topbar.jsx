@@ -8,7 +8,6 @@ import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
-import { userById } from '../../data/mockData'
 
 export function Topbar() {
   const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
@@ -16,7 +15,7 @@ export function Topbar() {
   const navigate = useNavigate()
 
   // Use authenticated user if available, otherwise fall back to mock user
-  const currentUser = user ? { ...user, username: user.username, name: user.name, avatar_color: user.avatar_color || '#6366f1' } : userById('u-1')
+  const currentUser = user ? { ...user, avatar_color: user.avatar_color || '#6366f1' } : null
   const isAdmin = ['admin', 'cto'].includes(user?.role)
 
   const handleLogout = async () => {

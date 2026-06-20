@@ -181,7 +181,7 @@ export function AppProvider({ children }) {
       setProjects(projectsList)
       // Update active project if needed
       const active = projectsList.find((p) => p.id === activeProjectId)
-      if (!active && !activeProjectId) {
+      if (!active) {
         const firstProject = projectsList.find((p) => !p.archived) ?? projectsList[0]
         if (firstProject) {
           setActiveProjectId(firstProject.id)

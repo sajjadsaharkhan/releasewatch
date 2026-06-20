@@ -13,7 +13,7 @@ import { useToast } from '../hooks/useToast'
 import { MOCK_TEAM, ROLE } from '../data/mockData'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal } from '../components/project'
-import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
+import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
 
 const TAB_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -46,17 +46,29 @@ const TIMEZONES = [
 ]
 
 const NOTIFICATION_EVENTS = [
-  'Issue filed',
-  'Issue assigned to me',
-  'New comment',
-  'Status changed',
-  'Regression marked',
-  'Fix verified',
-  'Blocker added',
-  'Release Go/No-Go',
+  { key: 'filed',               label: 'Issue filed' },
+  { key: 'assigned',            label: 'Issue assigned' },
+  { key: 'mention',             label: 'Mentioned in comment' },
+  { key: 'comment',             label: 'New comment' },
+  { key: 'status_changed',      label: 'Status changed' },
+  { key: 'regression',          label: 'Regression marked' },
+  { key: 'fixed',               label: 'Fix marked' },
+  { key: 'verified',            label: 'Fix verified' },
+  { key: 'blocker_filed',       label: 'Blocker added' },
+  { key: 'blocker_cleared',     label: 'Blocker cleared' },
+  { key: 'release_gate',        label: 'Release Go/No-Go' },
+  { key: 'environment_changed', label: 'Environment changed' },
+  { key: 'release_changed',     label: 'Release changed' },
+  { key: 'attachment_added',    label: 'Attachment added' },
+  { key: 'severity_changed',    label: 'Severity changed' },
 ]
 
-const NOTIFICATION_ROLES = ['Reporter', 'Assignee', 'Triage Lead', 'CTO']
+const NOTIFICATION_ROLES = [
+  { key: 'reporter', label: 'Reporter' },
+  { key: 'assignee', label: 'Assignee' },
+  { key: 'triage',   label: 'Triage Lead' },
+  { key: 'cto',      label: 'CTO' },
+]
 
 function SectionTitle({ children }) {
   return <h3 className="text-sm font-semibold mb-4">{children}</h3>
@@ -84,16 +96,9 @@ export default function SettingsPage() {
   const [labels, setLabels] = useState([])
   const [labelsLoading, setLabelsLoading] = useState(true)
   const [newLabel, setNewLabel] = useState({ name: '', color: '#6366f1' })
-  const [notifications, setNotifications] = useState(() => {
-    const map = {}
-    NOTIFICATION_EVENTS.forEach((evt) => {
-      map[evt] = {}
-      NOTIFICATION_ROLES.forEach((role) => {
-        map[evt][role] = Math.random() > 0.4
-      })
-    })
-    return map
-  })
+  const [notifications, setNotifications] = useState({})
+  const [notifLoading, setNotifLoading] = useState(true)
+  const [notifSaving, setNotifSaving] = useState(false)
   const [telegramIntegration, setTelegramIntegration] = useState({
     botUsername: '',
     botFirstName: null,
@@ -105,8 +110,10 @@ export default function SettingsPage() {
     viaProxy: false,
     proxyUrlPreview: null,
     connectivityError: null,
+    frontendUrl: '',
   })
   const [botTokenInput, setBotTokenInput] = useState('')
+  const [frontendUrlInput, setFrontendUrlInput] = useState('')
   const [showBotToken, setShowBotToken] = useState(false)
   const [telegramSaving, setTelegramSaving] = useState(false)
   const [telegramLoading, setTelegramLoading] = useState(true)
@@ -159,7 +166,9 @@ export default function SettingsPage() {
         viaProxy: d.via_proxy ?? false,
         proxyUrlPreview: d.proxy_url_preview ?? null,
         connectivityError: d.connectivity_error ?? null,
+        frontendUrl: d.frontend_url ?? '',
       })
+      setFrontendUrlInput(d.frontend_url ?? '')
     } catch (err) {
       console.error('Failed to fetch Telegram integration:', err)
     } finally {
@@ -181,6 +190,19 @@ export default function SettingsPage() {
       // Keep default values on error
     } finally {
       setGeneralLoading(false)
+    }
+  }, [])
+
+  // Fetch notification matrix from API
+  const fetchNotifications = useCallback(async () => {
+    setNotifLoading(true)
+    try {
+      const response = await settingsApi.getNotifications()
+      setNotifications(response.data || {})
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err)
+    } finally {
+      setNotifLoading(false)
     }
   }, [])
 
@@ -206,16 +228,18 @@ export default function SettingsPage() {
     fetchTelegramIntegration()
     fetchGeneralSettings()
     fetchConfiguration()
-  }, [fetchTeam, fetchLabels, fetchTelegramIntegration, fetchGeneralSettings, fetchConfiguration])
+    fetchNotifications()
+  }, [fetchTeam, fetchLabels, fetchTelegramIntegration, fetchGeneralSettings, fetchConfiguration, fetchNotifications])
 
   // Configuration state
   const [proxy, setProxy] = useState({ enabled: false, http: '', https: '', noProxy: '' })
-  const [llm, setLlm] = useState({ baseUrl: '', apiKey: '', embeddingModel: '' })
+  const [llm, setLlm] = useState({ embeddingProvider: 'local', localModel: 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2', baseUrl: '', apiKey: '', embeddingModel: '', embeddingDimension: 384, rerankEnabled: false })
   const [llmTestStatus, setLlmTestStatus] = useState(null) // null | 'loading' | 'success' | 'error'
   const [llmTestMessage, setLlmTestMessage] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [configSaving, setConfigSaving] = useState(false)
   const [configLoading, setConfigLoading] = useState(true)
+  const [reindexing, setReindexing] = useState(false)
 
   // Member modals state
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -272,10 +296,10 @@ export default function SettingsPage() {
     setLabelToDelete(null)
   }
 
-  function toggleNotif(event, role) {
+  function toggleNotif(eventKey, roleKey) {
     setNotifications((n) => ({
       ...n,
-      [event]: { ...n[event], [role]: !n[event]?.[role] },
+      [eventKey]: { ...n[eventKey], [roleKey]: !n[eventKey]?.[roleKey] },
     }))
   }
 
@@ -457,10 +481,13 @@ export default function SettingsPage() {
   }
 
   async function saveTelegramConfig() {
-    if (!botTokenInput.trim()) return
+    if (!botTokenInput.trim() && !frontendUrlInput.trim()) return
     setTelegramSaving(true)
     try {
-      const response = await settingsApi.saveTelegramIntegration({ botToken: botTokenInput.trim() })
+      const payload = {}
+      if (botTokenInput.trim()) payload.botToken = botTokenInput.trim()
+      if (frontendUrlInput.trim()) payload.frontendUrl = frontendUrlInput.trim()
+      const response = await settingsApi.saveTelegramIntegration(payload)
       const d = response.data
       setTelegramIntegration({
         botUsername: d.bot_username,
@@ -473,14 +500,32 @@ export default function SettingsPage() {
         viaProxy: d.via_proxy ?? false,
         proxyUrlPreview: d.proxy_url_preview ?? null,
         connectivityError: d.connectivity_error ?? null,
+        frontendUrl: d.frontend_url ?? '',
       })
       setBotTokenInput('')
-      toast({ title: 'Telegram bot configured', body: `Connected as ${d.bot_username}. Restart the backend for the new token to take effect.` })
+      if (botTokenInput.trim()) {
+        toast({ title: 'Telegram bot configured', body: `Connected as ${d.bot_username}. Restart the backend for the new token to take effect.` })
+      } else {
+        toast({ title: 'Frontend URL saved', body: 'Notification links will now point to the new address.' })
+      }
     } catch (err) {
       console.error('Failed to save Telegram config:', err)
       toast({ title: 'Failed to save', body: err.response?.data?.detail || 'Could not save Telegram configuration.' })
     } finally {
       setTelegramSaving(false)
+    }
+  }
+
+  async function saveNotifications() {
+    setNotifSaving(true)
+    try {
+      await settingsApi.saveNotifications(notifications)
+      toast({ title: 'Notification settings saved', body: 'Telegram notification matrix has been updated.' })
+    } catch (err) {
+      console.error('Failed to save notifications:', err)
+      toast({ title: 'Failed to save', body: err.response?.data?.detail || 'Could not save notification settings.' })
+    } finally {
+      setNotifSaving(false)
     }
   }
 
@@ -503,6 +548,18 @@ export default function SettingsPage() {
       })
     } finally {
       setConfigSaving(false)
+    }
+  }
+
+  async function triggerReindex() {
+    setReindexing(true)
+    try {
+      const res = await searchApi.reindex()
+      toast({ title: 'Reindex started', body: res.data?.message || 'Embedding tasks enqueued.' })
+    } catch (err) {
+      toast({ title: 'Reindex failed', body: err.response?.data?.detail || 'Could not start reindex.' })
+    } finally {
+      setReindexing(false)
     }
   }
 
@@ -901,17 +958,33 @@ export default function SettingsPage() {
                     </p>
                   </div>
 
+                  {/* Frontend URL input */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      Frontend URL <span className="text-muted-foreground/60">— for notification links</span>
+                    </label>
+                    <Input
+                      value={frontendUrlInput}
+                      onChange={(e) => setFrontendUrlInput(e.target.value)}
+                      placeholder="http://192.168.1.10:5173"
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Base URL of this app reachable from your phone. Used to build clickable issue links in Telegram messages.
+                    </p>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">Restart backend after changing token.</p>
                     <Button
                       size="sm"
                       onClick={saveTelegramConfig}
-                      disabled={telegramSaving || !botTokenInput.trim()}
+                      disabled={telegramSaving || (!botTokenInput.trim() && !frontendUrlInput.trim())}
                     >
                       {telegramSaving
                         ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                         : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                      Save token
+                      Save
                     </Button>
                   </div>
 
@@ -995,58 +1068,128 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* LLM Configuration */}
+              {/* LLM / Embedding Configuration */}
               <div>
-                <SectionTitle>LLM Configuration</SectionTitle>
+                <SectionTitle>Embedding Configuration</SectionTitle>
                 <div className="rounded-xl border border-border bg-card p-5 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
                       <Server className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Language Model API</p>
-                      <p className="text-xs text-muted-foreground">Configure your LLM provider for AI features</p>
+                      <p className="text-sm font-semibold">Semantic Search</p>
+                      <p className="text-xs text-muted-foreground">Embedding model for AI-powered issue search</p>
                     </div>
                   </div>
+
+                  {/* Provider toggle */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Base URL</label>
-                    <Input
-                      value={llm.baseUrl}
-                      onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
-                      placeholder="https://api.openai.com/v1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">API endpoint for your LLM provider</p>
+                    <label className="block text-xs font-medium text-muted-foreground mb-2">Embedding Provider</label>
+                    <div className="flex rounded-lg border border-border overflow-hidden w-fit">
+                      {[{ v: 'local', label: 'Local (fast)' }, { v: 'api', label: 'External API' }].map(({ v, label }) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setLlm((l) => ({ ...l, embeddingProvider: v }))}
+                          className={cn(
+                            'px-4 py-1.5 text-xs font-medium transition-colors',
+                            llm.embeddingProvider === v
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      {llm.embeddingProvider === 'local'
+                        ? 'Runs ONNX model in-process — no API key, ~20 ms per query.'
+                        : 'Uses your configured OpenAI-compatible endpoint.'}
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
-                    <div className="relative">
+
+                  {/* Local model name */}
+                  {llm.embeddingProvider === 'local' && (
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Local Model</label>
                       <Input
-                        value={llm.apiKey}
-                        onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
-                        placeholder="sk-..."
-                        type={showApiKey ? 'text' : 'password'}
-                        className="pr-9"
+                        value={llm.localModel}
+                        onChange={(e) => setLlm((l) => ({ ...l, localModel: e.target.value }))}
+                        placeholder="BAAI/bge-small-en-v1.5"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        fastembed model name — must match the model baked into the Docker image.
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Your API key for authentication</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Model</label>
-                    <Input
-                      value={llm.embeddingModel}
-                      onChange={(e) => setLlm((l) => ({ ...l, embeddingModel: e.target.value }))}
-                      placeholder="text-embedding-3-small"
+                  )}
+
+                  {/* External API fields */}
+                  {llm.embeddingProvider === 'api' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Base URL</label>
+                        <Input
+                          value={llm.baseUrl}
+                          onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
+                          placeholder="https://api.openai.com/v1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">API endpoint for your LLM provider</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
+                        <div className="relative">
+                          <Input
+                            value={llm.apiKey}
+                            onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
+                            placeholder="sk-..."
+                            type={showApiKey ? 'text' : 'password'}
+                            className="pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey((s) => !s)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Model</label>
+                        <Input
+                          value={llm.embeddingModel}
+                          onChange={(e) => setLlm((l) => ({ ...l, embeddingModel: e.target.value }))}
+                          placeholder="text-embedding-3-small"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Dimension</label>
+                        <Input
+                          type="number"
+                          value={llm.embeddingDimension ?? 384}
+                          onChange={(e) => setLlm((l) => ({ ...l, embeddingDimension: parseInt(e.target.value, 10) || 384 }))}
+                          placeholder="1536"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          1536 for text-embedding-3-small, 3072 for -large. Changing this requires a reindex.
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex items-center justify-between py-2 border-t border-border">
+                    <div>
+                      <p className="text-sm font-medium">LLM reranker</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Re-rank top search results for higher precision (costs one extra LLM call)</p>
+                    </div>
+                    <Switch
+                      checked={!!llm.rerankEnabled}
+                      onCheckedChange={(v) => setLlm((l) => ({ ...l, rerankEnabled: v }))}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Model name for text embeddings</p>
                   </div>
-                  {llmTestStatus && (
+
+                  {llmTestStatus && llm.embeddingProvider === 'api' && (
                     <div className={cn(
                       'flex items-center gap-2 rounded-lg p-3 text-sm',
                       llmTestStatus === 'success' && 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
@@ -1059,14 +1202,27 @@ export default function SettingsPage() {
                       <span>{llmTestMessage}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {llm.embeddingProvider === 'api' && (
+                      <Button
+                        size="sm"
+                        onClick={testLlmConnection}
+                        disabled={llmTestStatus === 'loading' || !llm.baseUrl || !llm.apiKey}
+                      >
+                        {llmTestStatus === 'loading' && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                        Test connection
+                      </Button>
+                    )}
                     <Button
                       size="sm"
-                      onClick={testLlmConnection}
-                      disabled={llmTestStatus === 'loading' || !llm.baseUrl || !llm.apiKey}
+                      variant="outline"
+                      onClick={triggerReindex}
+                      disabled={reindexing}
+                      title="Re-embed all issues using the current model settings"
                     >
-                      {llmTestStatus === 'loading' && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                      Test connection
+                      {reindexing && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                      Reindex all issues
                     </Button>
                   </div>
                 </div>
@@ -1092,40 +1248,51 @@ export default function SettingsPage() {
         <div>
           <SectionTitle>Notification Matrix</SectionTitle>
           <p className="text-xs text-muted-foreground mb-4">
-            Configure who gets notified for each event type.
+            Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead and CTO match team role.
           </p>
-          <div className="rounded-xl border border-border bg-card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-xs font-semibold text-muted-foreground text-left w-48">Event</th>
-                  {NOTIFICATION_ROLES.map((role) => (
-                    <th key={role} className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">{role}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {NOTIFICATION_EVENTS.map((event) => (
-                  <tr key={event} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 text-xs font-medium">{event}</td>
-                    {NOTIFICATION_ROLES.map((role) => (
-                      <td key={role} className="px-4 py-3 text-center">
-                        <div className="flex justify-center">
-                          <Switch
-                            checked={!!notifications[event]?.[role]}
-                            onCheckedChange={() => toggleNotif(event, role)}
-                          />
-                        </div>
-                      </td>
+          {notifLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-border bg-card overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="px-4 py-3 text-xs font-semibold text-muted-foreground text-left w-52">Event</th>
+                      {NOTIFICATION_ROLES.map((role) => (
+                        <th key={role.key} className="px-4 py-3 text-xs font-semibold text-muted-foreground text-center">{role.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {NOTIFICATION_EVENTS.map((evt) => (
+                      <tr key={evt.key} className="border-b border-border last:border-0">
+                        <td className="px-4 py-3 text-xs font-medium">{evt.label}</td>
+                        {NOTIFICATION_ROLES.map((role) => (
+                          <td key={role.key} className="px-4 py-3 text-center">
+                            <div className="flex justify-center">
+                              <Switch
+                                checked={!!notifications[evt.key]?.[role.key]}
+                                onCheckedChange={() => toggleNotif(evt.key, role.key)}
+                              />
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button>Save notification settings</Button>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button onClick={saveNotifications} disabled={notifSaving}>
+                  {notifSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Save notification settings
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

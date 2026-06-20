@@ -272,7 +272,7 @@ export default function DashboardPage() {
                       )}
                       {' '}
                       <Link
-                        to={`/issue/${activity.issueId}`}
+                        to={`/issue/issue-${activity.issueId}`}
                         className="font-medium hover:text-primary transition-colors"
                       >
                         {activity.issueTitle}
@@ -305,7 +305,7 @@ export default function DashboardPage() {
                 {staleByCategory.awaiting_triage.slice(0, 2).map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/${item.id}`}
+                    to={`/issue/issue-${item.id}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />
@@ -325,7 +325,7 @@ export default function DashboardPage() {
                 {staleByCategory.awaiting_verification.slice(0, 2).map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/${item.id}`}
+                    to={`/issue/issue-${item.id}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -346,7 +346,7 @@ export default function DashboardPage() {
                 {staleByCategory.low_hanging_fruit.map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/${item.id}`}
+                    to={`/issue/issue-${item.id}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />

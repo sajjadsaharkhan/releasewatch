@@ -232,6 +232,16 @@ export const userApi = {
   getActivity: (userId) => api.get(`/users/${userId}/activity`),
 }
 
+// ─── Search ───────────────────────────────────────────────────────────────────
+export const searchApi = {
+  query: (q, projectId, limit = 20) =>
+    api.get('/search', { params: { q, project_id: projectId, limit } }),
+  reindex: (projectId) =>
+    api.post('/search/reindex', null, {
+      params: projectId != null ? { project_id: projectId } : {},
+    }),
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export const settingsApi = {
   getTelegramIntegration: () => api.get('/settings/integrations/telegram'),

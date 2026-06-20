@@ -32,9 +32,13 @@ class ProxyConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM provider configuration."""
 
+    embedding_provider: str = Field(default="local", alias="embeddingProvider")
+    local_model: str = Field(default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", alias="localModel")
     base_url: str = Field(default="", alias="baseUrl")
     api_key: str = Field(default="", alias="apiKey")
     embedding_model: str = Field(default="", alias="embeddingModel")
+    embedding_dimension: int = Field(default=384, alias="embeddingDimension")
+    rerank_enabled: bool = Field(default=False, alias="rerankEnabled")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -82,5 +86,6 @@ class TelegramBotConfigRequest(BaseModel):
 
     bot_token: str | None = Field(None, alias="botToken")
     bot_username: str | None = Field(None, alias="botUsername")
+    frontend_url: str | None = Field(None, alias="frontendUrl")
 
     model_config = ConfigDict(populate_by_name=True)
