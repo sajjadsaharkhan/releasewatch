@@ -75,9 +75,9 @@ make seed-admin   # create an admin user
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:8080 |
-| API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
+| Frontend | http://localhost:80 |
+| API | http://localhost:8080 |
+| API docs | http://localhost:8080/docs |
 
 ---
 
@@ -140,7 +140,7 @@ Per-comment indexing means a single comment mentioning a keyword like `roadmap` 
 Reindex all issues after seeding or importing data:
 
 ```sh
-curl -X POST http://localhost:8000/api/v1/search/reindex \
+curl -X POST http://localhost:8080/api/v1/search/reindex \
   -H "Authorization: Bearer <token>"
 ```
 
