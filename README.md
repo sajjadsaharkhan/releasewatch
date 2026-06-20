@@ -171,6 +171,107 @@ releasewatch/
 
 ---
 
+## Production deployment
+
+### Prerequisites on the server
+
+- Docker Engine 24+ and Docker Compose v2
+- Port 80/443 open (reverse proxy sits in front)
+- A GitHub Personal Access Token (PAT) with `read:packages` scope to pull from GHCR
+
+### First-time setup
+
+```sh
+# 1. Clone the repo (config files only — no source build on the server)
+git clone git@github.com:sajjadsaharkhan/releasewatch.git
+cd releasewatch
+
+# 2. Create the env file
+cp .env.production.example .env
+# Edit .env — set SECRET_KEY, POSTGRES_PASSWORD, domain, S3, Telegram
+
+# 3. Log in to GitHub Container Registry
+echo "<YOUR_PAT>" | docker login ghcr.io -u <github-username> --password-stdin
+
+# 4. Pull images and start the stack
+IMAGE_TAG=latest ./deploy.sh
+
+# 5. Create the first admin user
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec api python -m scripts.create_admin
+```
+
+### Subsequent deploys
+
+```sh
+# Deploy latest images (built by CI on every push to main)
+./deploy.sh
+
+# Deploy a specific commit
+./deploy.sh abc1234
+```
+
+`deploy.sh` does the following in order:
+
+1. Pulls the new `api` and `frontend` images from GHCR
+2. Runs `alembic upgrade head` in a throwaway container (migrations before traffic switch)
+3. Restarts all services with `docker compose up -d`
+4. Polls `GET /health` for up to 30 seconds and exits non-zero if the API doesn't come up
+5. Prunes dangling images
+
+### Reverse proxy (nginx example)
+
+The frontend container listens on port `8080`. Put nginx or Caddy in front to handle TLS:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+    }
+}
+
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+Or with Caddy (automatic TLS):
+
+```
+yourdomain.com {
+    reverse_proxy localhost:8080
+}
+```
+
+### Production checklist
+
+- [ ] `SECRET_KEY` is a random 64-char string (`openssl rand -hex 32`)
+- [ ] `ENVIRONMENT=production` in `.env`
+- [ ] `ALLOWED_ORIGINS` matches your actual domain
+- [ ] `POSTGRES_PASSWORD` is a strong password
+- [ ] `.env` is **not** committed to git (it's in `.gitignore`)
+- [ ] GHCR login configured on the server
+- [ ] TLS certificate in place
+- [ ] PostgreSQL and Redis ports are **not** exposed (handled by `docker-compose.prod.yml`)
+- [ ] Daily database backups configured (`pg_dump` cron or managed DB)
+
+---
+
 ## CI
 
 GitHub Actions runs on every push and pull request to `main` / `develop`:

@@ -1,0 +1,77 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Differences from base compose:
+#   - Pulls pre-built images from GHCR instead of building locally
+#   - PostgreSQL and Redis ports NOT exposed to the host
+#   - Resource limits on every service
+#   - JSON log driver with rotation
+#   - api runs without --reload
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-ghcr-image: &ghcr-repo ghcr.io/sajjadsaharkhan/releasewatch
+
+services:
+  api:
+    image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
+    build: null
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  worker:
+    image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
+    build: null
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  beat:
+    image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
+    build: null
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  frontend:
+    image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/frontend:${IMAGE_TAG:-latest}"
+    build: null
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+  postgres:
+    ports: []   # not exposed in production — access via Docker network only
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  redis:
+    ports: []   # not exposed in production
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
