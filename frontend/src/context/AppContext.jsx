@@ -7,7 +7,7 @@ export function AppProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem('rw:theme')
     if (stored) return stored
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return 'light'
   })
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [activeReleaseId, setActiveReleaseId] = useState(null)
