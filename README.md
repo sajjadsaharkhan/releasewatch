@@ -176,7 +176,6 @@ releasewatch/
 ### Prerequisites on the server
 
 - Docker Engine 24+ and Docker Compose v2
-- Port 80/443 open (reverse proxy sits in front)
 - A GitHub Personal Access Token (PAT) with `read:packages` scope to pull from GHCR
 
 ### First-time setup
@@ -219,45 +218,6 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 4. Polls `GET /health` for up to 30 seconds and exits non-zero if the API doesn't come up
 5. Prunes dangling images
 
-### Reverse proxy (nginx example)
-
-The frontend container listens on port `8080`. Put nginx or Caddy in front to handle TLS:
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name yourdomain.com;
-
-    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    location / {
-        proxy_pass         http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_set_header   Upgrade           $http_upgrade;
-        proxy_set_header   Connection        "upgrade";
-    }
-}
-
-server {
-    listen 80;
-    server_name yourdomain.com;
-    return 301 https://$host$request_uri;
-}
-```
-
-Or with Caddy (automatic TLS):
-
-```
-yourdomain.com {
-    reverse_proxy localhost:8080
-}
-```
-
 ### Production checklist
 
 - [ ] `SECRET_KEY` is a random 64-char string (`openssl rand -hex 32`)
@@ -266,7 +226,6 @@ yourdomain.com {
 - [ ] `POSTGRES_PASSWORD` is a strong password
 - [ ] `.env` is **not** committed to git (it's in `.gitignore`)
 - [ ] GHCR login configured on the server
-- [ ] TLS certificate in place
 - [ ] PostgreSQL and Redis ports are **not** exposed (handled by `docker-compose.prod.yml`)
 - [ ] Daily database backups configured (`pg_dump` cron or managed DB)
 
