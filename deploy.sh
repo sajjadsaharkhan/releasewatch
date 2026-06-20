@@ -65,6 +65,18 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
+# ── Ensure ADMIN_PASSWORD is set in .env ─────────────────────────────────────
+if [ -f .env ] && ! grep -q "^ADMIN_PASSWORD=" .env; then
+  GENERATED_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 20)
+  echo "ADMIN_PASSWORD=${GENERATED_PASS}" >> .env
+  echo "▶ Generated admin password and saved to .env"
+  echo "  ┌──────────────────────────────────────────┐"
+  echo "  │  Admin username : admin                  │"
+  printf "  │  Admin password : %-22s│\n" "${GENERATED_PASS}"
+  echo "  └──────────────────────────────────────────┘"
+  echo "  (This password will NOT be shown again — save it now)"
+fi
+
 # ── Run database migrations ───────────────────────────────────────────────────
 echo "▶ Running database migrations..."
 $COMPOSE run --rm --no-deps api alembic upgrade head

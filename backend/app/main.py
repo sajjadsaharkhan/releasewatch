@@ -26,6 +26,34 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     await init_engine()
     await init_redis()
 
+    # Bootstrap admin user if ADMIN_PASSWORD is set and no admin exists yet
+    if settings.ADMIN_PASSWORD:
+        try:
+            from sqlalchemy import select
+            from sqlalchemy.ext.asyncio import AsyncSession
+            from app.db.session import get_engine
+            from app.db.models.user import User, UserRole
+            from app.core.auth import get_password_hash
+
+            async with AsyncSession(get_engine()) as db:
+                result = await db.execute(select(User).where(User.username == "admin"))
+                if result.scalar_one_or_none() is None:
+                    admin = User(
+                        name="Admin",
+                        username="admin",
+                        hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
+                        role=UserRole.admin,
+                        title="System Administrator",
+                        is_active=True,
+                    )
+                    db.add(admin)
+                    await db.commit()
+                    logger.info("Admin user created (username: admin)")
+                else:
+                    logger.debug("Admin user already exists — skipping bootstrap")
+        except Exception as exc:
+            logger.warning("Admin bootstrap failed: %s", exc)
+
     # Initialize S3 bucket and lifecycle policy
     from app.core.s3 import s3_service
     try:
