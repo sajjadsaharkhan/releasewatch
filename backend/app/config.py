@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = Field("", description="Telegram bot token from @BotFather")
     TELEGRAM_BOT_USERNAME: str = Field("", description="Bot username without @")
 
+    # ── Admin bootstrap ───────────────────────────────────────────────────────
+    ADMIN_PASSWORD: str = Field("", description="Initial password for the built-in admin account (username: admin)")
+
     # ── JWT ───────────────────────────────────────────────────────────────────
     JWT_ALGORITHM: str = Field("HS256", description="JWT signing algorithm")
     JWT_ACCESS_EXPIRE_MINUTES: int = Field(60, description="Access token lifetime in minutes")
