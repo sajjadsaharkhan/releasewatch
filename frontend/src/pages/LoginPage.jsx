@@ -145,12 +145,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo Notice */}
-          <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-            <p className="text-xs text-center text-zinc-500 dark:text-zinc-400">
-              Demo credentials: <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">admin</span> / <span className="font-mono bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">password123</span>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
