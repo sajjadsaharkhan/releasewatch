@@ -75,7 +75,7 @@ make seed-admin   # create an admin user
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:80 |
+| Frontend | http://localhost:8003 |
 | API | http://localhost:8080 |
 | API docs | http://localhost:8080/docs |
 
