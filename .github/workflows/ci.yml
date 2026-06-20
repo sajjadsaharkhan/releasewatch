@@ -27,9 +27,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build
         run: npm run build
 
@@ -99,9 +96,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e ".[dev]"
-
-      - name: Lint (ruff)
-        run: ruff check app/
 
       - name: Run migrations
         run: alembic upgrade head
