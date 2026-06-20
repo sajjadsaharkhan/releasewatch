@@ -29,6 +29,10 @@ echo "▶ Pulling images from GHCR..."
 docker pull "${REGISTRY}/api:${IMAGE_TAG}"
 docker pull "${REGISTRY}/frontend:${IMAGE_TAG}"
 
+# ── Stop old app containers (keep postgres + redis running for zero downtime) ─
+echo "▶ Stopping old app containers..."
+$COMPOSE stop api worker beat frontend 2>/dev/null || true
+
 # ── Ensure postgres and redis are up before migrating ────────────────────────
 echo "▶ Starting database services..."
 $COMPOSE up -d --no-build postgres redis
