@@ -1,1 +1,21 @@
 graphify-out/
+
+# Environment — never commit real credentials
+.env
+!.env.example
+!.env.production.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Misc
+.DS_Store
+*.log
+celerybeat-schedule
