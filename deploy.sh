@@ -95,5 +95,5 @@ docker image prune -f
 echo ""
 echo "✓ Deployment complete — tag: ${IMAGE_TAG}"
 echo "  API:      http://localhost:8080"
-echo "  Frontend: http://localhost:80"
+echo "  Frontend: http://localhost:8003"
 echo ""
