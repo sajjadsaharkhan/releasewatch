@@ -27,6 +27,7 @@ class InboxEventType(str, enum.Enum):
     release_changed = "release_changed"
     attachment_added = "attachment_added"
     severity_changed = "severity_changed"
+    needs_clarification = "needs_clarification"
 
 
 class InboxItem(Base):

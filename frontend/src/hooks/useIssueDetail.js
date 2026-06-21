@@ -51,6 +51,7 @@ function normalizeTimelineItems(apiItems) {
         from: e.meta?.from,
         to: e.meta?.to,
         detail: e.meta?.assignee_id,
+        body: e.body ?? null,
       })
     }
   }

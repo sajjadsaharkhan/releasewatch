@@ -227,6 +227,59 @@ class IssueService:
 
         return issue
 
+    # ── Needs Clarification ───────────────────────────────────────────────────
+
+    async def needs_clarification(
+        self,
+        db: AsyncSession,
+        issue_id: int,
+        current_user: User,
+        message: str | None = None,
+    ) -> Issue:
+        """Block an issue pending reporter clarification.
+
+        Transitions status ``new → blocked``, reassigns to the reporter, and
+        posts a ``needs_clarification`` timeline event (with optional message).
+        """
+        from app.services.timeline_service import TimelineService
+        from app.services.inbox_service import InboxFanOutService
+
+        issue = await self._get_issue_or_404(db, issue_id)
+        if issue.status != IssueStatus.new:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot request clarification on an issue in status '{issue.status}'",
+            )
+
+        prev_assignee_id = issue.assignee_id
+        issue.status = IssueStatus.blocked
+        issue.assignee_id = issue.reporter_id
+        db.add(issue)
+        await db.flush()
+
+        timeline_svc = TimelineService()
+        timeline_event = await timeline_svc.create_event(
+            db=db,
+            issue_id=issue.id,
+            actor_id=current_user.id,
+            event_type=TimelineEventType.needs_clarification,
+            body=message or None,
+            meta={"prev_assignee_id": str(prev_assignee_id) if prev_assignee_id else None},
+            is_internal=False,
+        )
+
+        meta = {"body_snippet": message} if message else None
+        await InboxFanOutService().fan_out(
+            db=db,
+            trigger=InboxEventType.needs_clarification,
+            issue=issue,
+            actor=current_user,
+            timeline_event=timeline_event,
+            meta=meta,
+        )
+
+        return issue
+
     # ── Fix ───────────────────────────────────────────────────────────────────
 
     async def mark_fixed(

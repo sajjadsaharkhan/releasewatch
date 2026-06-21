@@ -118,6 +118,12 @@ class DuplicateRequest(BaseModel):
     parent_id: int
 
 
+class NeedsClarificationRequest(BaseModel):
+    """Payload for POST /issues/{id}/needs-clarification."""
+
+    message: Optional[str] = None
+
+
 class IssueResponse(IssueBase):
     """Full issue representation."""
 

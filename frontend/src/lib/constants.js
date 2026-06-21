@@ -67,6 +67,11 @@ export const STATUS = {
     pill: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     icon: 'trending-down',
   },
+  blocked: {
+    label: 'Blocked',
+    pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    icon: 'circle-slash',
+  },
 }
 
 export const ROLE = {

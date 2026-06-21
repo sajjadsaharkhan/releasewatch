@@ -10,6 +10,7 @@ import { SEVERITY } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
 import { useToast } from '../components/ui/Toast'
 import { renderMarkdown } from '../lib/markdown'
+import { Dialog } from '../components/ui/Dialog'
 
 function calculateAge(createdAt) {
   const now = new Date()
@@ -68,6 +69,9 @@ export default function TriagePage() {
   const [labels, setLabels] = useState([])
   const [blocker, setBlocker] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [clarifyOpen, setClarifyOpen] = useState(false)
+  const [clarifyMsg, setClarifyMsg] = useState('')
+  const [clarifying, setClarifying] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -142,7 +146,26 @@ export default function TriagePage() {
   }
 
   function handleNeedsClarification() {
-    window.location.hash = `#/issue/issue-${selected.issue_number}`
+    setClarifyMsg('')
+    setClarifyOpen(true)
+  }
+
+  async function handleClarifySend() {
+    setClarifying(true)
+    try {
+      await issuesApi.needsClarification(selected.id, { message: clarifyMsg || undefined })
+      const reporterName = userById(selected.reporter_id)?.name || 'reporter'
+      const res = await issuesApi.list({ status: 'new', sort: 'oldest' })
+      const updated = res.data.items
+      setIssues(updated)
+      const next = updated.find(i => String(i.id) !== String(selected.id))
+      setSelectedId(next ? next.id : null)
+      setClarifyOpen(false)
+      setAssignee(null)
+      toast({ title: 'Clarification requested', body: `${reporterName} has been notified.` })
+    } finally {
+      setClarifying(false)
+    }
   }
 
   if (loading) {
@@ -172,6 +195,7 @@ export default function TriagePage() {
   const reporter = userById(selected.reporter_id)
 
   return (
+    <>
     <div className="grid grid-cols-[1fr_440px] h-full min-h-0">
       {/* Left: issue list */}
       <div className="border-r border-border overflow-y-auto">
@@ -316,5 +340,28 @@ export default function TriagePage() {
         </div>
       </div>
     </div>
+    <Dialog open={clarifyOpen} onClose={() => setClarifyOpen(false)} title="Needs clarification" size="sm">
+      <div className="px-5 py-4 flex flex-col gap-3">
+        <p className="text-[13px] text-muted-foreground">
+          Describe what additional information you need from the reporter. This is optional — you can send without a message.
+        </p>
+        <textarea
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          rows={4}
+          placeholder="e.g. Please share the exact error message and steps to reproduce on staging…"
+          value={clarifyMsg}
+          onChange={e => setClarifyMsg(e.target.value)}
+        />
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => setClarifyOpen(false)} disabled={clarifying}>
+            Cancel
+          </Button>
+          <Button onClick={handleClarifySend} loading={clarifying}>
+            <Icon name="send" size={13} /> Send to reporter
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+    </>
   )
 }

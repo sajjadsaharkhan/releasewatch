@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Send, Plus, MoreVertical, Pencil, ShieldBan, RefreshCw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Send, Plus, MoreVertical, Pencil, ShieldBan, RefreshCw, User } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
@@ -26,6 +27,7 @@ export default function TeamPage() {
   const [selectedUser, setSelectedUser] = useState(null)
   const { user: currentUser } = useApp()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const canInviteUser = currentUser?.role && CAN_INVITE_ROLES.includes(currentUser.role)
   const canEditRole = currentUser?.role && currentUser.role === 'admin'
@@ -112,11 +114,12 @@ export default function TeamPage() {
           return (
             <div
               key={member.id}
-              className="flex flex-col rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all group"
+              onClick={() => navigate(`/u/${member.username}`)}
+              className="flex flex-col rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all group cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
                 <Avatar user={member} size={44} />
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   {member.tgConnected && (
                     <Tooltip content="Telegram notifications enabled">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -124,35 +127,40 @@ export default function TeamPage() {
                       </span>
                     </Tooltip>
                   )}
-                  {(canEditThisUser || canDeactivateThisUser) && (
-                    <Dropdown
-                      trigger={
-                        <button className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      }
-                      align="end"
-                    >
-                      {canEditThisUser && (
+                  <Dropdown
+                    trigger={
+                      <button className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    }
+                    align="end"
+                  >
+                    <DropdownItem onClick={() => navigate(`/u/${member.username}`)}>
+                      <User className="h-4 w-4 mr-2" />
+                      View profile
+                    </DropdownItem>
+                    {canEditThisUser && (
+                      <>
+                        <DropdownSep />
                         <DropdownItem onClick={() => handleEditModalOpen(member)}>
                           <Pencil className="h-4 w-4 mr-2" />
                           {isCurrentUser ? 'Edit profile' : 'Edit member'}
                         </DropdownItem>
-                      )}
-                      {canDeactivateThisUser && (
-                        <>
-                          <DropdownSep />
-                          <DropdownItem
-                            onClick={() => handleDeactivateModalOpen(member)}
-                            className="text-red-600 dark:text-red-400"
-                          >
-                            <ShieldBan className="h-4 w-4 mr-2" />
-                            Deactivate
-                          </DropdownItem>
-                        </>
-                      )}
-                    </Dropdown>
-                  )}
+                      </>
+                    )}
+                    {canDeactivateThisUser && (
+                      <>
+                        <DropdownSep />
+                        <DropdownItem
+                          onClick={() => handleDeactivateModalOpen(member)}
+                          className="text-red-600 dark:text-red-400"
+                        >
+                          <ShieldBan className="h-4 w-4 mr-2" />
+                          Deactivate
+                        </DropdownItem>
+                      </>
+                    )}
+                  </Dropdown>
                 </div>
               </div>
 

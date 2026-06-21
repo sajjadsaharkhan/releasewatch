@@ -22,7 +22,7 @@ const TAB_EVENT_TYPE = {
   assigned: 'assigned',
 }
 
-const COMMENT_TYPES = new Set(['comment', 'mention'])
+const COMMENT_TYPES = new Set(['comment', 'mention', 'needs_clarification'])
 
 function timelineAnchor(item) {
   if (!item.timelineId) return null
@@ -43,6 +43,7 @@ const TYPE_DESCRIPTIONS = {
   environment_changed: 'changed environment on',
   release_changed:     'changed release on',
   attachment_added:    'added an attachment to',
+  needs_clarification: 'needs clarification on',
 }
 
 // Per-tab state shape

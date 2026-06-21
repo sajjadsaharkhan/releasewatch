@@ -205,7 +205,7 @@ export default function SearchPage() {
             <ResultCard
               key={r.issue_id}
               result={r}
-              onClick={() => navigate(`/issue/${r.issue_id}`)}
+              onClick={() => navigate(`/issue/issue-${r.issue_number}`)}
             />
           ))}
         </div>

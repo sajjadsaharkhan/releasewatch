@@ -28,6 +28,7 @@ const STATUS = {
   verified: { label: 'Verified' },
   closed: { label: 'Closed' },
   regression: { label: 'Regression' },
+  blocked: { label: 'Blocked' },
 }
 
 export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, applyUpdate, onConfirm, onOpenLabelPicker }) {

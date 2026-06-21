@@ -39,6 +39,7 @@ from app.schemas.issue import (
     IssueResponse,
     IssueUpdate,
     LabelDetail,
+    NeedsClarificationRequest,
     RegressionHistoryResponse,
     TriageRequest,
     UserSummary,
@@ -384,6 +385,24 @@ async def triage_issue(
     issue = await issue_service.triage(
         db, issue_id, payload.assignee_id, payload.severity, current_user,
         labels=payload.labels, is_release_blocker=payload.is_release_blocker,
+    )
+    await db.commit()
+    await db.refresh(issue)
+    return IssueResponse.model_validate(issue)
+
+
+@router.post("/{issue_id}/needs-clarification", response_model=IssueResponse, summary="Request clarification from reporter")
+async def needs_clarification(
+    issue_id: int,
+    payload: NeedsClarificationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.triage_lead, UserRole.cto, UserRole.admin)
+    ),
+) -> IssueResponse:
+    """Block the issue and ask the reporter for more information."""
+    issue = await issue_service.needs_clarification(
+        db, issue_id, current_user, message=payload.message
     )
     await db.commit()
     await db.refresh(issue)
