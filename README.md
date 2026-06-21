@@ -32,7 +32,7 @@ Releasewatch is built around the premise that **a bug only makes sense in the co
 - **Release-scoped issues** — bugs and regressions are always tied to a release, so nothing gets lost between cycles
 - **Semantic search** — multilingual vector search (Persian + English) powered by a local ONNX embedding model; no external API required
 - **Inbox & fan-out** — every relevant event is fanned out to team members' inboxes with real-time WebSocket updates
-- **Telegram bot** — receive notifications and interact with issues directly from Telegram
+- **@novinrw_bot** — receive notifications and interact with issues directly from Telegram
 - **Regression detection** — automatic pattern detection across releases
 - **Release reports** — contribution metrics and regression KPIs per release
 - **File attachments** — presigned S3/MinIO uploads; the server never handles file bytes
@@ -61,7 +61,7 @@ Releasewatch is built around the premise that **a bug only makes sense in the co
 
 - Docker and Docker Compose
 - An S3 bucket or MinIO instance (optional — attachments won't work without it)
-- A Telegram bot token (optional — notifications won't work without it)
+- A @novinrw_bot token (optional — notifications won't work without it)
 
 ### 1. Clone and configure
 
@@ -141,7 +141,7 @@ make frontend-dev       # Vite dev server on :5173
 | `REDIS_URL` | yes | Redis connection URL |
 | `S3_BUCKET_NAME` | no | S3 or MinIO bucket for attachments |
 | `S3_ENDPOINT_URL` | no | Set for MinIO; leave empty for AWS S3 |
-| `TELEGRAM_BOT_TOKEN` | no | Telegram bot token for notifications |
+| `TELEGRAM_BOT_TOKEN` | no | @novinrw_bot token for notifications |
 | `JWT_ACCESS_EXPIRE_MINUTES` | no | Access token lifetime (default: 60) |
 
 See `.env.example` for the full list with comments.
