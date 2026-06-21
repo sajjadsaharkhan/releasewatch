@@ -10,7 +10,7 @@ import { RoleBadge } from '../components/ui/Badge'
 import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
-import { MOCK_TEAM, ROLE } from '../data/mockData'
+import { ROLE } from '../lib/constants'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal } from '../components/project'
 import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
@@ -129,7 +129,7 @@ export default function SettingsPage() {
     } catch (err) {
       console.error('Failed to fetch team:', err)
       // Fall back to mock data when API fails
-      setTeam(MOCK_TEAM.map(m => ({ ...m, active: m.is_active !== false })))
+      setTeam([])
     } finally {
       setTeamLoading(false)
     }

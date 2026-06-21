@@ -9,7 +9,6 @@ import { Textarea } from '../ui/Textarea'
 import { Switch } from '../ui/Switch'
 import { UserMentionSelector } from '../ui/UserMentionSelector'
 import { renderMarkdown } from '../../lib/markdown'
-import { MOCK_TEAM } from '../../data/mockData'
 
 function ToolbarBtn({ icon: Icon, label, onClick }) {
   return (
@@ -42,7 +41,7 @@ export function MarkdownComposer({
   mode = 'create',
   onCancelEdit,
   showInternal = true,
-  users = MOCK_TEAM
+  users = []
 }) {
   const [tab, setTab] = useState('write')
   const [body, setBody] = useState(initialValue)

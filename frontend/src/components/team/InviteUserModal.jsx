@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
 import { ColorSelectDropdown } from '../ui/ColorSelectDropdown'
-import { ROLE } from '../../data/mockData'
+import { ROLE } from '../../lib/constants'
 import { teamApi } from '../../lib/api'
 import { useToast } from '../ui/Toast'
 

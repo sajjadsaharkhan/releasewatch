@@ -9,7 +9,7 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
 import { IssueTable } from '../components/common/IssueTable'
 import { IssueBoard } from '../components/common/IssueBoard'
-import { SEVERITY, STATUS } from '../data/mockData'
+import { SEVERITY, STATUS } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 

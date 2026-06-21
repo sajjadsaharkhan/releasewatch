@@ -2,13 +2,13 @@ import React, { useState } from 'react'
 import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { SeverityBadge, StatusBadge, Badge } from '../ui/Badge'
-import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
+import { Dropdown, DropdownItem } from '../ui/Dropdown'
 
-export function IssueHeader({ issue, onClose, onNavigate }) {
+export function IssueHeader({ issue, onClose, onNavigate, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
-    const url = window.location.origin + window.location.pathname + '#/issue/issue-' + issue.issue_number
+    const url = window.location.href
     navigator.clipboard?.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 1400)
@@ -45,12 +45,11 @@ export function IssueHeader({ issue, onClose, onNavigate }) {
         <Button variant="ghost" size="icon" onClick={() => onNavigate?.('next')} title="Next issue">
           <ChevronDown size={15} />
         </Button>
-        <Dropdown align="right" trigger={<Button variant="ghost" size="icon"><MoreVertical size={15} /></Button>}>
-          <DropdownItem>Mark duplicate…</DropdownItem>
-          <DropdownItem>Archive</DropdownItem>
-          <DropdownSep />
-          <DropdownItem destructive>Delete</DropdownItem>
-        </Dropdown>
+        {canDelete && (
+          <Dropdown align="right" trigger={<Button variant="ghost" size="icon"><MoreVertical size={15} /></Button>}>
+            <DropdownItem destructive onClick={onDelete}>Delete issue</DropdownItem>
+          </Dropdown>
+        )}
       </div>
     </div>
   )

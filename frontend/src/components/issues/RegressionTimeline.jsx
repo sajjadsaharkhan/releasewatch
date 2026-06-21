@@ -1,9 +1,7 @@
 import React from 'react'
 import { ExternalLink } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { releaseById } from '../../data/mockData'
 import { relTime } from '../../lib/relTime'
-import { userById } from '../../data/mockData'
 
 const STATUS_STYLES = {
   fixed: { label: 'Fixed', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -15,7 +13,7 @@ const STATUS_STYLES = {
   na: { label: 'N/A', className: 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600' },
 }
 
-export function RegressionTimeline({ regressionHistory = [] }) {
+export function RegressionTimeline({ regressionHistory = [], teamUsers = [] }) {
   if (!regressionHistory.length) return null
 
   return (
@@ -25,8 +23,7 @@ export function RegressionTimeline({ regressionHistory = [] }) {
       </h4>
       <div className="relative border-l-2 border-border ml-2 pl-4 space-y-4">
         {regressionHistory.map((entry, idx) => {
-          const release = releaseById(entry.releaseId)
-          const actor = userById(entry.actor)
+          const actor = teamUsers.find(u => u.id === entry.actor) ?? null
           const style = STATUS_STYLES[entry.status] ?? STATUS_STYLES.open
 
           return (
@@ -45,7 +42,7 @@ export function RegressionTimeline({ regressionHistory = [] }) {
                 {/* Release version */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-xs font-semibold text-foreground">
-                    {entry.version ?? release?.version}
+                    {entry.version}
                   </span>
                   <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', style.className)}>
                     {style.label}
