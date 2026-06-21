@@ -10,20 +10,16 @@ A release-scoped QA issue tracker for software teams. Collect, triage, and track
 
 ## The Problem
 
-Most QA workflows collapse into one of two failure modes:
+Most bug trackers are designed around a flat backlog. Issues pile up, lose their release context over time, and teams are left asking the same questions at every release cycle:
 
-**Generic issue trackers (Jira, Linear, GitHub Issues)** are designed for feature development, not QA cycles. They have no first-class concept of a release, so bug reports pile up in a single backlog shared with tasks, epics, and roadmap items. By the time a release ships, it's unclear which bugs were found during that cycle, which were deferred, and which regressed from a previous release. Post-mortems become archaeology.
+- Which bugs were reported against *this* release specifically?
+- Are we seeing the same issues come back across releases (regressions)?
+- Who is working on what, and is it blocking the release?
+- Did the fix we shipped last cycle actually hold?
 
-**Spreadsheets and chat threads** are fast to start but fall apart immediately: no history, no assignment, no structured triage, and zero visibility for the wider team. A QA engineer reports a crash in Telegram, it gets lost in conversation, and the same bug is re-reported three days later by someone else.
+When QA, developers, and product managers work across different tools — spreadsheets, Slack threads, generic issue trackers — critical bugs fall through the cracks between cycles. By the time a regression is noticed, it has already shipped to users.
 
-The consequences compound across releases:
-
-- **Regressions go undetected** — without per-release history, a bug that was fixed in v1.2 and re-appeared in v1.5 looks like a new issue.
-- **QA effort is invisible** — managers can't see how many bugs were caught per release, who found them, or how quickly they were resolved.
-- **Triage is ad hoc** — incoming reports from testers, customers, and automated systems arrive through different channels and never get consolidated.
-- **Context is lost at handoff** — when a bug is handed from tester to developer to reviewer, the reproduction steps, environment details, and prior discussion live in different places.
-
-Releasewatch is built around the premise that **a bug only makes sense in the context of a release**. Every issue is attached to a release from the moment it's created. Triage, assignment, regression detection, and reporting all flow from that single constraint — giving QA teams a clear, auditable record of every release cycle without changing how developers work.
+**Releasewatch** treats the release as a first-class citizen. Every issue is scoped to a specific release from the moment it is created. Regressions are detected automatically by comparing issue patterns across releases. Team inboxes surface only what is relevant to each person, in real time. Release reports give a clear picture of quality at the moment a release ships — not reconstructed after the fact.
 
 ---
 
@@ -32,7 +28,7 @@ Releasewatch is built around the premise that **a bug only makes sense in the co
 - **Release-scoped issues** — bugs and regressions are always tied to a release, so nothing gets lost between cycles
 - **Semantic search** — multilingual vector search (Persian + English) powered by a local ONNX embedding model; no external API required
 - **Inbox & fan-out** — every relevant event is fanned out to team members' inboxes with real-time WebSocket updates
-- **@novinrw_bot** — receive notifications and interact with issues directly from Telegram
+- **Telegram bot** — receive notifications and interact with issues directly from Telegram
 - **Regression detection** — automatic pattern detection across releases
 - **Release reports** — contribution metrics and regression KPIs per release
 - **File attachments** — presigned S3/MinIO uploads; the server never handles file bytes
@@ -61,7 +57,7 @@ Releasewatch is built around the premise that **a bug only makes sense in the co
 
 - Docker and Docker Compose
 - An S3 bucket or MinIO instance (optional — attachments won't work without it)
-- A @novinrw_bot token (optional — notifications won't work without it)
+- A Telegram bot token (optional — notifications won't work without it)
 
 ### 1. Clone and configure
 
@@ -141,7 +137,7 @@ make frontend-dev       # Vite dev server on :5173
 | `REDIS_URL` | yes | Redis connection URL |
 | `S3_BUCKET_NAME` | no | S3 or MinIO bucket for attachments |
 | `S3_ENDPOINT_URL` | no | Set for MinIO; leave empty for AWS S3 |
-| `TELEGRAM_BOT_TOKEN` | no | @novinrw_bot token for notifications |
+| `TELEGRAM_BOT_TOKEN` | no | Telegram bot token for notifications |
 | `JWT_ACCESS_EXPIRE_MINUTES` | no | Access token lifetime (default: 60) |
 
 See `.env.example` for the full list with comments.
