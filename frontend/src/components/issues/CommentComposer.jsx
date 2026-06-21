@@ -137,13 +137,14 @@ export function CommentComposer({
           onKeyDown={handleKey}
           placeholder={placeholder}
           rows={5}
+          dir="auto"
           className={cn(
             'rounded-none border-0 focus-visible:ring-0 resize-none',
             showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10'
           )}
         />
       ) : (
-        <div className="min-h-[120px] px-4 py-3 text-sm">
+        <div dir="auto" className="min-h-[120px] px-4 py-3 text-sm">
           {body.trim() ? renderMarkdown(body) : <p className="text-muted-foreground italic">Nothing to preview.</p>}
         </div>
       )}

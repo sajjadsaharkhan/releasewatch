@@ -94,7 +94,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           showMentions={false}
         />
       ) : (
-        <div className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed md">
+        <div dir="auto" className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed md">
           {issue?.description ? (
             renderMarkdown(issue.description)
           ) : (
