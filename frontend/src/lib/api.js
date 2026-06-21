@@ -127,6 +127,7 @@ export const issuesApi = {
   verify: (id, data) => api.post(`/issues/${id}/verify`, data),
   reopen: (id) => api.post(`/issues/${id}/reopen`),
   duplicate: (id, parentId) => api.post(`/issues/${id}/duplicate`, { parent_id: parentId }),
+  needsClarification: (id, data) => api.post(`/issues/${id}/needs-clarification`, data),
 }
 
 // ─── Inbox ───────────────────────────────────────────────────────────────────

@@ -32,6 +32,7 @@ const EVENT_STYLES = {
   release_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to release ${e.meta?.to_version ?? ''}` },
   project_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to project ${e.meta?.to_name ?? ''}` },
   environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
+  needs_clarification: { dot: 'bg-orange-500', label: 'requested clarification from reporter' },
 }
 
 const EVENT_ICONS = {
@@ -55,6 +56,7 @@ const EVENT_ICONS = {
   project_changed:     'folder',
   environment_changed: 'monitor',
   comment:             'message-square',
+  needs_clarification: 'help-circle',
 }
 
 function EventDot({ type }) {
@@ -380,6 +382,12 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
             }
 
             // Plain event row
+            const hasBody = item.type === 'needs_clarification' && item.body
+            const handleCopyEventLink = () => {
+              const url = `${window.location.origin}${window.location.pathname}#event-${item.id}`
+              navigator.clipboard.writeText(url)
+              toast({ title: 'Link copied to clipboard' })
+            }
             return (
               <li key={item.id ?? idx} id={`event-${item.id ?? idx}`} className="relative pl-10 pr-2 py-1.5 group rounded hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
                 <EventDot type={item.type} />
@@ -389,7 +397,29 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                   <span className="text-zinc-400 dark:text-zinc-500 text-[11px] ml-auto" title={fullTime(time)}>
                     {formatEventTime(time)}
                   </span>
+                  {item.type === 'needs_clarification' && (
+                    <Dropdown
+                      align="end"
+                      width={150}
+                      trigger={
+                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                          <MoreVertical size={13} />
+                        </button>
+                      }
+                    >
+                      {({ close }) => (
+                        <DropdownItem onClick={() => { handleCopyEventLink(); close() }}>
+                          <Link2 size={12} /> Copy link
+                        </DropdownItem>
+                      )}
+                    </Dropdown>
+                  )}
                 </div>
+                {hasBody && (
+                  <div className="mt-1.5 rounded-md border border-orange-200 dark:border-orange-900/50 bg-orange-50/60 dark:bg-orange-950/20 px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed prose-sm max-w-none">
+                    {renderMarkdown(item.body)}
+                  </div>
+                )}
               </li>
             )
           })}

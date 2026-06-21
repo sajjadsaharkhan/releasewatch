@@ -20,6 +20,7 @@ import {
 import { SEVERITY } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
+import { useApp } from '../hooks/useApp'
 import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship } from 'lucide-react'
 
 const SEVERITY_COLORS = {
@@ -176,6 +177,8 @@ function generateDiscoveryData(releaseId) {
 export default function ReleaseDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user: currentUser } = useApp()
+  const canViewAnalytics = ['admin', 'cto'].includes(currentUser?.role)
   const [activeTab, setActiveTab] = useState('overview')
   const [editModalOpen, setEditModalOpen] = useState(false)
 
@@ -462,7 +465,7 @@ export default function ReleaseDetailPage() {
           onValueChange={setActiveTab}
           options={[
             { value: 'overview', label: 'Overview' },
-            { value: 'analytics', label: 'Analytics Dashboard' },
+            ...(canViewAnalytics ? [{ value: 'analytics', label: 'Analytics Dashboard' }] : []),
           ]}
         />
 
@@ -755,7 +758,7 @@ export default function ReleaseDetailPage() {
         )}
 
         {/* Analytics Dashboard Tab Content */}
-        {activeTab === 'analytics' && (
+        {activeTab === 'analytics' && canViewAnalytics && (
           <div className="space-y-6">
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-4">

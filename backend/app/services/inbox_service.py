@@ -167,6 +167,11 @@ class InboxFanOutService:
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
 
+        elif trigger == InboxEventType.needs_clarification:
+            # Only the reporter needs to act — notify them directly.
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+
         elif trigger in (
             InboxEventType.environment_changed,
             InboxEventType.release_changed,

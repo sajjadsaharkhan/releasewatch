@@ -33,6 +33,7 @@ class TimelineEventType(str, enum.Enum):
     release_changed = "release_changed"
     project_changed = "project_changed"
     environment_changed = "environment_changed"
+    needs_clarification = "needs_clarification"
 
 
 class IssueTimeline(Base):

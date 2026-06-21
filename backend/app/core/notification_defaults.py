@@ -20,4 +20,5 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "release_changed":     {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
     "attachment_added":    {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
     "severity_changed":    {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
+    "needs_clarification": {"reporter": True,  "assignee": False, "triage": False, "cto": False},
 }

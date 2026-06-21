@@ -30,6 +30,7 @@ class IssueStatus(str, enum.Enum):
     verified = "verified"
     closed = "closed"
     regression = "regression"
+    blocked = "blocked"
 
 
 class Issue(Base):
