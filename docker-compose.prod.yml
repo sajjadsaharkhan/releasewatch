@@ -25,8 +25,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "2.0"
+          memory: 1G
 
   worker:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
@@ -36,7 +36,7 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1G
+          memory: 2G
 
   beat:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
@@ -46,7 +46,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: 128M
+          memory: 256M
 
   frontend:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/frontend:${IMAGE_TAG:-latest}"
@@ -56,7 +56,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: 64M
+          memory: 128M
 
   postgres:
     ports: []   # not exposed in production — access via Docker network only
@@ -67,7 +67,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1G
 
   redis:
     ports: []   # not exposed in production
@@ -78,4 +78,4 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 256M
+          memory: 512M
