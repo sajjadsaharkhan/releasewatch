@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
-import { useIssueDetail } from '../../hooks/useIssueDetail'
+import { useIssueDetail, canDeleteIssue } from '../../hooks/useIssueDetail'
 import { IssueHeader } from './IssueHeader'
 import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
@@ -34,6 +34,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
     deleteComment,
     loadMoreTimeline,
     fetchAttachments,
+    deleteIssue,
   } = useIssueDetail(issue, { onUpdate })
 
   const [pendingChange, setPendingChange] = useState(null)
@@ -64,7 +65,19 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <IssueHeader issue={localIssue} onClose={onClose} onNavigate={onNavigate} />
+      <IssueHeader
+        issue={localIssue}
+        onClose={onClose}
+        onNavigate={onNavigate}
+        canDelete={canDeleteIssue(currentUser, localIssue)}
+        onDelete={() => confirm({
+          title: 'Delete issue',
+          body: 'This will permanently delete the issue and all its activity. This cannot be undone.',
+          confirmLabel: 'Delete',
+          tone: 'destructive',
+          onConfirm: () => deleteIssue(onClose),
+        })}
+      />
 
       <div className="flex-1 min-h-0 grid grid-cols-[1fr_320px]">
         <IssueMainContent

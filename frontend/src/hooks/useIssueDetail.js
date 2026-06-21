@@ -4,6 +4,15 @@ import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, attachmentsApi
 import { useApp } from './useApp'
 import { useToast } from './useToast'
 
+export function canDeleteIssue(currentUser, issue) {
+  if (!currentUser || !issue) return false
+  return (
+    currentUser.role === 'admin' ||
+    currentUser.role === 'cto' ||
+    currentUser.id === issue.reporter
+  )
+}
+
 function normalizeAttachment(att) {
   return {
     ...att,
@@ -248,6 +257,17 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
 
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null
 
+  const deleteIssue = async (onDeleted) => {
+    const id = issueIdRef.current
+    try {
+      await issuesApi.remove(id)
+      toast({ title: 'Issue deleted' })
+      onDeleted?.()
+    } catch {
+      toast({ title: 'Failed to delete issue' })
+    }
+  }
+
   return {
     localIssue,
     setLocalIssue,
@@ -267,5 +287,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     deleteComment,
     loadMoreTimeline,
     fetchAttachments,
+    deleteIssue,
   }
 }

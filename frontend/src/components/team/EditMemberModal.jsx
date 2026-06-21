@@ -7,7 +7,7 @@ import { Dialog } from '../ui/Dialog'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { Avatar } from '../ui/Avatar'
 import { ImageCropper } from '../ui/ImageCropper'
-import { ROLE } from '../../data/mockData'
+import { ROLE } from '../../lib/constants'
 
 export function EditMemberModal({ open, onClose, member, onSave, onAvatarChange }) {
   const [form, setForm] = useState({ name: '', username: '', password: '', role: 'qa' })

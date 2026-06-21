@@ -12,16 +12,7 @@ import { DeactivateUserModal } from '../components/team/DeactivateUserModal'
 import { teamApi } from '../lib/api'
 import { useToast } from '../components/ui/Toast'
 import { useApp } from '../hooks/useApp'
-import { MOCK_TEAM, MOCK_ISSUES } from '../data/mockData'
 
-function StatPill({ label, value, color }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className={cn('text-lg font-bold', color)}>{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
-  )
-}
 
 const ADMIN_ROLES = ['admin', 'cto']
 const CAN_INVITE_ROLES = ['admin', 'cto', 'triage_lead']
@@ -47,7 +38,7 @@ export default function TeamPage() {
     } catch (err) {
       console.error('Failed to fetch team:', err)
       // Fall back to mock data when API fails (e.g., not authenticated)
-      setTeam(MOCK_TEAM)
+      setTeam([])
     } finally {
       setLoading(false)
     }
@@ -114,11 +105,6 @@ export default function TeamPage() {
       {/* Member grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {team.map((member) => {
-          const reported = MOCK_ISSUES.filter((i) => i.reporter === member.id).length
-          const fixed = MOCK_ISSUES.filter(
-            (i) => i.assignee === member.id && ['fixed', 'verified'].includes(i.status)
-          ).length
-
           const isCurrentUser = currentUser?.id === member.id
           const canEditThisUser = isCurrentUser || canEditRole
           const canDeactivateThisUser = canEditRole && !isCurrentUser
@@ -178,10 +164,6 @@ export default function TeamPage() {
                 <p className="text-xs text-muted-foreground truncate mb-3">{member.title}</p>
               )}
 
-              <div className="flex items-center justify-around mt-auto pt-3 border-t border-border">
-                <StatPill label="Filed" value={reported} color="text-foreground" />
-                <StatPill label="Fixed" value={fixed} color="text-green-600 dark:text-green-400" />
-              </div>
             </div>
           )
         })}

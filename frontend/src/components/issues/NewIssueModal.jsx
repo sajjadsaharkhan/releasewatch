@@ -7,7 +7,7 @@ import { Input } from '../ui/Input'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
 import { ProjectSwitcher, ReleaseSwitcher } from '../common'
-import { SEVERITY } from '../../data/mockData'
+import { SEVERITY } from '../../lib/constants'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
 import { useApp } from '../../hooks/useApp'
 

@@ -17,7 +17,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import { SEVERITY } from '../data/mockData'
+import { SEVERITY } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship } from 'lucide-react'

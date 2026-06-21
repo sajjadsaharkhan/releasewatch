@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '../../lib/cn'
-import { SEVERITY, STATUS, ROLE } from '../../data/mockData'
+import { SEVERITY, STATUS, ROLE } from '../../lib/constants'
 
 const toneClasses = {
   default: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',

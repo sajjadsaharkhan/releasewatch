@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
-import { ROLE } from '../../data/mockData'
+import { ROLE } from '../../lib/constants'
 
 export function CreateMemberModal({ open, onClose, onCreate }) {
   const [form, setForm] = useState({ name: '', username: '', password: '', role: 'qa' })
