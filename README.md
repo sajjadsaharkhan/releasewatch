@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/src/assets/logo.svg" alt="Releasewatch" width="120" />
+</p>
+
 # Releasewatch
 
 A release-scoped QA issue tracker for software teams. Collect, triage, and track bugs against specific releases — with semantic search, Telegram notifications, and real-time updates.
