@@ -349,7 +349,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                           </Dropdown>
                         </div>
                       </div>
-                      <div className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed">
+                      <div dir="auto" className="text-[13.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed">
                         {renderMarkdown(item.body)}
                       </div>
 

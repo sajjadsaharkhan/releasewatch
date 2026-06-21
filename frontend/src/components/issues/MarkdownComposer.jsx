@@ -7,7 +7,6 @@ import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { Textarea } from '../ui/Textarea'
 import { Switch } from '../ui/Switch'
-import { DirectionControl } from '../ui/DirectionControl'
 import { UserMentionSelector } from '../ui/UserMentionSelector'
 import { renderMarkdown } from '../../lib/markdown'
 import { MOCK_TEAM } from '../../data/mockData'
@@ -40,7 +39,6 @@ export function MarkdownComposer({
   initialValue = '',
   initialInternal = false,
   initialMentionedUsers = [],
-  initialDir = 'ltr',
   mode = 'create',
   onCancelEdit,
   showInternal = true,
@@ -50,7 +48,6 @@ export function MarkdownComposer({
   const [body, setBody] = useState(initialValue)
   const [isInternal, setIsInternal] = useState(initialInternal)
   const [mentionedUserIds, setMentionedUserIds] = useState(initialMentionedUsers)
-  const [dir, setDir] = useState(initialDir)
   const taRef = useRef(null)
 
   const insert = useCallback((before, after = before) => {
@@ -72,12 +69,11 @@ export function MarkdownComposer({
 
   function handleSubmit() {
     if (!body.trim()) return
-    onSubmit?.(body, isInternal, mentionedUserIds, dir)
+    onSubmit?.(body, isInternal, mentionedUserIds)
     if (mode === 'create') {
       setBody('')
       setIsInternal(false)
       setMentionedUserIds([])
-      setDir(initialDir)
       setTab('write')
     }
   }
@@ -86,7 +82,6 @@ export function MarkdownComposer({
     setBody(initialValue)
     setIsInternal(initialInternal)
     setMentionedUserIds(initialMentionedUsers)
-    setDir(initialDir)
     onCancelEdit?.()
   }
 
@@ -126,11 +121,6 @@ export function MarkdownComposer({
         )}
       </div>
 
-      {/* Direction bar */}
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5">
-        <DirectionControl value={dir} onChange={setDir} />
-      </div>
-
       {/* Body */}
       {tab === 'write' ? (
         <Textarea
@@ -140,15 +130,14 @@ export function MarkdownComposer({
           onKeyDown={handleKey}
           placeholder={placeholder}
           rows={5}
-          dir={dir}
+          dir="auto"
           className={cn(
             'rounded-none border-0 focus-visible:ring-0 resize-none',
-            dir === 'rtl' && 'text-right',
             showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10'
           )}
         />
       ) : (
-        <div dir={dir} className={cn('min-h-[120px] px-4 py-3 text-sm', dir === 'rtl' && 'text-right')}>
+        <div dir="auto" className="min-h-[120px] px-4 py-3 text-sm">
           {body.trim() ? preview : <p className="text-muted-foreground italic">Nothing to preview.</p>}
         </div>
       )}
