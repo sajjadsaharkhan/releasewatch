@@ -8,6 +8,25 @@ A release-scoped QA issue tracker for software teams. Collect, triage, and track
 
 ---
 
+## The Problem
+
+Most QA workflows collapse into one of two failure modes:
+
+**Generic issue trackers (Jira, Linear, GitHub Issues)** are designed for feature development, not QA cycles. They have no first-class concept of a release, so bug reports pile up in a single backlog shared with tasks, epics, and roadmap items. By the time a release ships, it's unclear which bugs were found during that cycle, which were deferred, and which regressed from a previous release. Post-mortems become archaeology.
+
+**Spreadsheets and chat threads** are fast to start but fall apart immediately: no history, no assignment, no structured triage, and zero visibility for the wider team. A QA engineer reports a crash in Telegram, it gets lost in conversation, and the same bug is re-reported three days later by someone else.
+
+The consequences compound across releases:
+
+- **Regressions go undetected** — without per-release history, a bug that was fixed in v1.2 and re-appeared in v1.5 looks like a new issue.
+- **QA effort is invisible** — managers can't see how many bugs were caught per release, who found them, or how quickly they were resolved.
+- **Triage is ad hoc** — incoming reports from testers, customers, and automated systems arrive through different channels and never get consolidated.
+- **Context is lost at handoff** — when a bug is handed from tester to developer to reviewer, the reproduction steps, environment details, and prior discussion live in different places.
+
+Releasewatch is built around the premise that **a bug only makes sense in the context of a release**. Every issue is attached to a release from the moment it's created. Triage, assignment, regression detection, and reporting all flow from that single constraint — giving QA teams a clear, auditable record of every release cycle without changing how developers work.
+
+---
+
 ## Features
 
 - **Release-scoped issues** — bugs and regressions are always tied to a release, so nothing gets lost between cycles
