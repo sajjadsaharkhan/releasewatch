@@ -2,8 +2,17 @@ import React from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { NewIssueModal } from '../issues/NewIssueModal'
+import { useApp } from '../../hooks/useApp'
 
 export function AppShell() {
+  const { newIssueOpen, setNewIssueOpen, onIssueCreated } = useApp()
+
+  const handleClose = () => {
+    setNewIssueOpen(false)
+    onIssueCreated?.()
+  }
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -13,6 +22,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <NewIssueModal open={newIssueOpen} onClose={handleClose} />
     </div>
   )
 }

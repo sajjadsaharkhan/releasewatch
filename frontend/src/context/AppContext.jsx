@@ -9,11 +9,16 @@ export function AppProvider({ children }) {
     if (stored) return stored
     return 'light'
   })
-  const [activeProjectId, setActiveProjectId] = useState(null)
-  const [activeReleaseId, setActiveReleaseId] = useState(null)
+  const [activeProjectId, setActiveProjectId] = useState(
+    () => localStorage.getItem('rw:activeProjectId') || null
+  )
+  const [activeReleaseId, setActiveReleaseId] = useState(
+    () => localStorage.getItem('rw:activeReleaseId') || null
+  )
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [newIssueOpen, setNewIssueOpen] = useState(false)
+  const [onIssueCreated, setOnIssueCreated] = useState(null)
   const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
 
@@ -43,6 +48,17 @@ export function AppProvider({ children }) {
     }
     localStorage.setItem('rw:theme', theme)
   }, [theme])
+
+  // Persist active project/release selections
+  useEffect(() => {
+    if (activeProjectId) localStorage.setItem('rw:activeProjectId', activeProjectId)
+    else localStorage.removeItem('rw:activeProjectId')
+  }, [activeProjectId])
+
+  useEffect(() => {
+    if (activeReleaseId) localStorage.setItem('rw:activeReleaseId', activeReleaseId)
+    else localStorage.removeItem('rw:activeReleaseId')
+  }, [activeReleaseId])
 
   // Check auth on mount
   useEffect(() => {
@@ -86,10 +102,14 @@ export function AppProvider({ children }) {
         const response = await projectsApi.list()
         const projectsList = response.data || []
         setProjects(projectsList)
-        // Set first active (non-archived) project as default
-        const firstProject = projectsList.find((p) => !p.archived) ?? projectsList[0]
-        if (firstProject && !activeProjectId) {
-          setActiveProjectId(firstProject.id)
+        // Restore stored project if it still exists, otherwise fall back to first active
+        const storedId = localStorage.getItem('rw:activeProjectId')
+        const storedProject = storedId && projectsList.find((p) => String(p.id) === String(storedId))
+        if (storedProject) {
+          setActiveProjectId(storedProject.id)
+        } else {
+          const firstProject = projectsList.find((p) => !p.archived) ?? projectsList[0]
+          if (firstProject) setActiveProjectId(firstProject.id)
         }
       } catch (err) {
         console.error('Failed to fetch projects:', err)
@@ -116,8 +136,12 @@ export function AppProvider({ children }) {
         // Handle both response formats - with or without releases wrapper
         const releasesList = response.data?.releases || response.data || []
         setReleases(releasesList)
-        // Set first active release as default if none selected
-        if (releasesList.length > 0 && !activeReleaseId) {
+        // Restore stored release if it belongs to this project, otherwise pick first
+        const storedReleaseId = localStorage.getItem('rw:activeReleaseId')
+        const storedRelease = storedReleaseId && releasesList.find((r) => String(r.id) === String(storedReleaseId))
+        if (storedRelease) {
+          setActiveReleaseId(storedRelease.id)
+        } else if (releasesList.length > 0) {
           setActiveReleaseId(releasesList[0].id)
         }
       } catch (err) {
@@ -148,6 +172,16 @@ export function AppProvider({ children }) {
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  }, [])
+
+  const switchProject = useCallback((projectId) => {
+    setActiveProjectId((prev) => {
+      if (prev !== projectId) {
+        setActiveReleaseId(null)
+        localStorage.removeItem('rw:activeReleaseId')
+      }
+      return projectId
+    })
   }, [])
 
   const login = useCallback((userData, token) => {
@@ -210,6 +244,7 @@ export function AppProvider({ children }) {
     toggleTheme,
     activeProjectId,
     setActiveProjectId,
+    switchProject,
     activeReleaseId,
     setActiveReleaseId,
     commandPaletteOpen,
@@ -218,6 +253,8 @@ export function AppProvider({ children }) {
     setQuery,
     newIssueOpen,
     setNewIssueOpen,
+    onIssueCreated,
+    setOnIssueCreated,
     createReleaseOpen,
     setCreateReleaseOpen,
     createProjectOpen,

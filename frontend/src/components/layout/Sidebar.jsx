@@ -11,7 +11,7 @@ import logoUrl from '../../assets/logo.svg'
 const ADMIN_ROLES = ['admin', 'cto']
 
 export function Sidebar() {
-  const { activeProjectId, setActiveProjectId, inboxUnreadCount, user } = useApp()
+  const { activeProjectId, switchProject, inboxUnreadCount, user } = useApp()
   const [issuesOpen, setIssuesOpen] = useState(true)
   const [reportsOpen, setReportsOpen] = useState(true)
 

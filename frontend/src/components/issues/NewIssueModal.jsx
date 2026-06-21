@@ -275,7 +275,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                 onChange={(val) => set('description', val)}
                 placeholder="Describe the issue, expected vs actual behavior…"
                 showInternal={false}
-                hideFooter={false}
+                hideFooter={true}
                 users={teamUsers}
               />
             </div>
