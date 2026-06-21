@@ -40,6 +40,7 @@ def send_telegram_notification(
     chat_id: int,
     template_name: str,
     context: dict[str, Any],
+    bot_token: str | None = None,
 ) -> bool:
     """Send a Telegram notification to a user via the bot.
 
@@ -53,6 +54,9 @@ def send_telegram_notification(
         Key in ``MESSAGE_TEMPLATES`` (e.g. ``"assigned"``).
     context:
         Template fill-in values.
+    bot_token:
+        Optional bot token override. When provided (e.g. the real token stored
+        in DB settings) it takes precedence over the env-configured bot.
 
     Returns
     -------
@@ -66,6 +70,7 @@ def send_telegram_notification(
             chat_id=chat_id,
             template_name=template_name,
             context=context,
+            bot_token=bot_token,
         )
         if success:
             await telegram_service.update_last_sent(chat_id)

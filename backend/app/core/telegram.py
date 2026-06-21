@@ -177,7 +177,23 @@ class TelegramService:
             raise ValueError(f"Unknown Telegram template: {template_name!r}")
         return template.format_map(context)
 
-    async def _send_message(self, chat_id: int, text: str) -> bool:
+    async def _send_message(
+        self, chat_id: int, text: str, bot_token: str | None = None
+    ) -> bool:
+        # An explicit token (e.g. the real token persisted in DB settings) takes
+        # precedence over the env-configured singleton bot, which may hold only a
+        # placeholder value.
+        if bot_token:
+            try:
+                async with Bot(token=bot_token) as bot:
+                    await bot.send_message(
+                        chat_id=chat_id, text=text, parse_mode=ParseMode.HTML
+                    )
+                return True
+            except TelegramError as exc:
+                logger.error("Telegram send failed for chat %s: %s", chat_id, exc)
+                return False
+
         if self._bot is None:
             logger.warning("Telegram bot token not configured — skipping notification.")
             return False
@@ -197,10 +213,11 @@ class TelegramService:
         chat_id: int,
         template_name: str,
         context: dict[str, Any],
+        bot_token: str | None = None,
     ) -> bool:
         """Send a notification from a named template to the given Telegram chat."""
         text = self._render(template_name, context)
-        return await self._send_message(chat_id, text)
+        return await self._send_message(chat_id, text, bot_token=bot_token)
 
     async def update_last_sent(self, chat_id: int) -> None:
         """Update last_event_sent_at on the TelegramIntegration row for this chat."""
