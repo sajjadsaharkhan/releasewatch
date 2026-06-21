@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LogOut, User, Settings, Menu, X, Loader2 } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, X, Loader2, Plus } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
@@ -10,7 +10,7 @@ import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
 
 export function Topbar() {
-  const { theme, setCommandPaletteOpen, activeProjectId, setActiveProjectId, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
+  const { theme, setCommandPaletteOpen, activeProjectId, switchProject, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, setNewIssueOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -46,7 +46,7 @@ export function Topbar() {
           <ProjectSwitcher
             projects={projects}
             activeProjectId={activeProjectId}
-            onChange={setActiveProjectId}
+            onChange={switchProject}
             compact
             width={260}
             onCreateProject={() => setCreateProjectOpen(true)}
@@ -85,6 +85,16 @@ export function Topbar() {
         </button>
       </div>
 
+      {/* Create issue button */}
+      <Button
+        size="sm"
+        onClick={() => setNewIssueOpen(true)}
+        className="hidden sm:flex items-center gap-1.5 shrink-0"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="hidden md:inline">New issue</span>
+      </Button>
+
       {/* User avatar dropdown */}
       <Dropdown
         align="right"
@@ -115,6 +125,13 @@ export function Topbar() {
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-12 bg-background z-50 lg:hidden p-4 space-y-4">
+          <Button
+            onClick={() => { setNewIssueOpen(true); setMobileMenuOpen(false) }}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New issue
+          </Button>
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Project</label>
@@ -130,7 +147,7 @@ export function Topbar() {
                 <ProjectSwitcher
                   projects={projects}
                   activeProjectId={activeProjectId}
-                  onChange={setActiveProjectId}
+                  onChange={switchProject}
                   onCreateProject={() => setCreateProjectOpen(true)}
                 />
               )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Download, Plus, ChevronDown } from 'lucide-react'
+import { Download, ChevronDown } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
 import { FilterDropdown } from '../components/common/FilterDropdown'
@@ -9,7 +9,6 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
 import { IssueTable } from '../components/common/IssueTable'
 import { IssueBoard } from '../components/common/IssueBoard'
-import { NewIssueModal } from '../components/issues/NewIssueModal'
 import { SEVERITY, STATUS } from '../data/mockData'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
@@ -30,7 +29,7 @@ const SEV_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(SEVERITY).ma
 const STATUS_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(STATUS).map(k => ({ value: k, label: STATUS[k].label }))]
 
 export default function IssuesPage({ filterAssigned = false }) {
-  const { newIssueOpen, setNewIssueOpen, query, releases, activeProjectId, user } = useApp()
+  const { query, releases, activeProjectId, user, setOnIssueCreated } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [viewMode, setViewMode] = useState('table')
@@ -120,6 +119,12 @@ export default function IssuesPage({ filterAssigned = false }) {
     fetchIssues()
   }, [fetchIssues])
 
+  // Register refetch so the global NewIssueModal can trigger it after creation
+  useEffect(() => {
+    setOnIssueCreated(() => fetchIssues)
+    return () => setOnIssueCreated(null)
+  }, [fetchIssues, setOnIssueCreated])
+
   const handleStatusChange = useCallback(async (issue, newStatus) => {
     try {
       await issuesApi.update(issue.id, { status: newStatus })
@@ -181,10 +186,6 @@ export default function IssuesPage({ filterAssigned = false }) {
           <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
             <Download className="h-3.5 w-3.5" />
             {exporting ? 'Exporting…' : 'Export'}
-          </Button>
-          <Button size="sm" onClick={() => setNewIssueOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            New Issue
           </Button>
         </div>
       </div>
@@ -260,8 +261,6 @@ export default function IssuesPage({ filterAssigned = false }) {
         )}
       </div>
 
-      {/* New Issue Modal */}
-      <NewIssueModal open={newIssueOpen} onClose={() => { setNewIssueOpen(false); fetchIssues() }} />
     </div>
   )
 }
