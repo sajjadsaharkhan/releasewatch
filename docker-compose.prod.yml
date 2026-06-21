@@ -22,60 +22,30 @@ services:
     build: null
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 2
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1G
 
   worker:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
     build: null
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2G
 
   beat:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
     build: null
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
 
   frontend:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/frontend:${IMAGE_TAG:-latest}"
     build: null
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128M
 
   postgres:
     ports: []   # not exposed in production — access via Docker network only
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
 
   redis:
     ports: []   # not exposed in production
     volumes:
       - ./data/redis:/data
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
