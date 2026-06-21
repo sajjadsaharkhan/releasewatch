@@ -19,7 +19,6 @@ release_changed      → assignee + reporter
 attachment_added     → assignee + reporter
 """
 
-import asyncio
 import html as html_lib
 import logging
 import re
@@ -346,8 +345,12 @@ class InboxFanOutService:
             }
 
             from app.core.telegram import MESSAGE_TEMPLATES
-            from telegram import Bot
-            from telegram.constants import ParseMode
+            from app.tasks.notifications import send_telegram_notification
+
+            # Events without a template can't be delivered — skip the whole batch.
+            if event_key not in MESSAGE_TEMPLATES:
+                logger.warning("No Telegram template for event: %s", event_key)
+                return
 
             for item in items:
                 user = users_by_id.get(item.user_id)
@@ -362,21 +365,14 @@ class InboxFanOutService:
                     or (row.get("cto") and user.role in (UserRole.cto, UserRole.admin))
                 )
                 if should_notify:
-                    template = MESSAGE_TEMPLATES.get(event_key)
-                    if not template:
-                        logger.warning("No Telegram template for event: %s", event_key)
-                        continue
-                    text = template.format_map(context)
-
-                    async def _send(chat_id=tg.chat_id, msg=text, token=bot_token):
-                        try:
-                            async with Bot(token=token) as bot:
-                                await bot.send_message(chat_id=chat_id, text=msg, parse_mode=ParseMode.HTML)
-                            logger.info("Telegram sent: event=%s chat_id=%s", event_key, chat_id)
-                        except Exception as exc:
-                            logger.error("Telegram send failed: chat_id=%s error=%s", chat_id, exc)
-
-                    asyncio.create_task(_send())
+                    # Hand delivery to Celery so the request isn't blocked on the
+                    # Telegram API and transient failures get retried. The DB-stored
+                    # token is threaded through since the env var may be a placeholder.
+                    send_telegram_notification.apply_async(
+                        args=[tg.chat_id, event_key, context],
+                        kwargs={"bot_token": bot_token},
+                        queue="notifications",
+                    )
         except Exception:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
 
