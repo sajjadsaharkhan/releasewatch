@@ -88,23 +88,73 @@ async def _shutdown_bot(bot: Bot) -> None:
         pass
 
 
+_LOCK_KEY = "rw:telegram:poller:lock"
+_LOCK_TTL = 45  # seconds — must exceed the 30s long-poll timeout
+
+
+async def _try_acquire_lock() -> bool:
+    """Attempt to acquire the distributed poller lock in Redis.
+
+    Returns True if this process is now the designated poller, False otherwise.
+    Uses SET NX EX so only one uvicorn worker polls at a time.
+    """
+    try:
+        from app.core.redis_client import get_redis_raw
+        r = await get_redis_raw()
+        return bool(await r.set(_LOCK_KEY, "1", nx=True, ex=_LOCK_TTL))
+    except Exception:
+        logger.warning("Could not check Redis poller lock — proceeding without lock")
+        return True
+
+
+async def _refresh_lock() -> None:
+    """Extend the lock TTL so it doesn't expire mid-poll."""
+    try:
+        from app.core.redis_client import get_redis_raw
+        r = await get_redis_raw()
+        await r.expire(_LOCK_KEY, _LOCK_TTL)
+    except Exception:
+        pass
+
+
+async def _release_lock() -> None:
+    """Release the distributed lock on clean shutdown."""
+    try:
+        from app.core.redis_client import get_redis_raw
+        r = await get_redis_raw()
+        await r.delete(_LOCK_KEY)
+    except Exception:
+        pass
+
+
 async def start_polling() -> None:
     """Entry point for the background bot task.
 
     Runs indefinitely.  Polls DB every ``_DB_CHECK_INTERVAL`` iterations for
     token / proxy changes and reinitializes the Bot automatically.
     Gracefully exits on ``asyncio.CancelledError``.
+
+    Uses a Redis distributed lock to ensure only one uvicorn worker (in hot-reload
+    mode multiple workers spawn) actually polls Telegram at a time.
     """
     current_token: str | None = None
     current_proxy: str | None = None
     bot: Bot | None = None
     offset: int | None = None
     iteration: int = 0
+    holds_lock: bool = False
 
     logger.info("Telegram bot poller started — checking DB for token every %d iterations", _DB_CHECK_INTERVAL)
 
     while True:
         try:
+            # ── Distributed lock: only one worker should poll ────────────────
+            if not holds_lock:
+                holds_lock = await _try_acquire_lock()
+                if not holds_lock:
+                    await asyncio.sleep(15)
+                    continue
+
             # ── DB config check ──────────────────────────────────────────────
             if iteration % _DB_CHECK_INTERVAL == 0:
                 new_token = await _read_token_from_db() or settings.TELEGRAM_BOT_TOKEN
@@ -134,6 +184,9 @@ async def start_polling() -> None:
                 iteration += 1
                 continue
 
+            # ── Refresh lock before each long-poll ──────────────────────────
+            await _refresh_lock()
+
             # ── Long-poll for updates ────────────────────────────────────────
             updates = await bot.get_updates(
                 offset=offset,
@@ -156,6 +209,8 @@ async def start_polling() -> None:
             logger.info("Telegram bot polling stopped")
             if bot:
                 await _shutdown_bot(bot)
+            if holds_lock:
+                await _release_lock()
             break
 
         except (NetworkError, TimedOut) as exc:
