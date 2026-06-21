@@ -689,7 +689,7 @@ export default function SettingsPage() {
                       <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
                       <td className="px-4 py-3">
                         {u.tgConnected
-                          ? <span className="text-xs text-blue-600 dark:text-blue-400">{u.telegram_handle || '@' + u.username}</span>
+                          ? <span className="text-xs text-blue-600 dark:text-blue-400">{u.telegram_handle || 'Connected'}</span>
                           : <span className="text-xs text-muted-foreground">Not connected</span>}
                       </td>
                       <td className="px-4 py-3">
