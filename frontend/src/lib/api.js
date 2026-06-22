@@ -120,6 +120,7 @@ export const issuesApi = {
   create: (data) => api.post('/issues', data),
   get: (id) => api.get(`/issues/${id}`),
   getByNumber: (num) => api.get(`/issues/by-number/${num}`),
+  adjacent: (num) => api.get(`/issues/by-number/${num}/adjacent`),
   update: (id, data) => api.patch(`/issues/${id}`, data),
   remove: (id) => api.delete(`/issues/${id}`),
   triage: (id, data) => api.post(`/issues/${id}/triage`, data),

@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { SeverityBadge, StatusBadge, Badge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 
-export function IssueHeader({ issue, onClose, onNavigate, canDelete, onDelete }) {
+export function IssueHeader({ issue, onClose, onNavigate, adjacent, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
@@ -39,10 +39,10 @@ export function IssueHeader({ issue, onClose, onNavigate, canDelete, onDelete })
           {copied ? <Check size={12} className="text-green-500" /> : <LinkIcon size={12} />}
           {' '}{copied ? 'Copied' : 'Share'}
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onNavigate?.('prev')} title="Previous issue">
+        <Button variant="ghost" size="icon" onClick={() => onNavigate?.('prev')} title="Previous issue" disabled={adjacent?.prev_number === null}>
           <ChevronUp size={15} />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onNavigate?.('next')} title="Next issue">
+        <Button variant="ghost" size="icon" onClick={() => onNavigate?.('next')} title="Next issue" disabled={adjacent?.next_number === null}>
           <ChevronDown size={15} />
         </Button>
         {canDelete && (
