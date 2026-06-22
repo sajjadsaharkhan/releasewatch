@@ -222,6 +222,9 @@ export default function ReleasesPage() {
                         {getStatusIcon(release)}
                       </div>
                       <div>
+                        {(release.project_name || release.project?.name) && (
+                          <p className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">{release.project_name || release.project?.name}</p>
+                        )}
                         <h2 className="font-mono text-lg font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{release.version}</h2>
                         <p className="text-xs text-muted-foreground mt-0.5">{dateRange}</p>
                       </div>
