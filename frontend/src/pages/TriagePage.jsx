@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { Switch } from '../components/ui/Switch'
 import { Avatar } from '../components/ui/Avatar'
 import { SeverityBadge, StatusBadge } from '../components/ui/Badge'
 import { Icon } from '../components/ui/Icon'
+import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { MediaPreview } from '../components/common/MediaPreview'
 import { SEVERITY } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
@@ -12,6 +14,12 @@ import { useToast } from '../components/ui/Toast'
 import { renderMarkdown } from '../lib/markdown'
 import { Dialog } from '../components/ui/Dialog'
 import { useApp } from '../context/AppContext'
+
+const SORT_OPTIONS = [
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'severity', label: 'Severity' },
+]
 
 function calculateAge(createdAt) {
   const now = new Date()
@@ -64,6 +72,7 @@ export default function TriagePage() {
   const [attachments, setAttachments] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [sort, setSort] = useState('oldest')
   const [selectedId, setSelectedId] = useState(null)
   const [assignee, setAssignee] = useState(null)
   const [severity, setSeverity] = useState('major')
@@ -80,7 +89,7 @@ export default function TriagePage() {
     async function load() {
       setLoading(true)
       try {
-        const issueParams = { status: 'new', sort: 'oldest' }
+        const issueParams = { status: 'new', sort }
         if (activeProjectId) issueParams.project_id = activeProjectId
         if (activeReleaseId) issueParams.release_id = activeReleaseId
         const [issuesRes, teamRes, labelsRes] = await Promise.all([
@@ -96,7 +105,7 @@ export default function TriagePage() {
       }
     }
     load()
-  }, [activeProjectId, activeReleaseId])
+  }, [activeProjectId, activeReleaseId, sort])
 
   useEffect(() => {
     if (!selectedId) { setAttachments([]); return }
@@ -138,7 +147,7 @@ export default function TriagePage() {
         is_release_blocker: blocker,
       })
       const assigneeName = userById(assignee)?.name || 'assignee'
-      const reloadParams = { status: 'new', sort: 'oldest' }
+      const reloadParams = { status: 'new', sort }
       if (activeProjectId) reloadParams.project_id = activeProjectId
       if (activeReleaseId) reloadParams.release_id = activeReleaseId
       const res = await issuesApi.list(reloadParams)
@@ -163,7 +172,7 @@ export default function TriagePage() {
     try {
       await issuesApi.needsClarification(selected.id, { message: clarifyMsg || undefined })
       const reporterName = userById(selected.reporter_id)?.name || 'reporter'
-      const reloadParams = { status: 'new', sort: 'oldest' }
+      const reloadParams = { status: 'new', sort }
       if (activeProjectId) reloadParams.project_id = activeProjectId
       if (activeReleaseId) reloadParams.release_id = activeReleaseId
       const res = await issuesApi.list(reloadParams)
@@ -211,8 +220,27 @@ export default function TriagePage() {
       {/* Left: issue list */}
       <div className="border-r border-border overflow-y-auto">
         <div className="px-7 py-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
-          <h1 className="text-lg font-semibold text-foreground">Triage queue</h1>
-          <p className="text-[12px] text-muted-foreground">{queue.length} unassigned · oldest first</p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">Triage queue</h1>
+              <p className="text-[12px] text-muted-foreground">{queue.length} unassigned</p>
+            </div>
+            <Dropdown width={148}
+              trigger={
+                <button className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background hover:bg-muted text-[12px]">
+                  <Icon name="arrow-up-down" size={12} className="text-muted-foreground" />
+                  <span className="font-medium text-foreground">{SORT_OPTIONS.find(s => s.value === sort)?.label}</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+              }
+            >
+              {({ close }) => SORT_OPTIONS.map(opt => (
+                <DropdownItem key={opt.value} onClick={() => { setSort(opt.value); close() }}>
+                  {opt.label}
+                </DropdownItem>
+              ))}
+            </Dropdown>
+          </div>
         </div>
         <ul>
           {queue.map(i => {

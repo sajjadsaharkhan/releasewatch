@@ -72,6 +72,7 @@ class IssueService:
             curl_command=data.curl_command,
             reporter_id=current_user.id,
             status=IssueStatus.new,
+            created_at=now,
             filed_at=now,
             reproduction_steps=reproduction_steps_json or [],
         )
