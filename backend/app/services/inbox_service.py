@@ -89,8 +89,8 @@ class InboxFanOutService:
             # Notify the reporter
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
-            # Notify all triage leads
-            triage_leads = await self._users_with_role(db, UserRole.triage_lead)
+            # Notify all triage leads (role-based + release triage lead)
+            triage_leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in triage_leads)
 
         elif trigger == InboxEventType.comment:
@@ -132,7 +132,7 @@ class InboxFanOutService:
                 recipients.add(str(issue.reporter_id))
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
-            leads = await self._users_with_role(db, UserRole.triage_lead)
+            leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
 
         elif trigger == InboxEventType.status_changed:
@@ -148,17 +148,17 @@ class InboxFanOutService:
                 recipients.add(str(issue.assignee_id))
 
         elif trigger == InboxEventType.filed:
-            leads = await self._users_with_role(db, UserRole.triage_lead)
+            leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
 
         elif trigger == InboxEventType.blocker_filed:
-            leads = await self._users_with_role(db, UserRole.triage_lead)
+            leads = await self._triage_recipients(db, issue)
             ctos = await self._users_with_role(db, UserRole.cto)
             admins = await self._users_with_role(db, UserRole.admin)
             recipients.update(str(u.id) for u in leads + ctos + admins)
 
         elif trigger == InboxEventType.blocker_cleared:
-            leads = await self._users_with_role(db, UserRole.triage_lead)
+            leads = await self._triage_recipients(db, issue)
             ctos = await self._users_with_role(db, UserRole.cto)
             admins = await self._users_with_role(db, UserRole.admin)
             recipients.update(str(u.id) for u in leads + ctos + admins)
@@ -176,12 +176,20 @@ class InboxFanOutService:
             InboxEventType.environment_changed,
             InboxEventType.release_changed,
             InboxEventType.attachment_added,
-            InboxEventType.severity_changed,
         ):
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
+
+        elif trigger == InboxEventType.severity_changed:
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+            # Matrix has triage: True — include release triage lead
+            leads = await self._triage_recipients(db, issue)
+            recipients.update(str(u.id) for u in leads)
 
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).
@@ -363,10 +371,15 @@ class InboxFanOutService:
                 if not user or not tg:
                     continue
 
+                is_release_triage_lead = (
+                    release is not None and release.triage_lead_id == user.id
+                )
                 should_notify = (
                     (row.get("reporter") and issue.reporter_id == user.id)
                     or (row.get("assignee") and issue.assignee_id == user.id)
-                    or (row.get("triage") and user.role == UserRole.triage_lead)
+                    or (row.get("triage") and (
+                        user.role == UserRole.triage_lead or is_release_triage_lead
+                    ))
                     or (row.get("cto") and user.role in (UserRole.cto, UserRole.admin))
                 )
                 if should_notify:
@@ -380,6 +393,32 @@ class InboxFanOutService:
                     )
         except Exception:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
+
+    async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:
+        """Return triage-lead recipients: all users with the triage_lead role plus
+        the release's designated triage lead (who may have any role)."""
+        from app.db.models.release import Release
+
+        role_leads = await self._users_with_role(db, UserRole.triage_lead)
+        seen_ids = {u.id for u in role_leads}
+
+        if issue.release_id:
+            release_result = await db.execute(
+                select(Release).where(Release.id == issue.release_id)
+            )
+            release = release_result.scalar_one_or_none()
+            if release and release.triage_lead_id and release.triage_lead_id not in seen_ids:
+                tl_result = await db.execute(
+                    select(User).where(
+                        User.id == release.triage_lead_id,
+                        User.is_active.is_(True),
+                    )
+                )
+                tl = tl_result.scalar_one_or_none()
+                if tl:
+                    role_leads.append(tl)
+
+        return role_leads
 
     @staticmethod
     async def _users_with_role(db: AsyncSession, role: UserRole) -> list[User]:
