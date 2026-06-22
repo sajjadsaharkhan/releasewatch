@@ -74,6 +74,7 @@ def _apply_filters(
     labels,
     search,
 ):
+    query = query.where(Issue.deleted_at.is_(None))
     if project_id:
         query = query.where(Issue.project_id == project_id)
     if release_id:
@@ -288,7 +289,7 @@ async def get_issue_by_number(
             selectinload(Issue.reporter),
             selectinload(Issue.release),
             selectinload(Issue.project),
-        ).where(Issue.issue_number == issue_number)
+        ).where(Issue.issue_number == issue_number, Issue.deleted_at.is_(None))
     )
     issue = result.scalar_one_or_none()
     if issue is None:
@@ -324,7 +325,7 @@ async def get_issue(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Return a single issue by UUID."""
-    result = await db.execute(select(Issue).where(Issue.id == issue_id))
+    result = await db.execute(select(Issue).where(Issue.id == issue_id, Issue.deleted_at.is_(None)))
     issue = result.scalar_one_or_none()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
@@ -363,12 +364,14 @@ async def delete_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
 ) -> None:
-    """Hard-delete an issue (admin only). Use with caution."""
-    result = await db.execute(select(Issue).where(Issue.id == issue_id))
+    """Soft-delete an issue (admin only)."""
+    result = await db.execute(select(Issue).where(Issue.id == issue_id, Issue.deleted_at.is_(None)))
     issue = result.scalar_one_or_none()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-    await db.delete(issue)
+    from datetime import datetime, timezone
+    issue.deleted_at = datetime.now(tz=timezone.utc)
+    db.add(issue)
     await db.commit()
 
 

@@ -8,6 +8,7 @@ import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
 import { ProjectSwitcher, ReleaseSwitcher } from '../common'
 import { SEVERITY } from '../../lib/constants'
+import { ENVIRONMENT } from './DescriptionSection'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
 import { useApp } from '../../hooks/useApp'
 
@@ -18,6 +19,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     projectId: activeProjectId || '',
     releaseId: activeReleaseId || '',
     severity: 'major',
+    environment: null,
     description: '',
     steps: [''],
     curlCommand: '',
@@ -75,6 +77,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         projectId: activeProjectId || projects[0]?.id || '',
         releaseId: activeReleaseId || '',
         severity: 'major',
+        environment: null,
         description: '',
         steps: [''],
         curlCommand: '',
@@ -158,6 +161,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         release_id: form.releaseId,
         description: form.description || null,
         severity: form.severity,
+        environment_name: form.environment || null,
         labels: form.labels,
         curl_command: form.curlCommand || null,
         reproduction_steps: reproductionSteps,
@@ -176,6 +180,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         projectId: projects[0]?.id ?? '',
         releaseId: '',
         severity: 'major',
+        environment: null,
         description: '',
         steps: [''],
         curlCommand: '',
@@ -264,6 +269,28 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                         ))}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Environment */}
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Environment</label>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.values(ENVIRONMENT).map(env => (
+                      <button
+                        key={env.value}
+                        onClick={() => set('environment', form.environment === env.value ? null : env.value)}
+                        className={cn(
+                          'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
+                          'flex items-center gap-1 whitespace-nowrap',
+                          form.environment === env.value
+                            ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
+                        )}
+                      >
+                        {env.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

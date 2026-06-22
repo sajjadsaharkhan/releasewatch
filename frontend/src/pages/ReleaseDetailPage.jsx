@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
 import { EditReleaseModal } from '../components/releases/EditReleaseModal'
+import { DeleteReleaseModal } from '../components/releases/DeleteReleaseModal'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
@@ -21,7 +22,7 @@ import { SEVERITY } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
-import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Trash2 } from 'lucide-react'
 
 const SEVERITY_COLORS = {
   blocker: '#ef4444',
@@ -179,8 +180,10 @@ export default function ReleaseDetailPage() {
   const navigate = useNavigate()
   const { user: currentUser } = useApp()
   const canViewAnalytics = ['admin', 'cto'].includes(currentUser?.role)
+  const canDelete = ['admin', 'cto'].includes(currentUser?.role)
   const [activeTab, setActiveTab] = useState('overview')
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const [release, setRelease] = useState(null)
@@ -457,6 +460,15 @@ export default function ReleaseDetailPage() {
               <h1 className="text-2xl font-bold font-mono">{release.version}</h1>
             </div>
           </div>
+          {canDelete && (
+            <button
+              onClick={() => setDeleteModalOpen(true)}
+              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              title="Delete release"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -1111,6 +1123,14 @@ export default function ReleaseDetailPage() {
           onClose={() => setEditModalOpen(false)}
           release={release}
           onSave={(updatedRelease) => setRelease(updatedRelease)}
+        />
+
+        {/* Delete Release Modal */}
+        <DeleteReleaseModal
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          release={release}
+          onDeleted={() => navigate('/releases')}
         />
       </div>
     </div>

@@ -11,6 +11,7 @@ import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
 import { useToast } from '../components/ui/Toast'
 import { renderMarkdown } from '../lib/markdown'
 import { Dialog } from '../components/ui/Dialog'
+import { useApp } from '../context/AppContext'
 
 function calculateAge(createdAt) {
   const now = new Date()
@@ -73,13 +74,17 @@ export default function TriagePage() {
   const [clarifyMsg, setClarifyMsg] = useState('')
   const [clarifying, setClarifying] = useState(false)
   const { toast } = useToast()
+  const { activeProjectId, activeReleaseId } = useApp()
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
+        const issueParams = { status: 'new', sort: 'oldest' }
+        if (activeProjectId) issueParams.project_id = activeProjectId
+        if (activeReleaseId) issueParams.release_id = activeReleaseId
         const [issuesRes, teamRes, labelsRes] = await Promise.all([
-          issuesApi.list({ status: 'new', sort: 'oldest' }),
+          issuesApi.list(issueParams),
           teamApi.list(),
           labelsApi.list(),
         ])
@@ -91,7 +96,7 @@ export default function TriagePage() {
       }
     }
     load()
-  }, [])
+  }, [activeProjectId, activeReleaseId])
 
   useEffect(() => {
     if (!selectedId) { setAttachments([]); return }
@@ -133,7 +138,10 @@ export default function TriagePage() {
         is_release_blocker: blocker,
       })
       const assigneeName = userById(assignee)?.name || 'assignee'
-      const res = await issuesApi.list({ status: 'new' })
+      const reloadParams = { status: 'new', sort: 'oldest' }
+      if (activeProjectId) reloadParams.project_id = activeProjectId
+      if (activeReleaseId) reloadParams.release_id = activeReleaseId
+      const res = await issuesApi.list(reloadParams)
       const updated = res.data.items
       setIssues(updated)
       const next = updated.find(i => String(i.id) !== String(selected.id))
@@ -155,7 +163,10 @@ export default function TriagePage() {
     try {
       await issuesApi.needsClarification(selected.id, { message: clarifyMsg || undefined })
       const reporterName = userById(selected.reporter_id)?.name || 'reporter'
-      const res = await issuesApi.list({ status: 'new', sort: 'oldest' })
+      const reloadParams = { status: 'new', sort: 'oldest' }
+      if (activeProjectId) reloadParams.project_id = activeProjectId
+      if (activeReleaseId) reloadParams.release_id = activeReleaseId
+      const res = await issuesApi.list(reloadParams)
       const updated = res.data.items
       setIssues(updated)
       const next = updated.find(i => String(i.id) !== String(selected.id))
