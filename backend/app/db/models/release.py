@@ -63,6 +63,11 @@ class Release(Base):
     )
     go_nogo_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Triage
+    triage_lead_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Audit
     created_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -73,11 +78,15 @@ class Release(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()", onupdate=datetime.utcnow
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     project = relationship("Project", back_populates="releases")
     creator = relationship("User", foreign_keys=[created_by_id])
     go_nogo_user = relationship("User", foreign_keys=[go_nogo_by_id])
+    triage_lead = relationship("User", foreign_keys=[triage_lead_id])
     issues = relationship("Issue", back_populates="release")
     regression_histories = relationship("RegressionHistory", back_populates="release")
 

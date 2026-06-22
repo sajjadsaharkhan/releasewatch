@@ -1,46 +1,51 @@
 import React, { useState, useEffect } from 'react'
-import { Tag, FileText, AlertCircle, FolderOpen } from 'lucide-react'
+import { Tag, FileText, AlertCircle, FolderOpen, UserCheck } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select, SelectItem } from '../ui/Select'
 import { DatePicker } from '../ui/DatePicker'
-import { releasesApi, projectsApi } from '../../lib/api'
+import { releasesApi, projectsApi, teamApi } from '../../lib/api'
 
 export function CreateReleaseModal({ open, onClose, onCreated }) {
   const [projects, setProjects] = useState([])
   const [loadingProjects, setLoadingProjects] = useState(true)
+  const [teamMembers, setTeamMembers] = useState([])
   const [form, setForm] = useState({
     version: '',
     projectId: '',
     targetDate: null,
     description: '',
+    triageLeadId: '',
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
-  // Fetch projects on mount
+  // Fetch projects and team members on open
   useEffect(() => {
-    async function fetchProjects() {
+    if (!open) return
+    async function fetchData() {
       setLoadingProjects(true)
       try {
-        const response = await projectsApi.list()
-        const projectList = response.data || []
+        const [projectRes, teamRes] = await Promise.all([
+          projectsApi.list(),
+          teamApi.list(),
+        ])
+        const projectList = projectRes.data || []
         setProjects(projectList)
         if (projectList.length > 0 && !form.projectId) {
           setForm((f) => ({ ...f, projectId: projectList[0].id }))
         }
+        setTeamMembers(teamRes.data || [])
       } catch (err) {
-        console.error('Failed to fetch projects:', err)
+        console.error('Failed to fetch data:', err)
         setProjects([])
       } finally {
         setLoadingProjects(false)
       }
     }
-    if (open) {
-      fetchProjects()
-    }
+    fetchData()
   }, [open])
 
   const selectedProject = projects.find((p) => p.id === form.projectId)
@@ -79,6 +84,7 @@ export function CreateReleaseModal({ open, onClose, onCreated }) {
         version: form.version,
         target_date: form.targetDate ? form.targetDate.toISOString() : null,
         description: form.description,
+        triage_lead_id: form.triageLeadId || null,
       })
 
       const newRelease = response.data
@@ -91,6 +97,7 @@ export function CreateReleaseModal({ open, onClose, onCreated }) {
         projectId: projects[0]?.id ?? '',
         targetDate: null,
         description: '',
+        triageLeadId: '',
       })
       setErrors({})
     } catch (err) {
@@ -213,6 +220,36 @@ export function CreateReleaseModal({ open, onClose, onCreated }) {
           {errors.description && (
             <p className="text-xs text-red-500 mt-1">{errors.description}</p>
           )}
+        </div>
+
+        {/* Triage Lead */}
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+            Triage Lead
+          </label>
+          <Select
+            value={form.triageLeadId}
+            onChange={(val) => set('triageLeadId', val)}
+            placeholder="Assign a triage lead (optional)"
+            disabled={loading}
+          >
+            {teamMembers.map((member) => (
+              <SelectItem key={member.id} value={member.id}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
+                    style={{ backgroundColor: member.avatar_color || '#6b7280' }}
+                  >
+                    {(member.name || member.username || '?')[0].toUpperCase()}
+                  </span>
+                  <span>{member.name || member.username}</span>
+                  {member.title && (
+                    <span className="text-muted-foreground text-xs">· {member.title}</span>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </Select>
         </div>
 
         {/* Info box */}

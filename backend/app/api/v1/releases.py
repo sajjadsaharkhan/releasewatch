@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_role
 from app.db.models.release import Release, GoNogoStatus
+from app.db.models.user import UserRole
 from app.db.models.issue import Issue, IssueStatus, IssueSeverity
 from app.db.models.user import User
 from app.db.session import get_db
@@ -29,8 +30,10 @@ router = APIRouter()
 
 
 async def _get_release_or_404(db: AsyncSession, release_id: int) -> Release:
-    """Get a release by ID or raise 404."""
-    result = await db.execute(select(Release).where(Release.id == release_id))
+    """Get a non-deleted release by ID or raise 404."""
+    result = await db.execute(
+        select(Release).where(Release.id == release_id, Release.deleted_at.is_(None))
+    )
     release = result.scalar_one_or_none()
     if release is None:
         raise HTTPException(
@@ -93,6 +96,15 @@ async def _release_to_response(
     )
     project = project_result.scalar_one_or_none()
 
+    triage_lead_name = None
+    if release.triage_lead_id:
+        triage_lead_result = await db.execute(
+            select(User).where(User.id == release.triage_lead_id)
+        )
+        triage_lead = triage_lead_result.scalar_one_or_none()
+        if triage_lead:
+            triage_lead_name = triage_lead.name or triage_lead.username
+
     data = {
         "id": release.id,
         "project_id": release.project_id,
@@ -106,9 +118,11 @@ async def _release_to_response(
         "go_nogo_by_id": release.go_nogo_by_id,
         "go_nogo_at": release.go_nogo_at,
         "created_by_id": release.created_by_id,
+        "triage_lead_id": release.triage_lead_id,
         "created_at": release.created_at,
         "updated_at": release.updated_at,
         "project_name": project.name if project else None,
+        "triage_lead_name": triage_lead_name,
         **metrics,
     }
     return ReleaseResponse(**data)
@@ -122,7 +136,7 @@ async def list_releases(
     current_user: User = Depends(get_current_user),
 ) -> ReleaseListResponse:
     """Return all releases across all projects, most recent first."""
-    query = select(Release).order_by(Release.created_at.desc())
+    query = select(Release).where(Release.deleted_at.is_(None)).order_by(Release.created_at.desc())
 
     if project_id:
         query = query.where(Release.project_id == project_id)
@@ -172,6 +186,7 @@ async def create_release(
         description=payload.description,
         target_date=payload.target_date,
         staging_url=payload.staging_url,
+        triage_lead_id=payload.triage_lead_id,
         created_by_id=current_user.id,
     )
     db.add(release)
@@ -304,6 +319,23 @@ async def approve_release(
     await db.commit()
     await db.refresh(release)
     return await _release_to_response(db, release)
+
+
+@router.delete(
+    "/{release_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a release",
+)
+async def delete_release(
+    release_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+) -> None:
+    """Soft-delete a release. Restricted to admin and CTO roles."""
+    release = await _get_release_or_404(db, release_id)
+    release.deleted_at = datetime.now(tz=timezone.utc)
+    db.add(release)
+    await db.commit()
 
 
 @router.post(

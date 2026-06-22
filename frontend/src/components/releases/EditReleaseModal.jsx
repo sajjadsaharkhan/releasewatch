@@ -4,7 +4,8 @@ import { cn } from '../../lib/cn'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { releasesApi } from '../../lib/api'
+import { Select, SelectItem } from '../ui/Select'
+import { releasesApi, teamApi } from '../../lib/api'
 import { useToast } from '../../hooks/useToast'
 
 export function EditReleaseModal({ open, onClose, release, onSave }) {
@@ -14,7 +15,9 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
     targetDate: '',
     description: '',
     status: 'active',
+    triageLeadId: '',
   })
+  const [teamMembers, setTeamMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
@@ -25,9 +28,17 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
         targetDate: release.targetDate ? new Date(release.targetDate).toISOString().split('T')[0] : '',
         description: release.description || '',
         status: release.status || 'active',
+        triageLeadId: release.triageLeadId || release.triage_lead_id || '',
       })
     }
   }, [release])
+
+  useEffect(() => {
+    if (!open) return
+    teamApi.list()
+      .then((res) => setTeamMembers(res.data || []))
+      .catch(() => setTeamMembers([]))
+  }, [open])
 
   function set(key, val) {
     setForm((f) => ({ ...f, [key]: val }))
@@ -57,6 +68,7 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
         target_date: form.targetDate ? new Date(form.targetDate).toISOString() : null,
         description: form.description || null,
         status: form.status,
+        triage_lead_id: form.triageLeadId || null,
       })
       toast({ title: 'Release updated' })
       onSave?.(res.data)
@@ -168,6 +180,36 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
               disabled={loading}
             />
           </div>
+        </div>
+
+        {/* Triage Lead */}
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+            Triage Lead
+          </label>
+          <Select
+            value={form.triageLeadId}
+            onChange={(val) => set('triageLeadId', val)}
+            placeholder="Assign a triage lead (optional)"
+            disabled={loading}
+          >
+            {teamMembers.map((member) => (
+              <SelectItem key={member.id} value={member.id}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
+                    style={{ backgroundColor: member.avatar_color || '#6b7280' }}
+                  >
+                    {(member.name || member.username || '?')[0].toUpperCase()}
+                  </span>
+                  <span>{member.name || member.username}</span>
+                  {member.title && (
+                    <span className="text-muted-foreground text-xs">· {member.title}</span>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </Select>
         </div>
 
         {/* Info box */}
