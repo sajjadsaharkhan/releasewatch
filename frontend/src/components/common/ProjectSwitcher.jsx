@@ -1,8 +1,8 @@
 import React from 'react'
-import { ChevronDown, Check, Circle, Plus } from 'lucide-react'
+import { ChevronDown, Check, Circle } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { getContrastColor } from '../../lib/colors'
-import { Dropdown, DropdownItem, DropdownLabel, DropdownSep } from '../ui/Dropdown'
+import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 
 export function ProjectSwitcher({ projects = [], activeProjectId, onChange, compact = false, width = null, onCreateProject }) {
   const active = projects.find((p) => p.id === activeProjectId) ?? projects[0]
@@ -59,16 +59,7 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
               </span>
             </DropdownItem>
           ))}
-          <DropdownSep />
-          <DropdownItem
-            icon={Plus}
-            onClick={() => {
-              onCreateProject?.()
-              close()
-            }}
-          >
-            New project…
-          </DropdownItem>
+
         </>
       )}
     </Dropdown>

@@ -175,6 +175,7 @@ export const releasesApi = {
   update: (id, data) => api.patch(`/releases/${id}`, data),
   approve: (id) => api.post(`/releases/${id}/approve`),
   block: (id, reason) => api.post(`/releases/${id}/block`, { reason }),
+  delete: (id) => api.delete(`/releases/${id}`),
   analytics: (id) => api.get(`/releases/${id}/analytics`),
 }
 

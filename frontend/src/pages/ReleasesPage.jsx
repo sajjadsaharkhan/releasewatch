@@ -124,7 +124,6 @@ export default function ReleasesPage() {
   }, [])
 
   function handleReleaseCreated(newRelease) {
-    // Refresh both the page list and the context (for header switcher)
     fetchReleases()
     refetchReleases()
   }
