@@ -9,7 +9,7 @@ import { IssueHeader } from './IssueHeader'
 import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
 
-export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
+export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) {
   const { user: currentUser } = useApp()
   const location = useLocation()
   const { commentId } = location.state ?? {}
@@ -69,6 +69,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate }) {
         issue={localIssue}
         onClose={onClose}
         onNavigate={onNavigate}
+        adjacent={adjacent}
         canDelete={canDeleteIssue(currentUser, localIssue)}
         onDelete={() => confirm({
           title: 'Delete issue',

@@ -1,16 +1,17 @@
 """Issue endpoints.
 
-GET    /issues                     — list issues (filters + sort handled server-side)
-GET    /issues/export              — export issues as CSV
-POST   /issues                     — file a new issue
-GET    /issues/{id}                — get issue detail
-PATCH  /issues/{id}                — update issue fields
-DELETE /issues/{id}                — delete issue (admin only)
-POST   /issues/{id}/triage         — triage an issue
-POST   /issues/{id}/fix            — mark as fixed
-POST   /issues/{id}/verify         — verify the fix
-POST   /issues/{id}/reopen         — reopen a closed/verified issue
-POST   /issues/{id}/duplicate      — link as duplicate
+GET    /issues                              — list issues (filters + sort handled server-side)
+GET    /issues/export                       — export issues as CSV
+POST   /issues                             — file a new issue
+GET    /issues/{id}                         — get issue detail
+PATCH  /issues/{id}                         — update issue fields
+DELETE /issues/{id}                         — delete issue (admin only)
+POST   /issues/{id}/triage                  — triage an issue
+POST   /issues/{id}/fix                     — mark as fixed
+POST   /issues/{id}/verify                  — verify the fix
+POST   /issues/{id}/reopen                  — reopen a closed/verified issue
+POST   /issues/{id}/duplicate               — link as duplicate
+GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numbers
 """
 
 import csv
@@ -296,6 +297,31 @@ async def get_issue_by_number(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
     enriched = await _build_enriched_responses([issue], db)
     return enriched[0]
+
+
+@router.get("/by-number/{issue_number}/adjacent", summary="Get adjacent issue numbers")
+async def get_adjacent_issues(
+    issue_number: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return the previous and next non-deleted issue_numbers relative to the given one."""
+    prev_result = await db.execute(
+        select(Issue.issue_number)
+        .where(Issue.issue_number < issue_number, Issue.deleted_at.is_(None))
+        .order_by(Issue.issue_number.desc())
+        .limit(1)
+    )
+    next_result = await db.execute(
+        select(Issue.issue_number)
+        .where(Issue.issue_number > issue_number, Issue.deleted_at.is_(None))
+        .order_by(Issue.issue_number.asc())
+        .limit(1)
+    )
+    return {
+        "prev_number": prev_result.scalar_one_or_none(),
+        "next_number": next_result.scalar_one_or_none(),
+    }
 
 
 @router.post(

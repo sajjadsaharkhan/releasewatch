@@ -9,6 +9,7 @@ export default function IssuePage() {
   const [issue, setIssue] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [adjacent, setAdjacent] = useState(null)
 
   const issueNum = slug?.startsWith('issue-') ? parseInt(slug.slice(6), 10) : null
 
@@ -21,6 +22,13 @@ export default function IssuePage() {
       .catch(() => { setError('Issue not found'); setLoading(false) })
   }, [issueNum])
 
+  useEffect(() => {
+    if (!issueNum) return
+    issuesApi.adjacent(issueNum)
+      .then(res => setAdjacent(res.data))
+      .catch(() => setAdjacent(null))
+  }, [issueNum])
+
   const handleUpdate = (_freshIssue) => {
     // useIssueDetail owns the live issue copy; no page-level sync needed.
     // issue_number is immutable so handleNavigate still works from initial fetch.
@@ -29,9 +37,9 @@ export default function IssuePage() {
   const handleClose = () => navigate('/issues')
 
   const handleNavigate = (direction) => {
-    if (!issue) return
-    const nextNum = direction === 'prev' ? issue.issue_number - 1 : issue.issue_number + 1
-    navigate(`/issue/issue-${nextNum}`)
+    const num = direction === 'prev' ? adjacent?.prev_number : adjacent?.next_number
+    if (num == null) return
+    navigate(`/issue/issue-${num}`)
   }
 
   if (loading) {
@@ -60,5 +68,5 @@ export default function IssuePage() {
     )
   }
 
-  return <IssueDetail key={issue.id} issue={issue} onUpdate={handleUpdate} onClose={handleClose} onNavigate={handleNavigate} />
+  return <IssueDetail key={issue.id} issue={issue} onUpdate={handleUpdate} onClose={handleClose} onNavigate={handleNavigate} adjacent={adjacent} />
 }
