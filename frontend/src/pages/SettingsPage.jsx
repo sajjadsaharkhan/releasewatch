@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trash2, Plus, Send, Sun, Moon, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck } from 'lucide-react'
+import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
@@ -608,36 +608,6 @@ export default function SettingsPage() {
                   </DropdownItem>
                 ))}
               </Dropdown>
-            </div>
-
-            <SectionTitle>Appearance</SectionTitle>
-            <div className="flex items-center justify-between py-3 border-b border-border">
-              <div>
-                <p className="text-sm font-medium">Theme</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Choose your preferred color scheme</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => theme !== 'light' && toggleTheme()}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
-                    theme === 'light' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
-                  )}
-                >
-                  <Sun className="h-4 w-4" />
-                  Light
-                </button>
-                <button
-                  onClick={() => theme !== 'dark' && toggleTheme()}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
-                    theme === 'dark' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-accent'
-                  )}
-                >
-                  <Moon className="h-4 w-4" />
-                  Dark
-                </button>
-              </div>
             </div>
 
             <Button onClick={saveGeneralSettings} disabled={generalSaving}>

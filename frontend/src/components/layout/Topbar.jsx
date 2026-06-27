@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LogOut, User, Settings, Menu, X, Loader2, Plus } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, X, Loader2, Plus, Sun, Moon } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
@@ -10,7 +10,7 @@ import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
 
 export function Topbar() {
-  const { theme, setCommandPaletteOpen, activeProjectId, switchProject, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, setNewIssueOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
+  const { theme, toggleTheme, setCommandPaletteOpen, activeProjectId, switchProject, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, setNewIssueOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -110,6 +110,9 @@ export function Topbar() {
         </div>
         <DropdownItem icon={User} onClick={() => navigate(`/u/${currentUser?.username}`)}>
           Profile
+        </DropdownItem>
+        <DropdownItem icon={theme === 'dark' ? Sun : Moon} onClick={toggleTheme}>
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
         </DropdownItem>
         {isAdmin && (
           <DropdownItem icon={Settings} onClick={() => navigate('/settings')}>

@@ -136,7 +136,6 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         <div className="inline-flex items-center gap-2">
           <Avatar user={reporter} size={18} />
           <span className="text-zinc-700 dark:text-zinc-200">{reporter?.name}</span>
-          {reporter?.role && <RoleBadge role={reporter.role} />}
         </div>
       </MetaRow>
 
