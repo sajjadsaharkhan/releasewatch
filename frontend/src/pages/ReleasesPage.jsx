@@ -10,7 +10,7 @@ import { releasesApi } from '../lib/api'
 // Status badge component for release cards - shows actual backend status
 function ReleaseStatusBadge({ release }) {
   const status = release.status
-  const blockers = release.blockers || release.blockers_count || 0
+  const blockers = release.blockers || release.blocker_count || 0
   const openIssues = release.openIssues || release.open_issues || 0
 
   // Show blockers badge if there are critical issues (regardless of status)
@@ -198,7 +198,7 @@ export default function ReleasesPage() {
             const dateRange = `${createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 
             // Border color based on status
-            const borderColor = release.status === 'blocked' || (release.blockers || release.blockers) > 0
+            const borderColor = release.status === 'blocked' || (release.blockers || release.blocker_count) > 0
               ? 'border-red-200 dark:border-red-800/30'
               : release.status === 'released'
               ? 'border-green-200 dark:border-green-800/30'
@@ -238,8 +238,8 @@ export default function ReleasesPage() {
                       ? 'Released and deployed successfully.'
                       : release.status === 'blocked' || release.goNoGo === 'blocked'
                       ? 'Blocked by critical issues.'
-                      : (release.blockers || release.blockers) > 0
-                      ? `${(release.blockers || release.blockers)} critical issue${(release.blockers || release.blockers) > 1 ? 's' : ''} blocking release.`
+                      : (release.blockers || release.blocker_count) > 0
+                      ? `${(release.blockers || release.blocker_count)} critical issue${(release.blockers || release.blocker_count) > 1 ? 's' : ''} blocking release.`
                       : (release.openIssues || release.open_issues) > 0
                       ? `${(release.openIssues || release.open_issues)} open issue${(release.openIssues || release.open_issues) > 1 ? 's' : ''} in progress.`
                       : 'All issues resolved. Ready for review.'}
@@ -294,7 +294,7 @@ export default function ReleasesPage() {
                     </div>
                     <div className={cn(
                       'rounded-lg border bg-card p-2.5 text-center',
-                      (release.blockers || release.blockers) > 0
+                      (release.blockers || release.blocker_count) > 0
                         ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
                         : (release.openIssues || release.open_issues) > 0
                         ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10'
@@ -302,23 +302,23 @@ export default function ReleasesPage() {
                     )}>
                       <p className={cn(
                         'text-[10.5px] uppercase tracking-wide mb-1',
-                        (release.blockers || release.blockers) > 0
+                        (release.blockers || release.blocker_count) > 0
                           ? 'text-red-600 dark:text-red-400'
                           : (release.openIssues || release.open_issues) > 0
                           ? 'text-amber-600 dark:text-amber-400'
                           : 'text-green-600 dark:text-green-400'
                       )}>
-                        {(release.blockers || release.blockers) > 0 ? 'Blockers' : 'Open'}
+                        {(release.blockers || release.blocker_count) > 0 ? 'Blockers' : 'Open'}
                       </p>
                       <p className={cn(
                         'text-lg font-bold tracking-tight',
-                        (release.blockers || release.blockers) > 0
+                        (release.blockers || release.blocker_count) > 0
                           ? 'text-red-600 dark:text-red-400'
                           : (release.openIssues || release.open_issues) > 0
                           ? 'text-amber-600 dark:text-amber-400'
                           : 'text-green-600 dark:text-green-400'
                       )}>
-                        {(release.blockers || release.blockers) > 0 ? (release.blockers || release.blockers) : (release.openIssues || release.open_issues)}
+                        {(release.blockers || release.blocker_count) > 0 ? (release.blockers || release.blocker_count) : (release.openIssues || release.open_issues)}
                       </p>
                     </div>
                   </div>

@@ -62,7 +62,7 @@ async def _add_release_metrics(db: AsyncSession, release: Release) -> dict:
     blocker_result = await db.execute(
         select(func.count())
         .where(Issue.release_id == release.id)
-        .where(Issue.severity == IssueSeverity.blocker)
+        .where(Issue.is_release_blocker == True)  # noqa: E712
         .where(Issue.status.notin_([IssueStatus.fixed, IssueStatus.verified, IssueStatus.closed]))
     )
     blockers = blocker_result.scalar() or 0

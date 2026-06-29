@@ -318,7 +318,7 @@ export default function TriagePage() {
           <div className="mt-4">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Assign to</div>
             <div className="grid grid-cols-1 gap-1.5">
-              {team.filter(u => ['developer', 'admin'].includes(u.role)).map(u => (
+              {team.map(u => (
                 <button key={u.id} onClick={() => setAssignee(u.id)}
                   className={cn('flex items-center gap-2 px-2.5 h-9 rounded-md border text-[12.5px] transition-colors',
                     String(assignee) === String(u.id)
