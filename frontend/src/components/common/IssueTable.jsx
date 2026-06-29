@@ -1,6 +1,6 @@
 import React from 'react'
 import { RefreshCw } from 'lucide-react'
-import { SeverityBadge, StatusBadge, Badge, RoleBadge, Avatar, UserHoverCard } from '../ui'
+import { SeverityBadge, StatusBadge, Badge, Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
 
@@ -64,7 +64,6 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                     <UserHoverCard user={reporter} size={25}>
                       <div className="flex items-center gap-1.5">
                         <Avatar user={reporter} size={25} />
-                        {reporter.role && <RoleBadge role={reporter.role} />}
                       </div>
                     </UserHoverCard>
                   ) : <span className="text-[11px] text-zinc-400 italic">—</span>}
