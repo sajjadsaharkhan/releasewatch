@@ -289,7 +289,7 @@ export default function TriagePage() {
               : <span className="text-muted-foreground">No description provided.</span>}
           </div>
 
-          {attachments.length > 0 && <MediaPreview attachments={attachments} readonly />}
+          {attachments.length > 0 && <MediaPreview key={selectedId} attachments={attachments} readonly />}
           {attachments.length === 0 && (
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
               <Icon name="paperclip" size={11} />
