@@ -17,7 +17,7 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "blocker_cleared":     {"reporter": True,  "assignee": True,  "triage": True,  "cto": True},
     "release_gate":        {"reporter": False, "assignee": False, "triage": True,  "cto": True},
     "environment_changed": {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
-    "release_changed":     {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
+    "release_changed":     {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
     "attachment_added":    {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
     "severity_changed":    {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
     "needs_clarification": {"reporter": True,  "assignee": False, "triage": False, "cto": False},

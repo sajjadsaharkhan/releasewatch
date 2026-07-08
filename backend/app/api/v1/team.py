@@ -91,7 +91,7 @@ async def list_all_team(
 async def invite_member(
     body: InviteRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.triage_lead)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ):
     """Create a new team member with username and password."""
     import secrets
