@@ -15,7 +15,7 @@ status_changed       → assignee + reporter
 verified             → reporter + assignee
 filed                → triage leads
 environment_changed  → assignee + reporter
-release_changed      → assignee + reporter
+release_changed      → assignee + reporter + triage_lead (new release's triage lead)
 attachment_added     → assignee + reporter
 """
 
@@ -172,9 +172,18 @@ class InboxFanOutService:
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
 
+        elif trigger == InboxEventType.release_changed:
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
+            # Notify the new release's triage lead — issue.release_id is already
+            # updated to the destination release by the time fan_out is called.
+            leads = await self._triage_recipients(db, issue)
+            recipients.update(str(u.id) for u in leads)
+
         elif trigger in (
             InboxEventType.environment_changed,
-            InboxEventType.release_changed,
             InboxEventType.attachment_added,
         ):
             if issue.assignee_id:
