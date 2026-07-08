@@ -12,23 +12,67 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-// Fullscreen overlay component
-export function FullscreenMediaOverlay({ media, onClose, onDownload }) {
+async function downloadFile(url, name, type) {
+  if (type === 'image') {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = name
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+      return
+    } catch { /* fall through */ }
+  }
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.target = '_blank'
+  a.click()
+}
+
+// Fullscreen overlay component — owns its own navigation index
+export function FullscreenMediaOverlay({ attachments, initialIndex = 0, onClose, onNavigate }) {
+  const [index, setIndex] = useState(initialIndex)
   const [saved, setSaved] = useState(false)
 
+  const media = attachments[index]
+  const hasPrev = index > 0
+  const hasNext = index < attachments.length - 1
+
+  const goPrev = () => {
+    if (!hasPrev) return
+    const next = index - 1
+    setIndex(next)
+    onNavigate?.(attachments[next])
+  }
+
+  const goNext = () => {
+    if (!hasNext) return
+    const next = index + 1
+    setIndex(next)
+    onNavigate?.(attachments[next])
+  }
+
   const handleDownload = () => {
-    onDownload()
+    if (media?.url) downloadFile(media.url, media.name, media.type)
     setSaved(true)
     setTimeout(() => setSaved(false), 1400)
   }
 
   useEffect(() => {
-    const handleEsc = (e) => {
+    const handleKey = (e) => {
       if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft') goPrev()
+      if (e.key === 'ArrowRight') goNext()
     }
-    window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [onClose])
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [index])
+
+  if (!media) return null
 
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -59,16 +103,34 @@ export function FullscreenMediaOverlay({ media, onClose, onDownload }) {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 bg-white/5 rounded-lg overflow-hidden flex items-center justify-center min-h-[60vh]">
+        {/* Content with prev/next arrows */}
+        <div className="relative flex-1 bg-white/5 rounded-lg overflow-hidden flex items-center justify-center min-h-[60vh]">
+          {hasPrev && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goPrev() }}
+              className="absolute left-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              aria-label="Previous"
+            >
+              <Icon name="chevron-left" size={20} />
+            </button>
+          )}
           <div className="w-full max-h-full">
-            <MediaPreviewSurface media={media} fullscreen />
+            <MediaPreviewSurface key={media.id} media={media} fullscreen />
           </div>
+          {hasNext && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goNext() }}
+              className="absolute right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              aria-label="Next"
+            >
+              <Icon name="chevron-right" size={20} />
+            </button>
+          )}
         </div>
 
         {/* Footer info */}
         <div className="mt-4 text-center text-sm text-zinc-400">
-          Press ESC to close
+          {attachments.length > 1 ? `${index + 1} / ${attachments.length} · ← → to navigate · ` : ''}Press ESC to close
         </div>
       </div>
     </div>,
@@ -269,20 +331,20 @@ export function MediaPreview({ attachments, onDelete, readonly = false }) {
   const active = attachments?.find(a => a.id === activeId) || attachments?.[0]
 
   useEffect(() => {
-    if (attachments?.length > 0 && !activeId) {
-      setActiveId(attachments[0].id)
-    }
-  }, [attachments, activeId])
+    if (!attachments?.length) return
+    const exists = attachments.some(a => a.id === activeId)
+    if (!exists) setActiveId(attachments[0].id)
+  }, [attachments])
+
+  const activeIndex = attachments?.findIndex(a => a.id === activeId) ?? 0
+  const hasPrev = activeIndex > 0
+  const hasNext = activeIndex < (attachments?.length ?? 0) - 1
+  const goPrev = () => hasPrev && setActiveId(attachments[activeIndex - 1].id)
+  const goNext = () => hasNext && setActiveId(attachments[activeIndex + 1].id)
 
   const download = (e) => {
-    e.stopPropagation()
-    if (active?.url) {
-      const a = document.createElement('a')
-      a.href = active.url
-      a.download = active.name
-      a.target = '_blank'
-      a.click()
-    }
+    e?.stopPropagation()
+    if (active?.url) downloadFile(active.url, active.name, active.type)
     setSaved(true)
     setTimeout(() => setSaved(false), 1400)
   }
@@ -312,7 +374,29 @@ export function MediaPreview({ attachments, onDelete, readonly = false }) {
     <div className="mt-3 rounded-lg border border-border overflow-hidden bg-background">
       {/* Hero preview */}
       <div className="relative bg-muted border-b border-border">
-        <MediaPreviewSurface media={active} />
+        <MediaPreviewSurface key={active.id} media={active} />
+
+        {/* Prev/Next navigation */}
+        {attachments?.length > 1 && (
+          <>
+            <button
+              onClick={goPrev}
+              disabled={!hasPrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-background/90 border border-border text-foreground shadow-sm backdrop-blur transition-opacity disabled:opacity-0 hover:bg-muted"
+              aria-label="Previous attachment"
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+            <button
+              onClick={goNext}
+              disabled={!hasNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-background/90 border border-border text-foreground shadow-sm backdrop-blur transition-opacity disabled:opacity-0 hover:bg-muted"
+              aria-label="Next attachment"
+            >
+              <Icon name="chevron-right" size={16} />
+            </button>
+          </>
+        )}
 
         {/* Overlay header */}
         <div className="absolute top-2 left-2 right-2 flex items-center gap-1.5 pointer-events-none">
@@ -389,9 +473,10 @@ export function MediaPreview({ attachments, onDelete, readonly = false }) {
       {/* Fullscreen overlay */}
       {isFullscreen && (
         <FullscreenMediaOverlay
-          media={active}
+          attachments={attachments}
+          initialIndex={activeIndex}
           onClose={closeFullscreen}
-          onDownload={download}
+          onNavigate={(a) => setActiveId(a.id)}
         />
       )}
     </div>

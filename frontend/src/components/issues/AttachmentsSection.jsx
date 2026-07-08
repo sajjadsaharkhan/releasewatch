@@ -375,15 +375,10 @@ export function AttachmentsSection({
       {/* Fullscreen preview overlay */}
       {previewAttachment && (
         <FullscreenMediaOverlay
-          media={previewAttachment}
+          attachments={attachments}
+          initialIndex={attachments.findIndex(a => a.id === previewAttachment.id)}
           onClose={closePreview}
-          onDownload={() => {
-            const a = document.createElement('a')
-            a.href = previewAttachment.url
-            a.download = previewAttachment.name
-            a.target = '_blank'
-            a.click()
-          }}
+          onNavigate={(a) => setPreviewAttachment(a)}
         />
       )}
     </div>
