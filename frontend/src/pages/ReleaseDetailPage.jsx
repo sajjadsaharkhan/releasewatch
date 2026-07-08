@@ -662,6 +662,29 @@ export default function ReleaseDetailPage() {
                 </p>
               </div>
             </div>
+
+            {/* Triage Lead */}
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Triage Lead</span>
+              {(() => {
+                const lead = userById(release.triage_lead_id) ?? (release.triage_lead_name ? { name: release.triage_lead_name, username: null, avatar_color: '#6b7280' } : null)
+                if (!lead) return <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                return (
+                  <button
+                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    onClick={() => lead.username && (window.location.hash = `/u/${lead.username}`)}
+                  >
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0"
+                      style={{ backgroundColor: lead.avatar_color || '#6b7280' }}
+                    >
+                      {(lead.name || lead.username || '?')[0].toUpperCase()}
+                    </span>
+                    <span className="text-xs font-medium">{lead.name || lead.username}</span>
+                  </button>
+                )
+              })()}
+            </div>
           </div>
 
           {/* Metrics */}
