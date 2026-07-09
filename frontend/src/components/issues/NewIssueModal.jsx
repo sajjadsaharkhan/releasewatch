@@ -36,8 +36,14 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   const [teamUsers, setTeamUsers] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
 
-  // Fetch projects, releases, and labels on mount
+  // Fetch projects, releases, and labels when modal opens.
+  // Capture context values as closure vars so changes to the global switcher
+  // while the modal is open don't overwrite the user's in-modal selection.
   useEffect(() => {
+    if (!open) return
+    const seedProjectId = activeProjectId
+    const seedReleaseId = activeReleaseId
+
     async function fetchData() {
       setDataLoading(true)
       try {
@@ -52,11 +58,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         setLabels(labelsRes.data || [])
         setTeamUsers(teamRes.data || [])
 
-        // Set initial values from AppContext or defaults
         setForm((f) => ({
           ...f,
-          projectId: activeProjectId || projectsRes.data?.[0]?.id || '',
-          releaseId: activeReleaseId || '',
+          projectId: seedProjectId || projectsRes.data?.[0]?.id || '',
+          releaseId: seedReleaseId || '',
         }))
       } catch (err) {
         console.error('Failed to load data:', err)
@@ -64,8 +69,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         setDataLoading(false)
       }
     }
-    if (open) fetchData()
-  }, [open, activeProjectId, activeReleaseId])
+    fetchData()
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset form when modal closes
   useEffect(() => {
@@ -74,8 +79,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       setPendingAttachments([])
       setForm({
         title: '',
-        projectId: activeProjectId || projects[0]?.id || '',
-        releaseId: activeReleaseId || '',
+        projectId: '',
+        releaseId: '',
         severity: 'major',
         environment: null,
         description: '',
@@ -85,7 +90,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       })
       setErrors({})
     }
-  }, [open, activeProjectId, activeReleaseId])
+  }, [open])
 
   // Filter releases for selected project and only active/blocked status
   const availableReleases = allReleases.filter(
@@ -233,7 +238,12 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                     <ProjectSwitcher
                       projects={projects}
                       activeProjectId={form.projectId}
-                      onChange={(id) => set('projectId', id)}
+                      onChange={(id) => {
+                        const firstRelease = allReleases.find(
+                          (r) => r.projectId === id && (r.status === 'active' || r.status === 'blocked')
+                        )
+                        setForm((f) => ({ ...f, projectId: id, releaseId: firstRelease?.id || '' }))
+                      }}
                     />
                   </div>
                   <div>
