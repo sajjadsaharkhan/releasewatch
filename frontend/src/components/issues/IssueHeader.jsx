@@ -15,7 +15,7 @@ export function IssueHeader({ issue, onClose, onNavigate, adjacent, canDelete, o
   }
 
   return (
-    <div className="h-14 px-7 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 shrink-0 bg-white dark:bg-zinc-950">
+    <div className="h-14 px-7 border-b border-border flex items-center gap-3 shrink-0 bg-card">
       <button
         onClick={onClose}
         className="inline-flex items-center gap-1 text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 -ml-2 px-2 h-8 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"

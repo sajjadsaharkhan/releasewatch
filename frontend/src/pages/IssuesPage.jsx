@@ -172,9 +172,9 @@ export default function IssuesPage({ filterAssigned = false }) {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="px-7 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-end justify-between gap-3">
+      <div className="px-7 py-4 border-b border-border flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-lg font-semibold text-foreground">
             {filterAssigned ? 'My Assigned' : 'All Issues'}
           </h1>
           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -191,7 +191,7 @@ export default function IssuesPage({ filterAssigned = false }) {
       </div>
 
       {/* Filter Bar */}
-      <div className="px-7 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-2 bg-zinc-50/60 dark:bg-zinc-900/40">
+      <div className="px-7 py-3 border-b border-border flex flex-wrap items-center gap-2 bg-muted/40">
         <FilterDropdown
           icon="alert-octagon"
           label="Severity"
@@ -235,9 +235,9 @@ export default function IssuesPage({ filterAssigned = false }) {
           <Icon name="arrow-up-down" size={12} className="text-zinc-400" />
           <Dropdown width={140}
             trigger={
-              <button className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-[12px]">
-                <span className="font-medium text-zinc-800 dark:text-zinc-100">{SORT_OPTIONS.find(s => s.value === sort)?.label}</span>
-                <ChevronDown className="h-3 w-3 text-zinc-400" />
+              <button className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background hover:bg-muted text-[12px]">
+                <span className="font-medium text-foreground">{SORT_OPTIONS.find(s => s.value === sort)?.label}</span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </button>
             }
           >

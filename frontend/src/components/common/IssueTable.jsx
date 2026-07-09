@@ -15,7 +15,7 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
 
   return (
     <table className="w-full text-[13px]">
-      <thead className="text-[10.5px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 bg-white/95 dark:bg-zinc-950/95 backdrop-blur">
+      <thead className="text-[10.5px] uppercase tracking-wide text-muted-foreground border-b border-border sticky top-0 bg-background/95 backdrop-blur">
         <tr>
           <th className="text-left font-medium px-7 py-2.5 w-[130px]">ID</th>
           <th className="text-left font-medium px-2 py-2.5">Title</th>
@@ -35,8 +35,8 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
 
           return (
             <tr key={i.id} onClick={() => onOpen(i)}
-              className="border-b border-zinc-100 dark:border-zinc-900 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
-              <td className="px-7 py-2 font-mono text-[11.5px] text-zinc-500">issue-{i.issue_number}</td>
+              className="border-b border-border cursor-pointer hover:bg-muted/50">
+              <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">issue-{i.issue_number}</td>
               <td className="px-2 py-2">
                 <div className="flex items-center gap-1.5">
                   {i.is_release_blocker && (
@@ -46,7 +46,7 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                     </Badge>
                   )}
                   {!i.is_release_blocker && <SeverityBadge severity={i.severity} dot />}
-                  <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate max-w-[420px]">{i.title}</span>
+                  <span className="text-foreground font-medium truncate max-w-[420px]">{i.title}</span>
                   {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                 </div>
               </td>
@@ -56,7 +56,7 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                   <UserHoverCard user={assignee} size={25}>
                     <Avatar user={assignee} size={25} />
                   </UserHoverCard>
-                ) : <span className="text-[11px] text-zinc-400 italic">unassigned</span>}
+                ) : <span className="text-[11px] text-muted-foreground italic">unassigned</span>}
               </td>
               {!hideReporter && (
                 <td className="px-2 py-2">
@@ -66,12 +66,12 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                         <Avatar user={reporter} size={25} />
                       </div>
                     </UserHoverCard>
-                  ) : <span className="text-[11px] text-zinc-400 italic">—</span>}
+                  ) : <span className="text-[11px] text-muted-foreground italic">—</span>}
                 </td>
               )}
               {!hideRelease && (
-                <td className="px-2 py-2 font-mono text-zinc-600 dark:text-zinc-300">
-                  {i.release_version ?? <span className="text-zinc-300">—</span>}
+                <td className="px-2 py-2 font-mono text-muted-foreground">
+                  {i.release_version ?? <span className="opacity-40">—</span>}
                 </td>
               )}
               <td className="px-2 py-2">
@@ -81,9 +81,9 @@ export function IssueTable({ issues = [], onOpen, hideReporter = false, hideRele
                         <RefreshCw className="h-3 w-3" />{i.regression_count}
                       </span>
                     )
-                  : <span className="text-zinc-300">—</span>}
+                  : <span className="text-muted-foreground opacity-40">—</span>}
               </td>
-              <td className="px-7 py-2 text-right tabular-nums text-zinc-500">{relTime(i.created_at)}</td>
+              <td className="px-7 py-2 text-right tabular-nums text-muted-foreground">{relTime(i.created_at)}</td>
             </tr>
           )
         })}

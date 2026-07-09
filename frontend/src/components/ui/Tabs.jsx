@@ -24,7 +24,7 @@ export function Tabs({ value, onValueChange, options = [], className }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-800',
+        'flex items-center gap-1 border-b border-border',
         className
       )}
     >
@@ -38,8 +38,8 @@ export function Tabs({ value, onValueChange, options = [], className }) {
               'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
               'focus-visible:outline-none',
               isActive
-                ? 'text-zinc-900 dark:text-zinc-100'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {opt.icon && <TabIcon name={opt.icon} />}
@@ -49,15 +49,15 @@ export function Tabs({ value, onValueChange, options = [], className }) {
                 className={cn(
                   'ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-medium',
                   isActive
-                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                    : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground'
                 )}
               >
                 {opt.badge}
               </span>
             )}
             {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-zinc-900 dark:bg-zinc-100" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-foreground" />
             )}
           </button>
         )

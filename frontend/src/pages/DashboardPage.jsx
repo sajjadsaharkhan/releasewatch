@@ -164,7 +164,7 @@ export default function DashboardPage() {
                 <div className="absolute top-4 right-4 flex items-center gap-2">
                   <HealthIndicator health={release.health} />
                   {release.goNoGoStatus === 'blocked' && (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-400">
                       Blocked
                     </span>
                   )}
@@ -352,7 +352,7 @@ export default function DashboardPage() {
                     <SeverityBadge severity={item.severity} />
                     <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
-                    <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
                       ~{item.estimatedTime}
                     </span>
                   </Link>

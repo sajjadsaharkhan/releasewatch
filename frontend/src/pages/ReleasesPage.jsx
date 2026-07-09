@@ -16,7 +16,7 @@ function ReleaseStatusBadge({ release }) {
   // Show blockers badge if there are critical issues (regardless of status)
   if (blockers > 0 && status !== 'released') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs font-semibold">
         <AlertTriangle className="h-3.5 w-3.5" />
         {blockers} Blocker{blockers > 1 ? 's' : ''}
       </span>
@@ -27,21 +27,21 @@ function ReleaseStatusBadge({ release }) {
   switch (status) {
     case 'released':
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-xs font-semibold">
           <Ship className="h-3.5 w-3.5" />
           Released
         </span>
       )
     case 'blocked':
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs font-semibold">
           <XCircle className="h-3.5 w-3.5" />
           Blocked
         </span>
       )
     case 'archived':
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900/30 text-zinc-700 dark:text-zinc-400 text-xs font-semibold">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-400 text-xs font-semibold">
           <File className="h-3.5 w-3.5" />
           Archived
         </span>
@@ -51,14 +51,14 @@ function ReleaseStatusBadge({ release }) {
       // For active releases, show open issues count or just "Active"
       if (openIssues > 0) {
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-xs font-semibold">
             <Clock className="h-3.5 w-3.5" />
             {openIssues} Open
           </span>
         )
       }
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-semibold">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-semibold">
           <CheckCircle2 className="h-3.5 w-3.5" />
           Active
         </span>
@@ -85,18 +85,18 @@ function getStatusIcon(release) {
 
 function getStatusBgColor(release) {
   if (release.status === 'released' || release.goNoGo === 'approved') {
-    return 'bg-green-100 dark:bg-green-900/30'
+    return 'bg-green-100 dark:bg-green-900/40'
   }
   if (release.status === 'blocked' || release.goNoGo === 'blocked') {
-    return 'bg-red-100 dark:bg-red-900/30'
+    return 'bg-red-100 dark:bg-red-900/40'
   }
   if (release.blockers > 0) {
-    return 'bg-red-100 dark:bg-red-900/30'
+    return 'bg-red-100 dark:bg-red-900/40'
   }
   if (release.openIssues > 0) {
-    return 'bg-amber-100 dark:bg-amber-900/30'
+    return 'bg-amber-100 dark:bg-amber-900/40'
   }
-  return 'bg-green-100 dark:bg-green-900/30'
+  return 'bg-green-100 dark:bg-green-900/40'
 }
 
 export default function ReleasesPage() {
@@ -164,7 +164,7 @@ export default function ReleasesPage() {
           </Button>
         </div>
       ) : releases.length === 0 ? (
-        <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-800/30 p-12 text-center">
+        <div className="rounded-lg bg-muted/50 border border-border/30 p-12 text-center">
           <Ship className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No releases yet</h3>
           <p className="text-sm text-muted-foreground mb-6">

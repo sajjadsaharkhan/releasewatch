@@ -146,7 +146,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
                 disabled={isAdded}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
-                  'border border-zinc-200 dark:border-zinc-800',
+                  'border border-border',
                   'hover:bg-zinc-50 dark:hover:bg-zinc-900',
                   isAdded && 'opacity-50 cursor-not-allowed hover:bg-transparent'
                 )}

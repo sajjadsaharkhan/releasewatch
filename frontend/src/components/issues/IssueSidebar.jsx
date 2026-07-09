@@ -57,7 +57,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
 
   return (
-    <aside className="border-l border-zinc-200 dark:border-zinc-800 overflow-y-auto bg-zinc-50/60 dark:bg-zinc-900/40 px-4 py-5 text-[13px]">
+    <aside className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
         <Dropdown width={170} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
           {({ close }) => (
@@ -257,7 +257,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         />
       </MetaRow>
 
-      <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+      <div className="mt-4 pt-3 border-t border-border space-y-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cycle {cycleNum} metrics</span>
           {cycleNum > 1 && (
@@ -269,7 +269,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         <TimeMetric label="Time to verify" value={issue.status === 'verified' && ttVerify != null ? (fmtH(ttVerify) ?? '< 1m') : '—'} />
       </div>
 
-      <div className="mt-5 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+      <div className="mt-5 pt-3 border-t border-border space-y-2">
         {issue.status !== 'fixed' && issue.status !== 'verified' && (
           <Button className="w-full" onClick={() => changeStatus('fixed')}>
             <Check size={14} className="mr-1" /> Mark as Fixed

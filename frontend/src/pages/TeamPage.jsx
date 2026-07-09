@@ -122,7 +122,7 @@ export default function TeamPage() {
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   {member.tgConnected && (
                     <Tooltip content="Telegram notifications enabled">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
                         <Send className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                       </span>
                     </Tooltip>
