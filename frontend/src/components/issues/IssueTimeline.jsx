@@ -300,10 +300,10 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                     />
                   ) : (
                     <div className={cn(
-                      'rounded-lg border bg-white dark:bg-zinc-950 px-3.5 py-2.5 relative group',
+                      'rounded-lg border bg-card px-3.5 py-2.5 relative group',
                       item.isInternal
                         ? 'border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-900/50'
-                        : 'border-zinc-200 dark:border-zinc-800',
+                        : 'border-border',
                     )}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{actor?.name ?? actorId}</span>
@@ -356,7 +356,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                       </div>
 
                       {item.mentionedUsers && item.mentionedUsers.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-1.5 flex-wrap">
+                        <div className="mt-2 pt-2 border-t border-border flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Icon name="at-sign" size={11} />
                             Mentioned:

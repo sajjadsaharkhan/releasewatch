@@ -56,7 +56,7 @@ export function RegressionTimelineSection({ regressions = [] }) {
       <ol className="relative pl-2 mt-1">
         {groups.map((g) => (
           <li key={g.version} className="relative pl-8">
-            <span className="absolute left-0 top-1 h-5 w-5 rounded-md bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center">
+            <span className="absolute left-0 top-1 h-5 w-5 rounded-md bg-card border border-border flex items-center justify-center">
               <Tag className="h-2.5 w-2.5 text-zinc-700 dark:text-zinc-200" />
             </span>
             <div className="flex items-baseline gap-2">
@@ -64,7 +64,7 @@ export function RegressionTimelineSection({ regressions = [] }) {
               <span className="text-[11px] text-zinc-500">{g.items.length} event{g.items.length === 1 ? '' : 's'}</span>
             </div>
 
-            <ol className="relative mt-2 mb-5 pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
+            <ol className="relative mt-2 mb-5 pl-4 border-l-2 border-border space-y-3">
               {g.items.map((r) => <RegressionRow key={r.id} regression={r} />)}
             </ol>
           </li>

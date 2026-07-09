@@ -26,7 +26,7 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "w-full text-left rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 cursor-grab active:cursor-grabbing touch-none",
+        "w-full text-left rounded-lg border border-border bg-card p-3 cursor-grab active:cursor-grabbing touch-none",
         "transition-all duration-200 ease-out",
         isDragging && "opacity-50 shadow-xl rotate-1 scale-105 z-50"
       )}

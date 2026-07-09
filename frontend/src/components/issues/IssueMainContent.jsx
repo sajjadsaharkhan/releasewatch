@@ -47,7 +47,7 @@ export function IssueMainContent({
         <div className="flex items-start gap-2">
           <input
             autoFocus
-            className="flex-1 text-[22px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+            className="flex-1 text-[22px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 bg-transparent border border-border rounded-md px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
             value={editedTitle}
             onChange={e => setEditedTitle(e.target.value)}
             onKeyDown={e => {
@@ -105,7 +105,7 @@ export function IssueMainContent({
                 reproduction_steps: steps.map((s, i) => ({ step_order: i + 1, description: s }))
               }, 'Steps saved')}
             />
-            <div className="my-6 border-t border-zinc-200 dark:border-zinc-800" />
+            <div className="my-6 border-t border-border" />
             <IssueTimeline
               events={events}
               comments={comments}

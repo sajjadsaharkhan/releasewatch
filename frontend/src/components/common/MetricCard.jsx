@@ -4,11 +4,11 @@ import { Icon } from '../ui/Icon'
 
 const toneMap = {
   default: { icon: 'bg-muted text-muted-foreground', delta: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400' },
-  blue: { icon: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', delta: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  green: { icon: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400', delta: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  amber: { icon: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400', delta: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  red: { icon: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', delta: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  purple: { icon: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400', delta: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  blue: { icon: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300', delta: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  green: { icon: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300', delta: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
+  amber: { icon: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300', delta: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+  red: { icon: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300', delta: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  purple: { icon: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300', delta: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
 }
 
 export function MetricCard({ label, value, icon, delta, tone = 'default', description, className }) {
