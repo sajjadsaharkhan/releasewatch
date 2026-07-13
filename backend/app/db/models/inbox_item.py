@@ -30,12 +30,26 @@ class InboxEventType(str, enum.Enum):
     needs_clarification = "needs_clarification"
 
 
+class TelegramDeliveryStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
+    skipped = "skipped"
+
+
 class InboxItem(Base):
     """A notification delivered to a specific user's inbox.
 
     Items are created via fan-out logic in ``InboxFanOutService`` whenever a
     relevant issue event occurs.  Each user has their own copy so that
     ``is_read`` state is independent.
+
+    Telegram delivery is tracked via ``telegram_status``:
+      NULL    — user has no Telegram integration
+      pending — queued for delivery (context stored in meta['tg_context'])
+      sent    — delivered successfully
+      failed  — last attempt failed; ``telegram_next_retry_at`` controls when to retry
+      skipped — not applicable (matrix says don't notify, no template, etc.)
     """
 
     __tablename__ = "inbox_items"
@@ -63,9 +77,23 @@ class InboxItem(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    # ── Telegram outbox tracking ──────────────────────────────────────────────
+    telegram_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    telegram_retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    telegram_next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    telegram_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     # ── Composite index to speed up unread-count and per-user inbox queries ───
     __table_args__ = (
         Index("ix_inbox_items_user_is_read", "user_id", "is_read"),
+        Index(
+            "ix_inbox_items_telegram_pending",
+            "telegram_status",
+            "telegram_next_retry_at",
+            postgresql_where="telegram_status IN ('pending', 'failed')",
+        ),
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────

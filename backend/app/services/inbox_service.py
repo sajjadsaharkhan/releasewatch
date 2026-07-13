@@ -382,8 +382,9 @@ class InboxFanOutService:
                 "new_severity": _esc(to_val),
             }
 
-            from app.core.telegram import MESSAGE_TEMPLATES
+            from app.telegram.templates import MESSAGE_TEMPLATES
             from app.tasks.notifications import send_telegram_notification
+            from sqlalchemy.orm import attributes as sa_attrs
 
             # Events without a template can't be delivered — skip the whole batch.
             if event_key not in MESSAGE_TEMPLATES:
@@ -394,6 +395,7 @@ class InboxFanOutService:
                 user = users_by_id.get(item.user_id)
                 tg = tg_by_user.get(item.user_id)
                 if not user or not tg:
+                    # No Telegram account linked — leave telegram_status NULL
                     continue
 
                 is_release_triage_lead = (
@@ -407,15 +409,32 @@ class InboxFanOutService:
                     ))
                     or (row.get("cto") and user.role in (UserRole.cto, UserRole.admin))
                 )
-                if should_notify:
-                    # Hand delivery to Celery so the request isn't blocked on the
-                    # Telegram API and transient failures get retried. The DB-stored
-                    # token is threaded through since the env var may be a placeholder.
-                    send_telegram_notification.apply_async(
-                        args=[tg.chat_id, event_key, context],
-                        kwargs={"bot_token": bot_token, "proxy_url": proxy_url},
-                        queue="notifications",
-                    )
+                if not should_notify:
+                    item.telegram_status = "skipped"
+                    continue
+
+                # Persist delivery intent and rendered context BEFORE enqueuing.
+                # This ensures the beat task can retry even if Redis/Celery are
+                # unavailable at the moment of the event.
+                item_meta = dict(item.meta or {})
+                item_meta["tg_context"] = context
+                item.meta = item_meta
+                sa_attrs.flag_modified(item, "meta")
+                item.telegram_status = "pending"
+
+                # Enqueue for immediate delivery. countdown=2 gives the HTTP
+                # request's transaction time to commit before the worker reads
+                # the inbox item by ID.
+                send_telegram_notification.apply_async(
+                    args=[tg.chat_id, event_key, context],
+                    kwargs={
+                        "bot_token": bot_token,
+                        "proxy_url": proxy_url,
+                        "inbox_item_id": item.id,
+                    },
+                    countdown=2,
+                    queue="notifications",
+                )
         except Exception:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
 

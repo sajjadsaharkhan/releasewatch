@@ -79,19 +79,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
     asyncio.create_task(_warm_embedder(), name="embedding-warmup")
 
-    # Start Telegram bot long-poll loop as a background task in the same event loop
-    from app.bot.poller import start_polling
-    bot_task = asyncio.create_task(start_polling(), name="telegram-bot-poller")
-
     yield  # application is now running
 
     # ── shutdown ──────────────────────────────────────────────────────────────
-    bot_task.cancel()
-    try:
-        await bot_task
-    except asyncio.CancelledError:
-        pass
-
     await close_redis()
     await close_engine()
 

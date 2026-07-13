@@ -106,19 +106,26 @@ def _mask_proxy_url(url: str) -> str:
     return url
 
 
-async def _call_get_me(token: str, proxy_url: str | None):
-    """Call Telegram getMe with a 5-second timeout. Returns (bot_info, error_str)."""
-    from telegram import Bot
-    from telegram.request import HTTPXRequest
+async def _call_get_me(token: str, proxy_url: str | None) -> tuple[dict | None, str | None]:
+    """Call Telegram getMe with a 5-second timeout. Returns (bot_info_dict, error_str)."""
+    from app.telegram.client import TelegramClient, TelegramAPIError
+    client = TelegramClient(token=token, proxy_url=proxy_url)
     try:
-        http_request = HTTPXRequest(proxy=proxy_url) if proxy_url else HTTPXRequest()
-        async with Bot(token=token, request=http_request) as bot:
-            info = await asyncio.wait_for(bot.get_me(), timeout=5.0)
-        return info, None
+        r = await asyncio.wait_for(
+            client._http.post(f"https://api.telegram.org/bot{token}/getMe"),
+            timeout=5.0,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if not data.get("ok"):
+            return None, data.get("description", "getMe returned ok=false")
+        return data["result"], None
     except asyncio.TimeoutError:
         return None, "Request timed out (5 s)"
     except Exception as exc:
         return None, str(exc)
+    finally:
+        await client.close()
 
 
 @router.get("/integrations/telegram", response_model=TelegramIntegrationResponse)
@@ -158,20 +165,20 @@ async def get_telegram_integration(
 
     if bot_info:
         # Update stored username/id if they changed
-        updated_username = f"@{bot_info.username}"
+        updated_username = f"@{bot_info['username']}"
         if updated_username != stored_username or not tg_config.get("bot_id"):
             tg_config["bot_username"] = updated_username
-            tg_config["bot_id"] = bot_info.id
-            tg_config["bot_first_name"] = bot_info.first_name
+            tg_config["bot_id"] = bot_info["id"]
+            tg_config["bot_first_name"] = bot_info.get("first_name")
             await _set_setting(db, "telegram", "config", tg_config)
 
     return TelegramIntegrationResponse(
-        bot_username=bot_info.username and f"@{bot_info.username}" or stored_username or "Unknown",
+        bot_username=(f"@{bot_info['username']}" if bot_info else None) or stored_username or "Unknown",
         connected_count=connected_count,
         bot_token_set=True,
         bot_token_preview=_mask_bot_token(stored_token),
-        bot_id=bot_info.id if bot_info else tg_config.get("bot_id"),
-        bot_first_name=bot_info.first_name if bot_info else tg_config.get("bot_first_name"),
+        bot_id=bot_info["id"] if bot_info else tg_config.get("bot_id"),
+        bot_first_name=bot_info.get("first_name") if bot_info else tg_config.get("bot_first_name"),
         connectivity_ok=bot_info is not None,
         via_proxy=via_proxy,
         proxy_url_preview=_mask_proxy_url(proxy_url) if proxy_url else None,
@@ -197,17 +204,16 @@ async def save_telegram_integration(
         existing["bot_token"] = body.bot_token
         # Auto-fetch bot username from Telegram getMe API
         try:
-            from telegram import Bot
-            from telegram.request import HTTPXRequest
             proxy_val = await _get_setting(db, "proxy", "config")
             proxy_url = None
             if proxy_val and proxy_val.get("enabled"):
-                proxy_url = proxy_val.get("http") or proxy_val.get("https")
-            http_request = HTTPXRequest(proxy=proxy_url) if proxy_url else HTTPXRequest()
-            async with Bot(token=body.bot_token, request=http_request) as tg_bot:
-                bot_info = await tg_bot.get_me()
-            existing["bot_username"] = f"@{bot_info.username}"
-            logger.info("Bot identity confirmed: %s (id=%s)", bot_info.username, bot_info.id)
+                proxy_url = proxy_val.get("socks5") or proxy_val.get("http") or proxy_val.get("https")
+            bot_info, _ = await _call_get_me(body.bot_token, proxy_url)
+            if bot_info:
+                existing["bot_username"] = f"@{bot_info['username']}"
+                existing["bot_id"] = bot_info["id"]
+                existing["bot_first_name"] = bot_info.get("first_name")
+                logger.info("Bot identity confirmed: %s (id=%s)", bot_info["username"], bot_info["id"])
         except Exception as exc:
             logger.warning("Could not fetch bot info via getMe (token saved anyway): %s", exc)
 
