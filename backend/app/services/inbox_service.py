@@ -305,6 +305,22 @@ class InboxFanOutService:
                 logger.warning("Telegram dispatch skipped: no bot token in DB settings")
                 return
 
+            # Load proxy from DB so the Celery worker can route through it.
+            proxy_cfg_result = await db.execute(
+                select(SystemSetting)
+                .where(SystemSetting.category == "proxy")
+                .where(SystemSetting.key == "config")
+                .where(SystemSetting.is_active.is_(True))
+            )
+            proxy_cfg_setting = proxy_cfg_result.scalar_one_or_none()
+            proxy_url: str | None = None
+            if proxy_cfg_setting and (proxy_cfg_setting.value or {}).get("enabled"):
+                proxy_url = (
+                    proxy_cfg_setting.value.get("http")
+                    or proxy_cfg_setting.value.get("https")
+                    or None
+                )
+
             # Load release and project for enriched notification context.
             release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
             release = release_result.scalar_one_or_none()
@@ -397,7 +413,7 @@ class InboxFanOutService:
                     # token is threaded through since the env var may be a placeholder.
                     send_telegram_notification.apply_async(
                         args=[tg.chat_id, event_key, context],
-                        kwargs={"bot_token": bot_token},
+                        kwargs={"bot_token": bot_token, "proxy_url": proxy_url},
                         queue="notifications",
                     )
         except Exception:
