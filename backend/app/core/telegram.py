@@ -11,6 +11,7 @@ from typing import Any
 from telegram import Bot
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
+from telegram.request import HTTPXRequest
 
 from app.config import settings
 
@@ -178,14 +179,15 @@ class TelegramService:
         return template.format_map(context)
 
     async def _send_message(
-        self, chat_id: int, text: str, bot_token: str | None = None
+        self, chat_id: int, text: str, bot_token: str | None = None, proxy_url: str | None = None
     ) -> bool:
         # An explicit token (e.g. the real token persisted in DB settings) takes
         # precedence over the env-configured singleton bot, which may hold only a
         # placeholder value.
         if bot_token:
             try:
-                async with Bot(token=bot_token) as bot:
+                request = HTTPXRequest(proxy=proxy_url) if proxy_url else HTTPXRequest()
+                async with Bot(token=bot_token, request=request) as bot:
                     await bot.send_message(
                         chat_id=chat_id, text=text, parse_mode=ParseMode.HTML
                     )
@@ -214,10 +216,11 @@ class TelegramService:
         template_name: str,
         context: dict[str, Any],
         bot_token: str | None = None,
+        proxy_url: str | None = None,
     ) -> bool:
         """Send a notification from a named template to the given Telegram chat."""
         text = self._render(template_name, context)
-        return await self._send_message(chat_id, text, bot_token=bot_token)
+        return await self._send_message(chat_id, text, bot_token=bot_token, proxy_url=proxy_url)
 
     async def update_last_sent(self, chat_id: int) -> None:
         """Update last_event_sent_at on the TelegramIntegration row for this chat."""

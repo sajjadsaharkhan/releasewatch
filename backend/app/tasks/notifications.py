@@ -41,6 +41,7 @@ def send_telegram_notification(
     template_name: str,
     context: dict[str, Any],
     bot_token: str | None = None,
+    proxy_url: str | None = None,
 ) -> bool:
     """Send a Telegram notification to a user via the bot.
 
@@ -71,6 +72,7 @@ def send_telegram_notification(
             template_name=template_name,
             context=context,
             bot_token=bot_token,
+            proxy_url=proxy_url,
         )
         if success:
             await telegram_service.update_last_sent(chat_id)
@@ -110,21 +112,14 @@ def bulk_notify_team(
     chat_ids: list[int],
     template_name: str,
     context: dict[str, Any],
+    bot_token: str | None = None,
+    proxy_url: str | None = None,
 ) -> dict[str, Any]:
-    """Enqueue individual Telegram notifications for a list of chat IDs.
-
-    Parameters
-    ----------
-    chat_ids:
-        List of ``telegram_integrations.chat_id`` values to notify.
-    template_name:
-        Notification template key.
-    context:
-        Template context shared across all recipients.
-    """
+    """Enqueue individual Telegram notifications for a list of chat IDs."""
     for cid in chat_ids:
         send_telegram_notification.apply_async(
             args=[cid, template_name, context],
+            kwargs={"bot_token": bot_token, "proxy_url": proxy_url},
             queue="notifications",
         )
     return {"enqueued": len(chat_ids)}

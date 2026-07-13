@@ -33,7 +33,7 @@ class IssueEmbedding(Base):
     )
     project_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     field_group: Mapped[str] = mapped_column(String(16), nullable=False)
-    embedding = mapped_column(Vector(1536), nullable=False)
+    embedding = mapped_column(Vector(384), nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -45,7 +45,7 @@ class IssueEmbedding(Base):
     issue = relationship("Issue", back_populates="embeddings")
 
     __table_args__ = (
-        UniqueConstraint("issue_id", "field_group", name="uq_issue_embeddings_issue_group"),
+        UniqueConstraint("issue_id", "field_group", "content_hash", name="uq_issue_embeddings_issue_group_hash"),
     )
 
     def __repr__(self) -> str:
