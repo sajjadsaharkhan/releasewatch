@@ -21,6 +21,12 @@ services:
     environment:
       ENVIRONMENT: development
 
+  bot:
+    volumes:
+      - ./backend:/app
+    environment:
+      ENVIRONMENT: development
+
   frontend:
     build:
       context: ./frontend

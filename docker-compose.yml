@@ -13,7 +13,7 @@ services:
 
   worker:
     build: ./backend
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,celery,attachments,notifications
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,celery,attachments
     env_file: .env
     depends_on:
       postgres:
@@ -28,6 +28,17 @@ services:
     env_file: .env
     depends_on:
       - redis
+    restart: unless-stopped
+
+  bot:
+    build: ./backend
+    command: python run_bot.py
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

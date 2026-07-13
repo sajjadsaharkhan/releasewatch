@@ -5,6 +5,7 @@ Import the ``celery_app`` object in task modules with ``@celery_app.task``.
 """
 
 import logging
+from datetime import timedelta
 
 from celery import Celery, signals
 from celery.schedules import crontab
@@ -44,21 +45,20 @@ celery_app.conf.update(
 
 @signals.worker_process_init.connect
 def _preload_embedding_model(**kwargs):
-    """Load the fastembed ONNX model into memory before the first task runs.
+    """Pre-load the fastembed ONNX model into memory before the first task runs.
 
     Each Celery fork worker is a separate process; without this the model
     cold-loads inside the first task, which exhausts the soft time limit.
+    Uses a throw-away NullPool engine to avoid event-loop conflicts.
     """
     try:
         import asyncio
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+        from app.db.session import task_session
         from app.services.search_service import _load_llm_config, _embed_local, _E5_MODELS
 
         async def _warm():
-            engine = create_async_engine(settings.database_url, pool_pre_ping=True)
-            async with AsyncSession(engine) as db:
+            async with task_session() as db:
                 cfg = await _load_llm_config(db)
-            await engine.dispose()
             if cfg.get("provider") == "local":
                 prefix = "query: " if cfg["model"] in _E5_MODELS else ""
                 await _embed_local(cfg["model"], ["warmup"], prefix=prefix)
@@ -71,6 +71,11 @@ def _preload_embedding_model(**kwargs):
 
 # ── Beat schedule ─────────────────────────────────────────────────────────────
 celery_app.conf.beat_schedule = {
+    "flush-telegram-notifications": {
+        "task": "app.tasks.notifications.flush_telegram_notifications",
+        "schedule": timedelta(seconds=60),
+        "options": {"queue": "notifications"},
+    },
     "detect-regression-patterns-nightly": {
         "task": "app.tasks.reports.detect_regression_patterns",
         "schedule": crontab(hour=2, minute=0),  # 02:00 UTC nightly
