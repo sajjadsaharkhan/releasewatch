@@ -27,6 +27,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
     teamUsers,
     availableLabels,
     availableReleases,
+    availableProjects,
     regressions,
     currentCycle,
     applyUpdate,
@@ -109,6 +110,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
           teamUsers={teamUsers}
           availableLabels={availableLabels}
           availableReleases={availableReleases}
+          availableProjects={availableProjects}
           applyUpdate={applyUpdate}
           onConfirm={confirm}
           onOpenLabelPicker={() => setLabelPickerOpen(true)}

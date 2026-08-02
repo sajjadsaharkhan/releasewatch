@@ -31,7 +31,7 @@ const STATUS = {
   blocked: { label: 'Blocked' },
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, applyUpdate, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
@@ -179,7 +179,42 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       </MetaRow>
 
       <MetaRow label="Project">
-        <span className="text-zinc-700 dark:text-zinc-200">{issue.project_name || '—'}</span>
+        <Dropdown
+          width={220}
+          trigger={
+            <button className="text-left text-zinc-800 dark:text-zinc-200 hover:underline">
+              {issue.project_name || '—'}
+            </button>
+          }
+        >
+          {({ close }) => (
+            <>
+              <DropdownLabel>Move to project</DropdownLabel>
+              {availableProjects.map(p => (
+                <DropdownItem key={p.id} onClick={() => {
+                  close()
+                  if (String(p.id) === String(issue.project_id)) return
+                  onConfirm({
+                    title: 'Move to another project?',
+                    body: <span>Move this issue to project <strong>{p.name}</strong>?</span>,
+                    confirmLabel: 'Move issue',
+                    onConfirm: () => applyUpdate({ project_id: p.id }, `Moved to ${p.name}`),
+                  })
+                }}>
+                  <span className={cn('text-sm', String(p.id) === String(issue.project_id) && 'text-zinc-400')}>
+                    {p.name}
+                  </span>
+                  {String(p.id) === String(issue.project_id) && (
+                    <span className="ml-auto text-xs text-zinc-400">Current</span>
+                  )}
+                </DropdownItem>
+              ))}
+              {availableProjects.length === 0 && (
+                <DropdownItem>No projects found</DropdownItem>
+              )}
+            </>
+          )}
+        </Dropdown>
       </MetaRow>
 
       <MetaRow label="Environment">
