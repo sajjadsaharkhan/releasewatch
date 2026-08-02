@@ -7,14 +7,14 @@ import { FilterDropdown } from '../components/common/FilterDropdown'
 import { MultiSelectFilterDropdown } from '../components/common/MultiSelectFilterDropdown'
 import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
-import { IssueTable } from '../components/common/IssueTable'
-import { IssueBoard } from '../components/common/IssueBoard'
+import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
+import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
 import { SEVERITY, STATUS } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 
 const VIEW_OPTIONS = [
-  { value: 'table', label: 'Table' },
+  { value: 'list', label: 'List' },
   { value: 'board', label: 'Board' },
 ]
 
@@ -32,11 +32,11 @@ export default function IssuesPage({ filterAssigned = false }) {
   const { query, releases, activeProjectId, user, setOnIssueCreated } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const viewMode = searchParams.get('view') || 'table'
+  const viewMode = searchParams.get('view') || 'list'
   const setViewMode = useCallback((v) => {
     setSearchParams(p => {
       const next = new URLSearchParams(p)
-      if (v !== 'table') next.set('view', v); else next.delete('view')
+      if (v !== 'list') next.set('view', v); else next.delete('view')
       return next
     }, { replace: true })
   }, [setSearchParams])
@@ -276,8 +276,10 @@ export default function IssuesPage({ filterAssigned = false }) {
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="py-12 text-center text-sm text-zinc-400">Loading issues…</div>
-        ) : viewMode === 'table' ? (
+          viewMode === 'list'
+            ? <IssueTableSkeleton />
+            : <IssueBoardSkeleton />
+        ) : viewMode === 'list' ? (
           <IssueTable issues={issues} onOpen={openIssue} />
         ) : (
           <IssueBoard issues={issues} onOpen={openIssue} onStatusChange={handleStatusChange} />
