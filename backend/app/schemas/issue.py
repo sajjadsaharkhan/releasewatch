@@ -157,6 +157,7 @@ class IssueResponse(IssueBase):
     created_at: datetime
     updated_at: datetime
     reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
+    release_triage_lead_id: Optional[int] = None
 
 
 class IssueListResponse(BaseModel):
