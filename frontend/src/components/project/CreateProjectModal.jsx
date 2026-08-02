@@ -6,8 +6,10 @@ import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
 
 const PROJECT_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6',
-  '#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#6b7280',
+  '#ef4444', '#dc2626', '#f97316', '#ea580c', '#f59e0b',
+  '#10b981', '#059669', '#14b8a6', '#0891b2', '#3b82f6',
+  '#2563eb', '#6366f1', '#4f46e5', '#8b5cf6', '#a855f7',
+  '#ec4899', '#db2777', '#f43f5e', '#84cc16', '#6b7280',
 ]
 
 export function CreateProjectModal({ open, onClose, onCreate }) {

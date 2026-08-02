@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
@@ -90,7 +91,14 @@ function FieldRow({ label, description, children }) {
 export default function SettingsPage() {
   const { toast } = useToast()
   const { theme, toggleTheme, user: currentUser, refetchProjects, projects, projectsLoading: contextProjectsLoading } = useApp()
-  const [activeTab, setActiveTab] = useState('general')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const VALID_TABS = TAB_OPTIONS.map((t) => t.value)
+  const tabParam = searchParams.get('tab')
+  const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'general'
+
+  function setActiveTab(tab) {
+    setSearchParams((prev) => { prev.set('tab', tab); return prev }, { replace: true })
+  }
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
   const [generalLoading, setGeneralLoading] = useState(true)
   const [generalSaving, setGeneralSaving] = useState(false)
