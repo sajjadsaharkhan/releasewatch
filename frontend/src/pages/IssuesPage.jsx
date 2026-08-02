@@ -32,7 +32,14 @@ export default function IssuesPage({ filterAssigned = false }) {
   const { query, releases, activeProjectId, user, setOnIssueCreated } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [viewMode, setViewMode] = useState('table')
+  const viewMode = searchParams.get('view') || 'table'
+  const setViewMode = useCallback((v) => {
+    setSearchParams(p => {
+      const next = new URLSearchParams(p)
+      if (v !== 'table') next.set('view', v); else next.delete('view')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   // Derive filter and sort from URL query params
   const sort = searchParams.get('sort') || 'newest'
@@ -40,6 +47,7 @@ export default function IssuesPage({ filterAssigned = false }) {
     severity: searchParams.get('severity') || 'all',
     status:   searchParams.get('status')   || 'all',
     assignee: searchParams.get('assignee') || 'all',
+    reporter: searchParams.get('reporter') || 'all',
     release:  searchParams.get('release')  || 'all',
     labels:   searchParams.getAll('labels'),
   }
@@ -47,11 +55,12 @@ export default function IssuesPage({ filterAssigned = false }) {
   // Write filter + sort changes back to URL
   const updateParams = useCallback((newFilter, newSort) => {
     const p = new URLSearchParams()
-    if (newSort !== 'newest')          p.set('sort',     newSort)
-    if (newFilter.severity !== 'all')  p.set('severity', newFilter.severity)
-    if (newFilter.status   !== 'all')  p.set('status',   newFilter.status)
-    if (newFilter.assignee !== 'all')  p.set('assignee', newFilter.assignee)
-    if (newFilter.release  !== 'all')  p.set('release',  newFilter.release)
+    if (newSort !== 'newest')           p.set('sort',     newSort)
+    if (newFilter.severity !== 'all')   p.set('severity', newFilter.severity)
+    if (newFilter.status   !== 'all')   p.set('status',   newFilter.status)
+    if (newFilter.assignee !== 'all')   p.set('assignee', newFilter.assignee)
+    if (newFilter.reporter !== 'all')   p.set('reporter', newFilter.reporter)
+    if (newFilter.release  !== 'all')   p.set('release',  newFilter.release)
     newFilter.labels.forEach(l => p.append('labels', l))
     setSearchParams(p, { replace: true })
   }, [setSearchParams])
@@ -78,6 +87,7 @@ export default function IssuesPage({ filterAssigned = false }) {
     const severity  = searchParams.get('severity') || 'all'
     const status    = searchParams.get('status')   || 'all'
     const assignee  = searchParams.get('assignee') || 'all'
+    const reporter  = searchParams.get('reporter') || 'all'
     const release   = searchParams.get('release')  || 'all'
     const labels    = searchParams.getAll('labels')
     return {
@@ -89,6 +99,7 @@ export default function IssuesPage({ filterAssigned = false }) {
       ...(release  !== 'all' && { release_id: release }),
       ...(labels.length > 0  && { labels }),
       ...(query && { search: query }),
+      ...(reporter !== 'all' && { reporter_id: reporter }),
       ...(filterAssigned
         ? { assignee_id: user?.id }
         : assignee === 'unassigned'
@@ -162,6 +173,11 @@ export default function IssuesPage({ filterAssigned = false }) {
     ...team.map(u => ({ value: u.id, label: u.name })),
   ]
 
+  const REPORTER_OPTIONS = [
+    { value: 'all', label: 'Any' },
+    ...team.map(u => ({ value: u.id, label: u.name })),
+  ]
+
   const RELEASE_OPTIONS = [
     { value: 'all', label: 'Any' },
     ...releases.map(r => ({ value: r.id, label: r.version })),
@@ -216,6 +232,13 @@ export default function IssuesPage({ filterAssigned = false }) {
           }
           options={ASSIGNEE_OPTIONS}
           onChange={(v) => updateParams({ ...filter, assignee: v }, sort)}
+        />
+        <FilterDropdown
+          icon="user-pen"
+          label="Reporter"
+          value={filter.reporter === 'all' ? 'Any' : team.find(u => u.id === filter.reporter)?.name ?? 'Any'}
+          options={REPORTER_OPTIONS}
+          onChange={(v) => updateParams({ ...filter, reporter: v }, sort)}
         />
         <FilterDropdown
           icon="tag"
