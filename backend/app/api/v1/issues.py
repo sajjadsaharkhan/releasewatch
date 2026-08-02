@@ -5,7 +5,7 @@ GET    /issues/export                       — export issues as CSV
 POST   /issues                             — file a new issue
 GET    /issues/{id}                         — get issue detail
 PATCH  /issues/{id}                         — update issue fields
-DELETE /issues/{id}                         — delete issue (admin only)
+DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or release triage lead)
 POST   /issues/{id}/triage                  — triage an issue
 POST   /issues/{id}/fix                     — mark as fixed
 POST   /issues/{id}/verify                  — verify the fix
@@ -145,6 +145,7 @@ async def _build_enriched_responses(
                 if n in label_map
             ],
             "release_version": issue.release.version if issue.release else None,
+            "release_triage_lead_id": issue.release.triage_lead_id if issue.release else None,
             "project_name": issue.project.name if issue.project else None,
         })
         responses.append(enriched)
@@ -383,18 +384,35 @@ async def update_issue(
 @router.delete(
     "/{issue_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete issue (admin only)",
+    summary="Delete issue",
 )
 async def delete_issue(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    """Soft-delete an issue (admin only)."""
-    result = await db.execute(select(Issue).where(Issue.id == issue_id, Issue.deleted_at.is_(None)))
+    """Soft-delete an issue (CTO, admin, reporter, or triage lead of the issue's release)."""
+    result = await db.execute(
+        select(Issue)
+        .options(selectinload(Issue.release))
+        .where(Issue.id == issue_id, Issue.deleted_at.is_(None))
+    )
     issue = result.scalar_one_or_none()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+
+    is_privileged = current_user.role in (UserRole.admin, UserRole.cto)
+    is_reporter = issue.reporter_id == current_user.id
+    is_release_triage_lead = (
+        issue.release is not None
+        and issue.release.triage_lead_id == current_user.id
+    )
+    if not (is_privileged or is_reporter or is_release_triage_lead):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this issue",
+        )
+
     from datetime import datetime, timezone
     issue.deleted_at = datetime.now(tz=timezone.utc)
     db.add(issue)

@@ -10,7 +10,8 @@ export function canDeleteIssue(currentUser, issue) {
   return (
     currentUser.role === 'admin' ||
     currentUser.role === 'cto' ||
-    currentUser.id === issue.reporter
+    currentUser.id === issue.reporter_id ||
+    (issue.release_triage_lead_id != null && currentUser.id === issue.release_triage_lead_id)
   )
 }
 
