@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
+import { downloadIssueMarkdown } from '../lib/issueMarkdown'
 
 export function canDeleteIssue(currentUser, issue) {
   if (!currentUser || !issue) return false
@@ -269,6 +270,10 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
+  const exportMarkdown = useCallback(() => {
+    downloadIssueMarkdown(localIssue, comments)
+  }, [localIssue, comments])
+
   return {
     localIssue,
     setLocalIssue,
@@ -289,5 +294,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     loadMoreTimeline,
     fetchAttachments,
     deleteIssue,
+    exportMarkdown,
   }
 }
