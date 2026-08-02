@@ -163,10 +163,10 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
   })
 
   const { data: availableReleases = [] } = useQuery({
-    queryKey: ['releases', initialIssue?.project_id],
+    queryKey: ['releases', localIssue?.project_id],
     queryFn: () =>
-      releasesApi.list({ project_id: initialIssue.project_id }).then(r => r.data?.releases || r.data || []),
-    enabled: !!initialIssue?.project_id,
+      releasesApi.list({ project_id: localIssue.project_id }).then(r => r.data?.releases || r.data || []),
+    enabled: !!localIssue?.project_id,
     staleTime: 5 * 60 * 1000,
   })
 
