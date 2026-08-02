@@ -3,7 +3,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Computed, DateTime, Float, ForeignKey, Integer, JSON, SmallInteger, String, Text, text
+from sqlalchemy import Boolean, Computed, DateTime, Float, ForeignKey, func, Integer, JSON, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -112,7 +112,7 @@ class Issue(Base):
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()", onupdate=datetime.utcnow
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None

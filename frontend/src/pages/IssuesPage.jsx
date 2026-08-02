@@ -139,11 +139,11 @@ export default function IssuesPage({ filterAssigned = false }) {
   const handleStatusChange = useCallback(async (issue, newStatus) => {
     try {
       await issuesApi.update(issue.id, { status: newStatus })
-      setIssues(prev => prev.map(i => i.id === issue.id ? { ...i, status: newStatus } : i))
+      await fetchIssues()
     } catch (err) {
       console.error('Failed to update issue status:', err)
     }
-  }, [])
+  }, [fetchIssues])
 
   const handleExport = async () => {
     setExporting(true)
