@@ -67,6 +67,7 @@ async def create_project(
     project = Project(
         name=payload.name,
         slug=payload.slug,
+        color=payload.color,
         description=payload.description,
         default_labels=payload.default_labels,
         created_by_id=current_user.id,
