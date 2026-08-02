@@ -653,6 +653,33 @@ class IssueService:
                 ))
                 issue.release_id = new_release_id
 
+        # ── Project ───────────────────────────────────────────────────────────
+        if "project_id" in payload:
+            new_project_id = payload["project_id"]
+            if new_project_id != issue.project_id:
+                from app.db.models.project import Project
+                from_name = None
+                to_name = None
+                if issue.project_id:
+                    from_proj = await db.execute(select(Project).where(Project.id == issue.project_id))
+                    from_proj_obj = from_proj.scalar_one_or_none()
+                    if from_proj_obj:
+                        from_name = from_proj_obj.name
+                if new_project_id:
+                    to_proj = await db.execute(select(Project).where(Project.id == new_project_id))
+                    to_proj_obj = to_proj.scalar_one_or_none()
+                    if to_proj_obj:
+                        to_name = to_proj_obj.name
+                events_to_emit.append((
+                    TimelineEventType.project_changed,
+                    {"from_name": from_name, "to_name": to_name},
+                ))
+                inbox_triggers.append((
+                    InboxEventType.project_changed,
+                    {"from": from_name or "—", "to": to_name or "—"},
+                ))
+                issue.project_id = new_project_id
+
         # ── Status (direct patch, e.g. closing) ───────────────────────────────
         if "status" in payload:
             new_status = payload["status"]

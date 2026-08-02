@@ -207,6 +207,37 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       )
     }
 
+    if (event.type === 'project_changed') {
+      const toName = event.meta?.to_name ?? ''
+      const fromName = event.meta?.from_name
+      return (
+        <>
+          {fromName ? (
+            <>
+              moved project{' '}
+              <Badge tone="default" className="align-middle">
+                <Icon name="folder" size={10} strokeWidth={2.5} className="inline mr-0.5" />
+                {fromName}
+              </Badge>
+              <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+              <Badge tone="blue" className="align-middle">
+                <Icon name="folder" size={10} strokeWidth={2.5} className="inline mr-0.5" />
+                {toName}
+              </Badge>
+            </>
+          ) : (
+            <>
+              moved to project{' '}
+              <Badge tone="blue" className="align-middle">
+                <Icon name="folder" size={10} strokeWidth={2.5} className="inline mr-0.5" />
+                {toName}
+              </Badge>
+            </>
+          )}
+        </>
+      )
+    }
+
     if (event.type === 'release_changed') {
       const toVersion = event.meta?.to_version ?? ''
       const fromVersion = event.meta?.from_version

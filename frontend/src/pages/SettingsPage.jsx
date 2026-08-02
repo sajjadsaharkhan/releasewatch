@@ -59,6 +59,7 @@ const NOTIFICATION_EVENTS = [
   { key: 'release_gate',        label: 'Release Go/No-Go' },
   { key: 'environment_changed', label: 'Environment changed' },
   { key: 'release_changed',     label: 'Release changed' },
+  { key: 'project_changed',     label: 'Project changed' },
   { key: 'attachment_added',    label: 'Attachment added' },
   { key: 'severity_changed',    label: 'Severity changed' },
 ]

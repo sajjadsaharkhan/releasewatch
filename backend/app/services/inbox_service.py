@@ -16,6 +16,7 @@ verified             → reporter + assignee
 filed                → triage leads
 environment_changed  → assignee + reporter
 release_changed      → assignee + reporter + triage_lead (new release's triage lead)
+project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
 """
 
@@ -179,6 +180,14 @@ class InboxFanOutService:
                 recipients.add(str(issue.reporter_id))
             # Notify the new release's triage lead — issue.release_id is already
             # updated to the destination release by the time fan_out is called.
+            leads = await self._triage_recipients(db, issue)
+            recipients.update(str(u.id) for u in leads)
+
+        elif trigger == InboxEventType.project_changed:
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+            if issue.reporter_id:
+                recipients.add(str(issue.reporter_id))
             leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
 
@@ -380,6 +389,8 @@ class InboxFanOutService:
                 "new_release": _esc(to_val),
                 "old_severity": _esc(from_val),
                 "new_severity": _esc(to_val),
+                "old_project": _esc(from_val),
+                "new_project": _esc(to_val),
             }
 
             from app.telegram.templates import MESSAGE_TEMPLATES

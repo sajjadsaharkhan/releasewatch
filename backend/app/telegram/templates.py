@@ -99,6 +99,15 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "<i>Updated by <a href=\"{actor_url}\">{actor}</a></i>"
     ),
+    "project_changed": (
+        "📁 <b>Issue moved to a different project</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "📤 From: <b>{old_project}</b>\n"
+        "📥 To:      <b>{new_project}</b>\n"
+        "\n"
+        "<i>Moved by <a href=\"{actor_url}\">{actor}</a></i>"
+    ),
     "release_changed": (
         "📦 <b>Issue moved to a different release</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"

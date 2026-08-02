@@ -77,6 +77,7 @@ class IssueUpdate(BaseModel):
     is_release_blocker: Optional[bool] = None
     assignee_id: Optional[Any] = None
     release_id: Optional[Any] = None
+    project_id: Optional[Any] = None
     environment_browser: Optional[str] = None
     environment_os: Optional[str] = None
     environment_build_hash: Optional[str] = None

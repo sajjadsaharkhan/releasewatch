@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
+import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, projectsApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
 import { downloadIssueMarkdown } from '../lib/issueMarkdown'
@@ -169,6 +169,12 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: availableProjects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => projectsApi.list().then(r => r.data?.projects || r.data || []),
+    staleTime: 5 * 60 * 1000,
+  })
+
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const loadMoreTimeline = async () => {
@@ -284,6 +290,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     teamUsers,
     availableLabels,
     availableReleases,
+    availableProjects,
     regressions,
     cycles,
     currentCycle,
