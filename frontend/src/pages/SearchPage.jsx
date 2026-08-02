@@ -4,7 +4,7 @@ import { Search, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Badge } from '../components/ui/Badge'
 import { useApp } from '../hooks/useApp'
-import { searchApi } from '../lib/api'
+import { searchApi, issuesApi } from '../lib/api'
 
 const SEVERITY_TONE = {
   blocker: 'red',
@@ -91,12 +91,63 @@ export default function SearchPage() {
   const inputRef = useRef(null)
   const debounceRef = useRef(null)
 
+  function parseIssueNumber(q) {
+    const exact = q.match(/^(?:#|issue-)(\d+)$/i)
+    if (exact) return { num: parseInt(exact[1], 10), exact: true }
+    const bare = q.match(/^(\d+)$/)
+    if (bare) return { num: parseInt(bare[1], 10), exact: false }
+    return null
+  }
+
   const runSearch = useCallback(
     async (q) => {
       if (!q.trim() || !activeProjectId) return
       setLoading(true)
       setError(null)
       try {
+        const parsed = parseIssueNumber(q.trim())
+        if (parsed?.exact) {
+          const res = await issuesApi.getByNumber(parsed.num)
+          const issue = res.data
+          setResults([{
+            issue_id: issue.id,
+            issue_number: issue.issue_number,
+            title: issue.title,
+            severity: issue.severity,
+            status: issue.status,
+            snippet: issue.description || null,
+            matched_via: ['#' + issue.issue_number],
+            assignee: issue.assignee_user?.username ?? null,
+          }])
+          setSearched(true)
+          setSearchParams({ q: q.trim() }, { replace: true })
+          return
+        }
+        if (parsed?.exact === false) {
+          const res = await issuesApi.list({ search: q.trim(), project_id: activeProjectId })
+          const items = res.data.items || []
+          const mapped = items.map((issue) => ({
+            issue_id: issue.id,
+            issue_number: issue.issue_number,
+            title: issue.title,
+            severity: issue.severity,
+            status: issue.status,
+            snippet: issue.description || null,
+            matched_via: ['issue number'],
+            assignee: issue.assignee_user?.username ?? null,
+          }))
+          mapped.sort((a, b) => {
+            const exactA = a.issue_number === parsed.num
+            const exactB = b.issue_number === parsed.num
+            if (exactA && !exactB) return -1
+            if (exactB && !exactA) return 1
+            return a.issue_number - b.issue_number
+          })
+          setResults(mapped)
+          setSearched(true)
+          setSearchParams({ q: q.trim() }, { replace: true })
+          return
+        }
         const res = await searchApi.query(q.trim(), activeProjectId)
         setResults(res.data.results || [])
         setSearched(true)
@@ -154,7 +205,7 @@ export default function SearchPage() {
               value={query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Search issues by title, description, comments, environment…"
+              placeholder="Search issues, or jump to #13 / issue-13…"
               className={cn(
                 'w-full h-10 rounded-lg border border-border bg-background pl-9 pr-4',
                 'text-sm placeholder:text-muted-foreground',
