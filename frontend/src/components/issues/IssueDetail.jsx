@@ -8,6 +8,7 @@ import { useIssueDetail, canDeleteIssue } from '../../hooks/useIssueDetail'
 import { IssueHeader } from './IssueHeader'
 import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
+import { ExportMarkdownModal } from './ExportMarkdownModal'
 
 export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) {
   const { user: currentUser } = useApp()
@@ -39,6 +40,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
 
   const [pendingChange, setPendingChange] = useState(null)
   const [labelPickerOpen, setLabelPickerOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   useEffect(() => {
     if (scrolledRef.current) return
@@ -70,6 +72,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
         onClose={onClose}
         onNavigate={onNavigate}
         adjacent={adjacent}
+        onExportMarkdown={() => setExportModalOpen(true)}
         canDelete={canDeleteIssue(currentUser, localIssue)}
         onDelete={() => confirm({
           title: 'Delete issue',
@@ -128,6 +131,14 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
           </div>
         </div>
       </Dialog>
+
+      {/* Export markdown modal */}
+      <ExportMarkdownModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        issue={localIssue}
+        comments={comments}
+      />
 
       {/* Label picker dialog */}
       <Dialog open={labelPickerOpen} onClose={() => setLabelPickerOpen(false)} title="Add label" size="sm">

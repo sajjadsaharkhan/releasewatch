@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw, FileDown } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { SeverityBadge, StatusBadge, Badge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 
-export function IssueHeader({ issue, onClose, onNavigate, adjacent, canDelete, onDelete }) {
+export function IssueHeader({ issue, onClose, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
@@ -38,6 +38,10 @@ export function IssueHeader({ issue, onClose, onNavigate, adjacent, canDelete, o
         <Button variant="outline" size="sm" onClick={copyLink}>
           {copied ? <Check size={12} className="text-green-500" /> : <LinkIcon size={12} />}
           {' '}{copied ? 'Copied' : 'Share'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onExportMarkdown} title="Export as Markdown">
+          <FileDown size={12} />
+          {' '}Export MD
         </Button>
         <Button variant="ghost" size="icon" onClick={() => onNavigate?.('prev')} title="Previous issue" disabled={adjacent?.prev_number === null}>
           <ChevronUp size={15} />
