@@ -69,6 +69,7 @@ export function Sidebar() {
               <div className="mt-0.5 space-y-0.5">
                 <NavItem to="/regressions" icon="trending-down" label="Regressions" indent />
                 <NavItem to="/contributions" icon="bar-chart-2" label="Contributions" indent />
+                <NavItem to="/deleted-issues" icon="trash-2" label="Deleted Issues" indent />
               </div>
             )}
           </div>
