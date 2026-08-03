@@ -33,6 +33,11 @@ services:
     build: null
     logging: *default-logging
 
+  bot:
+    image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/api:${IMAGE_TAG:-latest}"
+    build: null
+    logging: *default-logging
+
   frontend:
     image: "${GHCR_REPO:-ghcr.io/sajjadsaharkhan/releasewatch}/frontend:${IMAGE_TAG:-latest}"
     build: null

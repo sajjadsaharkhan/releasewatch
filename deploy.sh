@@ -45,7 +45,7 @@ fi
 
 # ── Stop old app containers (keep postgres + redis running for zero downtime) ─
 echo "▶ Stopping old app containers..."
-$COMPOSE stop api worker beat frontend 2>/dev/null || true
+$COMPOSE stop api worker beat bot frontend 2>/dev/null || true
 
 # ── Ensure postgres and redis are up before migrating ────────────────────────
 echo "▶ Starting database services..."
