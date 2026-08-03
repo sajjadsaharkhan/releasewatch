@@ -170,17 +170,17 @@ export default function IssuesPage({ filterAssigned = false }) {
   const ASSIGNEE_OPTIONS = [
     { value: 'all', label: 'Any' },
     { value: 'unassigned', label: 'Unassigned' },
-    ...team.map(u => ({ value: u.id, label: u.name })),
+    ...team.map(u => ({ value: String(u.id), label: u.name })),
   ]
 
   const REPORTER_OPTIONS = [
     { value: 'all', label: 'Any' },
-    ...team.map(u => ({ value: u.id, label: u.name })),
+    ...team.map(u => ({ value: String(u.id), label: u.name })),
   ]
 
   const RELEASE_OPTIONS = [
     { value: 'all', label: 'Any' },
-    ...releases.map(r => ({ value: r.id, label: r.version })),
+    ...releases.map(r => ({ value: String(r.id), label: r.version })),
   ]
 
   const LABEL_OPTIONS = labels.map(l => ({ value: l.name, label: l.name }))
@@ -228,7 +228,7 @@ export default function IssuesPage({ filterAssigned = false }) {
           value={
             filter.assignee === 'all' ? 'Any'
             : filter.assignee === 'unassigned' ? 'Unassigned'
-            : team.find(u => u.id === filter.assignee)?.name ?? 'Any'
+            : team.find(u => String(u.id) === filter.assignee)?.name ?? 'Any'
           }
           options={ASSIGNEE_OPTIONS}
           onChange={(v) => updateParams({ ...filter, assignee: v }, sort)}
@@ -236,7 +236,7 @@ export default function IssuesPage({ filterAssigned = false }) {
         <FilterDropdown
           icon="user-pen"
           label="Reporter"
-          value={filter.reporter === 'all' ? 'Any' : team.find(u => u.id === filter.reporter)?.name ?? 'Any'}
+          value={filter.reporter === 'all' ? 'Any' : team.find(u => String(u.id) === filter.reporter)?.name ?? 'Any'}
           options={REPORTER_OPTIONS}
           onChange={(v) => updateParams({ ...filter, reporter: v }, sort)}
         />
