@@ -36,28 +36,31 @@ def invalidate_report_cache(release_ids: list[str]) -> dict[str, Any]:
 
 async def _invalidate_async(release_ids: list[str]) -> dict[str, Any]:
     """Internal async cache invalidation logic."""
-    from app.core.redis_client import get_redis_raw
+    import redis.asyncio as aioredis
+    from app.config import settings
 
-    redis = await get_redis_raw()
+    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        if not release_ids:
+            # Purge all report cache keys via SCAN
+            cursor = 0
+            deleted = 0
+            while True:
+                cursor, keys = await redis.scan(cursor=cursor, match="report:release:*", count=100)
+                if keys:
+                    await redis.delete(*keys)
+                    deleted += len(keys)
+                if cursor == 0:
+                    break
+            logger.info("Invalidated %d report cache keys (all releases).", deleted)
+            return {"invalidated": deleted}
 
-    if not release_ids:
-        # Purge all report cache keys via SCAN
-        cursor = 0
-        deleted = 0
-        while True:
-            cursor, keys = await redis.scan(cursor=cursor, match="report:release:*", count=100)
-            if keys:
-                await redis.delete(*keys)
-                deleted += len(keys)
-            if cursor == 0:
-                break
-        logger.info("Invalidated %d report cache keys (all releases).", deleted)
+        keys = [f"report:release:{rid}" for rid in release_ids]
+        deleted = await redis.delete(*keys)
+        logger.info("Invalidated %d report cache keys for releases: %s", deleted, release_ids)
         return {"invalidated": deleted}
-
-    keys = [f"report:release:{rid}" for rid in release_ids]
-    deleted = await redis.delete(*keys)
-    logger.info("Invalidated %d report cache keys for releases: %s", deleted, release_ids)
-    return {"invalidated": deleted}
+    finally:
+        await redis.aclose()
 
 
 @celery_app.task(

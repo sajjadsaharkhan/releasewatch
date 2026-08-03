@@ -168,6 +168,6 @@ async def _embed_issue_async(issue_id: int) -> dict:
             logger.warning("Failed to invalidate search cache for project %s", project_id)
 
         logger.info(
-            "embed_issue(%s): embedded groups=%s", issue_id, group_names
+            "embed_issue(%s): embedded groups=%s", issue_id, group_keys
         )
-        return {"issue_id": issue_id, "groups_embedded": len(group_names), "groups": group_names}
+        return {"issue_id": issue_id, "groups_embedded": len(group_keys), "groups": group_keys}
