@@ -193,6 +193,34 @@ class IssueCycleResponse(BaseModel):
         return obj
 
 
+class TrashIssueResponse(BaseModel):
+    """Soft-deleted issue — summary + detail fields returned by GET /issues/trash."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    issue_number: int
+    title: str
+    description: Optional[str] = None
+    severity: IssueSeverity
+    status: IssueStatus
+    release_id: int
+    release_name: Optional[str] = None
+    project_id: int
+    project_name: Optional[str] = None
+    reporter_id: Optional[int] = None
+    reporter_name: Optional[str] = None
+    reporter_username: Optional[str] = None
+    reporter_avatar_color: Optional[str] = None
+    reporter_avatar_url: Optional[str] = None
+    deleted_at: datetime
+    deleted_by_id: Optional[int] = None
+    deleted_by_name: Optional[str] = None
+    deleted_by_username: Optional[str] = None
+    deleted_by_avatar_color: Optional[str] = None
+    deleted_by_avatar_url: Optional[str] = None
+
+
 class RegressionHistoryResponse(BaseModel):
     """A single regression event for an issue."""
 

@@ -2,10 +2,14 @@
 
 GET    /issues                              — list issues (filters + sort handled server-side)
 GET    /issues/export                       — export issues as CSV
+GET    /issues/trash                        — list soft-deleted issues (CTO/admin only)
+DELETE /issues/trash/clear                  — permanently delete all trashed issues (CTO/admin only)
 POST   /issues                             — file a new issue
 GET    /issues/{id}                         — get issue detail
 PATCH  /issues/{id}                         — update issue fields
 DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or release triage lead)
+POST   /issues/{id}/restore                 — restore a soft-deleted issue (CTO/admin only)
+DELETE /issues/{id}/permanent               — permanently delete a single trashed issue (CTO/admin only)
 POST   /issues/{id}/triage                  — triage an issue
 POST   /issues/{id}/fix                     — mark as fixed
 POST   /issues/{id}/verify                  — verify the fix
@@ -20,7 +24,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, delete as sa_delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -42,6 +46,7 @@ from app.schemas.issue import (
     LabelDetail,
     NeedsClarificationRequest,
     RegressionHistoryResponse,
+    TrashIssueResponse,
     TriageRequest,
     UserSummary,
     VerifyRequest,
@@ -356,6 +361,66 @@ async def create_issue(
     return enriched[0]
 
 
+@router.get("/trash", response_model=List[TrashIssueResponse], summary="List soft-deleted issues")
+async def list_trash(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
+) -> List[TrashIssueResponse]:
+    """Return all soft-deleted issues ordered by most recently deleted first."""
+    result = await db.execute(
+        select(Issue)
+        .options(
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+            selectinload(Issue.reporter),
+            selectinload(Issue.deleted_by),
+        )
+        .where(Issue.deleted_at.isnot(None))
+        .order_by(Issue.deleted_at.desc())
+    )
+    issues = result.scalars().all()
+    return [
+        TrashIssueResponse(
+            id=i.id,
+            issue_number=i.issue_number,
+            title=i.title,
+            description=i.description,
+            severity=i.severity,
+            status=i.status,
+            release_id=i.release_id,
+            release_name=i.release.version if i.release else None,
+            project_id=i.project_id,
+            project_name=i.project.name if i.project else None,
+            reporter_id=i.reporter_id,
+            reporter_name=i.reporter.name if i.reporter else None,
+            reporter_username=i.reporter.username if i.reporter else None,
+            reporter_avatar_color=i.reporter.avatar_color if i.reporter else None,
+            reporter_avatar_url=i.reporter.avatar_url if i.reporter else None,
+            deleted_at=i.deleted_at,
+            deleted_by_id=i.deleted_by_id,
+            deleted_by_name=i.deleted_by.name if i.deleted_by else None,
+            deleted_by_username=i.deleted_by.username if i.deleted_by else None,
+            deleted_by_avatar_color=i.deleted_by.avatar_color if i.deleted_by else None,
+            deleted_by_avatar_url=i.deleted_by.avatar_url if i.deleted_by else None,
+        )
+        for i in issues
+    ]
+
+
+@router.delete(
+    "/trash/clear",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete all trashed issues",
+)
+async def clear_trash(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
+) -> None:
+    """Hard-delete every soft-deleted issue from the database (DB CASCADE removes all related rows)."""
+    await db.execute(sa_delete(Issue).where(Issue.deleted_at.isnot(None)))
+    await db.commit()
+
+
 @router.get("/{issue_id}", response_model=IssueResponse, summary="Get issue detail")
 async def get_issue(
     issue_id: int,
@@ -405,7 +470,7 @@ async def delete_issue(
     """Soft-delete an issue (CTO, admin, reporter, or triage lead of the issue's release)."""
     result = await db.execute(
         select(Issue)
-        .options(selectinload(Issue.release))
+        .options(selectinload(Issue.release), selectinload(Issue.project))
         .where(Issue.id == issue_id, Issue.deleted_at.is_(None))
     )
     issue = result.scalar_one_or_none()
@@ -426,7 +491,51 @@ async def delete_issue(
 
     from datetime import datetime, timezone
     issue.deleted_at = datetime.now(tz=timezone.utc)
+    issue.deleted_by_id = current_user.id
     db.add(issue)
+    await db.commit()
+
+
+@router.post(
+    "/{issue_id}/restore",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Restore a soft-deleted issue",
+)
+async def restore_issue(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
+) -> None:
+    """Undelete a soft-deleted issue, making it visible again in all issue lists."""
+    result = await db.execute(
+        select(Issue).where(Issue.id == issue_id, Issue.deleted_at.isnot(None))
+    )
+    issue = result.scalar_one_or_none()
+    if issue is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash")
+    issue.deleted_at = None
+    issue.deleted_by_id = None
+    db.add(issue)
+    await db.commit()
+
+
+@router.delete(
+    "/{issue_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete a single trashed issue",
+)
+async def permanent_delete_issue(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
+) -> None:
+    """Hard-delete a single soft-deleted issue; DB CASCADE removes all related rows."""
+    result = await db.execute(
+        select(Issue.id).where(Issue.id == issue_id, Issue.deleted_at.isnot(None))
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash")
+    await db.execute(sa_delete(Issue).where(Issue.id == issue_id))
     await db.commit()
 
 
