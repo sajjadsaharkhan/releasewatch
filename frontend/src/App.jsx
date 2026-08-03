@@ -21,6 +21,7 @@ const TeamPage = lazy(() => import('./pages/TeamPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const DeletedIssuesPage = lazy(() => import('./pages/DeletedIssuesPage'))
+const MyIssuesPage = lazy(() => import('./pages/MyIssuesPage'))
 
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
@@ -146,6 +147,7 @@ function AppInner() {
             <Route path="inbox" element={<InboxPage />} />
             <Route path="issues" element={<IssuesPage />} />
             <Route path="triage" element={<TriagePage />} />
+            <Route path="my-issues" element={<MyIssuesPage />} />
             <Route path="releases" element={<ReleasesPage />} />
             <Route path="releases/:id" element={<ReleaseDetailPage />} />
             <Route path="regressions" element={<AdminRoute><RegressionsPage /></AdminRoute>} />
