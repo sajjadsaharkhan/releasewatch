@@ -38,7 +38,7 @@ async def seed(session: AsyncSession) -> None:
 
     users = [
         admin_user,
-        User(name="Sajjad Saharkhan",  username="sajjad",  role=UserRole.triage_lead, avatar_color="#8b5cf6", title="Engineering Lead", bio="Building Releasewatch to make QA painless.", is_active=True),
+        User(name="Sajjad Saharkhan",  username="sajjad",  role=UserRole.developer, avatar_color="#8b5cf6", title="Engineering Lead", bio="Building Releasewatch to make QA painless.", is_active=True),
         User(name="Priya Nair",         username="priya",   role=UserRole.qa,          avatar_color="#06b6d4", title="QA Engineer", is_active=True),
         User(name="Tom Eriksson",       username="tom",     role=UserRole.developer,   avatar_color="#10b981", title="Frontend Developer", is_active=True),
         User(name="Ana Beatriz",        username="ana",     role=UserRole.developer,   avatar_color="#f59e0b", title="Backend Developer", is_active=True),
@@ -55,10 +55,12 @@ async def seed(session: AsyncSession) -> None:
     print(f"  Created {len(users)} users (including admin)")
 
     print("Seeding projects...")
-    triage_lead = users[0]
+    creator = users[0]
+    # Sajjad (users[1]) is designated as triage lead for both projects
+    triage_lead = users[1]
     projects = [
-        Project(name="Mobile App",  slug="mobile-app",  description="iOS and Android apps", created_by_id=triage_lead.id),
-        Project(name="API Gateway", slug="api-gateway", description="Core API service",      created_by_id=triage_lead.id),
+        Project(name="Mobile App",  slug="mobile-app",  description="iOS and Android apps", created_by_id=creator.id, triage_lead_id=triage_lead.id),
+        Project(name="API Gateway", slug="api-gateway", description="Core API service",      created_by_id=creator.id, triage_lead_id=triage_lead.id),
     ]
     session.add_all(projects)
     await session.flush()
@@ -66,9 +68,9 @@ async def seed(session: AsyncSession) -> None:
 
     print("Seeding releases...")
     releases = [
-        Release(project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=triage_lead.id),
-        Release(project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.archived, go_nogo_status=GoNogoStatus.approved, created_by_id=triage_lead.id),
-        Release(project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=triage_lead.id),
+        Release(project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id),
+        Release(project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.archived, go_nogo_status=GoNogoStatus.approved, created_by_id=creator.id),
+        Release(project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id),
     ]
     session.add_all(releases)
     await session.flush()
@@ -116,7 +118,7 @@ async def seed(session: AsyncSession) -> None:
         if issue.assignee_id:
             events.append(IssueTimeline(
                 issue_id=issue.id,
-                actor_id=triage_lead.id,
+                actor_id=triage_lead.id,  # triage lead user designated for the project
                 event_type=TimelineEventType.assigned,
                 meta={"assignee_id": str(issue.assignee_id)},
                 created_at=issue.filed_at + timedelta(hours=1),

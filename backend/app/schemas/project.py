@@ -23,6 +23,7 @@ class ProjectCreate(ProjectBase):
         pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
         description="URL-safe identifier (lowercase, hyphens only).",
     )
+    triage_lead_id: Optional[int] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -32,6 +33,7 @@ class ProjectUpdate(BaseModel):
     color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     description: Optional[str] = None
     default_labels: Optional[List[str]] = None
+    triage_lead_id: Optional[int] = None
 
 
 class ProjectArchiveRequest(BaseModel):
@@ -48,6 +50,8 @@ class ProjectResponse(ProjectBase):
     id: int
     slug: str
     created_by_id: Optional[int] = None
+    triage_lead_id: Optional[int] = None
+    triage_lead_name: Optional[str] = None
     archived_at: Optional[datetime] = None
     created_at: datetime
 
@@ -62,3 +66,13 @@ class ProjectResponse(ProjectBase):
     def desc(self) -> Optional[str]:
         """Alias for description to match frontend naming."""
         return self.description
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def triageLeadId(self) -> Optional[int]:
+        return self.triage_lead_id
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def triageLeadName(self) -> Optional[str]:
+        return self.triage_lead_name

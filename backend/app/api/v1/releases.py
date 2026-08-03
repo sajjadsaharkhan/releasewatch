@@ -96,15 +96,6 @@ async def _release_to_response(
     )
     project = project_result.scalar_one_or_none()
 
-    triage_lead_name = None
-    if release.triage_lead_id:
-        triage_lead_result = await db.execute(
-            select(User).where(User.id == release.triage_lead_id)
-        )
-        triage_lead = triage_lead_result.scalar_one_or_none()
-        if triage_lead:
-            triage_lead_name = triage_lead.name or triage_lead.username
-
     data = {
         "id": release.id,
         "project_id": release.project_id,
@@ -118,11 +109,9 @@ async def _release_to_response(
         "go_nogo_by_id": release.go_nogo_by_id,
         "go_nogo_at": release.go_nogo_at,
         "created_by_id": release.created_by_id,
-        "triage_lead_id": release.triage_lead_id,
         "created_at": release.created_at,
         "updated_at": release.updated_at,
         "project_name": project.name if project else None,
-        "triage_lead_name": triage_lead_name,
         **metrics,
     }
     return ReleaseResponse(**data)
@@ -186,7 +175,6 @@ async def create_release(
         description=payload.description,
         target_date=payload.target_date,
         staging_url=payload.staging_url,
-        triage_lead_id=payload.triage_lead_id,
         created_by_id=current_user.id,
     )
     db.add(release)

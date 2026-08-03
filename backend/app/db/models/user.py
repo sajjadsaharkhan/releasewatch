@@ -15,7 +15,6 @@ class UserRole(str, enum.Enum):
 
     qa = "qa"
     developer = "developer"
-    triage_lead = "triage_lead"
     cto = "cto"
     admin = "admin"
 

@@ -16,7 +16,7 @@ import { useApp } from '../hooks/useApp'
 
 
 const ADMIN_ROLES = ['admin', 'cto']
-const CAN_INVITE_ROLES = ['admin', 'cto', 'triage_lead']
+const CAN_INVITE_ROLES = ['admin', 'cto']
 
 export default function TeamPage() {
   const [team, setTeam] = useState([])

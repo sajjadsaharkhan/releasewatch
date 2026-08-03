@@ -255,7 +255,7 @@ class InboxFanOutService:
         """Send Telegram notifications based on the stored notification matrix.
 
         For each inbox item recipient, checks whether their relationship to the
-        issue (reporter/assignee) or team role (triage_lead/cto) appears in the
+        issue (reporter/assignee) or project designation (triage_lead/cto) appears in the
         matrix row for this event. Dispatches a Celery task per eligible recipient
         who has a linked Telegram account. Failures are swallowed — this is
         best-effort, same as the Redis push above.
@@ -409,15 +409,13 @@ class InboxFanOutService:
                     # No Telegram account linked — leave telegram_status NULL
                     continue
 
-                is_release_triage_lead = (
-                    release is not None and release.triage_lead_id == user.id
+                is_project_triage_lead = (
+                    project is not None and project.triage_lead_id == user.id
                 )
                 should_notify = (
                     (row.get("reporter") and issue.reporter_id == user.id)
                     or (row.get("assignee") and issue.assignee_id == user.id)
-                    or (row.get("triage") and (
-                        user.role == UserRole.triage_lead or is_release_triage_lead
-                    ))
+                    or (row.get("triage") and is_project_triage_lead)
                     or (row.get("cto") and user.role in (UserRole.cto, UserRole.admin))
                 )
                 if not should_notify:
@@ -450,30 +448,26 @@ class InboxFanOutService:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
 
     async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:
-        """Return triage-lead recipients: all users with the triage_lead role plus
-        the release's designated triage lead (who may have any role)."""
-        from app.db.models.release import Release
+        """Return the project's designated triage lead as the sole triage recipient."""
+        from app.db.models.project import Project
 
-        role_leads = await self._users_with_role(db, UserRole.triage_lead)
-        seen_ids = {u.id for u in role_leads}
-
-        if issue.release_id:
-            release_result = await db.execute(
-                select(Release).where(Release.id == issue.release_id)
+        if issue.project_id:
+            proj_result = await db.execute(
+                select(Project).where(Project.id == issue.project_id)
             )
-            release = release_result.scalar_one_or_none()
-            if release and release.triage_lead_id and release.triage_lead_id not in seen_ids:
+            project = proj_result.scalar_one_or_none()
+            if project and project.triage_lead_id:
                 tl_result = await db.execute(
                     select(User).where(
-                        User.id == release.triage_lead_id,
+                        User.id == project.triage_lead_id,
                         User.is_active.is_(True),
                     )
                 )
                 tl = tl_result.scalar_one_or_none()
                 if tl:
-                    role_leads.append(tl)
+                    return [tl]
 
-        return role_leads
+        return []
 
     @staticmethod
     async def _users_with_role(db: AsyncSession, role: UserRole) -> list[User]:

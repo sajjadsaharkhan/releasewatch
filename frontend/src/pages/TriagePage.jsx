@@ -41,7 +41,6 @@ function RoleBadge({ value }) {
   const roleColors = {
     qa: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     developer: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-    triage_lead: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
     cto: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
     admin: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
   }
@@ -318,7 +317,7 @@ export default function TriagePage() {
           <div className="mt-4">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Assign to</div>
             <div className="grid grid-cols-1 gap-1.5">
-              {team.filter(u => ['developer', 'triage_lead', 'admin', 'cto'].includes(u.role)).map(u => (
+              {team.filter(u => ['developer', 'qa', 'admin', 'cto'].includes(u.role)).map(u => (
                 <button key={u.id} onClick={() => setAssignee(u.id)}
                   className={cn('flex items-center gap-2 px-2.5 h-9 rounded-md border text-[12.5px] transition-colors',
                     String(assignee) === String(u.id)
