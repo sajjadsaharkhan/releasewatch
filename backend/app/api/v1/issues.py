@@ -297,8 +297,9 @@ async def get_issue_by_number(
             selectinload(Issue.release),
             selectinload(Issue.project),
         ).where(Issue.issue_number == issue_number, Issue.deleted_at.is_(None))
+        .limit(1)
     )
-    issue = result.scalar_one_or_none()
+    issue = result.scalars().first()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
     enriched = await _build_enriched_responses([issue], db)
@@ -450,9 +451,17 @@ async def update_issue(
         actor=current_user,
     )
     await db.commit()
-    await db.refresh(issue, attribute_names=['assignee', 'reporter', 'release', 'project'])
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue.id,), countdown=10)
+    result = await db.execute(
+        select(Issue).options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        ).where(Issue.id == issue_id)
+    )
+    issue = result.scalar_one()
     enriched = await _build_enriched_responses([issue], db)
     return enriched[0]
 
