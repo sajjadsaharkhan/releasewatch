@@ -145,7 +145,7 @@ async def _build_enriched_responses(
                 if n in label_map
             ],
             "release_version": issue.release.version if issue.release else None,
-            "release_triage_lead_id": issue.release.triage_lead_id if issue.release else None,
+            "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
         })
         responses.append(enriched)
@@ -339,10 +339,21 @@ async def create_issue(
     """File a new issue against a release. Any authenticated user can file issues."""
     issue = await issue_service.create(db, payload, current_user)
     await db.commit()
-    await db.refresh(issue)
+    result = await db.execute(
+        select(Issue)
+        .where(Issue.id == issue.id)
+        .options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        )
+    )
+    issue = result.scalar_one()
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue.id,), countdown=0)
-    return IssueResponse.model_validate(issue)
+    enriched = await _build_enriched_responses([issue], db)
+    return enriched[0]
 
 
 @router.get("/{issue_id}", response_model=IssueResponse, summary="Get issue detail")
@@ -403,11 +414,11 @@ async def delete_issue(
 
     is_privileged = current_user.role in (UserRole.admin, UserRole.cto)
     is_reporter = issue.reporter_id == current_user.id
-    is_release_triage_lead = (
-        issue.release is not None
-        and issue.release.triage_lead_id == current_user.id
+    is_project_triage_lead = (
+        issue.project is not None
+        and issue.project.triage_lead_id == current_user.id
     )
-    if not (is_privileged or is_reporter or is_release_triage_lead):
+    if not (is_privileged or is_reporter or is_project_triage_lead):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this issue",
@@ -424,11 +435,9 @@ async def triage_issue(
     issue_id: int,
     payload: TriageRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        require_role(UserRole.triage_lead, UserRole.cto, UserRole.admin)
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Triage: assign the issue and confirm severity (triage lead / CTO / admin)."""
+    """Triage: assign the issue and confirm severity."""
     issue = await issue_service.triage(
         db, issue_id, payload.assignee_id, payload.severity, current_user,
         labels=payload.labels, is_release_blocker=payload.is_release_blocker,
@@ -443,9 +452,7 @@ async def needs_clarification(
     issue_id: int,
     payload: NeedsClarificationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        require_role(UserRole.triage_lead, UserRole.cto, UserRole.admin)
-    ),
+    current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Block the issue and ask the reporter for more information."""
     issue = await issue_service.needs_clarification(

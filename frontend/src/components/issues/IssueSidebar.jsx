@@ -279,7 +279,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             onConfirm({
               title: v ? 'Flag as release blocker?' : 'Clear release blocker?',
               body: v
-                ? 'This will notify all triage leads and CTOs immediately.'
+                ? 'This will notify the project triage lead and CTOs immediately.'
                 : 'This will remove the release blocker flag from this issue.',
               confirmLabel: v ? 'Flag as blocker' : 'Clear blocker',
               tone: v ? 'destructive' : 'default',
@@ -319,7 +319,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           <Button variant="outline" className="w-full" onClick={() => {
             onConfirm({
               title: 'Mark as regression?',
-              body: 'This will log a regression event and notify the reporter, assignee, and triage leads.',
+              body: 'This will log a regression event and notify the reporter, assignee, and project triage lead.',
               confirmLabel: 'Mark as regression',
               tone: 'destructive',
               onConfirm: () => changeStatus('regression'),

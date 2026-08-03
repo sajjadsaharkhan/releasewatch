@@ -29,6 +29,18 @@ from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, R
 router = APIRouter()
 
 
+async def _project_to_response(db: AsyncSession, project: Project) -> ProjectResponse:
+    """Build a ProjectResponse, resolving triage_lead_name from the DB."""
+    triage_lead_name: str | None = None
+    if project.triage_lead_id:
+        result = await db.execute(select(User).where(User.id == project.triage_lead_id))
+        tl = result.scalar_one_or_none()
+        if tl:
+            triage_lead_name = tl.name or tl.username
+    data = ProjectResponse.model_validate(project).model_dump(exclude={"triage_lead_name"})
+    return ProjectResponse(**data, triage_lead_name=triage_lead_name)
+
+
 # ── Projects ──────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=List[ProjectResponse], summary="List all projects")
@@ -41,7 +53,7 @@ async def list_projects(
         select(Project).order_by(Project.created_at.desc())
     )
     projects = result.scalars().all()
-    return [ProjectResponse.model_validate(p) for p in projects]
+    return [await _project_to_response(db, p) for p in projects]
 
 
 @router.post(
@@ -70,12 +82,13 @@ async def create_project(
         color=payload.color,
         description=payload.description,
         default_labels=payload.default_labels,
+        triage_lead_id=payload.triage_lead_id,
         created_by_id=current_user.id,
     )
     db.add(project)
     await db.commit()
     await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 @router.get("/{slug}", response_model=ProjectResponse, summary="Get project by slug")
@@ -86,7 +99,7 @@ async def get_project(
 ) -> ProjectResponse:
     """Return a single project identified by its slug."""
     project = await _get_project_or_404(db, slug)
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 @router.patch("/{slug}", response_model=ProjectResponse, summary="Update project")
@@ -104,7 +117,7 @@ async def update_project(
     db.add(project)
     await db.commit()
     await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 @router.delete(
@@ -146,7 +159,7 @@ async def get_project_by_id(
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 @router.patch(
@@ -176,7 +189,7 @@ async def update_project_by_id(
     db.add(project)
     await db.commit()
     await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 @router.post(
@@ -207,7 +220,7 @@ async def archive_project_by_id(
     db.add(project)
     await db.commit()
     await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _project_to_response(db, project)
 
 
 # ── Releases (nested under projects) ─────────────────────────────────────────
@@ -245,7 +258,7 @@ async def create_release(
     slug: str,
     payload: ReleaseCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> ReleaseResponse:
     """Create a new release under the given project."""
     from app.api.v1.releases import _release_to_response
@@ -293,7 +306,7 @@ async def update_release(
     version: str,
     payload: ReleaseUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> ReleaseResponse:
     """Partially update a release (status, staging URL, description, target date)."""
     from app.api.v1.releases import _release_to_response

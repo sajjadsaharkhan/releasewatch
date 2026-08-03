@@ -65,7 +65,7 @@ async def list_labels(
 async def create_label(
     payload: LabelCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> LabelResponse:
     """Create a new label (admin / CTO / triage lead only)."""
     # Check name uniqueness
@@ -133,7 +133,7 @@ async def update_label(
     label_id: str,
     payload: LabelUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto, UserRole.triage_lead)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> LabelResponse:
     """Partially update a label's metadata."""
     try:

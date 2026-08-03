@@ -730,34 +730,56 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {projects.filter((p) => !p.archived).map((p) => (
-              <div key={p.id} className={cn(
-                "flex items-center gap-3 rounded-lg border border-border bg-card p-3",
-                p.archived && "opacity-50"
-              )}>
-                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                <span className="flex-1 font-medium text-sm">{p.name}</span>
-                <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
-                <Button variant="ghost" size="sm" onClick={() => openEditProject(p)}>Edit</Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => openArchiveConfirm(p.id, 'archive')}>Archive</Button>
-              </div>
-            ))}
-            {projects.filter((p) => p.archived).length > 0 && (
-              <>
-                <div className="pt-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Archived</p>
-                </div>
-                {projects.filter((p) => p.archived).map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 opacity-60">
-                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                    <span className="flex-1 font-medium text-sm">{p.name}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
-                    <Button variant="ghost" size="sm" onClick={() => openArchiveConfirm(p.id, 'restore')}>Restore</Button>
+              {projects.filter((p) => !p.archived).map((p) => {
+                const triageName = p.triage_lead_name || p.triageLeadName
+                return (
+                  <div key={p.id} className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
+                    <span
+                      className="h-9 w-9 rounded-lg shrink-0"
+                      style={{ backgroundColor: p.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm leading-snug">{p.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
+                        {triageName && (
+                          <>
+                            <span className="text-muted-foreground/40 text-xs">·</span>
+                            <span className="text-xs text-muted-foreground">
+                              Lead: <span className="text-foreground/80">{triageName}</span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => openEditProject(p)}>Edit</Button>
+                      <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => openArchiveConfirm(p.id, 'archive')}>Archive</Button>
+                    </div>
                   </div>
-                ))}
-              </>
-            )}
-          </div>
+                )
+              })}
+              {projects.filter((p) => p.archived).length > 0 && (
+                <>
+                  <div className="pt-4 pb-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Archived</p>
+                  </div>
+                  {projects.filter((p) => p.archived).map((p) => (
+                    <div key={p.id} className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 opacity-50">
+                      <span
+                        className="h-9 w-9 rounded-lg shrink-0"
+                        style={{ backgroundColor: p.color }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm leading-snug">{p.name}</p>
+                        <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => openArchiveConfirm(p.id, 'restore')}>Restore</Button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1227,7 +1249,7 @@ export default function SettingsPage() {
         <div>
           <SectionTitle>Notification Matrix</SectionTitle>
           <p className="text-xs text-muted-foreground mb-4">
-            Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead and CTO match team role.
+            Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead matches the project's designated triage lead; CTO matches team role.
           </p>
           {notifLoading ? (
             <div className="flex items-center justify-center py-12">

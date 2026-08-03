@@ -32,6 +32,9 @@ class Project(Base):
         doc="Array of label strings (e.g. ['UI', 'API', 'Performance'])",
     )
 
+    triage_lead_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
         doc="Set when the project is archived; NULL means active."
@@ -45,6 +48,7 @@ class Project(Base):
 
     # ── Relationships ─────────────────────────────────────────────────────────
     creator = relationship("User", back_populates="projects", foreign_keys=[created_by_id])
+    triage_lead = relationship("User", foreign_keys=[triage_lead_id])
     releases = relationship("Release", back_populates="project", cascade="all, delete-orphan")
     issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")
 

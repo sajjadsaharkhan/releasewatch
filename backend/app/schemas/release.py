@@ -13,7 +13,6 @@ class ReleaseBase(BaseModel):
     staging_url: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = Field(None, description="Release description / notes")
     target_date: Optional[datetime] = Field(None, description="Target release date")
-    triage_lead_id: Optional[int] = Field(None, description="User ID of the triage lead")
 
 
 class ReleaseCreate(ReleaseBase):
@@ -30,7 +29,6 @@ class ReleaseUpdate(BaseModel):
     staging_url: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = None
     target_date: Optional[datetime] = None
-    triage_lead_id: Optional[int] = None
 
 
 class GoNogoRequest(BaseModel):
@@ -57,7 +55,6 @@ class ReleaseResponse(ReleaseBase):
     go_nogo_by_id: Optional[int] = None
     go_nogo_at: Optional[datetime] = None
     created_by_id: Optional[int] = None
-    triage_lead_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -67,7 +64,6 @@ class ReleaseResponse(ReleaseBase):
     total_issues: int = Field(default=0, description="Total issue count")
     fixed_issues: int = Field(default=0, description="Count of fixed/verified issues")
     project_name: Optional[str] = None
-    triage_lead_name: Optional[str] = None
 
     # Frontend-friendly aliases
     @computed_field  # type: ignore[misc]
@@ -119,17 +115,6 @@ class ReleaseResponse(ReleaseBase):
     @property
     def fixedIssues(self) -> int:
         return self.fixed_issues
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def triageLeadId(self) -> Optional[int]:
-        return self.triage_lead_id
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def triageLeadName(self) -> Optional[str]:
-        return self.triage_lead_name
-
 
 class ReleaseListResponse(BaseModel):
     """Paginated response for release list."""
