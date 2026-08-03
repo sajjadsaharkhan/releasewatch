@@ -6,6 +6,7 @@
 #   ./deploy.sh abc1234                # deploy specific git SHA tag
 #   ./deploy.sh --no-pull              # restart with already-downloaded images
 #   ./deploy.sh abc1234 --no-pull      # specific tag, skip pull
+#   ./deploy.sh --check-db             # check DB migration status without deploying
 #   IMAGE_TAG=abc1234 ./deploy.sh
 #
 # Requirements on the server:
@@ -20,32 +21,46 @@ REGISTRY="ghcr.io/sajjadsaharkhan/releasewatch"
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
 NO_PULL=false
+CHECK_DB=false
 for arg in "$@"; do
   case "$arg" in
-    --no-pull) NO_PULL=true ;;
-    --*)       echo "Unknown flag: $arg"; exit 1 ;;
-    *)         IMAGE_TAG="$arg" ;;
+    --no-pull)  NO_PULL=true ;;
+    --check-db) CHECK_DB=true ;;
+    --*)        echo "Unknown flag: $arg"; exit 1 ;;
+    *)          IMAGE_TAG="$arg" ;;
   esac
 done
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 export IMAGE_TAG
 
-echo ""
-echo "▶ Deploying Releasewatch — tag: ${IMAGE_TAG}${NO_PULL:+ (no-pull)}"
-echo ""
+if [ "$CHECK_DB" = true ]; then
+  echo ""
+  echo "▶ Checking database migration status (no deploy will run)"
+  echo ""
+else
+  echo ""
+  echo "▶ Deploying Releasewatch — tag: ${IMAGE_TAG}${NO_PULL:+ (no-pull)}"
+  echo ""
+fi
 
 # ── Pull new images ───────────────────────────────────────────────────────────
-if [ "$NO_PULL" = false ]; then
+if [ "$CHECK_DB" = false ] && [ "$NO_PULL" = false ]; then
   echo "▶ Pulling images from GHCR..."
   docker pull "${REGISTRY}/api:${IMAGE_TAG}"
   docker pull "${REGISTRY}/frontend:${IMAGE_TAG}"
 else
-  echo "▶ Skipping image pull (--no-pull)"
+  if [ "$CHECK_DB" = true ]; then
+    echo "▶ Skipping image pull (--check-db mode)"
+  else
+    echo "▶ Skipping image pull (--no-pull)"
+  fi
 fi
 
 # ── Stop old app containers (keep postgres + redis running for zero downtime) ─
-echo "▶ Stopping old app containers..."
-$COMPOSE stop api worker beat bot frontend 2>/dev/null || true
+if [ "$CHECK_DB" = false ]; then
+  echo "▶ Stopping old app containers..."
+  $COMPOSE stop api worker beat bot frontend 2>/dev/null || true
+fi
 
 # ── Ensure postgres and redis are up before migrating ────────────────────────
 echo "▶ Starting database services..."
@@ -64,6 +79,22 @@ for i in $(seq 1 30); do
   fi
   sleep 1
 done
+
+# ── Check DB migration status and exit (--check-db mode) ─────────────────────
+if [ "$CHECK_DB" = true ]; then
+  echo "▶ Current database revision:"
+  $COMPOSE run --rm --no-deps api alembic current 2>&1 || true
+  echo ""
+  echo "▶ Pending migrations:"
+  if $COMPOSE run --rm --no-deps api alembic check > /dev/null 2>&1; then
+    echo "✓ Database is up to date — no migrations needed"
+    exit 0
+  else
+    echo "⚠ Pending migrations detected — run ./deploy.sh to apply them"
+    $COMPOSE run --rm --no-deps api alembic check 2>&1 || true
+    exit 1
+  fi
+fi
 
 # ── Ensure ADMIN_PASSWORD is set in .env ─────────────────────────────────────
 if [ -f .env ] && ! grep -q "^ADMIN_PASSWORD=" .env; then
