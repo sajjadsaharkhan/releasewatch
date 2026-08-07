@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { SeverityBadge, StatusBadge, Badge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 
-export function IssueHeader({ issue, onClose, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
+export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
@@ -20,7 +20,7 @@ export function IssueHeader({ issue, onClose, onNavigate, adjacent, onExportMark
         onClick={onClose}
         className="inline-flex items-center gap-1 text-[12px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 -ml-2 px-2 h-8 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
       >
-        <ChevronLeft size={13} /> Back to issues
+        <ChevronLeft size={13} /> {backLabel ? `Back to ${backLabel}` : 'Back'}
       </button>
       <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
       <div className="font-mono text-[12px] text-zinc-500">issue-{issue.issue_number}</div>

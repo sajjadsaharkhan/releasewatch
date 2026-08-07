@@ -5,6 +5,7 @@ import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
+import { useTrackNavOrigin } from './hooks/useNavOrigin'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -102,6 +103,9 @@ function PageFallback() {
 
 function AppInner() {
   const { setCommandPaletteOpen, setNewIssueOpen, createProjectOpen, setCreateProjectOpen, refetchProjects } = useApp()
+
+  // Track where the user came from so issue detail can send them back there
+  useTrackNavOrigin()
 
   useEffect(() => {
     function handleKey(e) {
