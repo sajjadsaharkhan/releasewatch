@@ -24,6 +24,17 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ProvidersResponse(BaseModel):
+    """Which login providers are enabled, for GET /auth/providers.
+
+    Contains booleans only — never any secret or connection detail.
+    """
+
+    local: bool = True
+    keycloak: bool = False
+    ldap: bool = False
+
+
 class TelegramTokenResponse(BaseModel):
     """One-time connect token for linking a Telegram account."""
 

@@ -8,6 +8,7 @@ import { CreateProjectModal } from './components/project'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const InboxPage = lazy(() => import('./pages/InboxPage'))
 const IssuesPage = lazy(() => import('./pages/IssuesPage'))
@@ -139,6 +140,8 @@ function AppInner() {
               </PublicRoute>
             }
           />
+          {/* Keycloak redirect landing — must always render to consume tokens */}
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>

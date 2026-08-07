@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogIn, Eye, EyeOff, AlertCircle, AtSign } from 'lucide-react'
+import { LogIn, Eye, EyeOff, AlertCircle, AtSign, KeyRound } from 'lucide-react'
 import logoUrl from '../assets/logo.svg'
 import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
@@ -16,6 +16,27 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [keycloakEnabled, setKeycloakEnabled] = useState(false)
+
+  useEffect(() => {
+    // Show a Keycloak button only when the backend reports it enabled.
+    authApi
+      .getProviders()
+      .then((res) => setKeycloakEnabled(Boolean(res.data?.keycloak)))
+      .catch(() => setKeycloakEnabled(false))
+  }, [])
+
+  useEffect(() => {
+    // Surface an error handed back by the Keycloak callback redirect.
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    if (params.get('error')) {
+      setError('Keycloak sign-in failed. Please try again or use local login.')
+    }
+  }, [])
+
+  const handleKeycloak = () => {
+    window.location.href = authApi.keycloakLoginUrl()
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -145,6 +166,30 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* External providers */}
+          {keycloakEnabled && (
+            <>
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white dark:bg-zinc-800 px-2 text-xs uppercase tracking-wide text-zinc-400">
+                    or
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleKeycloak}
+                className="w-full"
+              >
+                <KeyRound className="w-4 h-4 mr-2" />
+                Sign in with Keycloak
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Footer */}
