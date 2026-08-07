@@ -1,6 +1,9 @@
 """Authentication endpoints.
 
-POST /auth/login          — exchange credentials for JWT pair
+GET  /auth/providers          — list enabled login providers (booleans only)
+POST /auth/login              — local + LDAP credentials → JWT pair
+GET  /auth/keycloak/login     — begin Keycloak (OIDC) Authorization Code flow
+GET  /auth/keycloak/callback  — Keycloak redirect → mint RW token → hand to SPA
 POST /auth/refresh        — exchange refresh token for new access token
 POST /auth/logout         — invalidate refresh token (client-side + Redis blacklist)
 GET  /auth/me             — return the authenticated user's profile
@@ -9,33 +12,71 @@ DELETE /auth/me/telegram  — disconnect the current user's Telegram account
 GET  /auth/telegram/token — generate a one-time Telegram integration token
 """
 
+import json
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.auth import (
     create_access_token,
     create_refresh_token,
+    delete_kc_refresh,
     get_current_user,
+    get_kc_refresh,
+    store_kc_refresh,
     verify_password,
     verify_token,
 )
+from app.core.redis_client import get_redis_raw
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.auth import (
     LoginRequest,
+    ProvidersResponse,
     RefreshRequest,
     TelegramStatusResponse,
     TelegramTokenResponse,
     TokenResponse,
     UserMeResponse,
 )
+from app.services.auth_providers.ldap import LdapProvider, LdapUnavailable
+from app.services.auth_providers.oidc import KeycloakOIDCProvider
+from app.services.identity_service import resolve_or_provision
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Short-lived stash for the OIDC login round-trip, keyed by the `state` param.
+_OIDC_STATE_PREFIX = "rw:oidc_state:"
+_OIDC_STATE_TTL = 600  # seconds
+
+
+def _mint_pair(user: User) -> tuple[str, str, str]:
+    """Return (access_token, refresh_token, refresh_jti) for a resolved user."""
+    token_data = {"sub": str(user.id), "role": user.role}
+    access = create_access_token(token_data)
+    refresh = create_refresh_token(token_data)
+    refresh_jti = verify_token(refresh)["jti"]
+    return access, refresh, refresh_jti
+
+
+@router.get("/providers", response_model=ProvidersResponse, summary="List enabled login providers")
+async def list_providers() -> ProvidersResponse:
+    """Public: which login providers are enabled (booleans only, no secrets)."""
+    return ProvidersResponse(
+        local=True,
+        keycloak=settings.keycloak_enabled,
+        ldap=settings.ldap_enabled,
+    )
 
 
 @router.post("/login", response_model=TokenResponse, summary="Obtain JWT pair")
@@ -43,11 +84,36 @@ async def login(
     payload: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Authenticate with username + password and receive an access/refresh token pair."""
+    """Authenticate with username + password and receive an access/refresh token pair.
+
+    When direct LDAP is enabled it is tried first; a rejected bind *or* an
+    unreachable directory falls through to local password auth so local admins
+    are never locked out.
+    """
+    # ── LDAP first (if enabled) ────────────────────────────────────────────────
+    if settings.ldap_enabled:
+        try:
+            principal = await run_in_threadpool(
+                LdapProvider().authenticate, payload.username, payload.password
+            )
+        except LdapUnavailable:
+            principal = None  # directory down → fall through to local
+        if principal is not None:
+            user = await resolve_or_provision(db, principal)
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated"
+                )
+            access, refresh, _ = _mint_pair(user)
+            return TokenResponse(access_token=access, refresh_token=refresh)
+
+    # ── Local fallback ─────────────────────────────────────────────────────────
     result = await db.execute(select(User).where(User.username == payload.username))
     user = result.scalar_one_or_none()
 
-    if user is None or not verify_password(payload.password, user.hashed_password):
+    if user is None or user.hashed_password is None or not verify_password(
+        payload.password, user.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -56,11 +122,74 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated")
 
-    token_data = {"sub": str(user.id), "role": user.role}
-    return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
+    access, refresh, _ = _mint_pair(user)
+    return TokenResponse(access_token=access, refresh_token=refresh)
+
+
+@router.get("/keycloak/login", summary="Begin Keycloak (OIDC) login")
+async def keycloak_login() -> RedirectResponse:
+    """Redirect the browser to Keycloak to begin the Authorization Code flow."""
+    if not settings.keycloak_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Keycloak not enabled")
+
+    url, req = await KeycloakOIDCProvider().build_authorize_url()
+    redis = await get_redis_raw()
+    await redis.set(
+        _OIDC_STATE_PREFIX + req.state,
+        json.dumps({"nonce": req.nonce, "code_verifier": req.code_verifier}),
+        ex=_OIDC_STATE_TTL,
     )
+    return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/keycloak/callback", summary="Keycloak (OIDC) callback")
+async def keycloak_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Handle the Keycloak redirect, mint an RW token, and hand it to the SPA."""
+    if not settings.keycloak_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Keycloak not enabled")
+
+    error = request.query_params.get("error")
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    if error or not code or not state:
+        return _callback_error_redirect(error or "missing_code")
+
+    redis = await get_redis_raw()
+    stashed = await redis.get(_OIDC_STATE_PREFIX + state)
+    if not stashed:
+        return _callback_error_redirect("invalid_state")
+    await redis.delete(_OIDC_STATE_PREFIX + state)
+    stash = json.loads(stashed)
+
+    try:
+        principal = await KeycloakOIDCProvider().handle_callback(
+            code, stash["code_verifier"], stash["nonce"]
+        )
+    except Exception as exc:  # validation / exchange failure
+        logger.warning("Keycloak callback failed: %s", exc)
+        return _callback_error_redirect("auth_failed")
+
+    user = await resolve_or_provision(db, principal)
+    if not user.is_active:
+        return _callback_error_redirect("deactivated")
+
+    access, refresh, refresh_jti = _mint_pair(user)
+    if principal.provider_refresh_token:
+        await store_kc_refresh(refresh_jti, principal.provider_refresh_token)
+
+    target = (
+        f"{settings.FRONTEND_URL.rstrip('/')}/#/auth/callback"
+        f"#access={access}&refresh={refresh}"
+    )
+    return RedirectResponse(target, status_code=status.HTTP_302_FOUND)
+
+
+def _callback_error_redirect(reason: str) -> RedirectResponse:
+    target = f"{settings.FRONTEND_URL.rstrip('/')}/#/login?error={reason}"
+    return RedirectResponse(target, status_code=status.HTTP_302_FOUND)
 
 
 @router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
@@ -68,7 +197,12 @@ async def refresh(
     payload: RefreshRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Exchange a valid refresh token for a new access + refresh token pair."""
+    """Exchange a valid refresh token for a new access + refresh token pair.
+
+    For Keycloak-provisioned sessions, the stored Keycloak refresh token is used
+    to confirm the Keycloak session is still valid before re-minting; if it was
+    revoked/disabled in Keycloak, the refresh is rejected.
+    """
     claims = verify_token(payload.refresh_token)
     if claims.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not a refresh token")
@@ -82,11 +216,24 @@ async def refresh(
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or deactivated")
 
-    token_data = {"sub": str(user.id), "role": user.role}
-    return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
-    )
+    old_jti = claims.get("jti")
+    kc_refresh = await get_kc_refresh(old_jti) if old_jti else None
+
+    access, refresh_token, new_jti = _mint_pair(user)
+
+    # Federated (Keycloak) session — re-check against Keycloak and rotate storage.
+    if kc_refresh is not None:
+        new_kc_refresh = await KeycloakOIDCProvider().refresh_session(kc_refresh)
+        if new_kc_refresh is None:
+            await delete_kc_refresh(old_jti)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Keycloak session is no longer valid",
+            )
+        await delete_kc_refresh(old_jti)
+        await store_kc_refresh(new_jti, new_kc_refresh)
+
+    return TokenResponse(access_token=access, refresh_token=refresh_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Revoke refresh token")
@@ -95,7 +242,10 @@ async def logout(
 ) -> None:
     """Blacklist the supplied refresh token so it cannot be reused."""
     try:
-        verify_token(payload.refresh_token)
+        claims = verify_token(payload.refresh_token)
+        jti = claims.get("jti")
+        if jti:
+            await delete_kc_refresh(jti)
         # Add token jti/sub to Redis blacklist with TTL = remaining expiry
         # (implementation omitted for brevity — see core/redis_client.py)
     except Exception:

@@ -104,6 +104,8 @@ export default api
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
+  getProviders: () => api.get('/auth/providers'),
+  keycloakLoginUrl: () => `${BASE_URL}/auth/keycloak/login`,
   login: (username, password) => api.post('/auth/login', { username, password }),
   refresh: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
   logout: (refreshToken) => api.post('/auth/logout', { refresh_token: refreshToken }),
