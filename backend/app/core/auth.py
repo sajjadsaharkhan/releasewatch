@@ -12,6 +12,7 @@ Typical usage
 """
 
 import bcrypt
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -78,11 +79,50 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     ----------
     data:
         Arbitrary claims.  Must include ``"sub"`` (user ID as string).
+
+    A unique ``jti`` is added so the refresh token can key server-side state
+    (e.g. the stored Keycloak refresh token for federated sessions).
     """
     return _build_token(
-        {**data, "type": "refresh"},
+        {**data, "type": "refresh", "jti": uuid.uuid4().hex},
         timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS),
     )
+
+
+# ── Keycloak refresh-token store (Redis) ──────────────────────────────────────
+# For users who logged in via Keycloak, we keep their Keycloak refresh token
+# server-side, keyed by the RW refresh token's ``jti``.  On each RW refresh we
+# use it to confirm the Keycloak session is still valid before re-minting.
+
+_KC_REFRESH_PREFIX = "rw:kc_refresh:"
+
+
+async def store_kc_refresh(jti: str, kc_refresh_token: str) -> None:
+    """Persist a Keycloak refresh token against an RW refresh ``jti``.
+
+    TTL matches the RW refresh-token lifetime so the entry expires with it.
+    """
+    from app.core.redis_client import get_redis_raw
+
+    client = await get_redis_raw()
+    ttl_seconds = settings.JWT_REFRESH_EXPIRE_DAYS * 24 * 3600
+    await client.set(_KC_REFRESH_PREFIX + jti, kc_refresh_token, ex=ttl_seconds)
+
+
+async def get_kc_refresh(jti: str) -> str | None:
+    """Return the stored Keycloak refresh token for an RW refresh ``jti``, if any."""
+    from app.core.redis_client import get_redis_raw
+
+    client = await get_redis_raw()
+    return await client.get(_KC_REFRESH_PREFIX + jti)
+
+
+async def delete_kc_refresh(jti: str) -> None:
+    """Remove the stored Keycloak refresh token for an RW refresh ``jti``."""
+    from app.core.redis_client import get_redis_raw
+
+    client = await get_redis_raw()
+    await client.delete(_KC_REFRESH_PREFIX + jti)
 
 
 # ── Token verification ────────────────────────────────────────────────────────

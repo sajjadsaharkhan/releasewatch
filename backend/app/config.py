@@ -102,6 +102,65 @@ class Settings(BaseSettings):
     JWT_ACCESS_EXPIRE_MINUTES: int = Field(60, description="Access token lifetime in minutes")
     JWT_REFRESH_EXPIRE_DAYS: int = Field(30, description="Refresh token lifetime in days")
 
+    # ── Federated auth (optional) ───────────────────────────────────────────────
+    # External identity providers are OPTIONAL and ADDITIVE. Each is enabled only
+    # when its required settings are present; with none set, Releasewatch runs
+    # exactly as before with local username/password accounts.
+    FEDERATED_DEFAULT_ROLE: str = Field(
+        "developer",
+        description="Role seeded for users JIT-provisioned via a provider (Phase 1)",
+    )
+
+    # Keycloak (OIDC) — enabled when issuer + client id + client secret are set
+    KEYCLOAK_ISSUER: str = Field(
+        "", description="Realm base URL, e.g. https://kc.example.com/realms/rw"
+    )
+    KEYCLOAK_CLIENT_ID: str = Field("", description="Confidential client id")
+    KEYCLOAK_CLIENT_SECRET: str = Field("", description="Confidential client secret")
+    KEYCLOAK_REDIRECT_URI: str = Field(
+        "", description="RW backend callback URL; must be whitelisted in the Keycloak client"
+    )
+    KEYCLOAK_SCOPES: str = Field("openid profile email", description="OIDC scopes requested")
+
+    # LDAP / Active Directory — enabled when server URI + a bind template/base set
+    LDAP_SERVER_URI: str = Field("", description="e.g. ldaps://ad.corp.local:636")
+    LDAP_BIND_DN_TEMPLATE: str = Field(
+        "", description="Direct bind template, e.g. {username}@corp.local (AD UPN)"
+    )
+    LDAP_USER_BASE_DN: str = Field(
+        "", description="Search base for search-then-bind, e.g. OU=Users,DC=corp,DC=local"
+    )
+    LDAP_USER_FILTER: str = Field(
+        "(userPrincipalName={username})", description="User search filter for search-then-bind"
+    )
+    LDAP_SERVICE_BIND_DN: str = Field(
+        "", description="Service account DN (only for search-then-bind)"
+    )
+    LDAP_SERVICE_PASSWORD: str = Field("", description="Service account password")
+    LDAP_USE_TLS: bool = Field(True, description="Require TLS/LDAPS for binds")
+    LDAP_ATTR_NAME: str = Field("displayName", description="AD attribute for the display name")
+    LDAP_ATTR_EMAIL: str = Field("mail", description="AD attribute for the email address")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def keycloak_enabled(self) -> bool:
+        """True when Keycloak OIDC login is fully configured."""
+        return bool(
+            self.KEYCLOAK_ISSUER
+            and self.KEYCLOAK_CLIENT_ID
+            and self.KEYCLOAK_CLIENT_SECRET
+            and self.KEYCLOAK_REDIRECT_URI
+        )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def ldap_enabled(self) -> bool:
+        """True when direct LDAP/AD bind is configured (direct-bind or search-then-bind)."""
+        return bool(
+            self.LDAP_SERVER_URI
+            and (self.LDAP_BIND_DN_TEMPLATE or (self.LDAP_SERVICE_BIND_DN and self.LDAP_USER_BASE_DN))
+        )
+
 
 @lru_cache
 def get_settings() -> Settings:
