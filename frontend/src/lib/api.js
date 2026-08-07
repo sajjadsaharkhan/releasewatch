@@ -238,6 +238,10 @@ export const timelineApi = {
   addComment: (issueId, data) => api.post(`/issues/${issueId}/timeline`, data),
   updateComment: (issueId, eventId, data) => api.patch(`/issues/${issueId}/timeline/${eventId}`, data),
   deleteComment: (issueId, eventId) => api.delete(`/issues/${issueId}/timeline/${eventId}`),
+  addReaction: (issueId, eventId, emojiKey) =>
+    api.post(`/issues/${issueId}/timeline/${eventId}/reactions`, { emoji_key: emojiKey }),
+  removeReaction: (issueId, eventId, emojiKey) =>
+    api.delete(`/issues/${issueId}/timeline/${eventId}/reactions/${encodeURIComponent(emojiKey)}`),
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────

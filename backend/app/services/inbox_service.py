@@ -23,7 +23,9 @@ attachment_added     → assignee + reporter
 import html as html_lib
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +54,8 @@ class InboxFanOutService:
         timeline_event: IssueTimeline | None = None,
         extra_meta: dict[str, Any] | None = None,
         meta: dict[str, Any] | None = None,
+        suppress_user_ids: set[str] | None = None,
+        delay_seconds: int = 0,
     ) -> list[InboxItem]:
         """Create inbox items for all users who should be notified.
 
@@ -69,6 +73,12 @@ class InboxFanOutService:
             Optional linked timeline entry (stored for deep-link support).
         extra_meta:
             Additional context for mention detection (e.g. comment body).
+        suppress_user_ids:
+            Recipients to drop before any item is created or Telegram queued —
+            used to collapse repeat reaction notifications on one comment.
+        delay_seconds:
+            Hold the Telegram send for this long, giving the actor a window to
+            undo. Applies to both the queued task and the beat-task retry clock.
 
         Returns
         -------
@@ -127,6 +137,18 @@ class InboxFanOutService:
                         recipients.add(str(user.id))
                 else:
                     logger.warning("[fan_out] mention fallback: no @usernames found in body")
+
+        elif trigger == InboxEventType.reaction:
+            # Fixed audience, deliberately not matrix-configurable: the author of
+            # the reacted-to comment, anyone they @mentioned in it, and the
+            # issue's assignee.
+            if timeline_event is not None:
+                if timeline_event.actor_id:
+                    recipients.add(str(timeline_event.actor_id))
+                for uid in (timeline_event.meta or {}).get("mentioned_user_ids", []):
+                    recipients.add(str(uid))
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
 
         elif trigger == InboxEventType.regression:
             if issue.reporter_id:
@@ -214,6 +236,8 @@ class InboxFanOutService:
         logger.info("[fan_out] trigger=%s recipients_before_discard=%s actor_id=%s", trigger, recipients, actor.id)
         recipients.discard(str(actor.id))
         recipients.update(forced_recipients)
+        if suppress_user_ids:
+            recipients -= suppress_user_ids
         logger.info("[fan_out] trigger=%s final_recipients=%s", trigger, recipients)
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
@@ -237,7 +261,21 @@ class InboxFanOutService:
         await self._push_redis(trigger, issue, items)
 
         # ── Dispatch Telegram notifications (best-effort) ─────────────────────
-        await self._dispatch_telegram(db, trigger, issue, actor, items, meta)
+        # Reactions reach Telegram only for the comment's author; mentioned
+        # users and the assignee get the inbox item and nothing more.
+        telegram_only: set[int] | None = None
+        if trigger == InboxEventType.reaction:
+            telegram_only = (
+                {timeline_event.actor_id}
+                if timeline_event is not None and timeline_event.actor_id
+                else set()
+            )
+
+        await self._dispatch_telegram(
+            db, trigger, issue, actor, items, meta,
+            telegram_only=telegram_only,
+            delay_seconds=delay_seconds,
+        )
 
         return items
 
@@ -251,6 +289,8 @@ class InboxFanOutService:
         actor: User,
         items: list[InboxItem],
         meta: dict[str, Any] | None = None,
+        telegram_only: set[int] | None = None,
+        delay_seconds: int = 0,
     ) -> None:
         """Send Telegram notifications based on the stored notification matrix.
 
@@ -283,7 +323,11 @@ class InboxFanOutService:
 
             event_key = trigger.value
             row = matrix.get(event_key)
-            if not row:
+            # Reactions bypass the matrix entirely: fan_out already computed the
+            # exact audience (comment author / mentioned / assignee), and those
+            # relationships have no matrix role, so re-gating would drop them all.
+            is_reaction = event_key == InboxEventType.reaction.value
+            if not row and not is_reaction:
                 return
 
             user_ids = [item.user_id for item in items]
@@ -377,6 +421,7 @@ class InboxFanOutService:
                 "actor_url": actor_url,
                 "severity": _esc(severity_val),
                 "excerpt": _esc(_meta.get("body_snippet", "")),
+                "emoji": _meta.get("emoji", ""),
                 "project_name": _esc(project_name),
                 "release_name": _esc(release_name),
                 "release_deadline": _esc(release_deadline),
@@ -409,10 +454,15 @@ class InboxFanOutService:
                     # No Telegram account linked — leave telegram_status NULL
                     continue
 
+                # Restricted audience (reactions): everyone else is inbox-only.
+                if telegram_only is not None and user.id not in telegram_only:
+                    item.telegram_status = "skipped"
+                    continue
+
                 is_project_triage_lead = (
                     project is not None and project.triage_lead_id == user.id
                 )
-                should_notify = (
+                should_notify = is_reaction or (
                     (row.get("reporter") and issue.reporter_id == user.id)
                     or (row.get("assignee") and issue.assignee_id == user.id)
                     or (row.get("triage") and is_project_triage_lead)
@@ -427,25 +477,100 @@ class InboxFanOutService:
                 # unavailable at the moment of the event.
                 item_meta = dict(item.meta or {})
                 item_meta["tg_context"] = context
+                # Identifies this specific scheduled send. If the item is later
+                # refreshed (the actor swapped emoji), the token is rotated and
+                # the already-queued task retires itself instead of delivering
+                # a stale message.
+                send_token = uuid4().hex
+                item_meta["send_token"] = send_token
                 item.meta = item_meta
                 sa_attrs.flag_modified(item, "meta")
                 item.telegram_status = "pending"
 
-                # Enqueue for immediate delivery. countdown=2 gives the HTTP
-                # request's transaction time to commit before the worker reads
-                # the inbox item by ID.
+                # countdown=2 gives the HTTP request's transaction time to commit
+                # before the worker reads the inbox item by ID. A larger
+                # delay_seconds additionally holds the send open for undo, and is
+                # mirrored onto telegram_next_retry_at so the beat task doesn't
+                # deliver it early.
+                countdown = max(delay_seconds, 2)
+                if delay_seconds:
+                    item.telegram_next_retry_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=delay_seconds
+                    )
+
                 send_telegram_notification.apply_async(
                     args=[tg.chat_id, event_key, context],
                     kwargs={
                         "bot_token": bot_token,
                         "proxy_url": proxy_url,
                         "inbox_item_id": item.id,
+                        "send_token": send_token,
                     },
-                    countdown=2,
+                    countdown=countdown,
                     queue="notifications",
                 )
         except Exception:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
+
+    @staticmethod
+    async def requeue_telegram(
+        db: AsyncSession, item: InboxItem, send_token: str, delay_seconds: int
+    ) -> None:
+        """Re-schedule an already-pending item's Telegram send with a new token.
+
+        Used when a reaction notice is rewritten in place: the caller has
+        already rotated ``meta['send_token']``, so the previously queued task
+        will no-op and this one delivers the current content instead.
+        """
+        try:
+            from app.db.models.system_setting import SystemSetting
+            from app.db.models.telegram_integration import TelegramIntegration
+            from app.tasks.notifications import send_telegram_notification
+
+            tg = (await db.execute(
+                select(TelegramIntegration)
+                .where(TelegramIntegration.user_id == item.user_id)
+                .where(TelegramIntegration.is_active.is_(True))
+            )).scalar_one_or_none()
+            if tg is None:
+                return
+
+            cfg = (await db.execute(
+                select(SystemSetting)
+                .where(SystemSetting.category == "telegram")
+                .where(SystemSetting.key == "config")
+            )).scalar_one_or_none()
+            bot_token = (cfg.value or {}).get("bot_token") if cfg else None
+            if not bot_token:
+                return
+
+            proxy_cfg = (await db.execute(
+                select(SystemSetting)
+                .where(SystemSetting.category == "proxy")
+                .where(SystemSetting.key == "config")
+                .where(SystemSetting.is_active.is_(True))
+            )).scalar_one_or_none()
+            proxy_url = None
+            if proxy_cfg and (proxy_cfg.value or {}).get("enabled"):
+                proxy_url = (
+                    proxy_cfg.value.get("http") or proxy_cfg.value.get("https") or None
+                )
+
+            send_telegram_notification.apply_async(
+                args=[tg.chat_id, item.event_type, (item.meta or {}).get("tg_context", {})],
+                kwargs={
+                    "bot_token": bot_token,
+                    "proxy_url": proxy_url,
+                    "inbox_item_id": item.id,
+                    "send_token": send_token,
+                },
+                countdown=max(delay_seconds, 2),
+                queue="notifications",
+            )
+        except Exception:
+            # Best-effort, same as the main dispatch path: the beat task will
+            # still pick the item up once its retry clock elapses.
+            logger.warning("Telegram requeue skipped (best-effort)", exc_info=True)
 
     async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:
         """Return the project's designated triage lead as the sole triage recipient."""

@@ -17,6 +17,7 @@ class InboxEventType(str, enum.Enum):
     fixed = "fixed"
     comment = "comment"
     mention = "mention"
+    reaction = "reaction"
     regression = "regression"
     blocker_filed = "blocker_filed"
     blocker_cleared = "blocker_cleared"

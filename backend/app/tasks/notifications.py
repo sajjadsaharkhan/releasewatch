@@ -40,6 +40,51 @@ class _AsyncTask(Task):
         return asyncio.run(coro)
 
 
+async def _should_still_send(inbox_item_id: int, send_token: str | None) -> bool:
+    """Decide whether a delayed notification is still wanted.
+
+    Two ways a queued send becomes obsolete:
+      * the inbox item is gone or already delivered
+      * ``send_token`` no longer matches — the item was rewritten (e.g. the
+        reactor swapped emoji) and a newer task owns delivery
+      * the reaction it describes has been removed entirely
+
+    Returning False marks the item ``skipped`` so the beat task won't retry it.
+    """
+    from sqlalchemy import select
+
+    from app.db.models.inbox_item import InboxItem
+    from app.db.session import task_session
+    from app.services.reaction_service import reaction_service
+
+    try:
+        async with task_session() as db:
+            item = (await db.execute(
+                select(InboxItem).where(InboxItem.id == inbox_item_id)
+            )).scalar_one_or_none()
+            if item is None or item.telegram_status == "sent":
+                return False
+
+            if send_token is not None:
+                current = (item.meta or {}).get("send_token")
+                if current is not None and current != send_token:
+                    return False  # superseded; the newer task will deliver
+
+            if not await reaction_service.reaction_notification_still_valid(db, item):
+                item.telegram_status = "skipped"
+                item.telegram_next_retry_at = None
+                await db.commit()
+                logger.info(
+                    "Reaction notification %s cancelled — reaction no longer exists",
+                    inbox_item_id,
+                )
+                return False
+        return True
+    except Exception:
+        logger.warning("Could not validate inbox item %s", inbox_item_id, exc_info=True)
+        return True  # fail open — better a stray notification than a lost one
+
+
 async def _update_inbox_item(inbox_item_id: int, success: bool, error: str | None = None) -> None:
     """Update telegram_status on an inbox item after a send attempt."""
     try:
@@ -99,16 +144,23 @@ def send_telegram_notification(
     bot_token: str | None = None,
     proxy_url: str | None = None,
     inbox_item_id: int | None = None,
+    send_token: str | None = None,
 ) -> bool:
     """Send a Telegram notification and update the inbox item outbox status.
 
     If ``inbox_item_id`` is provided the result is written back to
     ``inbox_items.telegram_status``.  The ``flush_telegram_notifications`` beat
     task retries any rows that remain ``failed`` or ``pending``.
+
+    Delayed sends (reactions) are re-validated first: if the reaction was
+    removed or changed during the delay window, nothing is delivered.
     """
     from app.telegram.sender import telegram_sender
 
     async def _send():
+        if inbox_item_id and not await _should_still_send(inbox_item_id, send_token):
+            return False
+
         success = await telegram_sender.send_notification(
             chat_id=chat_id,
             template_name=template_name,
@@ -223,10 +275,20 @@ def flush_telegram_notifications() -> dict[str, int]:
                 ).scalars().all()
             }
 
+            from app.services.reaction_service import reaction_service
+
             for item in items:
                 tg = tg_by_user.get(item.user_id)
                 if not tg:
                     item.telegram_status = "skipped"
+                    skipped += 1
+                    continue
+
+                # A reaction that was removed during its delay window must not
+                # be resurrected by the retry sweep.
+                if not await reaction_service.reaction_notification_still_valid(db, item):
+                    item.telegram_status = "skipped"
+                    item.telegram_next_retry_at = None
                     skipped += 1
                     continue
 

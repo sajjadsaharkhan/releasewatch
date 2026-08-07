@@ -245,3 +245,21 @@ pre code {
 .dark .timeline-highlighted {
   animation: timeline-highlight-dark 3s ease-out forwards;
 }
+
+/* Reaction added — a short spring on the emoji, only for your own click */
+@keyframes reaction-pop {
+  0%   { transform: scale(0.8); }
+  55%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.reaction-pop {
+  display: inline-block;
+  animation: reaction-pop 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reaction-pop {
+    animation: none;
+  }
+}

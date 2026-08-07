@@ -19,21 +19,48 @@ from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.schemas.issue import UserSummary
 from app.schemas.timeline import (
+    ReactionCreate,
+    ReactionSummary,
     TimelineEventCreate,
     TimelineEventResponse,
     TimelineEventUpdate,
     TimelineListResponse,
 )
+from app.services.reaction_service import reaction_service
 from app.services.timeline_service import timeline_service
 
 router = APIRouter()
 
 
-def _enrich_event(event: IssueTimeline) -> TimelineEventResponse:
+def _enrich_event(
+    event: IssueTimeline, current_user_id: int | None = None
+) -> TimelineEventResponse:
     resp = TimelineEventResponse.model_validate(event)
     if event.actor:
         resp.actor_user = UserSummary.model_validate(event.actor)
+    resp.reactions = [
+        ReactionSummary(**summary)
+        for summary in reaction_service.summarize(event, current_user_id)
+    ]
     return resp
+
+
+async def _reload_event(db: AsyncSession, event_id: int) -> IssueTimeline:
+    """Re-read an event with its actor and a *fresh* reaction collection.
+
+    The session uses ``expire_on_commit=False``, so a re-query after a commit
+    returns the identity-mapped instance with whatever collection state it was
+    already carrying.  The explicit refresh is what makes a just-added or
+    just-removed reaction show up in the response.
+    """
+    result = await db.execute(
+        select(IssueTimeline)
+        .options(selectinload(IssueTimeline.actor))
+        .where(IssueTimeline.id == event_id)
+    )
+    event = result.scalar_one()
+    await db.refresh(event, ["comment_reactions"])
+    return event
 
 
 @router.get(
@@ -66,7 +93,7 @@ async def list_timeline(
         events = list(result.scalars().all())
 
     return TimelineListResponse(
-        items=[_enrich_event(e) for e in events],
+        items=[_enrich_event(e, current_user.id) for e in events],
         total=total,
         page=page,
         size=size,
@@ -147,7 +174,7 @@ async def create_comment(
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue_id,), countdown=10)
 
-    return _enrich_event(event)
+    return _enrich_event(event, current_user.id)
 
 
 @router.patch(
@@ -176,7 +203,7 @@ async def edit_comment(
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue_id,), countdown=10)
 
-    return _enrich_event(event)
+    return _enrich_event(event, current_user.id)
 
 
 @router.delete(
@@ -211,3 +238,69 @@ async def delete_comment(
 
     await db.delete(event)
     await db.commit()
+
+
+@router.post(
+    "/{issue_id}/timeline/{event_id}/reactions",
+    response_model=TimelineEventResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="React to a comment",
+)
+async def add_reaction(
+    issue_id: int,
+    event_id: int,
+    payload: ReactionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TimelineEventResponse:
+    """Set the current user's emoji reaction on a comment.
+
+    Reactions are mutually exclusive — picking a different emoji replaces the
+    previous one. Inbox notices go to the comment author, anyone @mentioned in
+    that comment, and the issue assignee; only the comment author additionally
+    receives a Telegram message, and that send is held briefly so the reactor
+    can still change their mind.
+    """
+    from app.db.models.issue import Issue
+
+    event, reaction_id, changed = await reaction_service.add(
+        db, issue_id, event_id, current_user, payload.emoji_key
+    )
+    await db.commit()
+
+    # Re-clicking the same emoji changes nothing — never re-notify for it.
+    if changed and reaction_id is not None:
+        issue_result = await db.execute(select(Issue).where(Issue.id == issue_id))
+        issue = issue_result.scalar_one_or_none()
+
+        if issue is not None:
+            await reaction_service.sync_reaction_notification(
+                db=db,
+                issue=issue,
+                actor=current_user,
+                event=event,
+                emoji_key=payload.emoji_key,
+                reaction_id=reaction_id,
+            )
+            await db.commit()
+
+    return _enrich_event(await _reload_event(db, event_id), current_user.id)
+
+
+@router.delete(
+    "/{issue_id}/timeline/{event_id}/reactions/{emoji_key}",
+    response_model=TimelineEventResponse,
+    summary="Remove a reaction from a comment",
+)
+async def remove_reaction(
+    issue_id: int,
+    event_id: int,
+    emoji_key: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TimelineEventResponse:
+    """Remove your reaction from a comment. Never notifies anyone."""
+    await reaction_service.remove(db, issue_id, event_id, current_user, emoji_key)
+    await db.commit()
+
+    return _enrich_event(await _reload_event(db, event_id), current_user.id)
