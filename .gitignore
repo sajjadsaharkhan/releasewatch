@@ -2,6 +2,7 @@ graphify-out/
 
 # Environment — never commit real credentials
 .env
+.env.*
 !.env.example
 !.env.production.example
 
