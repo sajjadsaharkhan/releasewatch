@@ -180,15 +180,17 @@ async def keycloak_callback(
     if principal.provider_refresh_token:
         await store_kc_refresh(refresh_jti, principal.provider_refresh_token)
 
+    # The SPA uses BrowserRouter (real paths), so this must be a plain path with a
+    # single fragment carrying the tokens — never a hash route.
     target = (
-        f"{settings.FRONTEND_URL.rstrip('/')}/#/auth/callback"
+        f"{settings.FRONTEND_URL.rstrip('/')}/auth/callback"
         f"#access={access}&refresh={refresh}"
     )
     return RedirectResponse(target, status_code=status.HTTP_302_FOUND)
 
 
 def _callback_error_redirect(reason: str) -> RedirectResponse:
-    target = f"{settings.FRONTEND_URL.rstrip('/')}/#/login?error={reason}"
+    target = f"{settings.FRONTEND_URL.rstrip('/')}/login?error={reason}"
     return RedirectResponse(target, status_code=status.HTTP_302_FOUND)
 
 
