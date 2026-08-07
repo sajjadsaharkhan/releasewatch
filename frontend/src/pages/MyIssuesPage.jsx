@@ -9,9 +9,9 @@ import { FilterDropdown } from '../components/common/FilterDropdown'
 import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { issuesApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
-import { STATUS, SEVERITY } from '../lib/constants'
+import { STATUS, SEVERITY, OPEN_STATUSES } from '../lib/constants'
 
-const OPEN_STATUSES = new Set(['new', 'triaged', 'in_progress', 'fixed', 'regression', 'blocked'])
+const OPEN_STATUS_SET = new Set(OPEN_STATUSES)
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -85,7 +85,7 @@ export default function MyIssuesPage() {
 
   const applyFilters = useCallback((issues) => {
     let result = issues
-    if (statusFilter === 'open') result = result.filter(i => OPEN_STATUSES.has(i.status))
+    if (statusFilter === 'open') result = result.filter(i => OPEN_STATUS_SET.has(i.status))
     else if (statusFilter !== 'all') result = result.filter(i => i.status === statusFilter)
     if (severityFilter !== 'all') result = result.filter(i => i.severity === severityFilter)
     return result

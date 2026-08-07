@@ -9,7 +9,7 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
 import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
-import { SEVERITY, STATUS } from '../lib/constants'
+import { SEVERITY, STATUS, OPEN_STATUSES } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 
@@ -26,7 +26,16 @@ const SORT_OPTIONS = [
 ]
 
 const SEV_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(SEVERITY).map(k => ({ value: k, label: SEVERITY[k].label }))]
-const STATUS_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(STATUS).map(k => ({ value: k, label: STATUS[k].label }))]
+const STATUS_OPTIONS = [
+  { value: 'open', label: 'Open issues' },
+  { value: 'all', label: 'Any' },
+  ...Object.keys(STATUS).map(k => ({ value: k, label: STATUS[k].label })),
+]
+
+const statusLabel = (value) =>
+  value === 'open' ? 'Open issues'
+  : value === 'all' ? 'Any'
+  : STATUS[value]?.label ?? 'Any'
 
 export default function IssuesPage({ filterAssigned = false }) {
   const { query, releases, activeProjectId, user, setOnIssueCreated } = useApp()
@@ -95,7 +104,11 @@ export default function IssuesPage({ filterAssigned = false }) {
       size: 200,
       ...(activeProjectId && { project_id: activeProjectId }),
       ...(severity !== 'all' && { severity }),
-      ...(status   !== 'all' && { status }),
+      // "open" is a set of states, so it goes out as `statuses` — that keeps the
+      // total count and the CSV export in step with the rows on screen.
+      ...(status === 'open'
+        ? { statuses: OPEN_STATUSES.join(',') }
+        : status !== 'all' && { status }),
       ...(release  !== 'all' && { release_id: release }),
       ...(labels.length > 0  && { labels }),
       ...(query && { search: query }),
@@ -218,7 +231,7 @@ export default function IssuesPage({ filterAssigned = false }) {
         <FilterDropdown
           icon="circle-dashed"
           label="Status"
-          value={filter.status === 'all' ? 'Any' : STATUS[filter.status].label}
+          value={statusLabel(filter.status)}
           options={STATUS_OPTIONS}
           onChange={(v) => updateParams({ ...filter, status: v }, sort)}
         />

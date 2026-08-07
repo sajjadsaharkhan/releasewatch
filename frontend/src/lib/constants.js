@@ -74,6 +74,9 @@ export const STATUS = {
   },
 }
 
+// Statuses that still need work — everything except verified and closed.
+export const OPEN_STATUSES = ['new', 'triaged', 'in_progress', 'fixed', 'regression', 'blocked']
+
 export const ROLE = {
   qa: {
     label: 'QA',
