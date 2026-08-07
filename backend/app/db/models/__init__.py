@@ -1,6 +1,7 @@
 """ORM model package — import all models here so Alembic sees them."""
 
 from app.db.models.user import User
+from app.db.models.user_identity import UserIdentity
 from app.db.models.label import Label
 from app.db.models.project import Project
 from app.db.models.release import Release
@@ -16,6 +17,7 @@ from app.db.models.issue_embedding import IssueEmbedding
 
 __all__ = [
     "User",
+    "UserIdentity",
     "Label",
     "Project",
     "Release",

@@ -31,7 +31,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Nullable: users provisioned purely via an external provider (Keycloak/LDAP)
+    # have no local password.
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         String(32), nullable=False, default=UserRole.qa
     )
@@ -71,6 +73,9 @@ class User(Base):
     inbox_items = relationship("InboxItem", foreign_keys="InboxItem.user_id", back_populates="user")
     telegram_integration = relationship(
         "TelegramIntegration", back_populates="user", uselist=False
+    )
+    identities = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
