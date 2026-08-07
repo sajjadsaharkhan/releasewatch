@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 
+// Captured the moment this module loads — before any effect runs or a stray 401
+// handler can rewrite the URL — so the tokens can never be lost to a race.
+const INITIAL_HASH = typeof window !== 'undefined' ? window.location.hash : ''
+
 /**
  * Landing page for the Keycloak redirect. The backend hands the Releasewatch
- * tokens back in the URL fragment (`#/auth/callback#access=...&refresh=...`);
+ * tokens back in the URL fragment (`/auth/callback#access=...&refresh=...`);
  * we store them, hydrate auth state, strip the fragment, and continue.
  */
 export default function AuthCallbackPage() {
@@ -20,7 +24,7 @@ export default function AuthCallbackPage() {
     async function complete() {
       // The backend redirects to /auth/callback#access=...&refresh=... — tokens
       // ride in the URL fragment so they never reach a server log.
-      const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const params = new URLSearchParams(INITIAL_HASH.replace(/^#/, ''))
       const accessToken = params.get('access')
       const refreshToken = params.get('refresh')
 
