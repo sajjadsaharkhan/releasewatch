@@ -201,7 +201,12 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     try {
       const res = await issuesApi.update(id, patch)
       const updatedIssue = res.data
-      setLocalIssue(updatedIssue)
+      // The update response carries no attachments — keep the ones we fetched
+      // separately so they survive a status/field change.
+      setLocalIssue(prev => ({
+        ...updatedIssue,
+        attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
+      }))
       onUpdate?.(updatedIssue)
       if (successMsg) toast({ title: successMsg })
     } catch {
