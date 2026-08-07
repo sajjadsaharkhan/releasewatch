@@ -65,12 +65,36 @@ _SEVERITY_ORDER = case(
 )
 
 
+def _parse_statuses(raw: Optional[str]) -> Optional[list[IssueStatus]]:
+    """Parse a comma-separated `statuses` query value into enum members.
+
+    Lets a client filter on a set of states (e.g. the "Open issues" view) without
+    turning the single-value `status` filter into a list and breaking its callers.
+    """
+    if not raw:
+        return None
+    parsed: list[IssueStatus] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            parsed.append(IssueStatus(part))
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid status: {part}",
+            )
+    return parsed or None
+
+
 def _apply_filters(
     query,
     *,
     project_id,
     release_id,
     status,
+    statuses=None,
     severity,
     assignee_id,
     reporter_id=None,
@@ -87,6 +111,8 @@ def _apply_filters(
         query = query.where(Issue.release_id == release_id)
     if status:
         query = query.where(Issue.status == status)
+    if statuses:
+        query = query.where(Issue.status.in_(statuses))
     if severity:
         query = query.where(Issue.severity == severity)
     if assignee_id:
@@ -162,6 +188,9 @@ async def list_issues(
     project_id: Optional[int] = Query(None),
     release_id: Optional[int] = Query(None),
     status: Optional[IssueStatus] = Query(None),
+    statuses: Optional[str] = Query(
+        None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
+    ),
     severity: Optional[IssueSeverity] = Query(None),
     assignee_id: Optional[int] = Query(None),
     reporter_id: Optional[int] = Query(None),
@@ -181,6 +210,7 @@ async def list_issues(
         project_id=project_id,
         release_id=release_id,
         status=status,
+        statuses=_parse_statuses(statuses),
         severity=severity,
         assignee_id=assignee_id,
         reporter_id=reporter_id,
@@ -216,6 +246,9 @@ async def export_issues(
     project_id: Optional[int] = Query(None),
     release_id: Optional[int] = Query(None),
     status: Optional[IssueStatus] = Query(None),
+    statuses: Optional[str] = Query(
+        None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
+    ),
     severity: Optional[IssueSeverity] = Query(None),
     assignee_id: Optional[int] = Query(None),
     is_regression: Optional[bool] = Query(None),
@@ -232,6 +265,7 @@ async def export_issues(
         project_id=project_id,
         release_id=release_id,
         status=status,
+        statuses=_parse_statuses(statuses),
         severity=severity,
         assignee_id=assignee_id,
         is_regression=is_regression,
