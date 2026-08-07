@@ -8,6 +8,7 @@ from app.db.models.release import Release
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
+from app.db.models.comment_reaction import CommentReaction
 from app.db.models.issue_attachment import IssueAttachment
 from app.db.models.inbox_item import InboxItem
 from app.db.models.regression_history import RegressionHistory
@@ -24,6 +25,7 @@ __all__ = [
     "IssueCycle",
     "Issue",
     "IssueTimeline",
+    "CommentReaction",
     "IssueAttachment",
     "InboxItem",
     "RegressionHistory",

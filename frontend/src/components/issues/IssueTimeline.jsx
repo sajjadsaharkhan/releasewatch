@@ -10,6 +10,7 @@ import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
 import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
+import { ReactionBar } from './ReactionBar'
 
 const EVENT_STYLES = {
   filed:               { dot: 'bg-blue-500',   label: 'filed this issue' },
@@ -69,7 +70,7 @@ function EventDot({ type }) {
   )
 }
 
-export function IssueTimeline({ events = [], comments = [], issue, users = [], labels = [], currentUser, onAddComment, onUpdateComment, onDeleteComment, hasMore = false, loadingMore = false, onLoadMore }) {
+export function IssueTimeline({ events = [], comments = [], issue, users = [], labels = [], currentUser, onAddComment, onUpdateComment, onDeleteComment, onToggleReaction, hasMore = false, loadingMore = false, onLoadMore }) {
   const [editingCommentId, setEditingCommentId] = useState(null)
   const { toast } = useToast()
 
@@ -386,26 +387,39 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                         {renderMarkdown(item.body)}
                       </div>
 
-                      {item.mentionedUsers && item.mentionedUsers.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-border flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Icon name="at-sign" size={11} />
-                            Mentioned:
-                          </span>
-                          {item.mentionedUsers.map(userId => {
-                            const user = resolveUser(userId)
-                            if (!user) return null
-                            return (
-                              <UserHoverCard key={String(userId)} user={user}>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[11px] font-medium cursor-pointer border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
-                                  <Avatar user={user} size={14} />
-                                  {user.name}
-                                </span>
-                              </UserHoverCard>
-                            )
-                          })}
-                        </div>
-                      )}
+                      {/* Reactions + mentions share a single divider so the card
+                          never grows two rules stacked on top of each other.
+                          Always rendered: the add-reaction button lives here and
+                          must be visible without hovering. */}
+                      <div className="mt-2 pt-2 border-t border-border space-y-2">
+                          <ReactionBar
+                            reactions={item.reactions ?? []}
+                            onToggle={(key) => onToggleReaction?.(item.id, key)}
+                            resolveUser={resolveUser}
+                            currentUserId={currentUser?.id}
+                          />
+
+                          {(item.mentionedUsers?.length ?? 0) > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Icon name="at-sign" size={11} />
+                                Mentioned:
+                              </span>
+                              {item.mentionedUsers.map(userId => {
+                                const user = resolveUser(userId)
+                                if (!user) return null
+                                return (
+                                  <UserHoverCard key={String(userId)} user={user}>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[11px] font-medium cursor-pointer border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                                      <Avatar user={user} size={14} />
+                                      {user.name}
+                                    </span>
+                                  </UserHoverCard>
+                                )
+                              })}
+                            </div>
+                          )}
+                      </div>
                     </div>
                   )}
                 </li>

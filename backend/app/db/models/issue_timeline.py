@@ -75,6 +75,16 @@ class IssueTimeline(Base):
     issue = relationship("Issue", back_populates="timeline")
     actor = relationship("User", foreign_keys=[actor_id])
     inbox_items = relationship("InboxItem", back_populates="timeline_event")
+    # Named to match the table rather than the API field: the response schema
+    # exposes `reactions` as aggregated summaries, and an identically-named ORM
+    # attribute would be picked up by Pydantic's from_attributes mapping and
+    # fail validation against raw CommentReaction rows.
+    comment_reactions = relationship(
+        "CommentReaction",
+        back_populates="timeline_event",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<IssueTimeline issue={self.issue_id} type={self.event_type}>"

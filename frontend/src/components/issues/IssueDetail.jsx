@@ -34,6 +34,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     addComment,
     updateComment,
     deleteComment,
+    toggleReaction,
     loadMoreTimeline,
     fetchAttachments,
     deleteIssue,
@@ -99,6 +100,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           addComment={addComment}
           updateComment={updateComment}
           deleteComment={deleteComment}
+          toggleReaction={toggleReaction}
           timelineHasMore={timelineHasMore}
           timelineLoadingMore={timelineLoadingMore}
           loadMoreTimeline={loadMoreTimeline}

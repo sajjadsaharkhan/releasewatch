@@ -23,6 +23,7 @@ export function IssueMainContent({
   addComment,
   updateComment,
   deleteComment,
+  toggleReaction,
   timelineHasMore,
   timelineLoadingMore,
   loadMoreTimeline,
@@ -116,6 +117,7 @@ export function IssueMainContent({
               onAddComment={addComment}
               onUpdateComment={updateComment}
               onDeleteComment={deleteComment}
+              onToggleReaction={toggleReaction}
               hasMore={timelineHasMore}
               loadingMore={timelineLoadingMore}
               onLoadMore={loadMoreTimeline}

@@ -22,7 +22,7 @@ const TAB_EVENT_TYPE = {
   assigned: 'assigned',
 }
 
-const COMMENT_TYPES = new Set(['comment', 'mention', 'needs_clarification'])
+const COMMENT_TYPES = new Set(['comment', 'mention', 'reaction', 'needs_clarification'])
 
 function timelineAnchor(item) {
   if (!item.timelineId) return null
@@ -31,6 +31,7 @@ function timelineAnchor(item) {
 
 const TYPE_DESCRIPTIONS = {
   mention:             'mentioned you in',
+  reaction:            'reacted to a comment on',
   assigned:            'assigned you to',
   status_changed:      'changed status on',
   comment:             'commented on',

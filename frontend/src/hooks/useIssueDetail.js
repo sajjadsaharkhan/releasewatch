@@ -41,6 +41,7 @@ function normalizeTimelineItems(apiItems) {
         isInternal: e.is_internal,
         mentionedUsers: e.mentioned_user_ids || [],
         editedAt: e.edited_at,
+        reactions: e.reactions || [],
       })
     } else {
       events.push({
@@ -269,6 +270,82 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
+  // Apply a reaction toggle to one raw timeline item, returning the new
+  // `reactions` array. Mirrors the backend summary shape so the optimistic
+  // state and the server response are interchangeable.
+  //
+  // Reactions are mutually exclusive: adding one must also withdraw whatever
+  // the user was holding, or the UI briefly shows two active pills before the
+  // server response corrects it.
+  const applyReactionToggle = (item, emojiKey) => {
+    const existing = item.reactions || []
+    const uid = currentUser?.id
+    const sameUser = (id) => String(id) === String(uid)
+
+    // Withdraw the user from every summary, dropping any that empty out.
+    const withdrawn = existing.flatMap((r) => {
+      if (!r.reacted_by_me) return [r]
+      if (r.count <= 1) return []
+      return [{
+        ...r,
+        count: r.count - 1,
+        reacted_by_me: false,
+        user_ids: (r.user_ids || []).filter(id => !sameUser(id)),
+      }]
+    })
+
+    // Clicking the emoji you already hold just removes it.
+    const wasMine = existing.some(r => r.emoji_key === emojiKey && r.reacted_by_me)
+    if (wasMine) return withdrawn
+
+    const target = withdrawn.find(r => r.emoji_key === emojiKey)
+    if (target) {
+      return withdrawn.map(r =>
+        r.emoji_key === emojiKey
+          ? { ...r, count: r.count + 1, reacted_by_me: true, user_ids: [...(r.user_ids || []), uid] }
+          : r
+      )
+    }
+    return [...withdrawn, { emoji_key: emojiKey, count: 1, user_ids: [uid], reacted_by_me: true }]
+  }
+
+  const toggleReaction = async (commentId, emojiKey) => {
+    const id = issueIdRef.current
+    const all = [...timelineBaseItems, ...extraItems]
+    const target = all.find(item => item.id === commentId)
+    if (!target) return
+
+    const wasReacted = !!(target.reactions || []).find(
+      r => r.emoji_key === emojiKey && r.reacted_by_me
+    )
+    const prevReactions = target.reactions || []
+
+    // Optimistic — a reaction has to feel instant.
+    const patch = (item) =>
+      item.id === commentId ? { ...item, reactions: applyReactionToggle(item, emojiKey) } : item
+    setTimelineBaseItems(prev => prev.map(patch))
+    setExtraItems(prev => prev.map(patch))
+
+    try {
+      const res = wasReacted
+        ? await timelineApi.removeReaction(id, commentId, emojiKey)
+        : await timelineApi.addReaction(id, commentId, emojiKey)
+      // Reconcile against the server's authoritative summary.
+      const server = res?.data?.reactions
+      if (server) {
+        const sync = (item) => (item.id === commentId ? { ...item, reactions: server } : item)
+        setTimelineBaseItems(prev => prev.map(sync))
+        setExtraItems(prev => prev.map(sync))
+      }
+    } catch {
+      const rollback = (item) =>
+        item.id === commentId ? { ...item, reactions: prevReactions } : item
+      setTimelineBaseItems(prev => prev.map(rollback))
+      setExtraItems(prev => prev.map(rollback))
+      toast({ title: 'Failed to update reaction' })
+    }
+  }
+
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null
 
   const deleteIssue = async (onDeleted) => {
@@ -304,6 +381,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     addComment,
     updateComment,
     deleteComment,
+    toggleReaction,
     loadMoreTimeline,
     fetchAttachments,
     deleteIssue,

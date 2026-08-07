@@ -28,6 +28,28 @@ class TimelineEventUpdate(BaseModel):
     body: str = Field(min_length=1)
 
 
+class ReactionCreate(BaseModel):
+    """Payload for POST /issues/{id}/timeline/{event_id}/reactions."""
+
+    emoji_key: str = Field(
+        min_length=1, max_length=16,
+        description="Canonical reaction key, e.g. '+1' or 'heart'.",
+    )
+
+
+class ReactionSummary(BaseModel):
+    """Aggregated reactions of one emoji on one comment.
+
+    ``user_ids`` is returned instead of embedded user objects because the
+    frontend already holds the team roster and resolves mentions the same way.
+    """
+
+    emoji_key: str
+    count: int
+    user_ids: List[int] = Field(default_factory=list)
+    reacted_by_me: bool = False
+
+
 class TimelineEventResponse(BaseModel):
     """Full timeline event representation."""
 
@@ -46,6 +68,9 @@ class TimelineEventResponse(BaseModel):
     # Derived from meta — populated by the validator below
     mentioned_user_ids: List[int] = Field(default_factory=list)
     edited_at: Optional[datetime] = None
+
+    # Populated by the route from ReactionService.summarize()
+    reactions: List[ReactionSummary] = Field(default_factory=list)
 
     @model_validator(mode='after')
     def extract_meta_fields(self) -> 'TimelineEventResponse':

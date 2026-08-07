@@ -334,8 +334,13 @@ export const MOCK_ISSUES = [
       { id: 'att-2', name: 'network-trace.log', type: 'file', url: '#', size: 8400, createdAt: '2026-05-10T09:25:00Z' },
     ],
     comments: [
-      { id: 'cmt-1', author: 'u-3', body: 'Investigating now. The issue seems related to the SameSite=None cookie requirement on Safari. Will push a fix today.', createdAt: '2026-05-10T14:00:00Z', isInternal: false, mentionedUsers: ['u-1', 'u-2'] },
-      { id: 'cmt-2', author: 'u-2', body: 'Confirmed. Also affects iOS 17 Safari.', createdAt: '2026-05-10T15:30:00Z', isInternal: true },
+      { id: 'cmt-1', author: 'u-3', body: 'Investigating now. The issue seems related to the SameSite=None cookie requirement on Safari. Will push a fix today.', createdAt: '2026-05-10T14:00:00Z', isInternal: false, mentionedUsers: ['u-1', 'u-2'], reactions: [
+        { emoji_key: '+1', count: 2, user_ids: ['u-1', 'u-2'], reacted_by_me: true },
+        { emoji_key: 'rocket', count: 1, user_ids: ['u-4'], reacted_by_me: false },
+      ] },
+      { id: 'cmt-2', author: 'u-2', body: 'Confirmed. Also affects iOS 17 Safari.', createdAt: '2026-05-10T15:30:00Z', isInternal: true, reactions: [
+        { emoji_key: 'eyes', count: 1, user_ids: ['u-3'], reacted_by_me: false },
+      ] },
       { id: 'cmt-3', author: 'u-1', body: 'I can test this on my Mac once the fix is ready. Let me know when you have a staging build deployed.', createdAt: '2026-05-10T16:45:00Z', isInternal: false, editedAt: '2026-05-10T17:30:00Z' },
     ],
     events: [

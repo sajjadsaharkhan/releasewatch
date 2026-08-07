@@ -41,6 +41,15 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "<a href=\"{comment_url}\">View mention →</a>"
     ),
+    "reaction": (
+        "{emoji} <b>Someone reacted to a comment</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
+        "\n"
+        "<i><a href=\"{actor_url}\">{actor}</a> reacted {emoji} to:</i> \"{excerpt}\"\n"
+        "\n"
+        "<a href=\"{comment_url}\">Jump to comment →</a>"
+    ),
     "status_changed": (
         "⚡️ <b>Status just moved!</b>\n"
         "🐛 <a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
