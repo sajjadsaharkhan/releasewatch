@@ -10,7 +10,7 @@ import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
 import { ExportMarkdownModal } from './ExportMarkdownModal'
 
-export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) {
+export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, adjacent }) {
   const { user: currentUser } = useApp()
   const location = useLocation()
   const { commentId } = location.state ?? {}
@@ -71,6 +71,7 @@ export function IssueDetail({ issue, onUpdate, onClose, onNavigate, adjacent }) 
       <IssueHeader
         issue={localIssue}
         onClose={onClose}
+        backLabel={backLabel}
         onNavigate={onNavigate}
         adjacent={adjacent}
         onExportMarkdown={() => setExportModalOpen(true)}

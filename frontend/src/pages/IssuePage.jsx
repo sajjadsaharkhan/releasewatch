@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IssueDetail } from '../components/issues/IssueDetail'
 import { issuesApi } from '../lib/api'
+import { useBackTarget } from '../hooks/useNavOrigin'
 
 export default function IssuePage() {
   const { slug } = useParams()
@@ -10,6 +11,7 @@ export default function IssuePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [adjacent, setAdjacent] = useState(null)
+  const { to: backTo, label: backLabel } = useBackTarget()
 
   const issueNum = slug?.startsWith('issue-') ? parseInt(slug.slice(6), 10) : null
 
@@ -34,7 +36,7 @@ export default function IssuePage() {
     // issue_number is immutable so handleNavigate still works from initial fetch.
   }
 
-  const handleClose = () => navigate('/issues')
+  const handleClose = () => navigate(backTo)
 
   const handleNavigate = (direction) => {
     const num = direction === 'prev' ? adjacent?.prev_number : adjacent?.next_number
@@ -61,12 +63,22 @@ export default function IssuePage() {
             onClick={handleClose}
             className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:opacity-90"
           >
-            Back to Issues
+            {backLabel ? `Back to ${backLabel}` : 'Go back'}
           </button>
         </div>
       </div>
     )
   }
 
-  return <IssueDetail key={issue.id} issue={issue} onUpdate={handleUpdate} onClose={handleClose} onNavigate={handleNavigate} adjacent={adjacent} />
+  return (
+    <IssueDetail
+      key={issue.id}
+      issue={issue}
+      onUpdate={handleUpdate}
+      onClose={handleClose}
+      backLabel={backLabel}
+      onNavigate={handleNavigate}
+      adjacent={adjacent}
+    />
+  )
 }
