@@ -18,11 +18,9 @@ export default function AuthCallbackPage() {
     handled.current = true
 
     async function complete() {
-      // Tokens arrive as a second fragment after the hash route. Parse the last
-      // `#...` segment for access/refresh params.
-      const raw = window.location.hash
-      const tokenPart = raw.includes('#', 1) ? raw.slice(raw.indexOf('#', 1) + 1) : ''
-      const params = new URLSearchParams(tokenPart)
+      // The backend redirects to /auth/callback#access=...&refresh=... — tokens
+      // ride in the URL fragment so they never reach a server log.
+      const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
       const accessToken = params.get('access')
       const refreshToken = params.get('refresh')
 

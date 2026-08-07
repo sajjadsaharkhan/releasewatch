@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Surface an error handed back by the Keycloak callback redirect.
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    const params = new URLSearchParams(window.location.search)
     if (params.get('error')) {
       setError('Keycloak sign-in failed. Please try again or use local login.')
     }
