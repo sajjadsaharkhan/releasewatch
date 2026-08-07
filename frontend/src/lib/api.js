@@ -31,9 +31,18 @@ function processQueue(error, token = null) {
 }
 
 function clearAuthAndRedirect() {
+  // A federated sign-in is mid-flight: the tokens live in the URL fragment and
+  // have not been stored yet. Clearing state or touching the URL here would
+  // destroy them, so let AuthCallbackPage finish.
+  if (window.location.pathname === '/auth/callback') return
+
   localStorage.removeItem('rw:token')
   localStorage.removeItem('rw:refresh_token')
-  window.location.hash = '/login'
+  // The app uses BrowserRouter, so navigate by path — assigning location.hash
+  // would only append a fragment and never leave the current page.
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
 }
 
 // Response interceptor: handle errors
