@@ -2,6 +2,12 @@
 
 A release-scoped QA issue tracker for software teams.
 
+> **Design & frontend conventions live in [`docs/design.md`](docs/design.md).** Read it
+> before touching anything visual — design tokens, both themes, the severity/status/role
+> color scales, type scale, spacing, the component inventory, motion, copy rules, and the
+> current list of known drift. This file only summarises the frontend; `docs/design.md` is
+> the authority on how it should look and behave.
+
 ## Monorepo Structure
 
 ```
@@ -93,6 +99,9 @@ frontend/src/
 | `#/settings` | SettingsPage |
 
 ### Component conventions
+
+Summary only — the full rules (tokens, color semantics, type scale, spacing, radius,
+motion, a11y, copy) are in [`docs/design.md`](docs/design.md).
 
 - **Named exports** for all components except pages (pages use `export default`)
 - **Barrel `index.js`** in each component folder — import from the folder, not the file
