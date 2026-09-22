@@ -54,7 +54,9 @@ class ReportService:
             return cached
 
         release_result = await db.execute(
-            select(Release).where(Release.id == release_id)
+            select(Release)
+            .options(selectinload(Release.project))
+            .where(Release.id == release_id)
         )
         release = release_result.scalar_one_or_none()
         if release is None:
@@ -75,8 +77,12 @@ class ReportService:
         verify_times: list[float] = []
 
         for iss in issues:
-            severity_breakdown[iss.severity.value] += 1
-            status_breakdown[iss.status.value] += 1
+            # `severity`/`status` are plain String columns (no SQLAlchemy Enum
+            # type) — a freshly-queried row's attribute is a plain str, not an
+            # IssueSeverity/IssueStatus instance. Same defensive pattern as
+            # issue_service.py's transition methods.
+            severity_breakdown[getattr(iss.severity, "value", iss.severity)] += 1
+            status_breakdown[getattr(iss.status, "value", iss.status)] += 1
             if iss.time_to_triage_h is not None:
                 triage_times.append(iss.time_to_triage_h)
             if iss.time_to_fix_h is not None:
@@ -95,7 +101,7 @@ class ReportService:
             "open_issues": sum(1 for i in issues if i.status in open_statuses),
             "blocker_count": sum(1 for i in issues if i.is_release_blocker),
             "regression_count": sum(1 for i in issues if i.is_regression),
-            "go_nogo_status": release.go_nogo_status.value,
+            "go_nogo_status": getattr(release.go_nogo_status, "value", release.go_nogo_status),
             "severity_breakdown": severity_breakdown,
             "status_breakdown": status_breakdown,
             "avg_time_to_triage_h": avg(triage_times),

@@ -184,10 +184,33 @@ backend/
 | `make migrate` | Run pending Alembic migrations |
 | `make migrate-new` | Generate a new migration from model changes |
 | `make seed` | Populate DB with sample data |
-| `make test` | Run pytest suite |
+| `make test` | Run pytest suite (inside the api container) |
+| `make test-local` | Run pytest from a local venv against the compose Postgres/Redis |
+| `make e2e` | Bring up an isolated E2E stack, seed it, run the Playwright suite headless, tear down |
+| `make e2e-ui` | Same, but keeps the stack up and opens Playwright UI mode |
+| `make e2e-headed` | Same as `make e2e`, headed |
 | `make lint` | ruff (backend) + eslint (frontend) |
 | `make shell` | Python REPL inside api container |
 | `make logs` | Follow api + worker logs |
+
+## Testing
+
+Backend API tests (`backend/tests/`) drive the real FastAPI app in-process over HTTP
+against a real Postgres, with Telegram sends recorded instead of sent and the
+embedding/attachment-validation background jobs replaced by no-ops. E2E tests
+(`e2e/`, Playwright) drive the real frontend against the full Docker stack for a
+handful of key screens. See `docs/phase-2/01-test-harness.md` for the full design.
+
+### Playwright MCP (dev aid, not a test layer)
+
+`.mcp.json` registers `@playwright/mcp` for this repo. After building or changing a
+screen, open it at `http://localhost:5173`, sign in with a seeded user, walk the
+golden path, and check both light and dark themes before calling the work done.
+
+MCP sessions are not repeatable and are not run in CI — they're a way to look at
+what you just built, not a substitute for a `make e2e` scenario or an API test that
+asserts a business rule. If a check is worth repeating, it belongs in one of those
+two suites instead.
 
 ## CDN Dependencies (frontend Vite build)
 

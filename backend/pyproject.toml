@@ -55,4 +55,9 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# The DB engine and Redis client are initialised once per session (conftest.py's
+# `_app_lifecycle`), which only works if fixtures AND tests all run on the same
+# event loop — otherwise later tests hit a pool bound to an already-closed loop.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]

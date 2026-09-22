@@ -1,0 +1,63 @@
+# E2E stack overlay — an isolated Postgres/Redis + built frontend so Playwright
+# can run against something close to production without touching `make dev`'s
+# running containers or its data volumes.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+#          -p releasewatch-e2e up -d --build
+# (or just `make e2e` / `make e2e-up`)
+#
+# List-valued keys (`ports`, `volumes`) merge by CONCATENATION across compose
+# files, not replacement — `!override` is required wherever this file needs a
+# different port/volume than docker-compose.yml, or both would apply and the
+# inherited one (already bound by `make dev`'s running stack) wins the conflict.
+
+services:
+  api:
+    ports: !override
+      - '8081:8000'
+    environment:
+      POSTGRES_DB: releasewatch_e2e
+      SECRET_KEY: e2e-fixed-secret-key-not-for-production
+      TELEGRAM_BOT_TOKEN: ''
+      ENVIRONMENT: test
+
+  worker:
+    environment:
+      POSTGRES_DB: releasewatch_e2e
+      SECRET_KEY: e2e-fixed-secret-key-not-for-production
+      TELEGRAM_BOT_TOKEN: ''
+      ENVIRONMENT: test
+
+  beat:
+    environment:
+      POSTGRES_DB: releasewatch_e2e
+      SECRET_KEY: e2e-fixed-secret-key-not-for-production
+      ENVIRONMENT: test
+
+  # No bot token in E2E — Telegram sends are skipped app-side, and the bot's
+  # long-poll loop has nothing to authenticate with, so it's left out of the
+  # default `up` entirely rather than crash-looping on an empty token.
+  bot:
+    profiles: ['disabled']
+
+  frontend:
+    ports: !override
+      - '8082:3000'
+
+  postgres:
+    ports: !override
+      - '5433:5432'
+    environment:
+      POSTGRES_DB: releasewatch_e2e
+    volumes: !override
+      - postgres_data_e2e:/var/lib/postgresql/data
+
+  redis:
+    ports: !override
+      - '6380:6379'
+    volumes: !override
+      - redis_data_e2e:/data
+
+volumes:
+  postgres_data_e2e:
+  redis_data_e2e:

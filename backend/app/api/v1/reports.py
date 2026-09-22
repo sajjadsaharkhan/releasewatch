@@ -14,7 +14,7 @@ _svc = ReportService()
 
 @router.get("/releases/{release_id}")
 async def get_release_report(
-    release_id: str,
+    release_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
