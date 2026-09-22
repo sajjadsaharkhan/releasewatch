@@ -11,17 +11,17 @@ const SEVERITY_TONE = {
   critical: 'red',
   major: 'amber',
   minor: 'default',
-  enhancement: 'blue',
 }
 
 const STATUS_TONE = {
   new: 'default',
-  triaged: 'blue',
+  needs_info: 'blue',
+  todo: 'default',
   in_progress: 'blue',
-  fixed: 'green',
-  verified: 'green',
-  closed: 'default',
-  regression: 'red',
+  in_review: 'amber',
+  done: 'green',
+  blocked: 'orange',
+  cancelled: 'default',
 }
 
 function MatchedVia({ tags }) {

@@ -7,35 +7,44 @@ DELETE /issues/trash/clear                  — permanently delete all trashed i
 POST   /issues                             — file a new issue
 GET    /issues/{id}                         — get issue detail
 PATCH  /issues/{id}                         — update issue fields
-DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or release triage lead)
+DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or triage lead)
 POST   /issues/{id}/restore                 — restore a soft-deleted issue (CTO/admin only)
-DELETE /issues/{id}/permanent               — permanently delete a single trashed issue (CTO/admin only)
-POST   /issues/{id}/triage                  — triage an issue
-POST   /issues/{id}/fix                     — mark as fixed
-POST   /issues/{id}/verify                  — verify the fix
-POST   /issues/{id}/reopen                  — reopen a closed/verified issue
-POST   /issues/{id}/duplicate               — link as duplicate
+DELETE /issues/{id}/permanent               — permanently delete one trashed issue (CTO/admin only)
+POST   /issues/{id}/triage                  — triage an issue (new -> todo)
+POST   /issues/{id}/needs-clarification     — request clarification (new -> needs_info)
+POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
+POST   /issues/{id}/verify                  — verify the fix (in_review -> done | in_progress)
+POST   /issues/{id}/reopen                  — reopen a Done bug (maps to the regression action)
+POST   /issues/{id}/duplicate               — link as duplicate (-> cancelled, reason duplicate)
+POST   /issues/{id}/transition              — generic status change; used by board drags and menus
+POST   /issues/{id}/regression              — flag a regression on a Done/In review bug (BR-24)
 GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numbers
+
+Every status change goes through ``IssueService.transition()``
+(``app/workflow.py`` decides what's allowed) — see
+docs/phase-2/02-unified-status-model.md.
 """
 
 import csv
 import io
-from typing import List, Optional
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import case, delete as sa_delete, func, or_, select
+from sqlalchemy import case, func, or_, select
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_role
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.db.models.issue_cycle import IssueCycle
 from app.schemas.issue import (
+    BlockedTransition,
     DuplicateRequest,
     FixRequest,
     IssueCreate,
@@ -46,12 +55,14 @@ from app.schemas.issue import (
     LabelDetail,
     NeedsClarificationRequest,
     RegressionHistoryResponse,
+    TransitionRequest,
     TrashIssueResponse,
     TriageRequest,
     UserSummary,
     VerifyRequest,
 )
 from app.services.issue_service import issue_service
+from app.workflow import Workflow
 
 router = APIRouter()
 
@@ -60,12 +71,11 @@ _SEVERITY_ORDER = case(
     (Issue.severity == IssueSeverity.critical, 1),
     (Issue.severity == IssueSeverity.major, 2),
     (Issue.severity == IssueSeverity.minor, 3),
-    (Issue.severity == IssueSeverity.enhancement, 4),
-    else_=5,
+    else_=4,
 )
 
 
-def _parse_statuses(raw: Optional[str]) -> Optional[list[IssueStatus]]:
+def _parse_statuses(raw: str | None) -> list[IssueStatus] | None:
     """Parse a comma-separated `statuses` query value into enum members.
 
     Lets a client filter on a set of states (e.g. the "Open issues" view) without
@@ -128,7 +138,8 @@ def _apply_filters(
     if labels:
         query = query.where(or_(*[Issue.labels.any(name) for name in labels]))
     if search:
-        from sqlalchemy import String as SAString, cast
+        from sqlalchemy import String as SAString
+        from sqlalchemy import cast
         query = query.where(
             or_(
                 Issue.title.ilike(f"%{search}%"),
@@ -149,8 +160,44 @@ def _apply_sort(query, sort: str):
         return query.order_by(Issue.created_at.desc(), Issue.issue_number.desc())
 
 
+def _workflow_fields(issue: Issue, current_user: User) -> dict:
+    """Compute allowed_transitions / blocked_transitions for one issue."""
+    release = issue.release
+    context = {
+        "actor_id": current_user.id,
+        "review_requested_by_id": issue.review_requested_by_id,
+        "blocked_from_status": issue.blocked_from_status,
+        "has_release": issue.release_id is not None,
+        "release_shipped": release.is_shipped if release is not None else False,
+    }
+    targets = Workflow.allowed_targets("bug", issue.status, context)
+    return {
+        "allowed_transitions": targets.allowed,
+        "blocked_transitions": [BlockedTransition(**b) for b in targets.blocked],
+    }
+
+
+async def _reload_and_enrich(db: AsyncSession, issue_id: int, current_user: User) -> IssueResponse:
+    """Re-fetch an issue with its relations after a service call and enrich it.
+
+    Used by every action endpoint (``/triage``, ``/fix``, ``/transition``, …)
+    so the response always carries ``allowed_transitions`` for the next click.
+    """
+    result = await db.execute(
+        select(Issue).options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        ).where(Issue.id == issue_id)
+    )
+    issue = result.scalar_one()
+    enriched = await _build_enriched_responses([issue], db, current_user)
+    return enriched[0]
+
+
 async def _build_enriched_responses(
-    issues: list[Issue], db: AsyncSession
+    issues: list[Issue], db: AsyncSession, current_user: User
 ) -> list[IssueResponse]:
     """Build IssueResponse objects with embedded user/label/release data."""
     all_label_names = {name for issue in issues for name in (issue.labels or [])}
@@ -178,6 +225,7 @@ async def _build_enriched_responses(
             "release_version": issue.release.version if issue.release else None,
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
+            **_workflow_fields(issue, current_user),
         })
         responses.append(enriched)
     return responses
@@ -185,21 +233,21 @@ async def _build_enriched_responses(
 
 @router.get("", response_model=IssueListResponse, summary="List issues")
 async def list_issues(
-    project_id: Optional[int] = Query(None),
-    release_id: Optional[int] = Query(None),
-    status: Optional[IssueStatus] = Query(None),
-    statuses: Optional[str] = Query(
+    project_id: int | None = Query(None),
+    release_id: int | None = Query(None),
+    status: IssueStatus | None = Query(None),
+    statuses: str | None = Query(
         None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
     ),
-    severity: Optional[IssueSeverity] = Query(None),
-    assignee_id: Optional[int] = Query(None),
-    reporter_id: Optional[int] = Query(None),
-    is_regression: Optional[bool] = Query(None),
-    is_release_blocker: Optional[bool] = Query(None),
-    unassigned: Optional[bool] = Query(None),
-    labels: Optional[List[str]] = Query(None),
+    severity: IssueSeverity | None = Query(None),
+    assignee_id: int | None = Query(None),
+    reporter_id: int | None = Query(None),
+    is_regression: bool | None = Query(None),
+    is_release_blocker: bool | None = Query(None),
+    unassigned: bool | None = Query(None),
+    labels: list[str] | None = Query(None),
     sort: str = Query("newest"),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -237,26 +285,26 @@ async def list_issues(
     result = await db.execute(fetch_q)
     issues = list(result.scalars().all())
 
-    enriched = await _build_enriched_responses(issues, db)
+    enriched = await _build_enriched_responses(issues, db, current_user)
     return IssueListResponse(items=enriched, total=total, page=page, size=size)
 
 
 @router.get("/export", summary="Export issues as CSV")
 async def export_issues(
-    project_id: Optional[int] = Query(None),
-    release_id: Optional[int] = Query(None),
-    status: Optional[IssueStatus] = Query(None),
-    statuses: Optional[str] = Query(
+    project_id: int | None = Query(None),
+    release_id: int | None = Query(None),
+    status: IssueStatus | None = Query(None),
+    statuses: str | None = Query(
         None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
     ),
-    severity: Optional[IssueSeverity] = Query(None),
-    assignee_id: Optional[int] = Query(None),
-    is_regression: Optional[bool] = Query(None),
-    is_release_blocker: Optional[bool] = Query(None),
-    unassigned: Optional[bool] = Query(None),
-    labels: Optional[List[str]] = Query(None),
+    severity: IssueSeverity | None = Query(None),
+    assignee_id: int | None = Query(None),
+    is_regression: bool | None = Query(None),
+    is_release_blocker: bool | None = Query(None),
+    unassigned: bool | None = Query(None),
+    labels: list[str] | None = Query(None),
     sort: str = Query("newest"),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
@@ -317,7 +365,9 @@ async def export_issues(
     )
 
 
-@router.get("/by-number/{issue_number}", response_model=IssueResponse, summary="Get issue by number")
+@router.get(
+    "/by-number/{issue_number}", response_model=IssueResponse, summary="Get issue by number",
+)
 async def get_issue_by_number(
     issue_number: int,
     db: AsyncSession = Depends(get_db),
@@ -336,7 +386,7 @@ async def get_issue_by_number(
     issue = result.scalars().first()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-    enriched = await _build_enriched_responses([issue], db)
+    enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
 
 
@@ -392,15 +442,15 @@ async def create_issue(
     issue = result.scalar_one()
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue.id,), countdown=0)
-    enriched = await _build_enriched_responses([issue], db)
+    enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
 
 
-@router.get("/trash", response_model=List[TrashIssueResponse], summary="List soft-deleted issues")
+@router.get("/trash", response_model=list[TrashIssueResponse], summary="List soft-deleted issues")
 async def list_trash(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
-) -> List[TrashIssueResponse]:
+) -> list[TrashIssueResponse]:
     """Return all soft-deleted issues ordered by most recently deleted first."""
     result = await db.execute(
         select(Issue)
@@ -451,7 +501,7 @@ async def clear_trash(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
 ) -> None:
-    """Hard-delete every soft-deleted issue from the database (DB CASCADE removes all related rows)."""
+    """Hard-delete every soft-deleted issue (DB CASCADE removes all related rows)."""
     await db.execute(sa_delete(Issue).where(Issue.deleted_at.isnot(None)))
     await db.commit()
 
@@ -463,11 +513,19 @@ async def get_issue(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Return a single issue by UUID."""
-    result = await db.execute(select(Issue).where(Issue.id == issue_id, Issue.deleted_at.is_(None)))
+    result = await db.execute(
+        select(Issue).options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        ).where(Issue.id == issue_id, Issue.deleted_at.is_(None))
+    )
     issue = result.scalar_one_or_none()
     if issue is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-    return IssueResponse.model_validate(issue)
+    enriched = await _build_enriched_responses([issue], db, current_user)
+    return enriched[0]
 
 
 @router.patch("/{issue_id}", response_model=IssueResponse, summary="Update issue fields")
@@ -496,7 +554,7 @@ async def update_issue(
         ).where(Issue.id == issue_id)
     )
     issue = result.scalar_one()
-    enriched = await _build_enriched_responses([issue], db)
+    enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
 
 
@@ -532,8 +590,8 @@ async def delete_issue(
             detail="Not authorized to delete this issue",
         )
 
-    from datetime import datetime, timezone
-    issue.deleted_at = datetime.now(tz=timezone.utc)
+    from datetime import datetime
+    issue.deleted_at = datetime.now(tz=UTC)
     issue.deleted_by_id = current_user.id
     db.add(issue)
     await db.commit()
@@ -555,7 +613,9 @@ async def restore_issue(
     )
     issue = result.scalar_one_or_none()
     if issue is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash",
+        )
     issue.deleted_at = None
     issue.deleted_by_id = None
     db.add(issue)
@@ -577,7 +637,9 @@ async def permanent_delete_issue(
         select(Issue.id).where(Issue.id == issue_id, Issue.deleted_at.isnot(None))
     )
     if result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash",
+        )
     await db.execute(sa_delete(Issue).where(Issue.id == issue_id))
     await db.commit()
 
@@ -589,30 +651,32 @@ async def triage_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Triage: assign the issue and confirm severity."""
-    issue = await issue_service.triage(
+    """Triage: assign the issue and confirm severity. Maps to new -> todo."""
+    await issue_service.triage(
         db, issue_id, payload.assignee_id, payload.severity, current_user,
         labels=payload.labels, is_release_blocker=payload.is_release_blocker,
     )
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
-@router.post("/{issue_id}/needs-clarification", response_model=IssueResponse, summary="Request clarification from reporter")
+@router.post(
+    "/{issue_id}/needs-clarification",
+    response_model=IssueResponse,
+    summary="Request clarification from reporter",
+)
 async def needs_clarification(
     issue_id: int,
     payload: NeedsClarificationRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Block the issue and ask the reporter for more information."""
-    issue = await issue_service.needs_clarification(
+    """Move the issue to Needs info and ask the reporter for more information."""
+    await issue_service.needs_clarification(
         db, issue_id, current_user, message=payload.message
     )
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
 @router.post("/{issue_id}/fix", response_model=IssueResponse, summary="Mark issue as fixed")
@@ -622,11 +686,10 @@ async def mark_fixed(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Developer marks the issue as fixed (optionally linking the MR)."""
-    issue = await issue_service.mark_fixed(db, issue_id, payload.mr_url, current_user)
+    """Developer marks the issue as fixed (optionally linking the MR). Maps to -> in_review."""
+    await issue_service.mark_fixed(db, issue_id, payload.mr_url, current_user)
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
 @router.post("/{issue_id}/verify", response_model=IssueResponse, summary="Verify a fix")
@@ -637,10 +700,9 @@ async def verify_fix(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """QA verifies the developer's fix. Outcome: pass | fail | partial."""
-    issue = await issue_service.verify_fix(db, issue_id, payload.outcome, current_user)
+    await issue_service.verify_fix(db, issue_id, payload.outcome, current_user)
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
 @router.post("/{issue_id}/reopen", response_model=IssueResponse, summary="Reopen issue")
@@ -649,11 +711,10 @@ async def reopen_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Reopen a verified or closed issue, returning it to in_progress."""
-    issue = await issue_service.reopen(db, issue_id, current_user)
+    """Reopen a Done bug. Maps to the regression action; 409 done_is_final otherwise."""
+    await issue_service.reopen(db, issue_id, current_user)
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
 @router.post(
@@ -667,11 +728,42 @@ async def link_duplicate(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Mark this issue as a duplicate of another issue and close it."""
-    issue = await issue_service.link_duplicate(db, issue_id, payload.parent_id, current_user)
+    """Mark this issue as a duplicate of another issue and cancel it."""
+    await issue_service.link_duplicate(db, issue_id, payload.parent_id, current_user)
     await db.commit()
-    await db.refresh(issue)
-    return IssueResponse.model_validate(issue)
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.post("/{issue_id}/transition", response_model=IssueResponse, summary="Change status")
+async def transition_issue(
+    issue_id: int,
+    payload: TransitionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """Move the issue to a new status. Used by board drags and status menus.
+
+    409 with ``{detail, code, allowed}`` when Workflow refuses the move.
+    """
+    issue = await issue_service.get(db, issue_id)
+    await issue_service.transition(
+        db, issue, to=payload.to, actor=current_user,
+        reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
+    )
+    await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.post("/{issue_id}/regression", response_model=IssueResponse, summary="Flag a regression")
+async def flag_regression(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """Flag a regression on a Done or In review bug (BR-24). Requires an unshipped release."""
+    await issue_service.regress(db, issue_id, current_user)
+    await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
 
 
 @router.get(
@@ -726,6 +818,8 @@ async def list_regression_history(
             release_id=h.release_id,
             release_version=h.release.version if h.release else None,
             detected_by=UserSummary.model_validate(h.detected_by) if h.detected_by else None,
-            previous_fix_by=UserSummary.model_validate(h.previous_fix_by) if h.previous_fix_by else None,
+            previous_fix_by=(
+                UserSummary.model_validate(h.previous_fix_by) if h.previous_fix_by else None
+            ),
         ))
     return responses

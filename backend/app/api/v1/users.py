@@ -5,7 +5,7 @@ GET /users/{user_id}/activity      — monthly reported/fixed counts for current
 """
 
 from calendar import month_abbr
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import extract, func, select
@@ -20,7 +20,7 @@ from app.schemas.user import ActivityDataPoint, UserProfileResponse
 
 router = APIRouter()
 
-_FIXED_STATUSES = {IssueStatus.fixed, IssueStatus.verified}
+_FIXED_STATUSES = {IssueStatus.in_review, IssueStatus.done}
 
 
 async def _build_profile(user: User, db: AsyncSession) -> UserProfileResponse:
@@ -94,7 +94,7 @@ async def get_user_activity(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    year = datetime.now(tz=timezone.utc).year
+    year = datetime.now(tz=UTC).year
 
     reported_rows = (
         await db.execute(

@@ -1,5 +1,5 @@
-import React from 'react'
-import { ChevronDown, Check, RefreshCw, Shield, Undo2 } from 'lucide-react'
+import React, { useRef } from 'react'
+import { ChevronDown, Check, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { SeverityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
@@ -11,30 +11,16 @@ import { LabelChip } from '../common/LabelChip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
+import { SEVERITY, STATUS, CANCEL_REASON } from '../../lib/constants'
 
-const SEVERITY = {
-  blocker: { label: 'Blocker' },
-  critical: { label: 'Critical' },
-  major: { label: 'Major' },
-  minor: { label: 'Minor' },
-  enhancement: { label: 'Enhancement' },
-}
-
-const STATUS = {
-  new: { label: 'New' },
-  triaged: { label: 'Triaged' },
-  in_progress: { label: 'In Progress' },
-  fixed: { label: 'Fixed' },
-  verified: { label: 'Verified' },
-  closed: { label: 'Closed' },
-  regression: { label: 'Regression' },
-  blocked: { label: 'Blocked' },
-}
-
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, reopen, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
+  const allowedTransitions = issue.allowed_transitions || []
+  const blockedTransitions = issue.blocked_transitions || []
+  const blockedTo = (to) => blockedTransitions.find(b => b.to === to)
+  const cancelReasonRef = useRef(null)
 
   // Use current-cycle metrics so regression re-runs are measured from the
   // regression event, not the original filed_at.
@@ -56,17 +42,67 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const changeStatus = (newStatus) =>
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
 
+  const openCancelDialog = () => {
+    cancelReasonRef.current = null
+    onConfirm({
+      title: 'Cancel this bug?',
+      body: (
+        <>
+          Choose a reason. Cancelled bugs stay in reports as cancelled, not fixed.
+          <select
+            className="mt-2 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            defaultValue=""
+            onChange={(e) => { cancelReasonRef.current = e.target.value || null }}
+          >
+            <option value="" disabled>Select a reason…</option>
+            {Object.entries(CANCEL_REASON).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </>
+      ),
+      confirmLabel: 'Cancel bug',
+      tone: 'destructive',
+      onConfirm: () => {
+        if (!cancelReasonRef.current) return
+        applyUpdate({ status: 'cancelled', cancel_reason: cancelReasonRef.current }, 'Bug cancelled')
+      },
+    })
+  }
+
+  const requestStatus = (newStatus) => {
+    if (newStatus === 'cancelled') {
+      openCancelDialog()
+      return
+    }
+    changeStatus(newStatus)
+  }
+
   return (
     <aside className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
-        <Dropdown width={170} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
+        <Dropdown width={190} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
           {({ close }) => (
             <>
-              {Object.keys(STATUS).map(s => (
-                <DropdownItem key={s} onClick={() => { changeStatus(s); close() }}>
+              {allowedTransitions.map(s => (
+                <DropdownItem key={s} onClick={() => { requestStatus(s); close() }}>
                   <StatusBadge status={s} size="sm" />
                 </DropdownItem>
               ))}
+              {blockedTransitions.map(b => (
+                <DropdownItem key={b.to} disabled>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      <StatusBadge status={b.to} size="sm" />
+                      <span className="text-[10px] text-zinc-400">blocked</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-400">{b.detail}</span>
+                  </div>
+                </DropdownItem>
+              ))}
+              {allowedTransitions.length === 0 && blockedTransitions.length === 0 && (
+                <DropdownItem disabled>No status changes available</DropdownItem>
+              )}
             </>
           )}
         </Dropdown>
@@ -301,36 +337,59 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </div>
         <TimeMetric label="Time in triage" value={fmtH(ttTriage) ?? '0m'} tone="green" />
         <TimeMetric label="Time to fix" value={ttFix != null ? fmtH(ttFix) : 'in-flight'} tone={ttFix != null ? 'default' : 'amber'} />
-        <TimeMetric label="Time to verify" value={issue.status === 'verified' && ttVerify != null ? (fmtH(ttVerify) ?? '< 1m') : '—'} />
+        <TimeMetric label="Time to verify" value={issue.verified_at != null && ttVerify != null ? (fmtH(ttVerify) ?? '< 1m') : '—'} />
       </div>
 
+      {/* Actions render only what the API says is possible right now
+          (allowed_transitions / blocked_transitions) — never re-derived here. */}
       <div className="mt-5 pt-3 border-t border-border space-y-2">
-        {issue.status !== 'fixed' && issue.status !== 'verified' && (
-          <Button className="w-full" onClick={() => changeStatus('fixed')}>
+        {allowedTransitions.includes('in_progress') && issue.status === 'todo' && (
+          <Button className="w-full" onClick={() => changeStatus('in_progress')}>
+            <Play size={14} className="mr-1" /> Start work
+          </Button>
+        )}
+        {allowedTransitions.includes('in_review') && (
+          <Button className="w-full" onClick={() => changeStatus('in_review')}>
             <Check size={14} className="mr-1" /> Mark as Fixed
           </Button>
         )}
-        {issue.status === 'fixed' && (
-          <Button variant="success" className="w-full" onClick={() => changeStatus('verified')}>
-            <Shield size={14} className="mr-1" /> Verify fix
+        {issue.status === 'in_review' && (
+          allowedTransitions.includes('done') ? (
+            <Button variant="success" className="w-full" onClick={() => changeStatus('done')}>
+              <Shield size={14} className="mr-1" /> Verify fix
+            </Button>
+          ) : blockedTo('done') && (
+            <div className="space-y-1">
+              <Button variant="success" className="w-full" disabled>
+                <Shield size={14} className="mr-1" /> Verify fix
+              </Button>
+              <p className="text-[11px] text-zinc-400">{blockedTo('done').detail}</p>
+            </div>
+          )
+        )}
+        {issue.status === 'in_review' && allowedTransitions.includes('in_progress') && (
+          <Button variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
+            <Undo2 size={14} className="mr-1" /> Send back to In progress
           </Button>
         )}
-        {(issue.status === 'fixed' || issue.status === 'verified' || issue.status === 'closed') && (
+        {(issue.status === 'done' || issue.status === 'in_review') && (
           <Button variant="outline" className="w-full" onClick={() => {
             onConfirm({
               title: 'Mark as regression?',
               body: 'This will log a regression event and notify the reporter, assignee, and project triage lead.',
               confirmLabel: 'Mark as regression',
               tone: 'destructive',
-              onConfirm: () => changeStatus('regression'),
+              onConfirm: () => regress(),
             })
           }}>
             <RefreshCw size={14} className="mr-1" /> Mark as Regression
           </Button>
         )}
-        <Button variant="outline" className="w-full" onClick={() => changeStatus('new')}>
-          <Undo2 size={14} className="mr-1" /> Re-open
-        </Button>
+        {issue.status === 'done' && (
+          <Button variant="outline" className="w-full" onClick={() => reopen()}>
+            <Ban size={14} className="mr-1" /> Reopen
+          </Button>
+        )}
       </div>
     </aside>
   )

@@ -2,19 +2,26 @@
 
 All public methods are ``async`` and accept an ``AsyncSession`` as their first
 argument so they can be composed inside a single DB transaction when needed.
+
+``transition()`` is the only method that writes ``issue.status`` — every
+other status-changing method (``triage``, ``needs_clarification``,
+``mark_fixed``, ``verify_fix``, ``reopen``, ``regress``) ends by calling it.
+See docs/phase-2/02-unified-status-model.md and ``app/workflow.py``.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import DomainError
+from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import Issue, IssueSeverity, IssueStatus
 from app.db.models.issue_timeline import TimelineEventType
-from app.db.models.inbox_item import InboxEventType
 from app.db.models.user import User
-from app.schemas.issue import IssueCreate, IssueUpdate
+from app.schemas.issue import IssueCreate
+from app.workflow import Workflow
 
 
 class IssueService:
@@ -34,8 +41,8 @@ class IssueService:
         appends a ``filed`` timeline event.
         """
         from app.db.models.release import Release
-        from app.services.timeline_service import TimelineService
         from app.services.inbox_service import InboxFanOutService
+        from app.services.timeline_service import TimelineService
 
         release_result = await db.execute(
             select(Release).where(Release.id == data.release_id)
@@ -44,7 +51,7 @@ class IssueService:
         if release is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         reproduction_steps_json = [
             {
@@ -90,7 +97,7 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.filed,
             body=None,
-            meta={"severity": data.severity.value},
+            meta={"severity": data.severity.value if data.severity else None},
             is_internal=False,
         )
 
@@ -129,6 +136,211 @@ class IssueService:
 
         return issue
 
+    # ── Transition — the only code that writes issue.status ─────────────────────
+
+    async def transition(
+        self,
+        db: AsyncSession,
+        issue: Issue,
+        to: IssueStatus | str,
+        actor: User,
+        *,
+        reason: str | None = None,
+        comment: str | None = None,
+        cancel_reason: str | None = None,
+        _internal_context: dict | None = None,
+    ) -> Issue:
+        """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
+
+        Asks ``Workflow`` first. On success: sets the status-support columns
+        (``started_at``, ``completed_at``, ``cancelled_at``,
+        ``blocked_from_status``, ``review_requested_by_id``), keeps
+        ``IssueCycle`` bookkeeping (``fixed_at`` on entering ``in_review``,
+        ``verified_at`` on reaching ``done`` from ``in_review``), writes one
+        ``status_changed`` timeline event, and fans out ``status_changed``.
+        """
+        from app.db.models.release import Release
+        from app.services.inbox_service import InboxFanOutService
+        from app.services.timeline_service import TimelineService
+
+        from_status = IssueStatus(issue.status) if isinstance(issue.status, str) else issue.status
+        to_status = IssueStatus(to) if isinstance(to, str) else to
+
+        has_release = issue.release_id is not None
+        release_shipped = False
+        if has_release:
+            release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
+            release = release_result.scalar_one_or_none()
+            if release is not None:
+                release_shipped = release.is_shipped
+
+        context = {
+            "actor_id": actor.id,
+            "review_requested_by_id": issue.review_requested_by_id,
+            "blocked_from_status": issue.blocked_from_status,
+            "has_release": has_release,
+            "release_shipped": release_shipped,
+            "reason": reason,
+            "cancel_reason": cancel_reason,
+            **(_internal_context or {}),
+        }
+
+        check = Workflow.can_transition("bug", from_status.value, to_status.value, context)
+        if not check.ok:
+            raise DomainError(status.HTTP_409_CONFLICT, check.detail, check.code, check.allowed)
+
+        now = datetime.now(tz=UTC)
+
+        from app.db.models.issue_cycle import IssueCycle
+        active_cycle_result = await db.execute(
+            select(IssueCycle)
+            .where(IssueCycle.issue_id == issue.id)
+            .order_by(IssueCycle.cycle_number.desc())
+            .limit(1)
+        )
+        active_cycle = active_cycle_result.scalar_one_or_none()
+
+        issue.status = to_status
+
+        if to_status == IssueStatus.in_progress:
+            if issue.started_at is None:
+                issue.started_at = now
+            if from_status in (IssueStatus.done, IssueStatus.in_review):
+                issue.verified_at = None
+                issue.completed_at = None
+            if from_status == IssueStatus.in_review:
+                issue.review_requested_by_id = None
+
+        elif to_status == IssueStatus.in_review:
+            issue.review_requested_by_id = actor.id
+            issue.fixed_at = now
+            ref = issue.triaged_at or issue.filed_at
+            if ref:
+                issue.time_to_fix_h = round((now - ref).total_seconds() / 3600, 2)
+            if active_cycle and not active_cycle.fixed_at:
+                active_cycle.fixed_at = now
+                cycle_ref = active_cycle.triaged_at or active_cycle.cycle_start_at
+                active_cycle.time_to_fix_h = round((now - cycle_ref).total_seconds() / 3600, 2)
+                db.add(active_cycle)
+
+        elif to_status == IssueStatus.done:
+            issue.completed_at = now
+            if from_status == IssueStatus.in_review:
+                issue.verified_at = now
+                if issue.fixed_at:
+                    issue.time_to_verify_h = round((now - issue.fixed_at).total_seconds() / 3600, 2)
+                if active_cycle and not active_cycle.verified_at:
+                    active_cycle.verified_at = now
+                    if active_cycle.fixed_at:
+                        active_cycle.time_to_verify_h = round(
+                            (now - active_cycle.fixed_at).total_seconds() / 3600, 2
+                        )
+                    db.add(active_cycle)
+
+        elif to_status == IssueStatus.blocked:
+            issue.blocked_from_status = from_status.value
+
+        elif to_status == IssueStatus.cancelled:
+            issue.cancel_reason = cancel_reason
+            issue.cancelled_at = now
+
+        if from_status == IssueStatus.blocked and to_status != IssueStatus.blocked:
+            issue.blocked_from_status = None
+
+        db.add(issue)
+        await db.flush()
+
+        timeline_svc = TimelineService()
+        event = await timeline_svc.create_event(
+            db=db,
+            issue_id=issue.id,
+            actor_id=actor.id,
+            event_type=TimelineEventType.status_changed,
+            body=comment,
+            meta={
+                "from": from_status.value, "to": to_status.value,
+                "reason": cancel_reason or reason,
+            },
+            is_internal=False,
+        )
+
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=actor,
+            timeline_event=event,
+            meta={"from": from_status.value, "to": to_status.value},
+        )
+
+        return issue
+
+    # ── Regression action ─────────────────────────────────────────────────────
+
+    async def regress(
+        self,
+        db: AsyncSession,
+        issue_id: int,
+        current_user: User,
+    ) -> Issue:
+        """Flag a regression on a Done or In review bug (BR-24, AC-25/26).
+
+        Records a ``RegressionHistory`` row and transitions the bug back to
+        ``in_progress``. Requires a release that has not shipped.
+        """
+        from app.db.models.release import Release
+        from app.services.regression_service import regression_service
+
+        issue = await self._get_issue_or_404(db, issue_id)
+
+        release = None
+        if issue.release_id is not None:
+            release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
+            release = release_result.scalar_one_or_none()
+
+        # Ask Workflow, the single source of this rule — checked before
+        # record_regression() so a refused action never writes a
+        # RegressionHistory row (BR-25: no history for a bug with no release).
+        check = Workflow.can_transition("bug", issue.status, IssueStatus.in_progress, {
+            "actor_id": current_user.id,
+            "has_release": release is not None,
+            "release_shipped": release.is_shipped if release else False,
+            "via_regression": True,
+        })
+        if not check.ok:
+            raise DomainError(status.HTTP_409_CONFLICT, check.detail, check.code, check.allowed)
+
+        await regression_service.record_regression(db, issue, release, current_user)
+
+        return await self.transition(
+            db, issue, to=IssueStatus.in_progress, actor=current_user,
+            _internal_context={"via_regression": True},
+        )
+
+    # ── Reopen — maps to the regression action ────────────────────────────────
+
+    async def reopen(
+        self,
+        db: AsyncSession,
+        issue_id: int,
+        current_user: User,
+    ) -> Issue:
+        """Reopen a Done bug. Maps to the regression action; Done is otherwise final."""
+        issue = await self._get_issue_or_404(db, issue_id)
+        if getattr(issue.status, "value", issue.status) != IssueStatus.done.value:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "Only a Done bug can be reopened.",
+                "done_is_final",
+            )
+        try:
+            return await self.regress(db, issue_id, current_user)
+        except DomainError as exc:
+            if exc.code in ("no_release", "release_shipped"):
+                raise DomainError(
+                    status.HTTP_409_CONFLICT,
+                    "Only a Done bug in an unshipped release can be reopened.",
+                    "done_is_final",
+                ) from exc
+            raise
+
     # ── Triage ────────────────────────────────────────────────────────────────
 
     async def triage(
@@ -141,27 +353,28 @@ class IssueService:
         labels: list[str] | None = None,
         is_release_blocker: bool | None = None,
     ) -> Issue:
-        """Triage an issue: assign it and set severity.
+        """Triage an issue: assign it and confirm severity.
 
-        Transitions status ``new → triaged``.
+        Transitions status ``new -> todo`` (the Phase 1 triage endpoint maps
+        to the new "accept" outcome in this slice; full triage outcomes land
+        in slice 06).
         """
-        from app.services.timeline_service import TimelineService
         from app.services.inbox_service import InboxFanOutService
+        from app.services.timeline_service import TimelineService
 
         issue = await self._get_issue_or_404(db, issue_id)
-        if issue.status not in (IssueStatus.new,):
+        if getattr(issue.status, "value", issue.status) != IssueStatus.new.value:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot triage an issue in status '{issue.status}'",
             )
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         prev_severity = issue.severity
         prev_assignee = issue.assignee_id
 
         issue.assignee_id = assignee_id
         issue.severity = severity
-        issue.status = IssueStatus.triaged
         issue.triaged_at = now
         if labels is not None:
             issue.labels = labels
@@ -179,20 +392,17 @@ class IssueService:
             .limit(1)
         )
         active_cycle = active_cycle_result.scalar_one_or_none()
-        if active_cycle and active_cycle.assignee_id != assignee_id:
-            active_cycle.assignee_id = assignee_id
+        if active_cycle:
+            if active_cycle.assignee_id != assignee_id:
+                active_cycle.assignee_id = assignee_id
+            if not active_cycle.triaged_at:
+                active_cycle.triaged_at = now
+                active_cycle.time_to_triage_h = round(
+                    (now - active_cycle.cycle_start_at).total_seconds() / 3600, 2
+                )
             db.add(active_cycle)
 
         timeline_svc = TimelineService()
-        await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.status_changed,
-            body=None,
-            meta={"from": IssueStatus.new.value, "to": IssueStatus.triaged.value},
-            is_internal=False,
-        )
         if prev_severity != severity:
             await timeline_svc.create_event(
                 db=db,
@@ -200,7 +410,10 @@ class IssueService:
                 actor_id=current_user.id,
                 event_type=TimelineEventType.severity_changed,
                 body=None,
-                meta={"from": getattr(prev_severity, 'value', prev_severity), "to": getattr(severity, 'value', severity)},
+                meta={
+                    "from": getattr(prev_severity, 'value', prev_severity),
+                    "to": getattr(severity, 'value', severity),
+                },
                 is_internal=False,
             )
         await timeline_svc.create_event(
@@ -209,21 +422,24 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.assigned,
             body=None,
-            meta={"assignee_id": str(assignee_id), "prev_assignee_id": str(prev_assignee) if prev_assignee else None},
+            meta={
+                "assignee_id": str(assignee_id),
+                "prev_assignee_id": str(prev_assignee) if prev_assignee else None,
+            },
             is_internal=False,
         )
 
         db.add(issue)
         await db.flush()
 
-        # Fan-out: assignee gets notified
+        issue = await self.transition(
+            db, issue, to=IssueStatus.todo, actor=current_user,
+            _internal_context={"via_triage": True},
+        )
+
+        # Fan-out: assignee gets notified (transition() already fanned out status_changed).
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.assigned, issue=issue, actor=current_user,
-        )
-        # Fan-out: reporter + old assignee get status-changed notification
-        await InboxFanOutService().fan_out(
-            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
-            meta={"from": IssueStatus.new.value, "to": IssueStatus.triaged.value},
         )
 
         return issue
@@ -237,23 +453,23 @@ class IssueService:
         current_user: User,
         message: str | None = None,
     ) -> Issue:
-        """Block an issue pending reporter clarification.
+        """Move a new issue to Needs info pending reporter clarification.
 
-        Transitions status ``new → blocked``, reassigns to the reporter, and
-        posts a ``needs_clarification`` timeline event (with optional message).
+        Transitions status ``new -> needs_info``, reassigns to the reporter,
+        and posts a ``needs_clarification`` timeline event (with optional
+        message).
         """
-        from app.services.timeline_service import TimelineService
         from app.services.inbox_service import InboxFanOutService
+        from app.services.timeline_service import TimelineService
 
         issue = await self._get_issue_or_404(db, issue_id)
-        if issue.status != IssueStatus.new:
+        if getattr(issue.status, "value", issue.status) != IssueStatus.new.value:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot request clarification on an issue in status '{issue.status}'",
             )
 
         prev_assignee_id = issue.assignee_id
-        issue.status = IssueStatus.blocked
         issue.assignee_id = issue.reporter_id
         db.add(issue)
         await db.flush()
@@ -279,7 +495,10 @@ class IssueService:
             meta=meta,
         )
 
-        return issue
+        return await self.transition(
+            db, issue, to=IssueStatus.needs_info, actor=current_user,
+            _internal_context={"via_needs_info": True},
+        )
 
     # ── Fix ───────────────────────────────────────────────────────────────────
 
@@ -290,48 +509,11 @@ class IssueService:
         mr_url: str | None,
         current_user: User,
     ) -> Issue:
-        """Mark an issue as fixed (developer submits MR).
-
-        Transitions ``triaged | in_progress → fixed``.
-        """
-        from app.services.timeline_service import TimelineService
-        from app.services.inbox_service import InboxFanOutService
-
+        """Mark an issue as fixed (developer submits MR): ``todo | in_progress -> in_review``."""
         issue = await self._get_issue_or_404(db, issue_id)
-        if issue.status not in (IssueStatus.triaged, IssueStatus.in_progress, IssueStatus.regression):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot mark fixed from status '{issue.status}'",
-            )
-
-        now = datetime.now(tz=timezone.utc)
-        prev_status = issue.status
-        issue.status = IssueStatus.fixed
-        issue.fixed_at = now
-        if issue.triaged_at:
-            delta = now - issue.triaged_at
-            issue.time_to_fix_h = round(delta.total_seconds() / 3600, 2)
-
-        timeline_svc = TimelineService()
-        await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.fixed,
-            body=mr_url,
-            meta={"from": getattr(prev_status, 'value', prev_status), "to": IssueStatus.fixed.value, "mr_url": mr_url},
-            is_internal=False,
+        return await self.transition(
+            db, issue, to=IssueStatus.in_review, actor=current_user, comment=mr_url,
         )
-
-        db.add(issue)
-        await db.flush()
-
-        # Fan-out: reporter + triage leads notified of fix
-        await InboxFanOutService().fan_out(
-            db=db, trigger=InboxEventType.fixed, issue=issue, actor=current_user,
-        )
-
-        return issue
 
     # ── Verify ────────────────────────────────────────────────────────────────
 
@@ -344,112 +526,36 @@ class IssueService:
     ) -> Issue:
         """QA verifies a developer's fix.
 
-        - ``pass`` → transitions to ``verified``
-        - ``fail`` → transitions back to ``in_progress``
-        - ``partial`` → stays ``fixed`` with a timeline comment
+        - ``pass`` -> transitions to ``done`` (blocked with ``self_verification``
+          if the caller moved it to review themselves — AC-27)
+        - ``fail`` -> transitions back to ``in_progress``
+        - ``partial`` -> stays ``in_review``, just logs a comment
         """
-        from app.services.timeline_service import TimelineService
-        from app.services.inbox_service import InboxFanOutService
-
         issue = await self._get_issue_or_404(db, issue_id)
-        if issue.status != IssueStatus.fixed:
+        if getattr(issue.status, "value", issue.status) != IssueStatus.in_review.value:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Can only verify issues in 'fixed' status.",
+                detail="Can only verify issues in 'in_review' status.",
             )
 
-        now = datetime.now(tz=timezone.utc)
         if outcome == "pass":
-            issue.status = IssueStatus.verified
-            issue.verified_at = now
-            if issue.fixed_at:
-                delta = now - issue.fixed_at
-                issue.time_to_verify_h = round(delta.total_seconds() / 3600, 2)
-            event_type = TimelineEventType.verified
-        elif outcome == "fail":
-            issue.status = IssueStatus.in_progress
-            event_type = TimelineEventType.status_changed
-        else:  # partial
-            event_type = TimelineEventType.status_changed
+            return await self.transition(db, issue, to=IssueStatus.done, actor=current_user)
+        if outcome == "fail":
+            return await self.transition(db, issue, to=IssueStatus.in_progress, actor=current_user)
+
+        # partial — no status change, just a note on the timeline.
+        from app.services.timeline_service import TimelineService
 
         timeline_svc = TimelineService()
         await timeline_svc.create_event(
             db=db,
             issue_id=issue.id,
             actor_id=current_user.id,
-            event_type=event_type,
+            event_type=TimelineEventType.status_changed,
             body=None,
-            meta={"outcome": outcome, "to": getattr(issue.status, 'value', issue.status)},
+            meta={"outcome": outcome},
             is_internal=False,
         )
-
-        db.add(issue)
-        await db.flush()
-
-        if outcome == "pass":
-            await InboxFanOutService().fan_out(
-                db=db, trigger=InboxEventType.verified, issue=issue, actor=current_user,
-            )
-        else:
-            # fail/partial — notify assignee + reporter of status change
-            await InboxFanOutService().fan_out(
-                db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
-                meta={
-                    "from": IssueStatus.fixed.value,
-                    "to": getattr(issue.status, "value", str(issue.status)),
-                },
-            )
-
-        return issue
-
-    # ── Reopen ────────────────────────────────────────────────────────────────
-
-    async def reopen(
-        self,
-        db: AsyncSession,
-        issue_id: int,
-        current_user: User,
-    ) -> Issue:
-        """Reopen a closed or verified issue.
-
-        Transitions ``verified | closed → in_progress``.
-        """
-        from app.services.timeline_service import TimelineService
-        from app.services.inbox_service import InboxFanOutService
-
-        issue = await self._get_issue_or_404(db, issue_id)
-        if issue.status not in (IssueStatus.verified, IssueStatus.closed):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot reopen issue in status '{issue.status}'.",
-            )
-
-        prev_status = issue.status
-        issue.status = IssueStatus.in_progress
-        issue.verified_at = None
-
-        timeline_svc = TimelineService()
-        await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.reopened,
-            body=None,
-            meta={"from": getattr(prev_status, 'value', prev_status), "to": IssueStatus.in_progress.value},
-            is_internal=False,
-        )
-
-        db.add(issue)
-        await db.flush()
-
-        await InboxFanOutService().fan_out(
-            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=current_user,
-            meta={
-                "from": getattr(prev_status, "value", str(prev_status)),
-                "to": IssueStatus.in_progress.value,
-            },
-        )
-
         return issue
 
     # ── Duplicate linking ─────────────────────────────────────────────────────
@@ -463,7 +569,10 @@ class IssueService:
     ) -> Issue:
         """Mark ``issue_id`` as a duplicate of ``parent_id``.
 
-        Sets ``parent_issue_id`` and transitions to ``closed``.
+        Sets ``parent_issue_id`` and cancels the issue with reason
+        ``duplicate``. Bypasses Workflow deliberately: full duplicate-merge
+        semantics (BR-49/50) land in slice 06; this keeps the Phase 1 action
+        working from any status in the meantime.
         """
         from app.services.timeline_service import TimelineService
 
@@ -477,8 +586,9 @@ class IssueService:
             )
 
         issue.parent_issue_id = parent_id
-        issue.status = IssueStatus.closed
-        issue.closed_at = datetime.now(tz=timezone.utc)
+        issue.status = IssueStatus.cancelled
+        issue.cancel_reason = "duplicate"
+        issue.cancelled_at = datetime.now(tz=UTC)
 
         timeline_svc = TimelineService()
         await timeline_svc.create_event(
@@ -506,6 +616,9 @@ class IssueService:
     ) -> Issue:
         """Apply a partial update to an issue, emitting a timeline event per changed field.
 
+        A ``status`` field routes through ``transition()`` — see D8
+        (docs/phase-2/00-README.md).
+
         Parameters
         ----------
         db:
@@ -523,8 +636,8 @@ class IssueService:
             Updated issue row (flushed, not committed).
         """
         from app.db.models.release import Release
-        from app.services.timeline_service import TimelineService
         from app.services.inbox_service import InboxFanOutService
+        from app.services.timeline_service import TimelineService
 
         # Lock the row to prevent concurrent diff races
         result = await db.execute(
@@ -562,7 +675,9 @@ class IssueService:
                     TimelineEventType.severity_changed,
                     {"from": old_sev, "to": new_sev_val},
                 ))
-                inbox_triggers.append((InboxEventType.severity_changed, {"from": old_sev, "to": new_sev_val}))
+                inbox_triggers.append((
+                    InboxEventType.severity_changed, {"from": old_sev, "to": new_sev_val},
+                ))
                 issue.severity = new_sev
 
         # ── Environment name ──────────────────────────────────────────────────
@@ -573,11 +688,16 @@ class IssueService:
                 TimelineEventType.environment_changed,
                 {"from": _old_env, "to": _new_env},
             ))
-            inbox_triggers.append((InboxEventType.environment_changed, {"from": _old_env, "to": _new_env}))
+            inbox_triggers.append((
+                InboxEventType.environment_changed, {"from": _old_env, "to": _new_env},
+            ))
             issue.environment_name = _new_env
 
         # ── Release blocker ───────────────────────────────────────────────────
-        if "is_release_blocker" in payload and payload["is_release_blocker"] != issue.is_release_blocker:
+        if (
+            "is_release_blocker" in payload
+            and payload["is_release_blocker"] != issue.is_release_blocker
+        ):
             if payload["is_release_blocker"]:
                 events_to_emit.append((TimelineEventType.blocker_flagged, {}))
                 inbox_triggers.append((InboxEventType.blocker_filed, None))
@@ -622,7 +742,10 @@ class IssueService:
             issue.labels = list(new_labels)
 
         # ── Reproduction steps ────────────────────────────────────────────────
-        if "reproduction_steps" in payload and payload["reproduction_steps"] != issue.reproduction_steps:
+        if (
+            "reproduction_steps" in payload
+            and payload["reproduction_steps"] != issue.reproduction_steps
+        ):
             events_to_emit.append((TimelineEventType.steps_changed, {}))
             issue.reproduction_steps = payload["reproduction_steps"]
 
@@ -634,7 +757,9 @@ class IssueService:
                 from_version = None
                 to_version = None
                 if issue.release_id:
-                    from_rel = await db.execute(select(Release).where(Release.id == issue.release_id))
+                    from_rel = await db.execute(
+                        select(Release).where(Release.id == issue.release_id)
+                    )
                     from_rel_obj = from_rel.scalar_one_or_none()
                     if from_rel_obj:
                         from_version = from_rel_obj.version
@@ -661,7 +786,9 @@ class IssueService:
                 from_name = None
                 to_name = None
                 if issue.project_id:
-                    from_proj = await db.execute(select(Project).where(Project.id == issue.project_id))
+                    from_proj = await db.execute(
+                        select(Project).where(Project.id == issue.project_id)
+                    )
                     from_proj_obj = from_proj.scalar_one_or_none()
                     if from_proj_obj:
                         from_name = from_proj_obj.name
@@ -679,81 +806,6 @@ class IssueService:
                     {"from": from_name or "—", "to": to_name or "—"},
                 ))
                 issue.project_id = new_project_id
-
-        # ── Status (direct patch, e.g. closing) ───────────────────────────────
-        if "status" in payload:
-            new_status = payload["status"]
-            old_status_val = getattr(issue.status, 'value', issue.status)
-            new_status_val = getattr(new_status, 'value', new_status)
-            if old_status_val != new_status_val:
-                events_to_emit.append((
-                    TimelineEventType.status_changed,
-                    {"from": old_status_val, "to": new_status_val},
-                ))
-                if new_status_val != IssueStatus.regression.value:
-                    inbox_triggers.append((InboxEventType.status_changed, {"from": old_status_val, "to": new_status_val}))
-                issue.status = new_status
-
-                now = datetime.now(tz=timezone.utc)
-                if new_status_val == IssueStatus.triaged.value and not issue.triaged_at:
-                    issue.triaged_at = now
-                    if issue.filed_at:
-                        issue.time_to_triage_h = round((now - issue.filed_at).total_seconds() / 3600, 2)
-                elif new_status_val == IssueStatus.fixed.value and not issue.fixed_at:
-                    issue.fixed_at = now
-                    ref = issue.triaged_at or issue.filed_at
-                    if ref:
-                        issue.time_to_fix_h = round((now - ref).total_seconds() / 3600, 2)
-                elif new_status_val == IssueStatus.verified.value and not issue.verified_at:
-                    issue.verified_at = now
-                    if issue.fixed_at:
-                        issue.time_to_verify_h = round((now - issue.fixed_at).total_seconds() / 3600, 2)
-
-                # ── Update active cycle timestamps ─────────────────────────
-                from app.db.models.issue_cycle import IssueCycle
-                active_cycle_result = await db.execute(
-                    select(IssueCycle)
-                    .where(IssueCycle.issue_id == issue_id)
-                    .order_by(IssueCycle.cycle_number.desc())
-                    .limit(1)
-                )
-                active_cycle = active_cycle_result.scalar_one_or_none()
-                if active_cycle:
-                    if new_status_val == IssueStatus.triaged.value and not active_cycle.triaged_at:
-                        active_cycle.triaged_at = now
-                        active_cycle.time_to_triage_h = round(
-                            (now - active_cycle.cycle_start_at).total_seconds() / 3600, 2
-                        )
-                        db.add(active_cycle)
-                    elif new_status_val == IssueStatus.fixed.value and not active_cycle.fixed_at:
-                        active_cycle.fixed_at = now
-                        ref = active_cycle.triaged_at or active_cycle.cycle_start_at
-                        active_cycle.time_to_fix_h = round(
-                            (now - ref).total_seconds() / 3600, 2
-                        )
-                        # Retroactively fill time_to_verify_h if verified was
-                        # stamped out-of-order (e.g. status jumped to verified
-                        # before fixed in the same cycle).
-                        if active_cycle.verified_at and active_cycle.time_to_verify_h is None:
-                            delta = abs((active_cycle.verified_at - now).total_seconds())
-                            active_cycle.time_to_verify_h = round(delta / 3600, 2)
-                        db.add(active_cycle)
-                    elif new_status_val == IssueStatus.verified.value and not active_cycle.verified_at:
-                        active_cycle.verified_at = now
-                        if active_cycle.fixed_at:
-                            active_cycle.time_to_verify_h = round(
-                                (now - active_cycle.fixed_at).total_seconds() / 3600, 2
-                            )
-                        db.add(active_cycle)
-
-                if new_status_val == IssueStatus.regression.value:
-                    from app.db.models.release import Release
-                    from app.services.regression_service import regression_service
-                    release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
-                    release = release_result.scalar_one_or_none()
-                    if release:
-                        await regression_service.record_regression(db, issue, release, actor)
-                    inbox_triggers.append((InboxEventType.regression, None))
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
@@ -782,7 +834,24 @@ class IssueService:
                 db=db, trigger=trigger, issue=issue, actor=actor, meta=trigger_meta,
             )
 
+        # ── Status (routes through transition(), D8) ───────────────────────────
+        if "status" in payload:
+            new_status = payload["status"]
+            old_status_val = getattr(issue.status, 'value', issue.status)
+            new_status_val = getattr(new_status, 'value', new_status)
+            if old_status_val != new_status_val:
+                issue = await self.transition(
+                    db, issue, to=new_status, actor=actor,
+                    cancel_reason=payload.get("cancel_reason"),
+                )
+
         return issue
+
+    # ── Lookup ────────────────────────────────────────────────────────────────
+
+    async def get(self, db: AsyncSession, issue_id: int) -> Issue:
+        """Fetch an issue by ID or raise 404. Public — safe for callers outside the service."""
+        return await self._get_issue_or_404(db, issue_id)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

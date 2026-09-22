@@ -14,7 +14,8 @@ async def test_link_duplicate_closes_child_and_sets_parent(factories):
     resp = await admin.post(f"/issues/{child.id}/duplicate", json={"parent_id": parent.id})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "closed"
+    assert body["status"] == "cancelled"
+    assert body["cancel_reason"] == "duplicate"
     assert body["parent_issue_id"] == parent.id
 
     # The parent itself is untouched.

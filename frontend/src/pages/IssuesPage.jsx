@@ -12,6 +12,7 @@ import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
 import { SEVERITY, STATUS, OPEN_STATUSES } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
+import { useToast } from '../hooks/useToast'
 
 const VIEW_OPTIONS = [
   { value: 'list', label: 'List' },
@@ -39,6 +40,7 @@ const statusLabel = (value) =>
 
 export default function IssuesPage({ filterAssigned = false }) {
   const { query, releases, activeProjectId, user, setOnIssueCreated } = useApp()
+  const { toast } = useToast()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const viewMode = searchParams.get('view') || 'list'
@@ -151,12 +153,13 @@ export default function IssuesPage({ filterAssigned = false }) {
 
   const handleStatusChange = useCallback(async (issue, newStatus) => {
     try {
-      await issuesApi.update(issue.id, { status: newStatus })
+      await issuesApi.transition(issue.id, { to: newStatus })
       await fetchIssues()
     } catch (err) {
       console.error('Failed to update issue status:', err)
+      toast({ title: err.response?.data?.detail || 'Could not move that issue' })
     }
-  }, [fetchIssues])
+  }, [fetchIssues, toast])
 
   const handleExport = async () => {
     setExporting(true)

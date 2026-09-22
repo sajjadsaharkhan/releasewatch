@@ -81,15 +81,15 @@ async def seed(session: AsyncSession) -> None:
     active_rel = releases[0]
     issues_data = [
         dict(severity=IssueSeverity.blocker,     status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",            reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True),
-        dict(severity=IssueSeverity.critical,    status=IssueStatus.triaged,     title="Push notifications not delivered on iOS 17",  reporter_id=qa1.id,      assignee_id=dev2.id),
-        dict(severity=IssueSeverity.major,       status=IssueStatus.new,         title="Profile image upload fails >5MB",             reporter_id=qa1.id,      assignee_id=None),
-        dict(severity=IssueSeverity.major,       status=IssueStatus.fixed,       title="Pagination breaks on search results",         reporter_id=users[4].id, assignee_id=dev1.id),
-        dict(severity=IssueSeverity.minor,       status=IssueStatus.verified,    title="Date picker shows wrong timezone",            reporter_id=users[4].id, assignee_id=dev2.id),
-        dict(severity=IssueSeverity.blocker,     status=IssueStatus.regression,  title="Auth token refresh causes 401 loop",          reporter_id=qa1.id,      assignee_id=dev1.id, is_regression=True),
-        dict(severity=IssueSeverity.enhancement, status=IssueStatus.new,         title="Add swipe-to-dismiss on notification cards",  reporter_id=qa1.id,      assignee_id=None),
+        dict(severity=IssueSeverity.critical,    status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17",  reporter_id=qa1.id,      assignee_id=dev2.id),
+        dict(severity=None,                      status=IssueStatus.new,         title="Profile image upload fails >5MB",             reporter_id=qa1.id,      assignee_id=None),
+        dict(severity=IssueSeverity.major,       status=IssueStatus.in_review,   title="Pagination breaks on search results",         reporter_id=users[4].id, assignee_id=dev1.id),
+        dict(severity=IssueSeverity.minor,       status=IssueStatus.done,        title="Date picker shows wrong timezone",            reporter_id=users[4].id, assignee_id=dev2.id),
+        dict(severity=IssueSeverity.blocker,     status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",          reporter_id=qa1.id,      assignee_id=dev1.id, is_regression=True, regression_count=1),
+        dict(severity=None,                      status=IssueStatus.new,         title="Add swipe-to-dismiss on notification cards",  reporter_id=qa1.id,      assignee_id=None),
         dict(severity=IssueSeverity.critical,    status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login",    reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True),
-        dict(severity=IssueSeverity.major,       status=IssueStatus.triaged,     title="Dark mode flicker on app launch",             reporter_id=qa1.id,      assignee_id=dev1.id),
-        dict(severity=IssueSeverity.minor,       status=IssueStatus.closed,      title="Typo in onboarding screen copy",              reporter_id=users[4].id, assignee_id=dev2.id),
+        dict(severity=IssueSeverity.major,       status=IssueStatus.todo,        title="Dark mode flicker on app launch",             reporter_id=qa1.id,      assignee_id=dev1.id),
+        dict(severity=IssueSeverity.minor,       status=IssueStatus.done,        title="Typo in onboarding screen copy",              reporter_id=users[4].id, assignee_id=dev2.id),
     ]
     issues = []
     for i, data in enumerate(issues_data, start=1):

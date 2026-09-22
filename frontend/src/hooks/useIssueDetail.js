@@ -210,17 +210,59 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       }))
       onUpdate?.(updatedIssue)
       if (successMsg) toast({ title: successMsg })
-    } catch {
-      toast({ title: 'Failed to update issue' })
+    } catch (err) {
+      toast({ title: err.response?.data?.detail || 'Failed to update issue' })
       return
     }
     await fetchTimeline(id)
-    if (patch.status === 'regression') {
-      await fetchRegressions(id)
-    }
-    if (['regression', 'triaged', 'fixed', 'verified'].includes(patch.status)) {
+    if (patch.status) {
       await fetchCycles(id)
     }
+  }
+
+  // Flags a regression on a Done or In review bug (BR-24) — a dedicated
+  // action endpoint, not a generic status PATCH (it also records regression
+  // history). 409s (no_release / release_shipped) surface via toast.
+  const regress = async () => {
+    const id = issueIdRef.current
+    try {
+      const res = await issuesApi.regress(id)
+      const updatedIssue = res.data
+      setLocalIssue(prev => ({
+        ...updatedIssue,
+        attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
+      }))
+      onUpdate?.(updatedIssue)
+      toast({ title: 'Regression recorded' })
+    } catch (err) {
+      toast({ title: err.response?.data?.detail || 'Could not record a regression' })
+      return
+    }
+    await fetchTimeline(id)
+    await fetchRegressions(id)
+    await fetchCycles(id)
+  }
+
+  // Reopens a Done bug — maps to the regression action server-side; 409
+  // (done_is_final) when the bug isn't Done or its release has shipped.
+  const reopen = async () => {
+    const id = issueIdRef.current
+    try {
+      const res = await issuesApi.reopen(id)
+      const updatedIssue = res.data
+      setLocalIssue(prev => ({
+        ...updatedIssue,
+        attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
+      }))
+      onUpdate?.(updatedIssue)
+      toast({ title: 'Issue reopened' })
+    } catch (err) {
+      toast({ title: err.response?.data?.detail || 'Could not reopen this issue' })
+      return
+    }
+    await fetchTimeline(id)
+    await fetchRegressions(id)
+    await fetchCycles(id)
   }
 
   const addComment = async (body, isInternal, mentionedUserIds) => {
@@ -378,6 +420,8 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     cycles,
     currentCycle,
     applyUpdate,
+    regress,
+    reopen,
     addComment,
     updateComment,
     deleteComment,

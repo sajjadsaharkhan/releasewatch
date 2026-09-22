@@ -52,7 +52,7 @@ ISSUES_DATA = [
             "و کاربر از سیستم خارج نمی‌شود اما هیچ درخواستی هم موفق نمی‌شود. "
             "این مشکل باعث می‌شود که کاربر در یک حالت بلاتکلیف گیر کند."
         ),
-        severity=IssueSeverity.blocker, status=IssueStatus.regression, is_regression=True, is_release_blocker=True,
+        severity=IssueSeverity.blocker, status=IssueStatus.in_progress, is_regression=True, is_release_blocker=True,
         labels=["احراز هویت", "توکن", "regression"],
         environment_name="staging", environment_os="iOS 17", environment_browser=None,
         reproduction_steps=[
@@ -65,7 +65,7 @@ ISSUES_DATA = [
             ("ana", "بله، commit 8f3d2a1 - تغییر در refreshTokenInterceptor. Revert می‌کنم."),
             ("priya", "بعد از revert آنا، تست کردم و مشکل حل شده. منتظر merge هستیم."),
         ],
-        status_changes=[("new", "regression", "ana")],
+        status_changes=[("new", "in_progress", "ana")],
     ),
     # Critical
     dict(
@@ -74,7 +74,7 @@ ISSUES_DATA = [
             "پس از آپدیت به iOS 17، اعلان‌های push برای بیش از ۶۰٪ از کاربران iOS دریافت نمی‌شوند. "
             "بررسی‌های اولیه نشان می‌دهد مشکل از ثبت device token در سرور است."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.triaged,
+        severity=IssueSeverity.critical, status=IssueStatus.todo,
         labels=["iOS", "push notification", "حیاتی"],
         environment_name="production", environment_os="iOS 17",
         reproduction_steps=[
@@ -86,7 +86,7 @@ ISSUES_DATA = [
             ("marcus", "این مشکل روی ۶۰٪ درآمد اعلان‌محور ما تأثیر می‌ذاره. اولویت باید بالاتر بره."),
             ("ana", "داریم روی راه‌حل کار می‌کنیم. تا آخر هفته patch آماده می‌شه."),
         ],
-        status_changes=[("new", "triaged", "priya")],
+        status_changes=[("new", "todo", "priya")],
     ),
     # Critical
     dict(
@@ -137,7 +137,7 @@ ISSUES_DATA = [
             "وقتی کاربر به صفحه دوم یا بعدی نتایج جستجو می‌رود، نتایج تکراری نمایش داده می‌شوند "
             "یا برخی نتایج حذف می‌شوند. مشکل از کش نادرست cursor در API است."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.fixed,
+        severity=IssueSeverity.major, status=IssueStatus.in_review,
         labels=["جستجو", "صفحه‌بندی"],
         environment_name="staging",
         reproduction_steps=[
@@ -149,7 +149,7 @@ ISSUES_DATA = [
             ("priya", "فیکس رو تست کردم. کار می‌کنه. آماده merge هستیم."),
             ("sajjad", "merged و deploy شد."),
         ],
-        status_changes=[("new", "in_progress", "tom"), ("in_progress", "fixed", "tom")],
+        status_changes=[("new", "in_progress", "tom"), ("in_progress", "in_review", "tom")],
     ),
     # Major
     dict(
@@ -158,7 +158,7 @@ ISSUES_DATA = [
             "هنگام باز کردن اپ در حالت تاریک، یک flash سفید کوتاه قبل از نمایش UI دیده می‌شود. "
             "این مشکل از تأخیر در خواندن تنظیمات تم از storage ناشی می‌شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.triaged,
+        severity=IssueSeverity.major, status=IssueStatus.todo,
         labels=["حالت تاریک", "UI", "performance"],
         environment_name="production", environment_os="iOS 16",
         reproduction_steps=[
@@ -168,7 +168,7 @@ ISSUES_DATA = [
             ("tom", "مشکل از جایی هست که تم رو بعد از render اول اعمال می‌کنیم. باید قبل از mount اول اعمال بشه."),
             ("priya", "این مشکل خیلی از کاربران رو آزار می‌ده. تأیید می‌کنم."),
         ],
-        status_changes=[("new", "triaged", "sajjad")],
+        status_changes=[("new", "todo", "sajjad")],
     ),
     # Major
     dict(
@@ -217,7 +217,7 @@ ISSUES_DATA = [
             "تاریخ‌ها همیشه به وقت UTC نمایش داده می‌شوند و منطقه زمانی کاربر در نظر گرفته نمی‌شود. "
             "باید از تنظیمات منطقه زمانی کاربر استفاده شود."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.verified,
+        severity=IssueSeverity.minor, status=IssueStatus.done,
         labels=["تاریخ", "منطقه زمانی", "UI"],
         environment_name="production",
         comments=[
@@ -225,20 +225,20 @@ ISSUES_DATA = [
             ("tom", "فیکس کردم. از Intl.DateTimeFormat با timezone کاربر استفاده می‌کنیم."),
             ("priya", "تست کردم و درسته. verified."),
         ],
-        status_changes=[("new", "fixed", "tom"), ("fixed", "verified", "priya")],
+        status_changes=[("new", "in_review", "tom"), ("in_review", "done", "priya")],
     ),
     # Minor
     dict(
         title="غلط تایپی در متن صفحه ورود",
         description="در صفحه ورود به سیستم، متن «فراموش کردی رمز عبورت رو؟» دارای غلط تایپی است و باید «رمز عبور خود را فراموش کرده‌اید؟» باشد.",
-        severity=IssueSeverity.minor, status=IssueStatus.closed,
+        severity=IssueSeverity.minor, status=IssueStatus.done,
         labels=["UI", "متن"],
         environment_name="production",
         comments=[
             ("priya", "متن رو اصلاح کردم."),
             ("sajjad", "merge شد."),
         ],
-        status_changes=[("new", "fixed", "priya"), ("fixed", "closed", "sajjad")],
+        status_changes=[("new", "in_review", "priya"), ("in_review", "done", "sajjad")],
     ),
     # Enhancement
     dict(
@@ -247,7 +247,7 @@ ISSUES_DATA = [
             "کاربران درخواست کرده‌اند که بتوانند اعلان‌ها را با کشیدن به کنار (swipe) ببندند. "
             "این قابلیت در اکثر اپ‌های مشابه وجود دارد و تجربه کاربری را بهبود می‌دهد."
         ),
-        severity=IssueSeverity.enhancement, status=IssueStatus.new,
+        severity=IssueSeverity.minor, status=IssueStatus.new,
         labels=["UX", "اعلان", "gesture"],
         environment_name="production",
         comments=[
@@ -263,7 +263,7 @@ ISSUES_DATA = [
             "کاربران می‌خواهند با حساب Google یا Apple وارد سیستم شوند. "
             "پیاده‌سازی OAuth 2.0 با این ارائه‌دهندگان لازم است."
         ),
-        severity=IssueSeverity.enhancement, status=IssueStatus.triaged,
+        severity=IssueSeverity.minor, status=IssueStatus.todo,
         labels=["احراز هویت", "OAuth", "SSO"],
         environment_name="production",
         comments=[
@@ -271,7 +271,7 @@ ISSUES_DATA = [
             ("ana", "پیاده‌سازی Google OAuth حدود ۳ روز طول می‌کشه. Apple Sign-in یه هفته."),
             ("marcus", "اول با Google شروع کنیم، بعد Apple."),
         ],
-        status_changes=[("new", "triaged", "sajjad")],
+        status_changes=[("new", "todo", "sajjad")],
     ),
     # Critical
     dict(
@@ -350,7 +350,7 @@ ISSUES_DATA = [
             "ایمیل‌های اعلان سیستم به پوشه spam کاربران می‌روند. "
             "بررسی نشان می‌دهد که SPF، DKIM و DMARC به درستی تنظیم نشده‌اند."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.triaged,
+        severity=IssueSeverity.major, status=IssueStatus.todo,
         labels=["ایمیل", "spam", "deliverability"],
         environment_name="production",
         comments=[
@@ -358,7 +358,7 @@ ISSUES_DATA = [
             ("sajjad", "با تیم DevOps هماهنگ کردم. دارن DNS records رو اصلاح می‌کنن."),
             ("marcus", "تا وقتی این حل نشه، rate engagement ایمیل‌های ما خیلی پایینه."),
         ],
-        status_changes=[("new", "triaged", "sajjad")],
+        status_changes=[("new", "todo", "sajjad")],
     ),
     # Enhancement
     dict(
@@ -367,7 +367,7 @@ ISSUES_DATA = [
             "هنگام آپلود فایل‌های بزرگ، کاربران هیچ نشانه‌ای از پیشرفت عملیات ندارند. "
             "یک نوار پیشرفت (progress bar) باید اضافه شود."
         ),
-        severity=IssueSeverity.enhancement, status=IssueStatus.new,
+        severity=IssueSeverity.minor, status=IssueStatus.new,
         labels=["UX", "آپلود", "UI"],
         environment_name="production",
         comments=[
@@ -405,7 +405,7 @@ ISSUES_DATA = [
             "یکپارچه‌سازی با درگاه پرداخت زرین‌پال در محیط staging با خطای «invalid_merchant» fail می‌شود. "
             "کلید API محیط staging باید جداگانه تنظیم شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.fixed,
+        severity=IssueSeverity.major, status=IssueStatus.in_review,
         labels=["پرداخت", "زرین‌پال", "staging"],
         environment_name="staging",
         comments=[
@@ -414,20 +414,20 @@ ISSUES_DATA = [
             ("ana", "کلید جدید رو در environment variables تنظیم کردم. مشکل حل شد."),
             ("priya", "تأیید می‌کنم. پرداخت تست در staging کار می‌کنه."),
         ],
-        status_changes=[("new", "in_progress", "ana"), ("in_progress", "fixed", "ana")],
+        status_changes=[("new", "in_progress", "ana"), ("in_progress", "in_review", "ana")],
     ),
     # Minor
     dict(
         title="مرتب‌سازی ستون‌های جدول در موبایل کار نمی‌کند",
         description="در نمای موبایل، کلیک روی سرستون‌های جدول برای مرتب‌سازی هیچ اثری ندارد.",
-        severity=IssueSeverity.minor, status=IssueStatus.triaged,
+        severity=IssueSeverity.minor, status=IssueStatus.todo,
         labels=["موبایل", "UI", "جدول"],
         environment_name="production", environment_browser="Chrome Mobile",
         comments=[
             ("tom", "touch event handler رو چک کردم. event روی mobile bind نشده."),
             ("priya", "تأیید می‌کنم روی Android و iOS."),
         ],
-        status_changes=[("new", "triaged", "priya")],
+        status_changes=[("new", "todo", "priya")],
     ),
     # Enhancement
     dict(
@@ -436,7 +436,7 @@ ISSUES_DATA = [
             "وقتی کاربر اینترنت ندارد، اپ یک صفحه خطا نشان می‌دهد. "
             "با Service Worker و IndexedDB می‌توان داده‌های آخر را نمایش داد."
         ),
-        severity=IssueSeverity.enhancement, status=IssueStatus.new,
+        severity=IssueSeverity.minor, status=IssueStatus.new,
         labels=["آفلاین", "PWA", "UX"],
         environment_name="production",
         comments=[
@@ -469,7 +469,7 @@ ISSUES_DATA = [
             "بررسی security نشان می‌دهد که response headers شامل اطلاعات حساس مانند نسخه server، "
             "framework و stack trace در محیط production هستند. این اطلاعات باید حذف شوند."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.fixed, is_release_blocker=True,
+        severity=IssueSeverity.critical, status=IssueStatus.in_review, is_release_blocker=True,
         labels=["امنیت", "headers", "information disclosure"],
         environment_name="production",
         comments=[
@@ -479,20 +479,20 @@ ISSUES_DATA = [
             ("priya", "تأیید می‌کنم. headers حساس دیگه در response نیستن."),
             ("sajjad", "عالی. merge شد."),
         ],
-        status_changes=[("new", "in_progress", "ana"), ("in_progress", "fixed", "ana")],
+        status_changes=[("new", "in_progress", "ana"), ("in_progress", "in_review", "ana")],
     ),
     # Minor
     dict(
         title="loading spinner در حین ذخیره تنظیمات نمایش داده نمی‌شود",
         description="وقتی کاربر تنظیمات را ذخیره می‌کند، هیچ نشانه‌ای از پردازش وجود ندارد و دکمه فعال می‌ماند.",
-        severity=IssueSeverity.minor, status=IssueStatus.fixed,
+        severity=IssueSeverity.minor, status=IssueStatus.in_review,
         labels=["UI", "UX", "loading"],
         environment_name="production",
         comments=[
             ("tom", "یک loading state به دکمه ذخیره اضافه کردم."),
             ("priya", "تأیید شد. merge شد."),
         ],
-        status_changes=[("new", "fixed", "tom")],
+        status_changes=[("new", "in_review", "tom")],
     ),
     # Enhancement
     dict(
@@ -501,7 +501,7 @@ ISSUES_DATA = [
             "کاربران می‌خواهند گزارش‌ها را به فرمت PDF خروجی بگیرند. "
             "می‌توان از کتابخانه WeasyPrint یا Puppeteer استفاده کرد."
         ),
-        severity=IssueSeverity.enhancement, status=IssueStatus.triaged,
+        severity=IssueSeverity.minor, status=IssueStatus.todo,
         labels=["export", "PDF", "گزارش"],
         environment_name="production",
         comments=[
@@ -509,7 +509,7 @@ ISSUES_DATA = [
             ("marcus", "این قابلیت برای مشتریان enterprise خیلی مهمه."),
             ("sajjad", "در roadmap Q2 قرار می‌دیم."),
         ],
-        status_changes=[("new", "triaged", "sajjad")],
+        status_changes=[("new", "todo", "sajjad")],
     ),
     # Major
     dict(
@@ -551,14 +551,14 @@ ISSUES_DATA = [
     dict(
         title="فونت اعداد فارسی در گزارش‌ها نادرست است",
         description="اعداد فارسی در گزارش‌های PDF با فونت اشتباه نمایش داده می‌شوند و ناخوانا هستند.",
-        severity=IssueSeverity.minor, status=IssueStatus.triaged,
+        severity=IssueSeverity.minor, status=IssueStatus.todo,
         labels=["فونت", "فارسی", "PDF", "گزارش"],
         environment_name="production",
         comments=[
             ("tom", "باید Vazirmatn font رو به خروجی PDF اضافه کنیم."),
             ("priya", "تأیید می‌کنم. اعداد فارسی با فونت‌های Latin نمایش داده می‌شن."),
         ],
-        status_changes=[("new", "triaged", "priya")],
+        status_changes=[("new", "todo", "priya")],
     ),
     # Critical
     dict(
@@ -588,7 +588,7 @@ ISSUES_DATA = [
             "پیوندهای دعوت به تیم باید ۲۴ ساعته باشند اما بررسی نشان می‌دهد "
             "این پیوندها هیچ‌وقت منقضی نمی‌شوند که یک نقص امنیتی است."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.fixed,
+        severity=IssueSeverity.major, status=IssueStatus.in_review,
         labels=["امنیت", "دعوت‌نامه", "token expiry"],
         environment_name="production",
         comments=[
@@ -596,7 +596,7 @@ ISSUES_DATA = [
             ("sajjad", "فیکس کردم. حالا expiry check قبل از استفاده از token انجام می‌شه."),
             ("priya", "تأیید شد. لینک‌های قدیمی‌تر از ۲۴ ساعت دیگه کار نمی‌کنن."),
         ],
-        status_changes=[("new", "in_progress", "sajjad"), ("in_progress", "fixed", "sajjad")],
+        status_changes=[("new", "in_progress", "sajjad"), ("in_progress", "in_review", "sajjad")],
     ),
 ]
 

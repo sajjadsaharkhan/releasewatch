@@ -2,8 +2,7 @@ import React from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { DroppableColumn } from './DroppableColumn'
 import { StatusBadge } from '../ui/Badge'
-
-const COLUMNS = ['new', 'triaged', 'in_progress', 'fixed', 'verified']
+import { BOARD_STATUSES } from '../../lib/constants'
 
 const CARD_TITLE_WIDTHS = [
   ['w-full', 'w-3/4'],
@@ -49,8 +48,8 @@ function SkeletonColumn({ cards = 3 }) {
 
 export function IssueBoardSkeleton({ cardsPerColumn = 3 }) {
   return (
-    <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(220px, 1fr))` }}>
-      {COLUMNS.map(col => (
+    <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_STATUSES.length}, minmax(220px, 1fr))` }}>
+      {BOARD_STATUSES.map(col => (
         <SkeletonColumn key={col} cards={cardsPerColumn} />
       ))}
     </div>
@@ -78,8 +77,8 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange }) {
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(220px, 1fr))` }}>
-        {COLUMNS.map(status => (
+      <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_STATUSES.length}, minmax(220px, 1fr))` }}>
+        {BOARD_STATUSES.map(status => (
           <DroppableColumn
             key={status}
             status={status}

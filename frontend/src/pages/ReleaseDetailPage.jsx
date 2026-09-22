@@ -18,7 +18,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import { SEVERITY } from '../lib/constants'
+import { SEVERITY, FIXED_STATUSES } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
@@ -29,7 +29,6 @@ const SEVERITY_COLORS = {
   critical: '#f97316',
   major: '#f59e0b',
   minor: '#3b82f6',
-  enhancement: '#8b5cf6',
 }
 
 // Severity items for filter dropdown
@@ -82,7 +81,7 @@ function calculateLabelMetrics(cycles) {
 }
 
 function calculateSeverityMetrics(cycles) {
-  const order = ['blocker', 'critical', 'major', 'minor', 'enhancement']
+  const order = ['blocker', 'critical', 'major', 'minor']
   const metrics = {}
   order.forEach(sev => { metrics[sev] = { severity: SEVERITY[sev]?.label ?? sev, mttf: [], mttv: [], mttt: [], bugCount: 0, color: SEVERITY_COLORS[sev] } })
 
@@ -236,7 +235,7 @@ export default function ReleaseDetailPage() {
   }, [release])
 
   const activeBlockers = useMemo(() =>
-    issues.filter(i => i.is_release_blocker && !['verified', 'closed'].includes(i.status)),
+    issues.filter(i => i.is_release_blocker && !['done', 'cancelled'].includes(i.status)),
     [issues]
   )
 
@@ -244,7 +243,7 @@ export default function ReleaseDetailPage() {
     team.slice(0, 6).map(u => ({
       user: u,
       filed: issues.filter(i => String(i.reporter_id) === String(u.id)).length,
-      fixed: issues.filter(i => String(i.assignee_id) === String(u.id) && ['fixed', 'verified'].includes(i.status)).length,
+      fixed: issues.filter(i => String(i.assignee_id) === String(u.id) && FIXED_STATUSES.includes(i.status)).length,
       inProgress: issues.filter(i => String(i.assignee_id) === String(u.id) && i.status === 'in_progress').length,
       totalAssigned: issues.filter(i => String(i.assignee_id) === String(u.id)).length,
     })).filter(c => c.filed + c.fixed + c.totalAssigned > 0),
@@ -677,7 +676,7 @@ export default function ReleaseDetailPage() {
             />
             <KPICard
               label="Fixed"
-              value={issues.filter((i) => ['fixed', 'verified'].includes(i.status)).length}
+              value={issues.filter((i) => FIXED_STATUSES.includes(i.status)).length}
               icon="check-circle"
               tone="green"
               description="Fixed & verified issues"

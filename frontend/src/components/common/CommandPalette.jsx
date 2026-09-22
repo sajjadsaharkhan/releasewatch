@@ -10,7 +10,6 @@ const SEVERITY_DOT = {
   critical: 'bg-red-400',
   major: 'bg-amber-400',
   minor: 'bg-slate-400',
-  enhancement: 'bg-blue-400',
 }
 
 const PAGES = [

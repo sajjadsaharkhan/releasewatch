@@ -1,11 +1,11 @@
 """Issue schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.models.issue import IssueSeverity, IssueStatus
+from app.db.models.issue import IssueCancelReason, IssueSeverity, IssueStatus
 from app.db.models.user import UserRole
 from app.schemas.attachment import PendingAttachment
 
@@ -19,7 +19,7 @@ class UserSummary(BaseModel):
     name: str
     username: str
     role: UserRole
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
     avatar_color: str
 
 
@@ -38,55 +38,75 @@ class ReproductionStep(BaseModel):
     """A single reproduction step."""
     step_order: int = Field(ge=1, description="Step number (1-based)")
     description: str = Field(description="What to do in this step")
-    expected_result: Optional[str] = Field(None, description="What should happen")
-    actual_result: Optional[str] = Field(None, description="What actually happened")
+    expected_result: str | None = Field(None, description="What should happen")
+    actual_result: str | None = Field(None, description="What actually happened")
 
 
 class IssueBase(BaseModel):
     title: str = Field(max_length=512)
-    description: Optional[str] = None
-    severity: IssueSeverity = IssueSeverity.minor
-    labels: List[str] = Field(default_factory=list)
+    description: str | None = None
+    severity: IssueSeverity | None = None
+    labels: list[str] = Field(default_factory=list)
     is_release_blocker: bool = False
-    environment_browser: Optional[str] = Field(None, max_length=128)
-    environment_os: Optional[str] = Field(None, max_length=128)
-    environment_build_hash: Optional[str] = Field(None, max_length=64)
-    environment_staging_url: Optional[str] = Field(None, max_length=512)
-    environment_name: Optional[str] = Field(
+    environment_browser: str | None = Field(None, max_length=128)
+    environment_os: str | None = Field(None, max_length=128)
+    environment_build_hash: str | None = Field(None, max_length=64)
+    environment_staging_url: str | None = Field(None, max_length=512)
+    environment_name: str | None = Field(
         None, pattern=r'^(production|staging|development|local|qa)$'
     )
-    curl_command: Optional[str] = None
+    curl_command: str | None = None
 
 
 class IssueCreate(IssueBase):
     """Payload for POST /issues."""
 
     release_id: int
-    reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
-    pending_attachments: List[PendingAttachment] = Field(default_factory=list)
+    reproduction_steps: list[ReproductionStep] = Field(default_factory=list)
+    pending_attachments: list[PendingAttachment] = Field(default_factory=list)
 
 
 class IssueUpdate(BaseModel):
     """Partial update payload for PATCH /issues/{id}."""
 
-    title: Optional[str] = Field(None, max_length=512)
-    description: Optional[str] = None
-    severity: Optional[IssueSeverity] = None
-    status: Optional[IssueStatus] = None
-    labels: Optional[List[str]] = None
-    is_release_blocker: Optional[bool] = None
-    assignee_id: Optional[Any] = None
-    release_id: Optional[Any] = None
-    project_id: Optional[Any] = None
-    environment_browser: Optional[str] = None
-    environment_os: Optional[str] = None
-    environment_build_hash: Optional[str] = None
-    environment_staging_url: Optional[str] = None
-    environment_name: Optional[str] = Field(
+    title: str | None = Field(None, max_length=512)
+    description: str | None = None
+    severity: IssueSeverity | None = None
+    status: IssueStatus | None = None
+    labels: list[str] | None = None
+    is_release_blocker: bool | None = None
+    assignee_id: Any | None = None
+    release_id: Any | None = None
+    project_id: Any | None = None
+    environment_browser: str | None = None
+    environment_os: str | None = None
+    environment_build_hash: str | None = None
+    environment_staging_url: str | None = None
+    environment_name: str | None = Field(
         None, pattern=r'^(production|staging|development|local|qa)$'
     )
-    curl_command: Optional[str] = None
-    reproduction_steps: Optional[List[Any]] = None
+    curl_command: str | None = None
+    reproduction_steps: list[Any] | None = None
+    cancel_reason: IssueCancelReason | None = Field(
+        None, description="Required when status is set to cancelled."
+    )
+
+
+class TransitionRequest(BaseModel):
+    """Payload for POST /issues/{id}/transition."""
+
+    to: IssueStatus
+    reason: str | None = None
+    comment: str | None = None
+    cancel_reason: IssueCancelReason | None = None
+
+
+class BlockedTransition(BaseModel):
+    """A target status that is normally reachable but refused for this actor/item."""
+
+    to: str
+    code: str
+    detail: str
 
 
 class TriageRequest(BaseModel):
@@ -94,23 +114,23 @@ class TriageRequest(BaseModel):
 
     assignee_id: int
     severity: IssueSeverity
-    labels: Optional[List[str]] = None
-    is_release_blocker: Optional[bool] = None
-    note: Optional[str] = None
+    labels: list[str] | None = None
+    is_release_blocker: bool | None = None
+    note: str | None = None
 
 
 class FixRequest(BaseModel):
     """Payload for POST /issues/{id}/fix."""
 
-    mr_url: Optional[str] = Field(None, max_length=512, description="GitLab / GitHub MR link")
-    note: Optional[str] = None
+    mr_url: str | None = Field(None, max_length=512, description="GitLab / GitHub MR link")
+    note: str | None = None
 
 
 class VerifyRequest(BaseModel):
     """Payload for POST /issues/{id}/verify."""
 
     outcome: str = Field(pattern=r"^(pass|fail|partial)$")
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class DuplicateRequest(BaseModel):
@@ -122,7 +142,7 @@ class DuplicateRequest(BaseModel):
 class NeedsClarificationRequest(BaseModel):
     """Payload for POST /issues/{id}/needs-clarification."""
 
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class IssueResponse(IssueBase):
@@ -133,37 +153,45 @@ class IssueResponse(IssueBase):
     id: int
     issue_number: int
     project_id: int
-    project_name: Optional[str] = None
+    project_name: str | None = None
     release_id: int
-    release_version: Optional[str] = None
+    release_version: str | None = None
     status: IssueStatus
-    reporter_id: Optional[int] = None
-    assignee_id: Optional[int] = None
-    assignee_user: Optional[UserSummary] = None
-    reporter_user: Optional[UserSummary] = None
-    labels_detail: List[LabelDetail] = Field(default_factory=list)
+    reporter_id: int | None = None
+    assignee_id: int | None = None
+    assignee_user: UserSummary | None = None
+    reporter_user: UserSummary | None = None
+    labels_detail: list[LabelDetail] = Field(default_factory=list)
     is_regression: bool
     regression_count: int
-    environment_name: Optional[str] = None
-    parent_issue_id: Optional[int] = None
-    time_to_triage_h: Optional[float] = None
-    time_to_fix_h: Optional[float] = None
-    time_to_verify_h: Optional[float] = None
-    filed_at: Optional[datetime] = None
-    triaged_at: Optional[datetime] = None
-    fixed_at: Optional[datetime] = None
-    verified_at: Optional[datetime] = None
-    closed_at: Optional[datetime] = None
+    environment_name: str | None = None
+    parent_issue_id: int | None = None
+    cancel_reason: IssueCancelReason | None = None
+    blocked_from_status: str | None = None
+    review_requested_by_id: int | None = None
+    time_to_triage_h: float | None = None
+    time_to_fix_h: float | None = None
+    time_to_verify_h: float | None = None
+    filed_at: datetime | None = None
+    triaged_at: datetime | None = None
+    started_at: datetime | None = None
+    fixed_at: datetime | None = None
+    verified_at: datetime | None = None
+    completed_at: datetime | None = None
+    closed_at: datetime | None = None
+    cancelled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    reproduction_steps: List[ReproductionStep] = Field(default_factory=list)
-    project_triage_lead_id: Optional[int] = None
+    reproduction_steps: list[ReproductionStep] = Field(default_factory=list)
+    project_triage_lead_id: int | None = None
+    allowed_transitions: list[str] = Field(default_factory=list)
+    blocked_transitions: list[BlockedTransition] = Field(default_factory=list)
 
 
 class IssueListResponse(BaseModel):
     """Paginated issue list wrapper."""
 
-    items: List[IssueResponse]
+    items: list[IssueResponse]
     total: int
     page: int
     size: int
@@ -179,12 +207,12 @@ class IssueCycleResponse(BaseModel):
     cycle_number: int
     is_regression_cycle: bool = False
     cycle_start_at: datetime
-    triaged_at: Optional[datetime] = None
-    fixed_at: Optional[datetime] = None
-    verified_at: Optional[datetime] = None
-    time_to_triage_h: Optional[float] = None
-    time_to_fix_h: Optional[float] = None
-    time_to_verify_h: Optional[float] = None
+    triaged_at: datetime | None = None
+    fixed_at: datetime | None = None
+    verified_at: datetime | None = None
+    time_to_triage_h: float | None = None
+    time_to_fix_h: float | None = None
+    time_to_verify_h: float | None = None
 
     @classmethod
     def from_orm_with_flag(cls, cycle) -> "IssueCycleResponse":
@@ -201,24 +229,24 @@ class TrashIssueResponse(BaseModel):
     id: int
     issue_number: int
     title: str
-    description: Optional[str] = None
-    severity: IssueSeverity
+    description: str | None = None
+    severity: IssueSeverity | None = None
     status: IssueStatus
     release_id: int
-    release_name: Optional[str] = None
+    release_name: str | None = None
     project_id: int
-    project_name: Optional[str] = None
-    reporter_id: Optional[int] = None
-    reporter_name: Optional[str] = None
-    reporter_username: Optional[str] = None
-    reporter_avatar_color: Optional[str] = None
-    reporter_avatar_url: Optional[str] = None
+    project_name: str | None = None
+    reporter_id: int | None = None
+    reporter_name: str | None = None
+    reporter_username: str | None = None
+    reporter_avatar_color: str | None = None
+    reporter_avatar_url: str | None = None
     deleted_at: datetime
-    deleted_by_id: Optional[int] = None
-    deleted_by_name: Optional[str] = None
-    deleted_by_username: Optional[str] = None
-    deleted_by_avatar_color: Optional[str] = None
-    deleted_by_avatar_url: Optional[str] = None
+    deleted_by_id: int | None = None
+    deleted_by_name: str | None = None
+    deleted_by_username: str | None = None
+    deleted_by_avatar_color: str | None = None
+    deleted_by_avatar_url: str | None = None
 
 
 class RegressionHistoryResponse(BaseModel):
@@ -230,6 +258,6 @@ class RegressionHistoryResponse(BaseModel):
     regression_number: int
     detected_at: datetime
     release_id: int
-    release_version: Optional[str] = None
-    detected_by: Optional[UserSummary] = None
-    previous_fix_by: Optional[UserSummary] = None
+    release_version: str | None = None
+    detected_by: UserSummary | None = None
+    previous_fix_by: UserSummary | None = None

@@ -29,6 +29,19 @@ export function Badge({ tone = 'default', className, children, ...props }) {
 }
 
 export function SeverityBadge({ severity, className }) {
+  if (severity == null) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
+          'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500',
+          className
+        )}
+      >
+        Unrated
+      </span>
+    )
+  }
   const token = SEVERITY[severity]
   if (!token) return <Badge className={className}>{severity}</Badge>
   return (

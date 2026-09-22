@@ -6,7 +6,7 @@ Celery task whenever issues or releases are mutated.
 """
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -70,7 +70,11 @@ class ReportService:
 
         severity_breakdown = {s.value: 0 for s in IssueSeverity}
         status_breakdown = {s.value: 0 for s in IssueStatus}
-        open_statuses = {IssueStatus.new, IssueStatus.triaged, IssueStatus.in_progress, IssueStatus.regression}
+        # "Open" means not done and not cancelled (docs/phase-2/02-unified-status-model.md).
+        open_statuses = {
+            IssueStatus.new, IssueStatus.needs_info, IssueStatus.todo,
+            IssueStatus.in_progress, IssueStatus.in_review, IssueStatus.blocked,
+        }
 
         triage_times: list[float] = []
         fix_times: list[float] = []
@@ -120,8 +124,8 @@ class ReportService:
         filters: dict[str, Any],
     ) -> dict[str, Any]:
         """Return per-user contribution metrics: table rows, segmented chart data, and label distribution."""
-        SEVERITIES = ["blocker", "critical", "major", "minor", "enhancement"]
-        FIXED_STATUSES = {IssueStatus.fixed.value, IssueStatus.verified.value, IssueStatus.closed.value}
+        SEVERITIES = ["blocker", "critical", "major", "minor"]
+        FIXED_STATUSES = {IssueStatus.in_review.value, IssueStatus.done.value}
 
         query = select(Issue)
         if pid := filters.get("project_id"):
@@ -130,12 +134,12 @@ class ReportService:
             query = query.where(Issue.release_id == int(rid))
         if date_from := filters.get("date_from"):
             try:
-                query = query.where(Issue.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
+                query = query.where(Issue.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=UTC))
             except ValueError:
                 pass
         if date_to := filters.get("date_to"):
             try:
-                query = query.where(Issue.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
+                query = query.where(Issue.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=UTC))
             except ValueError:
                 pass
 
@@ -241,7 +245,7 @@ class ReportService:
         fixer metrics for issues assigned to them).
         """
         user_id = filters.get("user_id")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         date_to = now
         date_from = now - timedelta(days=30)
@@ -249,13 +253,13 @@ class ReportService:
         if date_from_str := filters.get("date_from"):
             try:
                 parsed = datetime.fromisoformat(date_from_str)
-                date_from = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                date_from = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 pass
         if date_to_str := filters.get("date_to"):
             try:
                 parsed = datetime.fromisoformat(date_to_str)
-                date_to = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                date_to = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
             except ValueError:
                 pass
 
@@ -412,10 +416,12 @@ class ReportService:
             "topRegressionIssues": [],
         }
 
+        # Issues that completed at least one fix cycle — the denominator for
+        # regression rate (docs/phase-2/02-unified-status-model.md: "Fixed"
+        # means in_review or done).
         VERIFIED = (
-            IssueStatus.verified.value,
-            IssueStatus.closed.value,
-            IssueStatus.fixed.value,
+            IssueStatus.in_review.value,
+            IssueStatus.done.value,
         )
 
         def _val(x: Any) -> Any:
@@ -434,13 +440,13 @@ class ReportService:
                 pass
         if date_from is not None:
             try:
-                dt_from = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+                dt_from = datetime.fromisoformat(date_from).replace(tzinfo=UTC)
                 releases_q = releases_q.where(Release.created_at >= dt_from)
             except ValueError:
                 pass
         if date_to is not None:
             try:
-                dt_to = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
+                dt_to = datetime.fromisoformat(date_to).replace(tzinfo=UTC)
                 releases_q = releases_q.where(Release.created_at <= dt_to)
             except ValueError:
                 pass
@@ -830,7 +836,7 @@ class ReportService:
         current_user: User,
     ) -> dict[str, Any]:
         """Return full dashboard payload matching the frontend DashboardPage shape."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         week_ago = now - timedelta(days=7)
         two_weeks_ago = now - timedelta(days=14)
         thirty_days_ago = now - timedelta(days=30)
@@ -838,8 +844,11 @@ class ReportService:
         triage_cutoff = now - timedelta(hours=24)
         verify_cutoff = now - timedelta(hours=48)
 
-        OPEN = [IssueStatus.new.value, IssueStatus.triaged.value, IssueStatus.in_progress.value, IssueStatus.regression.value]
-        DONE = [IssueStatus.fixed.value, IssueStatus.verified.value, IssueStatus.closed.value]
+        OPEN = [
+            IssueStatus.new.value, IssueStatus.needs_info.value, IssueStatus.todo.value,
+            IssueStatus.in_progress.value, IssueStatus.in_review.value, IssueStatus.blocked.value,
+        ]
+        DONE = [IssueStatus.in_review.value, IssueStatus.done.value]
 
         def _val(x: Any) -> Any:
             return x.value if hasattr(x, "value") else x
@@ -880,7 +889,7 @@ class ReportService:
             progress = round(fixed_cnt / total * 100) if total > 0 else 0
             go_nogo = _val(rel.go_nogo_status)
 
-            if go_nogo == "blocked" or blockers >= 2:
+            if go_nogo == GoNogoStatus.blocked.value or blockers >= 2:
                 health = "red"
                 off_track += 1
             elif blockers == 1 or progress < 60:
@@ -943,14 +952,15 @@ class ReportService:
         )).scalars().all()
 
         awaiting_verify = (await db.execute(
-            select(Issue).where(Issue.status == IssueStatus.fixed.value, fixed_or_updated <= verify_cutoff)
+            select(Issue)
+            .where(Issue.status == IssueStatus.in_review.value, fixed_or_updated <= verify_cutoff)
             .order_by(fixed_or_updated.asc()).limit(5)
         )).scalars().all()
 
         low_fruit = (await db.execute(
             select(Issue).where(
-                Issue.status.in_([IssueStatus.new.value, IssueStatus.triaged.value]),
-                Issue.severity.in_([IssueSeverity.minor.value, IssueSeverity.enhancement.value]),
+                Issue.status.in_([IssueStatus.new.value, IssueStatus.todo.value]),
+                Issue.severity == IssueSeverity.minor.value,
                 Issue.assignee_id.is_(None),
             ).order_by(filed_or_created.asc()).limit(5)
         )).scalars().all()
@@ -1015,8 +1025,17 @@ class ReportService:
             meta = row.meta or {}
 
             if et == "status_changed":
-                if meta.get("to") == "triaged":
+                # transition() (app/services/issue_service.py) writes one
+                # status_changed event for every move; map the ones worth
+                # surfacing back onto the Phase 1 activity_type vocabulary
+                # the frontend already renders.
+                to_status = meta.get("to")
+                if to_status == IssueStatus.todo.value:
                     activity_type = "triaged"
+                elif to_status == IssueStatus.in_review.value:
+                    activity_type = "fixed"
+                elif to_status == IssueStatus.done.value:
+                    activity_type = "verified"
                 else:
                     continue
             elif et == "comment":

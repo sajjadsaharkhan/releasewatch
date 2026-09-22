@@ -112,6 +112,11 @@ def create_app() -> FastAPI:
 
     application.include_router(api_router, prefix="/api/v1")
 
+    # ── Domain errors (Workflow, Policy) ────────────────────────────────────────
+    from app.core.errors import DomainError, domain_error_handler
+
+    application.add_exception_handler(DomainError, domain_error_handler)
+
     # ── Health check ──────────────────────────────────────────────────────────
     @application.get("/health", tags=["health"], summary="Liveness / readiness probe")
     async def health_check() -> dict:

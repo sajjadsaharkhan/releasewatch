@@ -17,20 +17,52 @@ class IssueSeverity(str, enum.Enum):
     critical = "critical"
     major = "major"
     minor = "minor"
-    enhancement = "enhancement"
 
 
 class IssueStatus(str, enum.Enum):
-    """Workflow state of an issue through its lifecycle."""
+    """Workflow state of an issue through its lifecycle.
+
+    Shared by bugs and (from slice 03) tasks. See ``app/workflow.py`` for the
+    allowed-transition rules — this enum only names the states.
+    """
 
     new = "new"
-    triaged = "triaged"
+    needs_info = "needs_info"
+    todo = "todo"
     in_progress = "in_progress"
-    fixed = "fixed"
-    verified = "verified"
-    closed = "closed"
-    regression = "regression"
+    in_review = "in_review"
+    done = "done"
     blocked = "blocked"
+    cancelled = "cancelled"
+
+
+#: Statuses shown on a board (bugs and, from slice 03, tasks).
+BOARD_STATUSES = (
+    IssueStatus.todo,
+    IssueStatus.in_progress,
+    IssueStatus.in_review,
+    IssueStatus.done,
+    IssueStatus.blocked,
+)
+
+#: Bug-only pre-board statuses (BR-10) — kept off boards so untriaged work
+#: never looks committed.
+TRIAGE_STATUSES = (IssueStatus.new, IssueStatus.needs_info)
+
+#: Statuses nothing leaves on its own — ``done`` is the one exception, via
+#: the regression action (and, from slice 06, the merge regression).
+TERMINAL_STATUSES = (IssueStatus.cancelled,)
+
+
+class IssueCancelReason(str, enum.Enum):
+    """Why a bug was cancelled without being fixed (BR-13)."""
+
+    user_error = "user_error"
+    expected_behavior = "expected_behavior"
+    cannot_reproduce = "cannot_reproduce"
+    duplicate = "duplicate"
+    wont_fix = "wont_fix"
+    no_longer_needed = "no_longer_needed"
 
 
 class Issue(Base):
@@ -56,11 +88,24 @@ class Issue(Base):
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    severity: Mapped[IssueSeverity] = mapped_column(
-        String(32), nullable=False, default=IssueSeverity.minor
+    severity: Mapped[IssueSeverity | None] = mapped_column(
+        String(32), nullable=True, default=None,
+        doc="Null on New/Needs info bugs nobody has rated yet (D4)."
     )
     status: Mapped[IssueStatus] = mapped_column(
         String(32), nullable=False, default=IssueStatus.new
+    )
+    cancel_reason: Mapped[IssueCancelReason | None] = mapped_column(
+        String(32), nullable=True,
+        doc="Set when status is cancelled (BR-13); one of IssueCancelReason."
+    )
+    blocked_from_status: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        doc="Status to return to on unblock. Set on entering blocked, cleared on leaving it."
+    )
+    review_requested_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+        doc="Who moved the item to in_review — used by the self_verification rule (AC-27)."
     )
 
     # People
@@ -105,9 +150,19 @@ class Issue(Base):
     # Lifecycle timestamps
     filed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     triaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, doc="First time the item entered in_progress."
+    )
     fixed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        doc="Set when done is reached from in_review (a verify pass). Non-null == \"Verified\"."
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, doc="Set when the item reaches done."
+    )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -137,6 +192,7 @@ class Issue(Base):
     release = relationship("Release", back_populates="issues")
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_issues")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_issues")
+    review_requested_by = relationship("User", foreign_keys=[review_requested_by_id])
     deleted_by = relationship("User", foreign_keys=[deleted_by_id])
     parent = relationship("Issue", remote_side="Issue.id", foreign_keys=[parent_issue_id])
     duplicates = relationship("Issue", foreign_keys="Issue.parent_issue_id")

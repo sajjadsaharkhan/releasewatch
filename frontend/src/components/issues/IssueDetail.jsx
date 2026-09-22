@@ -31,6 +31,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     regressions,
     currentCycle,
     applyUpdate,
+    regress,
+    reopen,
     addComment,
     updateComment,
     deleteComment,
@@ -115,6 +117,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           availableReleases={availableReleases}
           availableProjects={availableProjects}
           applyUpdate={applyUpdate}
+          regress={regress}
+          reopen={reopen}
           onConfirm={confirm}
           onOpenLabelPicker={() => setLabelPickerOpen(true)}
         />

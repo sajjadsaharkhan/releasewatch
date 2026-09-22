@@ -14,12 +14,13 @@ import { IssueTable } from '../components/common/IssueTable'
 import { userApi, issuesApi, authApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
+import { FIXED_STATUSES } from '../lib/constants'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
 
-const SEV_COLORS = { blocker: '#ef4444', critical: '#f97316', major: '#f59e0b', minor: '#3b82f6', enhancement: '#8b5cf6' }
+const SEV_COLORS = { blocker: '#ef4444', critical: '#f97316', major: '#f59e0b', minor: '#3b82f6' }
 
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -204,7 +205,7 @@ export default function ProfilePage() {
   }
 
   const isOwnProfile = currentUser?.username === user.username
-  const fixedIssues = assignedIssues.filter((i) => ['fixed', 'verified'].includes(i.status))
+  const fixedIssues = assignedIssues.filter((i) => FIXED_STATUSES.includes(i.status))
   const fixRate = assignedIssues.length > 0 ? Math.round((fixedIssues.length / assignedIssues.length) * 100) : 0
 
   const sevBreakdown = Object.keys(SEV_COLORS).map((sev) => ({

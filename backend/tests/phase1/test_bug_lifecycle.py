@@ -19,7 +19,7 @@ async def test_file_triage_fix_verify_pass(factories, client_for, telegram):
         release_id=release.id, client=reporter_client, title="Login button does nothing"
     )
     assert issue.status == "new"
-    assert issue.severity == "minor"
+    assert issue.severity is None
     assert issue.release_id == release.id
 
     await telegram.link_telegram(developer)
@@ -31,7 +31,7 @@ async def test_file_triage_fix_verify_pass(factories, client_for, telegram):
     )
     assert triage_resp.status_code == 200
     triaged = triage_resp.json()
-    assert triaged["status"] == "triaged"
+    assert triaged["status"] == "todo"
     assert triaged["severity"] == "major"
     assert triaged["assignee_id"] == developer.id
 
@@ -39,15 +39,18 @@ async def test_file_triage_fix_verify_pass(factories, client_for, telegram):
     assert any(template == "assigned" for template, _ in telegram.sent_to(developer))
 
     dev_client = await client_for(developer)
+    start_resp = await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
+    assert start_resp.status_code == 200
+
     fix_resp = await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": "https://example.com/mr/1"})
     assert fix_resp.status_code == 200
-    assert fix_resp.json()["status"] == "fixed"
+    assert fix_resp.json()["status"] == "in_review"
 
     qa_client = await client_for(reporter)
     verify_resp = await qa_client.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
     assert verify_resp.status_code == 200
     verified = verify_resp.json()
-    assert verified["status"] == "verified"
+    assert verified["status"] == "done"
     assert verified["verified_at"] is not None
 
 
@@ -59,26 +62,33 @@ async def test_verify_fail_then_reopen(factories, client_for):
     issue = await factories.issue(release_id=release.id)
 
     admin = factories.admin_client
+    dev_client = await client_for(developer)
     await admin.post(
         f"/issues/{issue.id}/triage",
         json={"assignee_id": developer.id, "severity": "critical"},
     )
-    await admin.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
+    await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
+    await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
 
-    verify_resp = await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "fail"})
+    # Verify fail has no self_verification rule — the developer can fail their own fix.
+    verify_resp = await dev_client.post(f"/issues/{issue.id}/verify", json={"outcome": "fail"})
     assert verify_resp.status_code == 200
     assert verify_resp.json()["status"] == "in_progress"
 
-    # Fix and verify again, this time it passes, then reopen from verified.
-    await admin.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
+    # Fix again, then verify pass from a different actor (AC-27: reviewer
+    # can't verify their own fix), then reopen from done.
+    # reopen() maps to the regression action (release is active/unshipped).
+    await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     verify_ok = await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
-    assert verify_ok.json()["status"] == "verified"
+    assert verify_ok.json()["status"] == "done"
 
     reopen_resp = await admin.post(f"/issues/{issue.id}/reopen")
     assert reopen_resp.status_code == 200
     reopened = reopen_resp.json()
     assert reopened["status"] == "in_progress"
     assert reopened["verified_at"] is None
+    assert reopened["is_regression"] is True
+    assert reopened["regression_count"] == 1
 
 
 @pytest.mark.asyncio

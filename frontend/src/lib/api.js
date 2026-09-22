@@ -144,6 +144,11 @@ export const issuesApi = {
   reopen: (id) => api.post(`/issues/${id}/reopen`),
   duplicate: (id, parentId) => api.post(`/issues/${id}/duplicate`, { parent_id: parentId }),
   needsClarification: (id, data) => api.post(`/issues/${id}/needs-clarification`, data),
+  // Generic status change — board drags and the sidebar's status control.
+  // `to` is required; `reason`/`comment`/`cancel_reason` are optional.
+  transition: (id, data) => api.post(`/issues/${id}/transition`, data),
+  // Flags a regression on a Done or In review bug (BR-24). No body.
+  regress: (id) => api.post(`/issues/${id}/regression`),
 }
 
 // ─── Inbox ───────────────────────────────────────────────────────────────────

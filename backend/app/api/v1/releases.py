@@ -3,18 +3,16 @@
 Provides cross-project release list and CRUD operations.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
-from app.db.models.release import Release, GoNogoStatus
-from app.db.models.user import UserRole
-from app.db.models.issue import Issue, IssueStatus, IssueSeverity
-from app.db.models.user import User
+from app.db.models.issue import Issue, IssueStatus
+from app.db.models.release import GoNogoStatus, Release, ReleaseStatus
+from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.schemas.release import (
     AnalyticsCycleRow,
@@ -50,11 +48,11 @@ async def _add_release_metrics(db: AsyncSession, release: Release) -> dict:
     )
     total_issues = total_result.scalar() or 0
 
-    # Count open issues (not fixed, verified, or closed)
+    # Count open issues (not done or cancelled)
     open_result = await db.execute(
         select(func.count())
         .where(Issue.release_id == release.id)
-        .where(Issue.status.notin_([IssueStatus.fixed, IssueStatus.verified, IssueStatus.closed]))
+        .where(Issue.status.notin_([IssueStatus.done, IssueStatus.cancelled]))
     )
     open_issues = open_result.scalar() or 0
 
@@ -63,15 +61,15 @@ async def _add_release_metrics(db: AsyncSession, release: Release) -> dict:
         select(func.count())
         .where(Issue.release_id == release.id)
         .where(Issue.is_release_blocker == True)  # noqa: E712
-        .where(Issue.status.notin_([IssueStatus.fixed, IssueStatus.verified, IssueStatus.closed]))
+        .where(Issue.status.notin_([IssueStatus.done, IssueStatus.cancelled]))
     )
     blockers = blocker_result.scalar() or 0
 
-    # Count fixed/verified issues
+    # Count fixed (in_review or done — "Fixed" per docs/phase-2/02-unified-status-model.md)
     fixed_result = await db.execute(
         select(func.count())
         .where(Issue.release_id == release.id)
-        .where(Issue.status.in_([IssueStatus.fixed, IssueStatus.verified]))
+        .where(Issue.status.in_([IssueStatus.in_review, IssueStatus.done]))
     )
     fixed_issues = fixed_result.scalar() or 0
 
@@ -119,8 +117,8 @@ async def _release_to_response(
 
 @router.get("", response_model=ReleaseListResponse, summary="List all releases")
 async def list_releases(
-    project_id: Optional[int] = Query(None, description="Filter by project ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    project_id: int | None = Query(None, description="Filter by project ID"),
+    status: str | None = Query(None, description="Filter by status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseListResponse:
@@ -252,7 +250,7 @@ async def get_release_analytics(
     verified_q = await db.execute(
         select(func.count(Issue.id))
         .where(Issue.release_id == release.id)
-        .where(Issue.status == IssueStatus.verified)
+        .where(Issue.verified_at.isnot(None))
     )
     verified_issues = verified_q.scalar_one()
 
@@ -302,7 +300,7 @@ async def approve_release(
     release = await _get_release_or_404(db, release_id)
     release.go_nogo_status = GoNogoStatus.approved
     release.go_nogo_by_id = current_user.id
-    release.go_nogo_at = datetime.now(tz=timezone.utc)
+    release.go_nogo_at = datetime.now(tz=UTC)
     db.add(release)
     await db.commit()
     await db.refresh(release)
@@ -321,7 +319,7 @@ async def delete_release(
 ) -> None:
     """Soft-delete a release. Restricted to admin and CTO roles."""
     release = await _get_release_or_404(db, release_id)
-    release.deleted_at = datetime.now(tz=timezone.utc)
+    release.deleted_at = datetime.now(tz=UTC)
     db.add(release)
     await db.commit()
 
@@ -342,8 +340,8 @@ async def block_release(
     release.go_nogo_status = GoNogoStatus.blocked
     release.go_nogo_note = payload.note
     release.go_nogo_by_id = current_user.id
-    release.go_nogo_at = datetime.now(tz=timezone.utc)
-    release.status = "blocked"
+    release.go_nogo_at = datetime.now(tz=UTC)
+    release.status = ReleaseStatus.blocked.value
     db.add(release)
     await db.commit()
     await db.refresh(release)

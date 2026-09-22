@@ -77,6 +77,16 @@ class Release(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    @property
+    def is_shipped(self) -> bool:
+        """True once a release has gone out (released or archived).
+
+        The one place this check lives — Workflow's regression-action gate
+        (BR-24/25) and every read of it reuse this instead of re-deriving it.
+        """
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+        return status_val in (ReleaseStatus.released.value, ReleaseStatus.archived.value)
+
     # ── Relationships ─────────────────────────────────────────────────────────
     project = relationship("Project", back_populates="releases")
     creator = relationship("User", foreign_keys=[created_by_id])

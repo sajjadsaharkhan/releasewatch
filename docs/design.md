@@ -107,28 +107,38 @@ Ordered; `order` drives sorting. Rendered by `<SeverityBadge>` as a pill with a 
 | `critical` | Critical | orange | `bg-orange-500` | 1 |
 | `major` | Major | amber | `bg-amber-500` | 2 |
 | `minor` | Minor | blue | `bg-blue-400` | 3 |
-| `enhancement` | Enhancement | purple | `bg-purple-400` | 4 |
 
-Red → orange → amber is a heat ramp; blue and purple step off it because *minor* and
-*enhancement* are not "less hot", they are a different kind of thing.
+Red → orange → amber is a heat ramp; blue steps off it because *minor* is not "less hot", it's
+a different kind of thing. Bugs may have no severity at all — New and Needs info bugs nobody
+has rated yet render with no severity badge (D4, slice 02). `enhancement` was removed in slice
+02; improvements are filed as tasks (slice 03) instead.
 
 ### Status — `STATUS` in `lib/constants.js`
 
-Rendered by `<StatusBadge>`. Each carries an `icon` (lucide, kebab-case) for non-pill use.
+The unified status set (docs/phase-2/02-unified-status-model.md), shared by bugs and, from
+slice 03, tasks. Rendered by `<StatusBadge>`. Each carries an `icon` (lucide, kebab-case) for
+non-pill use.
 
 | Key | Label | Hue | Icon |
 |---|---|---|---|
 | `new` | New | zinc | `circle` |
-| `triaged` | Triaged | sky | `tag` |
+| `needs_info` | Needs info | sky | `help-circle` |
+| `todo` | To do | zinc | `circle-dashed` |
 | `in_progress` | In Progress | indigo | `loader` |
-| `fixed` | Fixed | green | `check-circle` |
-| `verified` | Verified | teal | `shield-check` |
-| `closed` | Closed | zinc (dimmed: `text-zinc-500`) | `x-circle` |
-| `regression` | Regression | red | `trending-down` |
+| `in_review` | In Review | amber | `eye` |
+| `done` | Done | teal | `shield-check` |
 | `blocked` | Blocked | orange | `circle-slash` |
+| `cancelled` | Cancelled | zinc (dimmed: `text-zinc-500`) | `x-circle` |
 
-`OPEN_STATUSES` — everything except `verified` and `closed` — is the canonical "still needs
-work" set. Use it; do not re-enumerate the list at a call site.
+`BOARD_STATUSES` (`todo, in_progress, in_review, done, blocked`) is the five-column board set.
+`TRIAGE_STATUSES` (`new, needs_info`) are bug-only and kept off boards — untriaged work never
+looks committed. `OPEN_STATUSES` — not `done` and not `cancelled` — is the canonical "still
+needs work" set. Use these; do not re-enumerate the lists at a call site.
+
+A bug's next statuses come from the API (`IssueResponse.allowed_transitions` /
+`blocked_transitions`, computed by the backend's Workflow module) — the frontend never
+re-derives a transition rule, it only renders what the API returned. Cancelling asks for a
+`cancel_reason` (`CANCEL_REASON` in `lib/constants.js`) via a dialog.
 
 ### Role — `ROLE` in `lib/constants.js`
 

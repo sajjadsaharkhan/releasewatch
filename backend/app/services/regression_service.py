@@ -1,14 +1,17 @@
 """RegressionService — detection and analysis of regressed issues.
 
-A regression occurs when an issue transitions back to ``regression`` status
-in a new release after previously being ``verified`` or ``closed``.
+A regression occurs when a Done or In review bug is sent back to
+``in_progress`` through the regression action (``IssueService.regress``,
+BR-24) after previously reaching Done.
 """
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_ as sa_and_
+from sqlalchemy import or_ as sa_or_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue import Issue, IssueStatus
@@ -52,19 +55,28 @@ class RegressionService:
         RegressionHistory
             The newly created history row.
         """
-        # Find the most recent "fixed" event for this issue
+        # Find the most recent "moved to in_review" event for this issue —
+        # IssueService.transition() writes status_changed for every move, the
+        # unified-status-model equivalent of the old "fixed" event type
+        # (kept here too, for regression rows recorded before this migration).
         fix_event_result = await db.execute(
             select(IssueTimeline)
             .where(
                 IssueTimeline.issue_id == issue.id,
-                IssueTimeline.event_type == TimelineEventType.fixed,
+                sa_or_(
+                    IssueTimeline.event_type == TimelineEventType.fixed,
+                    sa_and_(
+                        IssueTimeline.event_type == TimelineEventType.status_changed,
+                        IssueTimeline.meta["to"].astext == IssueStatus.in_review.value,
+                    ),
+                ),
             )
             .order_by(IssueTimeline.created_at.desc())
             .limit(1)
         )
         last_fix_event = fix_event_result.scalar_one_or_none()
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         regression_number = (issue.regression_count or 0) + 1
         issue.regression_count = regression_number
         issue.is_regression = True
