@@ -135,10 +135,13 @@ non-pill use.
 looks committed. `OPEN_STATUSES` — not `done` and not `cancelled` — is the canonical "still
 needs work" set. Use these; do not re-enumerate the lists at a call site.
 
-A bug's next statuses come from the API (`IssueResponse.allowed_transitions` /
-`blocked_transitions`, computed by the backend's Workflow module) — the frontend never
-re-derives a transition rule, it only renders what the API returned. Cancelling asks for a
-`cancel_reason` (`CANCEL_REASON` in `lib/constants.js`) via a dialog.
+A bug's next statuses come from the API (`IssueResponse.allowed_transitions`, computed by the
+backend's Workflow module) — the frontend never hardcodes the status list, it renders what the
+API returned. Status movement is unrestricted by product decision (2026-09-22): any status can
+move to any other status from the sidebar's status control, with no confirmation dialog and no
+reason required — `allowed_transitions` is currently always "every other status."
+`CANCEL_REASON` (`lib/constants.js`) still exists for the optional `cancel_reason` field but
+nothing in the UI requires setting it.
 
 ### Role — `ROLE` in `lib/constants.js`
 

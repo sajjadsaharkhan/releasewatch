@@ -280,10 +280,11 @@ class IssueService:
         issue_id: int,
         current_user: User,
     ) -> Issue:
-        """Flag a regression on a Done or In review bug (BR-24, AC-25/26).
+        """Flag a regression: transitions the bug back to ``in_progress``.
 
-        Records a ``RegressionHistory`` row and transitions the bug back to
-        ``in_progress``. Requires a release that has not shipped.
+        Records a ``RegressionHistory`` row when the bug has a release
+        (``regression_history.release_id`` is NOT NULL until slice 06) —
+        skipped silently otherwise so this stays callable from any status.
         """
         from app.db.models.release import Release
         from app.services.regression_service import regression_service
@@ -295,19 +296,8 @@ class IssueService:
             release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
             release = release_result.scalar_one_or_none()
 
-        # Ask Workflow, the single source of this rule — checked before
-        # record_regression() so a refused action never writes a
-        # RegressionHistory row (BR-25: no history for a bug with no release).
-        check = Workflow.can_transition("bug", issue.status, IssueStatus.in_progress, {
-            "actor_id": current_user.id,
-            "has_release": release is not None,
-            "release_shipped": release.is_shipped if release else False,
-            "via_regression": True,
-        })
-        if not check.ok:
-            raise DomainError(status.HTTP_409_CONFLICT, check.detail, check.code, check.allowed)
-
-        await regression_service.record_regression(db, issue, release, current_user)
+        if release is not None:
+            await regression_service.record_regression(db, issue, release, current_user)
 
         return await self.transition(
             db, issue, to=IssueStatus.in_progress, actor=current_user,

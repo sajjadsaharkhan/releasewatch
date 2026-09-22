@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React from 'react'
 import { ChevronDown, Check, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
@@ -11,16 +11,15 @@ import { LabelChip } from '../common/LabelChip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { SEVERITY, STATUS, CANCEL_REASON } from '../../lib/constants'
+import { SEVERITY, STATUS } from '../../lib/constants'
 
+// Status movement is unrestricted — any status can move to any other status,
+// no reason required, no self-verification block (see app/workflow.py).
 export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, reopen, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
   const allowedTransitions = issue.allowed_transitions || []
-  const blockedTransitions = issue.blocked_transitions || []
-  const blockedTo = (to) => blockedTransitions.find(b => b.to === to)
-  const cancelReasonRef = useRef(null)
 
   // Use current-cycle metrics so regression re-runs are measured from the
   // regression event, not the original filed_at.
@@ -42,42 +41,6 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const changeStatus = (newStatus) =>
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
 
-  const openCancelDialog = () => {
-    cancelReasonRef.current = null
-    onConfirm({
-      title: 'Cancel this bug?',
-      body: (
-        <>
-          Choose a reason. Cancelled bugs stay in reports as cancelled, not fixed.
-          <select
-            className="mt-2 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            defaultValue=""
-            onChange={(e) => { cancelReasonRef.current = e.target.value || null }}
-          >
-            <option value="" disabled>Select a reason…</option>
-            {Object.entries(CANCEL_REASON).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </>
-      ),
-      confirmLabel: 'Cancel bug',
-      tone: 'destructive',
-      onConfirm: () => {
-        if (!cancelReasonRef.current) return
-        applyUpdate({ status: 'cancelled', cancel_reason: cancelReasonRef.current }, 'Bug cancelled')
-      },
-    })
-  }
-
-  const requestStatus = (newStatus) => {
-    if (newStatus === 'cancelled') {
-      openCancelDialog()
-      return
-    }
-    changeStatus(newStatus)
-  }
-
   return (
     <aside className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
@@ -85,24 +48,10 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           {({ close }) => (
             <>
               {allowedTransitions.map(s => (
-                <DropdownItem key={s} onClick={() => { requestStatus(s); close() }}>
+                <DropdownItem key={s} onClick={() => { changeStatus(s); close() }}>
                   <StatusBadge status={s} size="sm" />
                 </DropdownItem>
               ))}
-              {blockedTransitions.map(b => (
-                <DropdownItem key={b.to} disabled>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="inline-flex items-center gap-1.5">
-                      <StatusBadge status={b.to} size="sm" />
-                      <span className="text-[10px] text-zinc-400">blocked</span>
-                    </span>
-                    <span className="text-[10px] text-zinc-400">{b.detail}</span>
-                  </div>
-                </DropdownItem>
-              ))}
-              {allowedTransitions.length === 0 && blockedTransitions.length === 0 && (
-                <DropdownItem disabled>No status changes available</DropdownItem>
-              )}
             </>
           )}
         </Dropdown>
@@ -354,18 +303,9 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           </Button>
         )}
         {issue.status === 'in_review' && (
-          allowedTransitions.includes('done') ? (
-            <Button variant="success" className="w-full" onClick={() => changeStatus('done')}>
-              <Shield size={14} className="mr-1" /> Verify fix
-            </Button>
-          ) : blockedTo('done') && (
-            <div className="space-y-1">
-              <Button variant="success" className="w-full" disabled>
-                <Shield size={14} className="mr-1" /> Verify fix
-              </Button>
-              <p className="text-[11px] text-zinc-400">{blockedTo('done').detail}</p>
-            </div>
-          )
+          <Button variant="success" className="w-full" onClick={() => changeStatus('done')}>
+            <Shield size={14} className="mr-1" /> Verify fix
+          </Button>
         )}
         {issue.status === 'in_review' && allowedTransitions.includes('in_progress') && (
           <Button variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
