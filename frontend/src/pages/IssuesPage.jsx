@@ -9,10 +9,11 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
 import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
-import { SEVERITY, STATUS, OPEN_STATUSES } from '../lib/constants'
+import { SEVERITY, STATUS, OPEN_STATUSES, TYPE } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
+import { issueSlug } from '../lib/issueSlug'
 
 const VIEW_OPTIONS = [
   { value: 'list', label: 'List' },
@@ -27,6 +28,7 @@ const SORT_OPTIONS = [
 ]
 
 const SEV_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(SEVERITY).map(k => ({ value: k, label: SEVERITY[k].label }))]
+const TYPE_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(TYPE).map(k => ({ value: k, label: TYPE[k].label }))]
 const STATUS_OPTIONS = [
   { value: 'open', label: 'Open issues' },
   { value: 'all', label: 'Any' },
@@ -55,6 +57,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   // Derive filter and sort from URL query params
   const sort = searchParams.get('sort') || 'newest'
   const filter = {
+    type:     searchParams.get('type')     || 'all',
     severity: searchParams.get('severity') || 'all',
     status:   searchParams.get('status')   || 'all',
     assignee: searchParams.get('assignee') || 'all',
@@ -67,6 +70,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   const updateParams = useCallback((newFilter, newSort) => {
     const p = new URLSearchParams()
     if (newSort !== 'newest')           p.set('sort',     newSort)
+    if (newFilter.type     !== 'all')   p.set('type',     newFilter.type)
     if (newFilter.severity !== 'all')   p.set('severity', newFilter.severity)
     if (newFilter.status   !== 'all')   p.set('status',   newFilter.status)
     if (newFilter.assignee !== 'all')   p.set('assignee', newFilter.assignee)
@@ -95,6 +99,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   const paramsString = searchParams.toString()
   const apiParams = useMemo(() => {
     const _sort     = searchParams.get('sort')     || 'newest'
+    const type      = searchParams.get('type')     || 'all'
     const severity  = searchParams.get('severity') || 'all'
     const status    = searchParams.get('status')   || 'all'
     const assignee  = searchParams.get('assignee') || 'all'
@@ -105,6 +110,7 @@ export default function IssuesPage({ filterAssigned = false }) {
       sort: _sort,
       size: 200,
       ...(activeProjectId && { project_id: activeProjectId }),
+      ...(type !== 'all' && { type }),
       ...(severity !== 'all' && { severity }),
       // "open" is a set of states, so it goes out as `statuses` — that keeps the
       // total count and the CSV export in step with the rows on screen.
@@ -179,7 +185,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   }
 
   const openIssue = (issue) => {
-    navigate(`/issue/issue-${issue.issue_number}`)
+    navigate(`/issue/${issueSlug(issue)}`)
   }
 
   // Build filter options from real data
@@ -224,6 +230,13 @@ export default function IssuesPage({ filterAssigned = false }) {
 
       {/* Filter Bar */}
       <div className="px-7 py-3 border-b border-border flex flex-wrap items-center gap-2 bg-muted/40">
+        <FilterDropdown
+          icon="shapes"
+          label="Type"
+          value={filter.type === 'all' ? 'Any' : TYPE[filter.type]?.label ?? 'Any'}
+          options={TYPE_OPTIONS}
+          onChange={(v) => updateParams({ ...filter, type: v }, sort)}
+        />
         <FilterDropdown
           icon="alert-octagon"
           label="Severity"

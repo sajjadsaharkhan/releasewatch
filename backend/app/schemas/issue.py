@@ -1,11 +1,11 @@
 """Issue schemas."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from app.db.models.issue import IssueCancelReason, IssueSeverity, IssueStatus
+from app.db.models.issue import ISSUE_TYPE_KEY_PREFIX, IssueCancelReason, IssueSeverity, IssueStatus, IssueType
 from app.db.models.user import UserRole
 from app.schemas.attachment import PendingAttachment
 
@@ -59,11 +59,66 @@ class IssueBase(BaseModel):
 
 
 class IssueCreate(IssueBase):
-    """Payload for POST /issues."""
+    """Payload for POST /issues.
 
-    release_id: int
+    ``type`` is fixed at creation (BR-07) and never accepted on PATCH.
+    ``project_id`` is always required; ``release_id`` is optional (D7,
+    BR-26) but when given must belong to ``project_id`` and to a Product
+    project (enforced in ``IssueService.create`` — needs a DB lookup, so it
+    isn't a field validator).
+    """
+
+    type: IssueType = IssueType.bug
+    project_id: int
+    release_id: int | None = None
+    priority: int | None = Field(
+        None, ge=1, le=4, validate_default=True,
+        description="Task-only, 1 (highest) - 4.",
+    )
+    is_urgent: bool = False
+    due_date: date | None = None
+    assignee_id: int | None = None
     reproduction_steps: list[ReproductionStep] = Field(default_factory=list)
     pending_attachments: list[PendingAttachment] = Field(default_factory=list)
+
+    @field_validator("priority")
+    @classmethod
+    def _priority_matches_type(cls, v: int | None, info) -> int | None:
+        # Field-level (so the 422 carries loc=["body", "priority"]): works
+        # because `priority` is declared after `type`, which puts an already-
+        # defaulted `type` in info.data by the time this runs.
+        item_type = info.data.get("type", IssueType.bug)
+        if item_type == IssueType.task and v is None:
+            raise ValueError("required for tasks")
+        if item_type == IssueType.bug and v is not None:
+            raise ValueError("bugs cannot have a priority")
+        return v
+
+    @model_validator(mode="after")
+    def _type_specific_fields(self) -> "IssueCreate":
+        """Cross-field validation, run only after every field is individually
+        coerced (``mode="after"``) — a plain ``field_validator`` can't see
+        ``self.type`` while validating an inherited ``IssueBase`` field, since
+        pydantic validates base-class fields before subclass-only ones. The
+        error messages carry the field name first, so a client can still key
+        off it even though the loc is the model root.
+        """
+        if self.type == IssueType.task:
+            if self.severity is not None:
+                raise ValueError("severity: tasks cannot have a severity.")
+            if self.is_release_blocker:
+                raise ValueError("is_release_blocker: tasks cannot be release blockers.")
+            if self.curl_command is not None:
+                raise ValueError("curl_command: bug-only field.")
+            if self.reproduction_steps:
+                raise ValueError("reproduction_steps: bug-only field.")
+            for field_name in (
+                "environment_browser", "environment_os", "environment_build_hash",
+                "environment_staging_url", "environment_name",
+            ):
+                if getattr(self, field_name) is not None:
+                    raise ValueError(f"{field_name}: bug-only field.")
+        return self
 
 
 class IssueUpdate(BaseModel):
@@ -89,6 +144,12 @@ class IssueUpdate(BaseModel):
     reproduction_steps: list[Any] | None = None
     cancel_reason: IssueCancelReason | None = Field(
         None, description="Required when status is set to cancelled."
+    )
+    priority: int | None = Field(None, ge=1, le=4)
+    is_urgent: bool | None = None
+    due_date: date | None = None
+    type: Any | None = Field(
+        None, description="Rejected — type is immutable once created (BR-07, 409 type_immutable)."
     )
 
 
@@ -152,11 +213,15 @@ class IssueResponse(IssueBase):
 
     id: int
     issue_number: int
+    type: IssueType = IssueType.bug
     project_id: int
     project_name: str | None = None
-    release_id: int
+    release_id: int | None = None
     release_version: str | None = None
     status: IssueStatus
+    priority: int | None = None
+    is_urgent: bool = False
+    due_date: date | None = None
     reporter_id: int | None = None
     assignee_id: int | None = None
     assignee_user: UserSummary | None = None
@@ -186,6 +251,12 @@ class IssueResponse(IssueBase):
     project_triage_lead_id: int | None = None
     allowed_transitions: list[str] = Field(default_factory=list)
     blocked_transitions: list[BlockedTransition] = Field(default_factory=list)
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def key(self) -> str:
+        """Display key, e.g. ``BUG-123`` / ``TASK-124`` — same global sequence as issue_number."""
+        return f"{ISSUE_TYPE_KEY_PREFIX[self.type]}-{self.issue_number}"
 
 
 class IssueListResponse(BaseModel):
@@ -228,11 +299,12 @@ class TrashIssueResponse(BaseModel):
 
     id: int
     issue_number: int
+    type: IssueType = IssueType.bug
     title: str
     description: str | None = None
     severity: IssueSeverity | None = None
     status: IssueStatus
-    release_id: int
+    release_id: int | None = None
     release_name: str | None = None
     project_id: int
     project_name: str | None = None

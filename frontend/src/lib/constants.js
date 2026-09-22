@@ -25,6 +25,29 @@ export const SEVERITY = {
   },
 }
 
+// docs/phase-2/03-tasks-and-placement.md — type icon + key prefix on every
+// row/card, search result, and command palette entry (§3 in docs/design.md).
+// No pill here: the type renders icon-only (TypeIcon), never as a filled badge.
+export const TYPE = {
+  bug: { label: 'Bug', icon: 'bug' },
+  task: { label: 'Task', icon: 'check-square' },
+}
+
+// Task priority (BR-09) — P1 highest to P4 lowest. Bugs use SEVERITY instead.
+export const PRIORITY = {
+  1: { label: 'P1', pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  2: { label: 'P2', pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
+  3: { label: 'P3', pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+  4: { label: 'P4', pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+}
+
+// Project kind (§8.1) — only Product projects accept releases (BR-02).
+export const PROJECT_KIND = {
+  product: { label: 'Product' },
+  internal: { label: 'Internal' },
+  general: { label: 'General' },
+}
+
 // docs/phase-2/02-unified-status-model.md — shared by bugs and (slice 03) tasks.
 // Board statuses: todo, in_progress, in_review, done, blocked.
 // Triage statuses (bug-only, kept off boards): new, needs_info.
@@ -80,7 +103,8 @@ export const TRIAGE_STATUSES = ['new', 'needs_info']
 // re-enumerate the pair at a call site.
 export const FIXED_STATUSES = ['in_review', 'done']
 
-// Cancel reasons — required when transitioning a bug to cancelled (BR-13).
+// Cancel reasons (BR-13). Bugs: any of these except `no_longer_needed`,
+// optional. Tasks: `no_longer_needed` only, required (03).
 export const CANCEL_REASON = {
   user_error: 'User error',
   expected_behavior: 'Expected behavior',
@@ -89,6 +113,9 @@ export const CANCEL_REASON = {
   wont_fix: "Won't fix",
   no_longer_needed: 'No longer needed',
 }
+
+export const BUG_CANCEL_REASONS = Object.keys(CANCEL_REASON).filter((r) => r !== 'no_longer_needed')
+export const TASK_CANCEL_REASONS = ['no_longer_needed']
 
 // Statuses that still need work — not done and not cancelled.
 export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'in_progress', 'in_review', 'blocked']

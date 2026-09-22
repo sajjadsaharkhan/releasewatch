@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw, FileDown } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { SeverityBadge, StatusBadge, Badge } from '../ui/Badge'
+import { SeverityBadge, StatusBadge, Badge, TypeIcon, UrgentMarker, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
+import { issueKey } from '../../lib/issueSlug'
 
 export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
@@ -23,9 +24,15 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
         <ChevronLeft size={13} /> {backLabel ? `Back to ${backLabel}` : 'Back'}
       </button>
       <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
-      <div className="font-mono text-[12px] text-zinc-500">issue-{issue.issue_number}</div>
+      <div className="font-mono text-[12px] text-zinc-500 inline-flex items-center gap-1">
+        <TypeIcon type={issue.type} />
+        {issueKey(issue)}
+      </div>
       <div className="flex items-center gap-1.5">
-        <SeverityBadge severity={issue.severity} dot />
+        {issue.is_urgent && <UrgentMarker />}
+        {issue.type === 'task'
+          ? <PriorityBadge priority={issue.priority} />
+          : <SeverityBadge severity={issue.severity} dot />}
         <StatusBadge status={issue.status} />
         {issue.is_regression && (
           <Badge tone="red">

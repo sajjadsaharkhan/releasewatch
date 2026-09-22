@@ -56,13 +56,25 @@ class Factories:
     async def issue(
         self,
         *,
-        release_id: int,
+        release_id: int | None = None,
+        project_id: int | None = None,
         client: AsyncClient | None = None,
         **overrides,
     ) -> SimpleNamespace:
+        """File an issue. ``project_id`` defaults to the release's project
+        when a ``release_id`` is given and ``project_id`` isn't (slice 03 —
+        ``project_id`` is now required, independent of ``release_id``)."""
+        if project_id is None:
+            if release_id is not None:
+                release_resp = await self.admin_client.get(f"/releases/{release_id}")
+                release_resp.raise_for_status()
+                project_id = release_resp.json()["project_id"]
+            else:
+                project_id = (await self.project()).id
         payload = {
             "title": f"Test issue {secrets.token_hex(4)}",
             "release_id": release_id,
+            "project_id": project_id,
             **overrides,
         }
         resp = await (client or self.admin_client).post("/issues", json=payload)

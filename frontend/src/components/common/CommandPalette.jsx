@@ -4,6 +4,8 @@ import { Search, FileText, Users, LayoutDashboard, Inbox, Tag, BarChart2, Settin
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { searchApi, teamApi } from '../../lib/api'
+import { TypeIcon, UrgentMarker } from '../ui/Badge'
+import { issueSlug, issueKey } from '../../lib/issueSlug'
 
 const SEVERITY_DOT = {
   blocker: 'bg-red-500',
@@ -101,7 +103,7 @@ export function CommandPalette() {
 
   function select(item) {
     setCommandPaletteOpen(false)
-    if (item.type === 'issue') navigate(`/issue/issue-${item.data.issue_number}`)
+    if (item.type === 'issue') navigate(`/issue/${issueSlug(item.data)}`)
     else if (item.type === 'page') navigate(item.data.path)
     else if (item.type === 'user') navigate(`/u/${item.data.username}`)
   }
@@ -175,11 +177,16 @@ export function CommandPalette() {
                     onMouseEnter={() => setSelectedIdx(idx)}
                     onClick={() => select({ type: 'issue', data: issue })}
                   >
-                    <span className={cn('h-2 w-2 rounded-full shrink-0', SEVERITY_DOT[issue.severity] ?? 'bg-slate-400')} />
+                    {issue.type === 'task' ? (
+                      <TypeIcon type="task" />
+                    ) : (
+                      <span className={cn('h-2 w-2 rounded-full shrink-0', SEVERITY_DOT[issue.severity] ?? 'bg-slate-400')} />
+                    )}
                     <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">
-                      issue-{issue.issue_number}
+                      {issueKey(issue)}
                     </span>
                     <span className="flex-1 text-sm truncate">{issue.title}</span>
+                    {issue.is_urgent && <UrgentMarker />}
                   </div>
                 )
               })}

@@ -165,4 +165,11 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "<i>Blocked by {blocker}</i>\n"
         "Reason: {note}"
     ),
+    "urgent": (
+        "🚨 <b>Marked Urgent!</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
+        "\n"
+        "<i>Flagged by <a href=\"{actor_url}\">{actor}</a> — handle before anything else</i>"
+    ),
 }

@@ -6,6 +6,7 @@ import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
 import { Select, SelectItem } from '../ui/Select'
 import { teamApi } from '../../lib/api'
+import { PROJECT_KIND } from '../../lib/constants'
 
 const PROJECT_COLORS = [
   '#ef4444', '#dc2626', '#f97316', '#ea580c', '#f59e0b',
@@ -15,7 +16,7 @@ const PROJECT_COLORS = [
 ]
 
 export function CreateProjectModal({ open, onClose, onCreate }) {
-  const [form, setForm] = useState({ name: '', slug: '', color: '#6366f1', desc: '', triageLeadId: '' })
+  const [form, setForm] = useState({ name: '', slug: '', color: '#6366f1', kind: 'product', desc: '', triageLeadId: '' })
   const [teamMembers, setTeamMembers] = useState([])
 
   useEffect(() => {
@@ -31,10 +32,11 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
       name: form.name,
       slug: form.slug,
       color: form.color,
+      kind: form.kind,
       desc: form.desc,
       triage_lead_id: form.triageLeadId || null,
     })
-    setForm({ name: '', slug: '', color: '#6366f1', desc: '', triageLeadId: '' })
+    setForm({ name: '', slug: '', color: '#6366f1', kind: 'product', desc: '', triageLeadId: '' })
   }
 
   function handleNameChange(value) {
@@ -60,6 +62,20 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
             placeholder="e.g. mobile-app"
             className="font-mono text-sm"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Kind</label>
+          <Select
+            value={form.kind}
+            onChange={(val) => setForm((f) => ({ ...f, kind: val }))}
+          >
+            {Object.entries(PROJECT_KIND).map(([value, token]) => (
+              <SelectItem key={value} value={value}>{token.label}</SelectItem>
+            ))}
+          </Select>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Only Product projects accept releases.
+          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Color</label>

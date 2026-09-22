@@ -13,7 +13,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue import Issue, IssueSeverity, IssueStatus, issue_key
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.regression_history import RegressionHistory
@@ -778,6 +778,7 @@ class ReportService:
                 Issue.regression_count,
                 Issue.created_at,
                 Issue.assignee_id,
+                Issue.type,
                 AssigneeUser.name.label("assignee_name"),
                 AssigneeUser.username.label("assignee_username"),
                 AssigneeUser.role.label("assignee_role"),
@@ -796,6 +797,8 @@ class ReportService:
         top_regression_issues = [
             {
                 "id": r.issue_number,
+                "type": _val(r.type),
+                "key": issue_key(r.type, r.issue_number),
                 "title": r.title,
                 "severity": _val(r.severity),
                 "status": _val(r.status),
@@ -974,15 +977,15 @@ class ReportService:
         for iss in awaiting_triage:
             ref = iss.filed_at or iss.created_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_triage", "waitingHours": h})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_triage", "waitingHours": h})
         for iss in awaiting_verify:
             ref = iss.fixed_at or iss.updated_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_verification", "waitingHours": h, "fixer": _user_obj(fixers.get(iss.assignee_id))})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_verification", "waitingHours": h, "fixer": _user_obj(fixers.get(iss.assignee_id))})
         for iss in low_fruit:
             ref = iss.filed_at or iss.created_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "low_hanging_fruit", "waitingHours": h, "estimatedTime": "1-2h"})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "low_hanging_fruit", "waitingHours": h, "estimatedTime": "1-2h"})
 
         # ── 6. Activity stream ────────────────────────────────────────────────
         ActorUser = aliased(User)

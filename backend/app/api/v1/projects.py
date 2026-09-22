@@ -25,9 +25,9 @@ from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.schemas.project import ProjectArchiveRequest, ProjectCreate, ProjectResponse, ProjectUpdate
 from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, ReleaseUpdate
+from app.services.project_service import guard_kind_change
 
 router = APIRouter()
-
 
 async def _project_to_response(db: AsyncSession, project: Project) -> ProjectResponse:
     """Build a ProjectResponse, resolving triage_lead_name from the DB."""
@@ -82,6 +82,7 @@ async def create_project(
         color=payload.color,
         description=payload.description,
         default_labels=payload.default_labels,
+        kind=payload.kind,
         triage_lead_id=payload.triage_lead_id,
         created_by_id=current_user.id,
     )
@@ -112,6 +113,7 @@ async def update_project(
     """Partially update a project's metadata."""
     project = await _get_project_or_404(db, slug)
     update_data = payload.model_dump(exclude_unset=True)
+    await guard_kind_change(db, project, update_data)
     for field, value in update_data.items():
         setattr(project, field, value)
     db.add(project)
@@ -184,6 +186,7 @@ async def update_project_by_id(
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
     update_data = payload.model_dump(exclude_unset=True)
+    await guard_kind_change(db, project, update_data)
     for field, value in update_data.items():
         setattr(project, field, value)
     db.add(project)

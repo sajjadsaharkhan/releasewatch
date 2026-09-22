@@ -1,13 +1,37 @@
 """Issue ORM model — the core entity in Releasewatch."""
 
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Computed, DateTime, Float, ForeignKey, func, Integer, JSON, SmallInteger, String, Text, text
+from sqlalchemy import Boolean, Computed, Date, DateTime, Float, ForeignKey, func, Integer, JSON, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+class IssueType(str, enum.Enum):
+    """Bug or task (slice 03). Fixed once the item is created (BR-07)."""
+
+    bug = "bug"
+    task = "task"
+
+
+#: Display key prefix per type, e.g. "BUG-123" / "TASK-124".
+ISSUE_TYPE_KEY_PREFIX = {IssueType.bug: "BUG", IssueType.task: "TASK"}
+
+
+def issue_type_value(value: "IssueType | str | None") -> str:
+    """Normalize an item type (enum member, string, or column value) to its string."""
+    raw = getattr(value, "value", value)
+    return raw or IssueType.bug.value
+
+
+def issue_key(item_type: "IssueType | str | None", issue_number: int) -> str:
+    """The display key, e.g. ``BUG-123`` / ``TASK-124`` — single source for every
+    place that builds one (IssueResponse, CSV export, search, reports)."""
+    prefix = ISSUE_TYPE_KEY_PREFIX.get(IssueType(issue_type_value(item_type)))
+    return f"{prefix}-{issue_number}"
 
 
 class IssueSeverity(str, enum.Enum):
@@ -55,7 +79,10 @@ TERMINAL_STATUSES = (IssueStatus.cancelled,)
 
 
 class IssueCancelReason(str, enum.Enum):
-    """Why a bug was cancelled without being fixed (BR-13)."""
+    """Why an item was cancelled without being fixed/finished (BR-13).
+
+    ``no_longer_needed`` is task-only; every other value is bug-only (03).
+    """
 
     user_error = "user_error"
     expected_behavior = "expected_behavior"
@@ -63,6 +90,13 @@ class IssueCancelReason(str, enum.Enum):
     duplicate = "duplicate"
     wont_fix = "wont_fix"
     no_longer_needed = "no_longer_needed"
+
+
+#: Cancel reasons valid for a bug (BR-13) — excludes the task-only reason.
+BUG_CANCEL_REASONS = tuple(r for r in IssueCancelReason if r != IssueCancelReason.no_longer_needed)
+
+#: Cancel reasons valid for a task — only ever "no longer needed".
+TASK_CANCEL_REASONS = (IssueCancelReason.no_longer_needed,)
 
 
 class Issue(Base):
@@ -83,15 +117,29 @@ class Issue(Base):
     project_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    release_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
+    release_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("releases.id", ondelete="SET NULL"), nullable=True, index=True,
+        doc="Null for hotfixes/tasks with no release (BR-26, D7). Deleting a release sets this null."
+    )
+    type: Mapped[IssueType] = mapped_column(
+        String(16), nullable=False, default=IssueType.bug,
+        doc="bug | task. Fixed at creation (BR-07)."
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     severity: Mapped[IssueSeverity | None] = mapped_column(
         String(32), nullable=True, default=None,
-        doc="Null on New/Needs info bugs nobody has rated yet (D4)."
+        doc="Bug-only. Null on New/Needs info bugs nobody has rated yet (D4)."
     )
+    priority: Mapped[int | None] = mapped_column(
+        SmallInteger, nullable=True,
+        doc="Task-only. 1 (highest) - 4 (lowest), required for tasks, null for bugs."
+    )
+    is_urgent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        doc="Cleared automatically on entering done or cancelled (FR-22, BR-27, AC-24)."
+    )
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[IssueStatus] = mapped_column(
         String(32), nullable=False, default=IssueStatus.new
     )

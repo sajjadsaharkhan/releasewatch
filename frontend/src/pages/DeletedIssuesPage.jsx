@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { issuesApi, attachmentsApi } from '../lib/api'
+import { issueKey } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { Button, Badge, SeverityBadge, StatusBadge, Dialog, Icon } from '../components/ui'
@@ -206,7 +207,7 @@ export default function DeletedIssuesPage() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <SeverityBadge severity={issue.severity} dot />
                     <span className="font-mono text-[11px] text-muted-foreground">
-                      issue-{issue.issue_number}
+                      {issueKey(issue)}
                     </span>
                     <span
                       className="ml-auto text-[11px] text-muted-foreground"
@@ -238,7 +239,7 @@ export default function DeletedIssuesPage() {
               {/* Meta */}
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-mono text-[12px] text-muted-foreground">
-                  issue-{selected.issue_number}
+                  {issueKey(selected)}
                 </span>
                 <SeverityBadge severity={selected.severity} dot />
                 <StatusBadge status={selected.status} />

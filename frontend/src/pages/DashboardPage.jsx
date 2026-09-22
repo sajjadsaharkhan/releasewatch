@@ -8,6 +8,7 @@ import { SeverityBadge } from '../components/ui/Badge'
 import { reportsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { useToast } from '../hooks/useToast'
+import { issueSlug, issueKey } from '../lib/issueSlug'
 
 const ACTIVITY_ICONS = {
   filed: { color: 'bg-blue-500', label: 'filed' },
@@ -305,11 +306,11 @@ export default function DashboardPage() {
                 {staleByCategory.awaiting_triage.slice(0, 2).map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/issue-${item.id}`}
+                    to={`/issue/${issueSlug(item)}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />
-                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{issueKey(item)}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">{item.waitingHours}h</span>
                   </Link>
@@ -325,11 +326,11 @@ export default function DashboardPage() {
                 {staleByCategory.awaiting_verification.slice(0, 2).map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/issue-${item.id}`}
+                    to={`/issue/${issueSlug(item)}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{issueKey(item)}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     {item.fixer && <UserHoverCard user={item.fixer} size={18} />}
                     <span className="text-xs text-muted-foreground whitespace-nowrap">{Math.round(item.waitingHours / 24)}d</span>
@@ -346,11 +347,11 @@ export default function DashboardPage() {
                 {staleByCategory.low_hanging_fruit.map((item) => (
                   <Link
                     key={item.id}
-                    to={`/issue/issue-${item.id}`}
+                    to={`/issue/${issueSlug(item)}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
                     <SeverityBadge severity={item.severity} />
-                    <span className="font-mono text-xs text-muted-foreground">#{item.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{issueKey(item)}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
                       ~{item.estimatedTime}

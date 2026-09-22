@@ -8,6 +8,7 @@ import { Icon } from '../components/ui/Icon'
 import { FilterDropdown } from '../components/common/FilterDropdown'
 import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { issuesApi } from '../lib/api'
+import { issueSlug } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { STATUS, SEVERITY, OPEN_STATUSES } from '../lib/constants'
 
@@ -96,7 +97,7 @@ export default function MyIssuesPage() {
   const displayedIssues = tab === 'assigned' ? displayedAssigned : displayedReported
   const loading = tab === 'assigned' ? assignedLoading : reportedLoading
 
-  const openIssue = (issue) => navigate(`/issue/issue-${issue.issue_number}`)
+  const openIssue = (issue) => navigate(`/issue/${issueSlug(issue)}`)
 
   const statusLabel =
     statusFilter === 'open' ? 'Open issues'

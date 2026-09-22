@@ -113,6 +113,30 @@ a different kind of thing. Bugs may have no severity at all — New and Needs in
 has rated yet render with no severity badge (D4, slice 02). `enhancement` was removed in slice
 02; improvements are filed as tasks (slice 03) instead.
 
+### Priority — `PRIORITY` in `lib/constants.js`
+
+Task-only (BR-09), the priority equivalent of severity — P1 highest to P4 lowest, no "unrated"
+state (priority is required to file a task). Rendered by `<PriorityBadge>` as a pill.
+
+| Key | Label | Hue |
+|---|---|---|
+| `1` | P1 | red |
+| `2` | P2 | orange |
+| `3` | P3 | amber |
+| `4` | P4 | blue |
+
+### Type — `TYPE` in `lib/constants.js`
+
+Bug or task (slice 03, docs/phase-2/03-tasks-and-placement.md). Fixed once an item is created
+(BR-07) — never shown as an editable control. Rendered as a small leading `<Icon>` plus the
+item's `key` (`BUG-123` / `TASK-124`) on `IssueTable` rows, `IssueBoard` cards, search results,
+and the command palette — see §9 for icon sizing.
+
+| Key | Label | Icon | Hue |
+|---|---|---|---|
+| `bug` | Bug | `bug` | red |
+| `task` | Task | `check-square` | violet |
+
 ### Status — `STATUS` in `lib/constants.js`
 
 The unified status set (docs/phase-2/02-unified-status-model.md), shared by bugs and, from
@@ -135,13 +159,17 @@ non-pill use.
 looks committed. `OPEN_STATUSES` — not `done` and not `cancelled` — is the canonical "still
 needs work" set. Use these; do not re-enumerate the lists at a call site.
 
-A bug's next statuses come from the API (`IssueResponse.allowed_transitions`, computed by the
+An item's next statuses come from the API (`IssueResponse.allowed_transitions`, computed by the
 backend's Workflow module) — the frontend never hardcodes the status list, it renders what the
-API returned. Status movement is unrestricted by product decision (2026-09-22): any status can
-move to any other status from the sidebar's status control, with no confirmation dialog and no
-reason required — `allowed_transitions` is currently always "every other status."
-`CANCEL_REASON` (`lib/constants.js`) still exists for the optional `cancel_reason` field but
-nothing in the UI requires setting it.
+API returned. Bug status movement is unrestricted by product decision (2026-09-22): any status
+can move to any other status from the sidebar's status control, with no confirmation dialog and
+no reason required. Tasks (slice 03) are gated instead — `todo → in_progress → in_review →
+done`, with `blocked` reachable from any of the three and `cancelled` reachable from any
+non-done status — so always render `allowed_transitions` rather than assuming every status is
+reachable. `CANCEL_REASON` (`lib/constants.js`) holds a `cancel_reason` per the reason a bug is
+optionally cancelled with (any value except `no_longer_needed`) or a task is required to be
+cancelled with (`no_longer_needed` only) — `BUG_CANCEL_REASONS` / `TASK_CANCEL_REASONS` give the
+filtered lists for the cancel dialog's select.
 
 ### Role — `ROLE` in `lib/constants.js`
 
@@ -481,7 +509,10 @@ closes both. Any new global shortcut needs the same input-focus guard.
   ("just now", "2m ago", "3h ago", "5d ago", "2w ago", then "Jan 5"); `fullTime()` for the
   tooltip on that relative string; `formatDuration(hours)` for spans ("45m", "3h", "2d 4h").
   Never hand-roll a date format.
-- **Issue identity** is `issue-{issue_number}` in `font-mono text-muted-foreground`.
+- **Item identity** is the key (`BUG-123` / `TASK-124`, from `IssueResponse.key` —
+  `issueKey()` in `lib/issueSlug.js` for payloads that predate it) in `font-mono
+  text-muted-foreground`, preceded by the type icon. Links keep using
+  `/issue/<type>-<number>`; old `issue-<n>` links still resolve.
 - **Sentence case** for buttons, labels, and menu items — "New issue", "Sign out",
   "Create project". Not Title Case.
 - **Real ellipsis** `…`, not three dots: "Search issues…", "Loading dashboard…".

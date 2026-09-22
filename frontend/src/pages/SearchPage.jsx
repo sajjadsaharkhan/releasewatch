@@ -2,9 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { cn } from '../lib/cn'
-import { Badge } from '../components/ui/Badge'
+import { Badge, TypeIcon, UrgentMarker } from '../components/ui/Badge'
 import { useApp } from '../hooks/useApp'
 import { searchApi, issuesApi } from '../lib/api'
+import { issueSlug, issueKey, parseIssueSlug } from '../lib/issueSlug'
 
 const SEVERITY_TONE = {
   blocker: 'red',
@@ -49,10 +50,16 @@ function ResultCard({ result, onClick }) {
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="text-xs text-muted-foreground font-mono">#{result.issue_number}</span>
-            <Badge tone={SEVERITY_TONE[result.severity] ?? 'default'} size="sm">
-              {result.severity}
-            </Badge>
+            <span className="text-xs text-muted-foreground font-mono inline-flex items-center gap-1">
+              <TypeIcon type={result.type} />
+              {result.key ?? issueKey(result)}
+            </span>
+            {result.is_urgent && <UrgentMarker />}
+            {result.type !== 'task' && (
+              <Badge tone={SEVERITY_TONE[result.severity] ?? 'default'} size="sm">
+                {result.severity}
+              </Badge>
+            )}
             <Badge tone={STATUS_TONE[result.status] ?? 'default'} size="sm">
               {result.status?.replace('_', ' ')}
             </Badge>
@@ -92,10 +99,14 @@ export default function SearchPage() {
   const debounceRef = useRef(null)
 
   function parseIssueNumber(q) {
-    const exact = q.match(/^(?:#|issue-)(\d+)$/i)
-    if (exact) return { num: parseInt(exact[1], 10), exact: true }
-    const bare = q.match(/^(\d+)$/)
-    if (bare) return { num: parseInt(bare[1], 10), exact: false }
+    if (q.startsWith('#')) {
+      const rest = q.slice(1)
+      if (/^\d+$/.test(rest)) return { num: parseInt(rest, 10), exact: true }
+      return null
+    }
+    const fromSlug = parseIssueSlug(q)
+    if (fromSlug !== null) return { num: fromSlug, exact: true }
+    if (/^\d+$/.test(q)) return { num: parseInt(q, 10), exact: false }
     return null
   }
 
@@ -112,6 +123,9 @@ export default function SearchPage() {
           setResults([{
             issue_id: issue.id,
             issue_number: issue.issue_number,
+            type: issue.type,
+            key: issue.key,
+            is_urgent: issue.is_urgent,
             title: issue.title,
             severity: issue.severity,
             status: issue.status,
@@ -205,7 +219,7 @@ export default function SearchPage() {
               value={query}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Search issues, or jump to #13 / issue-13…"
+              placeholder="Search issues, or jump to #13 / BUG-13…"
               className={cn(
                 'w-full h-10 rounded-lg border border-border bg-background pl-9 pr-4',
                 'text-sm placeholder:text-muted-foreground',
@@ -256,7 +270,7 @@ export default function SearchPage() {
             <ResultCard
               key={r.issue_id}
               result={r}
-              onClick={() => navigate(`/issue/issue-${r.issue_number}`)}
+              onClick={() => navigate(`/issue/${issueSlug(r)}`)}
             />
           ))}
         </div>

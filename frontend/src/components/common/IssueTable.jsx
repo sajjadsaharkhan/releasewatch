@@ -1,8 +1,9 @@
 import React from 'react'
 import { RefreshCw } from 'lucide-react'
-import { SeverityBadge, StatusBadge, Badge, Avatar, UserHoverCard } from '../ui'
+import { SeverityBadge, StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, UrgentMarker, PriorityBadge } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
+import { issueKey } from '../../lib/issueSlug'
 
 const TITLE_WIDTHS = ['w-48', 'w-64', 'w-56', 'w-40', 'w-72', 'w-52', 'w-60', 'w-44']
 
@@ -86,16 +87,24 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
           return (
             <tr key={i.id} onClick={() => onOpen(i)}
               className="border-b border-border cursor-pointer hover:bg-muted/50">
-              <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">issue-{i.issue_number}</td>
+              <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <TypeIcon type={i.type} />
+                  {issueKey(i)}
+                </span>
+              </td>
               <td className="px-2 py-2">
                 <div className="flex items-center gap-1.5">
+                  {i.is_urgent && <UrgentMarker />}
                   {i.is_release_blocker && (
                     <Badge tone="red">
                       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                       Blocker
                     </Badge>
                   )}
-                  {!i.is_release_blocker && <SeverityBadge severity={i.severity} dot />}
+                  {i.type === 'task'
+                    ? <PriorityBadge priority={i.priority} />
+                    : !i.is_release_blocker && <SeverityBadge severity={i.severity} dot />}
                   <span className="text-foreground font-medium truncate max-w-[420px]">{i.title}</span>
                   {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                 </div>

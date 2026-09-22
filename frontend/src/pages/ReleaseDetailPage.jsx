@@ -20,6 +20,8 @@ import {
 } from 'recharts'
 import { SEVERITY, FIXED_STATUSES } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
+import { issueKey } from '../lib/issueSlug'
+import { issueSlug } from '../lib/issueSlug'
 import { relTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
 import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Trash2 } from 'lucide-react'
@@ -1032,11 +1034,11 @@ export default function ReleaseDetailPage() {
                         <tr
                           key={issue.id}
                           className="border-b border-border last:border-0 hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => window.location.hash = `/issue/issue-${issue.issue_number}`}
+                          onClick={() => window.location.hash = `/issue/${issueSlug(issue)}`}
                         >
                           <td className="px-4 py-2.5">
                             <div>
-                              <span className="font-mono text-xs text-muted-foreground">issue-{issue.issue_number}</span>
+                              <span className="font-mono text-xs text-muted-foreground">{issueKey(issue)}</span>
                               <p className="text-sm font-medium truncate max-w-[200px]">{issue.title}</p>
                             </div>
                           </td>

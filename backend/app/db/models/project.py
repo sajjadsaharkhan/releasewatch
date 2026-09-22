@@ -1,5 +1,6 @@
 """Project ORM model."""
 
+import enum
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -7,6 +8,14 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+class ProjectKind(str, enum.Enum):
+    """What a project is for (03, PRD §8.1). Only ``product`` projects take releases (BR-02)."""
+
+    product = "product"
+    internal = "internal"
+    general = "general"
 
 
 class Project(Base):
@@ -23,6 +32,10 @@ class Project(Base):
     slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#6366f1")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    kind: Mapped[ProjectKind] = mapped_column(
+        String(16), nullable=False, default=ProjectKind.product,
+        doc="product | internal | general. Only product projects accept releases (BR-02)."
+    )
 
     # Labels that are automatically suggested when filing an issue
     default_labels: Mapped[list[str]] = mapped_column(

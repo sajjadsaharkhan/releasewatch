@@ -17,8 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue import Issue, IssueSeverity, IssueStatus, IssueType, issue_type_value
 from app.db.models.issue_timeline import TimelineEventType
+from app.db.models.project import ProjectKind
 from app.db.models.user import User
 from app.schemas.issue import IssueCreate
 from app.workflow import Workflow
@@ -35,23 +36,44 @@ class IssueService:
         data: IssueCreate,
         current_user: User,
     ) -> Issue:
-        """File a new issue against a release.
+        """File a new issue (bug or task) against a project, optionally a release.
 
-        Automatically assigns the next ``issue_number`` within the project and
-        appends a ``filed`` timeline event.
+        Automatically assigns the next ``issue_number`` and appends a
+        ``filed`` timeline event. Bugs start in ``new`` (BR-11 — every bug
+        passes triage). Tasks start in ``todo`` and skip triage (BR-12).
         """
+        from app.db.models.project import Project
         from app.db.models.release import Release
         from app.services.inbox_service import InboxFanOutService
         from app.services.timeline_service import TimelineService
 
-        release_result = await db.execute(
-            select(Release).where(Release.id == data.release_id)
-        )
-        release = release_result.scalar_one_or_none()
-        if release is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
+        project_result = await db.execute(select(Project).where(Project.id == data.project_id))
+        project = project_result.scalar_one_or_none()
+        if project is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+        release = None
+        if data.release_id is not None:
+            project_kind = getattr(project.kind, "value", project.kind)
+            if project_kind != ProjectKind.product.value:
+                raise DomainError(
+                    status.HTTP_409_CONFLICT,
+                    "Only Product projects accept a release.",
+                    "releases_not_allowed",
+                )
+            release_result = await db.execute(select(Release).where(Release.id == data.release_id))
+            release = release_result.scalar_one_or_none()
+            if release is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
+            if release.project_id != data.project_id:
+                raise DomainError(
+                    status.HTTP_409_CONFLICT,
+                    "That release belongs to a different project.",
+                    "release_project_mismatch",
+                )
 
         now = datetime.now(tz=UTC)
+        initial_status = IssueStatus.todo if data.type == IssueType.task else IssueStatus.new
 
         reproduction_steps_json = [
             {
@@ -64,11 +86,15 @@ class IssueService:
         ]
 
         issue = Issue(
-            project_id=release.project_id,
+            project_id=data.project_id,
             release_id=data.release_id,
+            type=data.type,
             title=data.title,
             description=data.description,
             severity=data.severity,
+            priority=data.priority,
+            is_urgent=data.is_urgent,
+            due_date=data.due_date,
             labels=data.labels,
             is_release_blocker=data.is_release_blocker,
             environment_browser=data.environment_browser,
@@ -78,7 +104,8 @@ class IssueService:
             environment_name=data.environment_name,
             curl_command=data.curl_command,
             reporter_id=current_user.id,
-            status=IssueStatus.new,
+            assignee_id=data.assignee_id,
+            status=initial_status,
             created_at=now,
             filed_at=now,
             reproduction_steps=reproduction_steps_json or [],
@@ -100,6 +127,23 @@ class IssueService:
             meta={"severity": data.severity.value if data.severity else None},
             is_internal=False,
         )
+
+        if data.is_urgent:
+            await timeline_svc.create_event(
+                db=db,
+                issue_id=issue.id,
+                actor_id=current_user.id,
+                event_type=TimelineEventType.urgent_flagged,
+                body=None,
+                meta=None,
+                is_internal=False,
+            )
+            await InboxFanOutService().fan_out(
+                db=db,
+                trigger=InboxEventType.urgent,
+                issue=issue,
+                actor=current_user,
+            )
 
         if data.pending_attachments:
             from app.db.models.issue_attachment import IssueAttachment
@@ -185,7 +229,8 @@ class IssueService:
             **(_internal_context or {}),
         }
 
-        check = Workflow.can_transition("bug", from_status.value, to_status.value, context)
+        item_type = issue_type_value(issue.type)
+        check = Workflow.can_transition(item_type, from_status.value, to_status.value, context)
         if not check.ok:
             raise DomainError(status.HTTP_409_CONFLICT, check.detail, check.code, check.allowed)
 
@@ -247,6 +292,11 @@ class IssueService:
         if from_status == IssueStatus.blocked and to_status != IssueStatus.blocked:
             issue.blocked_from_status = None
 
+        # Urgent clears itself on entering done or cancelled (FR-22, BR-27, AC-24).
+        was_urgent = issue.is_urgent
+        if to_status in (IssueStatus.done, IssueStatus.cancelled):
+            issue.is_urgent = False
+
         db.add(issue)
         await db.flush()
 
@@ -263,6 +313,17 @@ class IssueService:
             },
             is_internal=False,
         )
+
+        if was_urgent and to_status in (IssueStatus.done, IssueStatus.cancelled):
+            await timeline_svc.create_event(
+                db=db,
+                issue_id=issue.id,
+                actor_id=actor.id,
+                event_type=TimelineEventType.urgent_cleared,
+                body=None,
+                meta=None,
+                is_internal=False,
+            )
 
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.status_changed, issue=issue, actor=actor,
@@ -637,6 +698,13 @@ class IssueService:
         if issue is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
 
+        if "type" in payload:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "type is immutable once an item is created (BR-07).",
+                "type_immutable",
+            )
+
         timeline_svc = TimelineService()
         inbox_svc = InboxFanOutService()
         events_to_emit: list[tuple[TimelineEventType, dict]] = []
@@ -695,6 +763,15 @@ class IssueService:
                 events_to_emit.append((TimelineEventType.blocker_cleared, {}))
                 inbox_triggers.append((InboxEventType.blocker_cleared, None))
             issue.is_release_blocker = payload["is_release_blocker"]
+
+        # ── Urgent ────────────────────────────────────────────────────────────
+        if "is_urgent" in payload and payload["is_urgent"] != issue.is_urgent:
+            if payload["is_urgent"]:
+                events_to_emit.append((TimelineEventType.urgent_flagged, {}))
+                inbox_triggers.append((InboxEventType.urgent, None))
+            else:
+                events_to_emit.append((TimelineEventType.urgent_cleared, {}))
+            issue.is_urgent = payload["is_urgent"]
 
         # ── Assignee ──────────────────────────────────────────────────────────
         if "assignee_id" in payload:
@@ -799,7 +876,7 @@ class IssueService:
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
-                      "environment_staging_url", "curl_command"):
+                      "environment_staging_url", "curl_command", "priority", "due_date"):
             if field in payload:
                 setattr(issue, field, payload[field])
 

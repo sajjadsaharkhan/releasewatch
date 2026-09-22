@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { SeverityBadge, StatusBadge, Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
+import { issueKey } from '../../lib/issueSlug'
 
 export function RegressionIssueTable({ issues = [], labels = [], title, description, className }) {
   // Build a lookup from label name → label object so we can resolve colors
@@ -56,7 +57,7 @@ export function RegressionIssueTable({ issues = [], labels = [], title, descript
                       className="font-mono text-xs text-blue-600 dark:text-blue-400 hover:underline"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      issue-{issue.id}
+                      {issue.key ?? `issue-${issue.id}`}
                     </Link>
                   </td>
                   <td className="px-4 py-3">

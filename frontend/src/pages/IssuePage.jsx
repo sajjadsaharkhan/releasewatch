@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { IssueDetail } from '../components/issues/IssueDetail'
 import { issuesApi } from '../lib/api'
 import { useBackTarget } from '../hooks/useNavOrigin'
+import { parseIssueSlug } from '../lib/issueSlug'
 
 export default function IssuePage() {
   const { slug } = useParams()
@@ -13,7 +14,7 @@ export default function IssuePage() {
   const [adjacent, setAdjacent] = useState(null)
   const { to: backTo, label: backLabel } = useBackTarget()
 
-  const issueNum = slug?.startsWith('issue-') ? parseInt(slug.slice(6), 10) : null
+  const issueNum = parseIssueSlug(slug)
 
   useEffect(() => {
     if (!issueNum) { setError('Invalid issue reference'); setLoading(false); return }

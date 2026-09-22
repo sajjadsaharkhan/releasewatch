@@ -18,6 +18,7 @@ environment_changed  → assignee + reporter
 release_changed      → assignee + reporter + triage_lead (new release's triage lead)
 project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
+urgent               → assignee
 """
 
 import html as html_lib
@@ -230,6 +231,11 @@ class InboxFanOutService:
             # Matrix has triage: True — include release triage lead
             leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
+
+        elif trigger == InboxEventType.urgent:
+            if issue.assignee_id:
+                # Use forced_recipients so self-flagging still creates a notification.
+                forced_recipients.add(str(issue.assignee_id))
 
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).

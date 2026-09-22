@@ -1,12 +1,18 @@
+const TYPE_EMOJI = { bug: '🐛', task: '✅' }
+
 const SEVERITY_EMOJI = {
+  blocker: '🔴',
   critical: '🔴',
   major: '🟠',
   minor: '🟡',
-  trivial: '⚪',
+}
+
+function typeEmoji(issue) {
+  return TYPE_EMOJI[issue.type] ?? '🐛'
 }
 
 function severityEmoji(severity, is_release_blocker) {
-  if (severity === 'critical' || (severity === 'major' && is_release_blocker)) return '🔴'
+  if (severity === 'blocker' || severity === 'critical' || (severity === 'major' && is_release_blocker)) return '🔴'
   return SEVERITY_EMOJI[severity] ?? '⚪'
 }
 
@@ -18,7 +24,8 @@ function redactCurl(curl) {
 }
 
 export function buildIssueMarkdown(issue, comments = []) {
-  const emoji = severityEmoji(issue.severity, issue.is_release_blocker)
+  const isTask = issue.type === 'task'
+  const emoji = isTask ? typeEmoji(issue) : severityEmoji(issue.severity, issue.is_release_blocker)
   const lines = []
 
   // ── Title line ────────────────────────────────────────────────────────────
@@ -26,12 +33,17 @@ export function buildIssueMarkdown(issue, comments = []) {
   lines.push('')
 
   const meta = [
-    `**Issue #${issue.issue_number}**`,
+    `**${issue.key ?? (isTask ? 'TASK' : 'BUG') + '-' + issue.issue_number}**`,
+    `Type: \`${issue.type ?? 'bug'}\``,
     issue.project_name && `Project: ${issue.project_name}`,
     issue.release_version && `Release: ${issue.release_version}`,
     `Status: \`${issue.status}\``,
-    `Severity: \`${issue.severity}\``,
-    issue.is_release_blocker && '🔴 Release Blocker',
+    isTask
+      ? (issue.priority != null && `Priority: \`P${issue.priority}\``)
+      : `Severity: \`${issue.severity ?? 'unrated'}\``,
+    issue.is_urgent && '🚨 Urgent',
+    issue.due_date && `Due: ${issue.due_date}`,
+    !isTask && issue.is_release_blocker && '🔴 Release Blocker',
     issue.is_regression && `⚠️ Regression (x${issue.regression_count})`,
   ].filter(Boolean).join(' · ')
   lines.push(meta)
@@ -47,29 +59,31 @@ export function buildIssueMarkdown(issue, comments = []) {
   lines.push(issue.description?.trim() || '_No description provided._')
   lines.push('')
 
-  // ── Reproduction Steps ───────────────────────────────────────────────────
-  lines.push('## Reproduction Steps')
-  const steps = issue.reproduction_steps || []
-  if (steps.length === 0) {
-    lines.push('_No structured repro steps provided — consider requesting numbered steps from reporter._')
-  } else {
-    for (const s of steps) {
-      lines.push(`${s.step_order}. ${s.description}`)
-      if (s.expected_result) lines.push(`   - Expected: ${s.expected_result}`)
-      if (s.actual_result) lines.push(`   - Actual: ${s.actual_result}`)
+  // ── Reproduction Steps (bug-only) ────────────────────────────────────────
+  if (!isTask) {
+    lines.push('## Reproduction Steps')
+    const steps = issue.reproduction_steps || []
+    if (steps.length === 0) {
+      lines.push('_No structured repro steps provided — consider requesting numbered steps from reporter._')
+    } else {
+      for (const s of steps) {
+        lines.push(`${s.step_order}. ${s.description}`)
+        if (s.expected_result) lines.push(`   - Expected: ${s.expected_result}`)
+        if (s.actual_result) lines.push(`   - Actual: ${s.actual_result}`)
+      }
     }
-  }
-  lines.push('')
-
-
-  // ── Repro Request ─────────────────────────────────────────────────────────
-  if (issue.curl_command?.trim()) {
-    lines.push('## Repro Request')
-    lines.push('```bash')
-    lines.push(redactCurl(issue.curl_command.trim()))
-    lines.push('```')
-    lines.push('*(sensitive headers redacted)*')
     lines.push('')
+
+
+    // ── Repro Request ─────────────────────────────────────────────────────────
+    if (issue.curl_command?.trim()) {
+      lines.push('## Repro Request')
+      lines.push('```bash')
+      lines.push(redactCurl(issue.curl_command.trim()))
+      lines.push('```')
+      lines.push('*(sensitive headers redacted)*')
+      lines.push('')
+    }
   }
 
   // ── Comments ──────────────────────────────────────────────────────────────
@@ -97,7 +111,7 @@ export function downloadIssueMarkdown(issue, comments = []) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `issue-${issue.issue_number}.md`
+  a.download = `${issue.key ? issue.key.toLowerCase() : `issue-${issue.issue_number}`}.md`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -37,9 +37,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_role
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue import (
+    Issue, IssueSeverity, IssueStatus, IssueType, issue_key, issue_type_value,
+)
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
+from app.db.models.project import Project, ProjectKind
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
@@ -113,6 +116,10 @@ def _apply_filters(
     unassigned,
     labels,
     search,
+    type=None,
+    is_urgent=None,
+    has_release=None,
+    project_kind=None,
 ):
     query = query.where(Issue.deleted_at.is_(None))
     if project_id:
@@ -137,6 +144,16 @@ def _apply_filters(
         query = query.where(Issue.assignee_id.is_(None))
     if labels:
         query = query.where(or_(*[Issue.labels.any(name) for name in labels]))
+    if type:
+        query = query.where(Issue.type == type)
+    if is_urgent is not None:
+        query = query.where(Issue.is_urgent == is_urgent)
+    if has_release is not None:
+        query = query.where(Issue.release_id.isnot(None) if has_release else Issue.release_id.is_(None))
+    if project_kind:
+        query = query.where(
+            Issue.project_id.in_(select(Project.id).where(Project.kind == project_kind))
+        )
     if search:
         from sqlalchemy import String as SAString
         from sqlalchemy import cast
@@ -170,7 +187,8 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
         "has_release": issue.release_id is not None,
         "release_shipped": release.is_shipped if release is not None else False,
     }
-    targets = Workflow.allowed_targets("bug", issue.status, context)
+    item_type = issue_type_value(issue.type)
+    targets = Workflow.allowed_targets(item_type, issue.status, context)
     return {
         "allowed_transitions": targets.allowed,
         "blocked_transitions": [BlockedTransition(**b) for b in targets.blocked],
@@ -248,6 +266,10 @@ async def list_issues(
     labels: list[str] | None = Query(None),
     sort: str = Query("newest"),
     search: str | None = Query(None),
+    type: IssueType | None = Query(None),
+    is_urgent: bool | None = Query(None),
+    has_release: bool | None = Query(None, description="True: has a release. False: hotfix/task with no release."),
+    project_kind: ProjectKind | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -267,6 +289,10 @@ async def list_issues(
         unassigned=unassigned,
         labels=labels,
         search=search,
+        type=type,
+        is_urgent=is_urgent,
+        has_release=has_release,
+        project_kind=project_kind,
     )
 
     count_q = _apply_filters(select(func.count(Issue.id)), **filter_kwargs)
@@ -305,6 +331,10 @@ async def export_issues(
     labels: list[str] | None = Query(None),
     sort: str = Query("newest"),
     search: str | None = Query(None),
+    type: IssueType | None = Query(None),
+    is_urgent: bool | None = Query(None),
+    has_release: bool | None = Query(None),
+    project_kind: ProjectKind | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
@@ -321,6 +351,10 @@ async def export_issues(
         unassigned=unassigned,
         labels=labels,
         search=search,
+        type=type,
+        is_urgent=is_urgent,
+        has_release=has_release,
+        project_kind=project_kind,
     )
 
     fetch_q = select(Issue).options(
@@ -337,19 +371,26 @@ async def export_issues(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "Issue #", "Issue ID", "Title", "Severity", "Status", "Assignee", "Reporter",
-        "Release", "Labels", "Release Blocker", "Regression", "Created At", "Updated At",
+        "Key", "Issue #", "Issue ID", "Type", "Title", "Severity", "Priority", "Urgent",
+        "Status", "Assignee", "Reporter", "Release", "Due Date", "Labels",
+        "Release Blocker", "Regression", "Created At", "Updated At",
     ])
     for issue in issues:
+        item_type = getattr(issue.type, "value", issue.type) or IssueType.bug.value
         writer.writerow([
+            issue_key(item_type, issue.issue_number),
             issue.issue_number,
             str(issue.id),
+            item_type,
             issue.title,
             issue.severity,
+            issue.priority,
+            "Yes" if issue.is_urgent else "No",
             issue.status,
             issue.assignee.name if issue.assignee else "",
             issue.reporter.name if issue.reporter else "",
             issue.release.version if issue.release else "",
+            issue.due_date.isoformat() if issue.due_date else "",
             ", ".join(issue.labels or []),
             "Yes" if issue.is_release_blocker else "No",
             "Yes" if issue.is_regression else "No",
@@ -426,7 +467,7 @@ async def create_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """File a new issue against a release. Any authenticated user can file issues."""
+    """File a new bug or task. Release is optional (hotfixes, tasks). Any authenticated user can file issues."""
     issue = await issue_service.create(db, payload, current_user)
     await db.commit()
     result = await db.execute(
@@ -468,6 +509,7 @@ async def list_trash(
         TrashIssueResponse(
             id=i.id,
             issue_number=i.issue_number,
+            type=i.type,
             title=i.title,
             description=i.description,
             severity=i.severity,

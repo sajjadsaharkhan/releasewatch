@@ -1,6 +1,6 @@
 export { Button } from './Button'
 export { Card, CardHeader, CardTitle, CardDesc, CardBody } from './Card'
-export { Badge, SeverityBadge, StatusBadge, RoleBadge } from './Badge'
+export { Badge, SeverityBadge, StatusBadge, RoleBadge, TypeIcon, UrgentMarker, PriorityBadge } from './Badge'
 export { Avatar, AvatarGroup } from './Avatar'
 export { ImageCropper } from './ImageCropper'
 export { UserHoverCard } from './UserHoverCard'

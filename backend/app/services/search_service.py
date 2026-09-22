@@ -23,6 +23,8 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.issue import issue_key
+
 logger = logging.getLogger(__name__)
 
 # RRF query weights: core dense / talk dense / lexical
@@ -408,7 +410,8 @@ async def hydrate(
         text("""
             SELECT i.id, i.issue_number, i.title, i.severity, i.status,
                    i.description,
-                   u.name AS assignee_name
+                   u.name AS assignee_name,
+                   i.type, i.is_urgent
             FROM issues i
             LEFT JOIN users u ON u.id = i.assignee_id
             WHERE i.id = ANY(:ids)
@@ -424,6 +427,8 @@ async def hydrate(
             continue
         desc = row[5] or ""
         snippet = _normalize(desc)[:_SNIPPET_LEN] + ("…" if len(desc) > _SNIPPET_LEN else "")
+        item_type = row[7] or "bug"
+        number = row[1]
         out.append({
             "issue_id": row[0],
             "issue_number": row[1],
@@ -434,6 +439,9 @@ async def hydrate(
             "snippet": snippet,
             "matched_via": matched_via.get(issue_id, []),
             "assignee": row[6],
+            "type": item_type,
+            "key": issue_key(item_type, number),
+            "is_urgent": bool(row[8]),
         })
     return out
 

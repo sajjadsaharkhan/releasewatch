@@ -30,6 +30,7 @@ class InboxEventType(str, enum.Enum):
     attachment_added = "attachment_added"
     severity_changed = "severity_changed"
     needs_clarification = "needs_clarification"
+    urgent = "urgent"
 
 
 class TelegramDeliveryStatus(str, enum.Enum):

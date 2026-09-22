@@ -12,6 +12,7 @@ import { ImageCropper } from '../components/ui/ImageCropper'
 import { MetricCard } from '../components/common/MetricCard'
 import { IssueTable } from '../components/common/IssueTable'
 import { userApi, issuesApi, authApi } from '../lib/api'
+import { issueSlug } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { FIXED_STATUSES } from '../lib/constants'
@@ -383,13 +384,13 @@ export default function ProfilePage() {
 
         {activeTab === 'assigned' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <IssueTable issues={assignedIssues} onOpen={(i) => navigate(`/issue/issue-${i.issue_number}`)} />
+            <IssueTable issues={assignedIssues} onOpen={(i) => navigate(`/issue/${issueSlug(i)}`)} />
           </div>
         )}
 
         {activeTab === 'reported' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <IssueTable issues={reportedIssues} onOpen={(i) => navigate(`/issue/issue-${i.issue_number}`)} />
+            <IssueTable issues={reportedIssues} onOpen={(i) => navigate(`/issue/${issueSlug(i)}`)} />
           </div>
         )}
 

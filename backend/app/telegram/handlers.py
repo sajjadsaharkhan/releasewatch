@@ -195,7 +195,7 @@ async def _handle_status(
         )
         return
 
-    number_str = issue_ref.upper().removeprefix("ISSUE-").removeprefix("BUG-")
+    number_str = issue_ref.upper().removeprefix("ISSUE-").removeprefix("BUG-").removeprefix("TASK-")
     if not number_str.isdigit():
         await client.send_message(
             chat_id=chat_id,

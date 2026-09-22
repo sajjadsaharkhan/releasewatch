@@ -38,10 +38,16 @@ function getStatusLabel(status) {
   }
 }
 
-export function ReleaseSwitcher({ releases = [], activeReleaseId, onChange, compact = false, width = null }) {
-  const active = releases.find((r) => r.id === activeReleaseId) ?? releases[0]
+// `allowNone` (03, BR-26): lets the caller represent "no release" as a real,
+// selectable state — a bug filed with no release is a hotfix, not an error.
+// Without it, the switcher always shows *some* release (falling back to the
+// first one), matching every pre-03 call site (Topbar, etc).
+export function ReleaseSwitcher({
+  releases = [], activeReleaseId, onChange, compact = false, width = null, allowNone = false,
+}) {
+  const active = releases.find((r) => r.id === activeReleaseId) ?? (allowNone ? null : releases[0])
 
-  if (!active) {
+  if (!active && !allowNone) {
     return (
       <button
         className={cn(
@@ -64,24 +70,43 @@ export function ReleaseSwitcher({ releases = [], activeReleaseId, onChange, comp
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium',
             'hover:bg-accent transition-colors',
-            compact ? 'h-8' : 'w-full'
+            compact ? 'h-8' : 'w-full',
+            !active && 'text-muted-foreground'
           )}
         >
           <Tag className="h-3.5 w-3.5 shrink-0" />
           <span className={cn('font-mono truncate', compact ? 'max-w-[100px]' : 'flex-1 text-left')}>
-            {active.version}
+            {active ? active.version : 'No release'}
           </span>
-          {/* Status indicator */}
-          <div className="flex items-center">
-            {getStatusIcon(active.status)}
-          </div>
+          {active && (
+            <div className="flex items-center">
+              {getStatusIcon(active.status)}
+            </div>
+          )}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </button>
       }
     >
       {({ close }) => (
         <>
-          <DropdownLabel>Active release</DropdownLabel>
+          <DropdownLabel>{allowNone ? 'Release' : 'Active release'}</DropdownLabel>
+          {allowNone && (
+            <DropdownItem
+              onClick={() => {
+                onChange?.(null)
+                close()
+              }}
+            >
+              <span className="flex items-center gap-2 flex-1">
+                {!active ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Circle className="h-4 w-4 shrink-0 opacity-70" />
+                )}
+                <span className="text-muted-foreground">No release (hotfix)</span>
+              </span>
+            </DropdownItem>
+          )}
           {releases.map((r) => (
             <DropdownItem
               key={r.id}
