@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './styles/globals.css'
 
+// Dev-only: hover a UI element, Cmd/Ctrl+C to copy its component + source
+// context for AI agents. Guarded out of production builds.
+if (import.meta.env.DEV) {
+  import('react-grab')
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
