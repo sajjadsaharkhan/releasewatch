@@ -287,3 +287,25 @@ export const settingsApi = {
   saveConfiguration: (data) => api.put('/settings/configuration', data),
   testLlmConnection: (data) => api.post('/settings/configuration/llm/test', data),
 }
+
+// ─── Support intake (slice 05) ────────────────────────────────────────────────
+export const supportApi = {
+  // Projects with at least one active template (Support + Admin).
+  projects: () => api.get('/support/projects'),
+  templates: (projectId) => api.get(`/support/projects/${projectId}/templates`),
+  // { template_id, title, values: {field_id: value}, description?, pending_attachments[] }
+  submit: (data) => api.post('/support/reports', data),
+  // params: { q, project_id, status: [..], page, size }
+  reports: (params) =>
+    api.get('/support/reports', { params, paramsSerializer: { indexes: null } }),
+}
+
+// ─── Support templates admin (slice 05, CTO + Admin) ─────────────────────────
+export const templatesApi = {
+  list: (projectId) => api.get(`/projects/${projectId}/templates`),
+  create: (projectId, data) => api.post(`/projects/${projectId}/templates`, data),
+  rename: (projectId, id, name) => api.patch(`/projects/${projectId}/templates/${id}`, { name }),
+  replaceFields: (projectId, id, fields) => api.put(`/projects/${projectId}/templates/${id}/fields`, fields),
+  activate: (projectId, id) => api.post(`/projects/${projectId}/templates/${id}/activate`),
+  deactivate: (projectId, id) => api.post(`/projects/${projectId}/templates/${id}/deactivate`),
+}

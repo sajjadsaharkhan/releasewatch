@@ -33,6 +33,8 @@ from app.services.project_service import (
     validate_triage_lead,
 )
 
+from app.services.support_service import support_service
+
 router = APIRouter()
 
 async def _project_to_response(db: AsyncSession, project: Project) -> ProjectResponse:
@@ -43,13 +45,19 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         tl = result.scalar_one_or_none()
         if tl:
             triage_lead_name = tl.name or tl.username
+    total, active = await support_service.template_counts(db, project.id)
     data = ProjectResponse.model_validate(project).model_dump(
-        exclude={"triage_lead_name", "needs_triage_lead"}
+        exclude={
+            "triage_lead_name", "needs_triage_lead",
+            "support_template_count", "active_support_template_count",
+        }
     )
     return ProjectResponse(
         **data,
         triage_lead_name=triage_lead_name,
         needs_triage_lead=await project_needs_triage_lead(db, project),
+        support_template_count=total,
+        active_support_template_count=active,
     )
 
 

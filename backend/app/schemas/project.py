@@ -60,6 +60,10 @@ class ProjectResponse(ProjectBase):
     triage_lead_name: Optional[str] = None
     #: AC-23 — the lead is unset or deactivated; the UI flags the project.
     needs_triage_lead: bool = False
+    #: Support templates on this project, and how many are active (slice 05). A project
+    #: accepts support reports while ``active_support_template_count > 0``.
+    support_template_count: int = 0
+    active_support_template_count: int = 0
     archived_at: Optional[datetime] = None
     created_at: datetime
 

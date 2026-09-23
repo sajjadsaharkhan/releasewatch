@@ -39,7 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.notification_defaults import DEFAULT_NOTIFICATION_MATRIX
 from app.db.models.inbox_item import InboxItem, InboxEventType
-from app.db.models.issue import Issue
+from app.db.models.issue import Issue, IssueSource
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User, UserRole
 
@@ -454,8 +454,15 @@ class InboxFanOutService:
             from sqlalchemy.orm import attributes as sa_attrs
 
             # Events without a template can't be delivered — skip the whole batch.
-            if event_key not in MESSAGE_TEMPLATES:
-                logger.warning("No Telegram template for event: %s", event_key)
+            # A support report's ``filed`` notice uses Support copy (slice 05).
+            template_key = event_key
+            if (
+                trigger == InboxEventType.filed
+                and getattr(issue.source, "value", issue.source) == IssueSource.support.value
+            ):
+                template_key = "support_report_filed"
+            if template_key not in MESSAGE_TEMPLATES:
+                logger.warning("No Telegram template for event: %s", template_key)
                 return
 
             for item in items:
@@ -490,6 +497,7 @@ class InboxFanOutService:
                 # unavailable at the moment of the event.
                 item_meta = dict(item.meta or {})
                 item_meta["tg_context"] = context
+                item_meta["tg_template"] = template_key
                 # Identifies this specific scheduled send. If the item is later
                 # refreshed (the actor swapped emoji), the token is rotated and
                 # the already-queued task retires itself instead of delivering
@@ -512,7 +520,7 @@ class InboxFanOutService:
                     )
 
                 send_telegram_notification.apply_async(
-                    args=[tg.chat_id, event_key, context],
+                    args=[tg.chat_id, template_key, context],
                     kwargs={
                         "bot_token": bot_token,
                         "proxy_url": proxy_url,
@@ -570,7 +578,11 @@ class InboxFanOutService:
                 )
 
             send_telegram_notification.apply_async(
-                args=[tg.chat_id, item.event_type, (item.meta or {}).get("tg_context", {})],
+                args=[
+                    tg.chat_id,
+                    (item.meta or {}).get("tg_template", item.event_type),
+                    (item.meta or {}).get("tg_context", {}),
+                ],
                 kwargs={
                     "bot_token": bot_token,
                     "proxy_url": proxy_url,

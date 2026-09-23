@@ -1,9 +1,11 @@
 import React from 'react'
 import { cn } from '../../lib/cn'
 
-export function Switch({ checked = false, onCheckedChange, disabled = false, className }) {
+export function Switch({ checked = false, onCheckedChange, disabled = false, className, ...props }) {
   return (
     <button
+      type="button"
+      {...props}
       role="switch"
       aria-checked={checked}
       disabled={disabled}

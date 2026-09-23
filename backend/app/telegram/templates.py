@@ -15,6 +15,13 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
         "Priority: <code>{priority}</code>"
     ),
+    # ``filed`` for a support-sourced item (slice 05) — same audience, Support copy.
+    "support_report_filed": (
+        "🎧 <b>New support report in {project_name}</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "<i>Reported by <a href=\"{actor_url}\">{actor}</a></i>"
+    ),
     "assigned": (
         "👋 <b>You've been assigned!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"

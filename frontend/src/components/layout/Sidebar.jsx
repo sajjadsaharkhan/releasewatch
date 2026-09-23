@@ -17,8 +17,8 @@ export function Sidebar() {
   const [reportsOpen, setReportsOpen] = useState(true)
 
   const isAdmin = ADMIN_ROLES.includes(user?.role)
-  // Support gets a minimal nav — no tech screens at all (§7.3). New report and
-  // Support reports join it in slice 05.
+  // Support gets a minimal nav — no tech screens at all (§7.3): its inbox and its
+  // Support reports list, where New report lives (slice 05).
   const support = isSupport(user?.role)
 
   return (
@@ -34,7 +34,10 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-0.5">
         {support ? (
-          <NavItem to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
+          <>
+            <NavItem to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
+            <NavItem to="/support/reports" icon="headset" label="Support reports" />
+          </>
         ) : (
           <>
           <NavItem to="/dashboard" icon="layout-dashboard" label="Dashboard" />

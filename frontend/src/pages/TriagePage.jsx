@@ -8,6 +8,7 @@ import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Icon } from '../components/ui/Icon'
 import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { MediaPreview } from '../components/common/MediaPreview'
+import { SourceBadge } from '../components/common/SourceBadge'
 import { PRIORITY, PRIORITIES } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
@@ -259,6 +260,7 @@ export default function TriagePage() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <PriorityBadge priority={i.priority} />
                     <span className="font-mono text-[11px] text-muted-foreground">{issueKey(i)}</span>
+                    <SourceBadge source={i.source} />
                     <span className="ml-auto inline-flex items-center gap-1 text-[11px]">
                       <span className={cn('h-1.5 w-1.5 rounded-full', issueSla.dot)} />
                       <span className={issueSla.text}>filed {i.age} ago</span>
@@ -282,6 +284,7 @@ export default function TriagePage() {
         <div className="px-5 py-5">
           <div className="flex items-center gap-2 mb-2">
             <span className="font-mono text-[12px] text-muted-foreground">{issueKey(selected)}</span>
+            <SourceBadge source={selected.source} />
             <PriorityBadge priority={selected.priority} />
             <StatusBadge status={selected.status} />
           </div>

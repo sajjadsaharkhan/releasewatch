@@ -55,6 +55,18 @@ _Avoid_: writing transition logic in a route or another service — even permiss
 The dedicated endpoint (`POST /issues/{id}/regression`, `IssueService.regress`) that sends a bug back to `in_progress`, incrementing `regression_count` and recording a `RegressionHistory` row when the bug has a release (silently skipped otherwise, since `regression_history.release_id` is NOT NULL until slice 06). Callable from any status.
 _Avoid_: treating "regression" as a status a bug sits in, or "regression status" — Phase 1's `regression` status was removed; a regressed bug's status is `in_progress`, distinguished by the `is_regression` flag plus this action.
 
+**Source**:
+Who filed a work item: `internal` (a tech user, through New issue) or `support` (a Support user, through a support template). Stored as `issues.source`, fixed at creation. Support sees only `support` items (BR-30) — that visibility rule is `authz.support_visibility_clause` and `policy._can_view`. Support-sourced items carry a teal "Support" badge in the triage queue and issue rows.
+_Avoid_: "customer bug", "ticket" — a support report is an ordinary bug with `source=support`.
+
+**Support template**:
+A per-project form (`support_templates` + ordered `support_template_fields`) that CTO and Admin define so Support is asked for the right information. A project is reportable while it has at least one active template — there is no separate toggle. Templates are deactivated, never deleted. Field types: short text, long text, number, date, date-time, single select, link.
+_Avoid_: "form" alone (ambiguous with any UI form); "custom fields" — template values are never stored as columns.
+
+**Support report**:
+A bug filed through `POST /support/reports` from a support template. The field values are validated and composed (`app/support_report.py`) into the bug's description, in template order, with user text escaped; that description is the record (BR-34), so editing or deactivating a template never changes an existing report (BR-35). A raw copy of the values goes into the `filed` timeline event's meta for forensics only. Status starts at `new`, priority empty, `recurrence_count` 1.
+_Avoid_: reading template values back from anywhere but the description.
+
 **Cancel reason**:
 An optional reason (`user_error, expected_behavior, cannot_reproduce, duplicate, wont_fix, no_longer_needed`) recordable when an item is cancelled without being finished (`no_longer_needed` is task-only; the rest are bug-only). Not required — cancelling with no reason is allowed.
 _Avoid_: "closed"/"closing" — Phase 1's `closed` status is gone. A finished bug is Done; an abandoned one is Cancelled, optionally with a reason.

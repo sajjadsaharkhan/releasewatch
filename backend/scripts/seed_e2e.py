@@ -2,14 +2,16 @@
 
 Wipes the E2E database (idempotent — safe to run on every `make e2e`) and
 creates exactly the fixtures the Playwright suite's ``global-setup.ts`` logs
-in as. Later slices extend this only with what their scenarios need (e.g. a
-support template in slice 05); `pm` and `support` roles arrive in slice 04.
+in as. Later slices extend this only with what their scenarios need. Slice 05
+adds a support template to the product project and a second project with none,
+so the Support report scenario can prove only reportable projects are offered.
 
 Usage:
     docker compose exec api python -m scripts.seed_e2e
 """
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -18,7 +20,8 @@ import app.db.models  # noqa: F401 — registers every model's metadata
 from app.config import settings
 from app.core.auth import get_password_hash
 from app.db.base import Base
-from app.db.models.project import Project
+from app.db.models.project import Project, ProjectKind
+from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.user import User, UserRole
 
 E2E_PASSWORD = "e2e-password-123"
@@ -68,8 +71,44 @@ async def seed(session: AsyncSession) -> None:
         triage_lead_id=users["e2e-qa"].id,
     )
     session.add(project)
+    no_template_project = Project(
+        name="E2E Internal Tools",
+        slug="e2e-internal-tools",
+        description="Has no support template — Support must not be offered it",
+        kind=ProjectKind.internal,
+        # Older than E2E Product, so the app's default project (newest first) stays E2E Product.
+        created_at=datetime.now(UTC) - timedelta(days=1),
+        created_by_id=users["e2e-admin"].id,
+        triage_lead_id=users["e2e-qa"].id,
+    )
+    session.add(no_template_project)
+    await session.flush()
+    print("  Created 2 projects")
+
+    print("Seeding one support template...")
+    template = SupportTemplate(
+        project_id=project.id,
+        name="Online class problem",
+        is_active=True,
+        position=0,
+        created_by_id=users["e2e-admin"].id,
+    )
+    session.add(template)
+    await session.flush()
+    session.add_all([
+        SupportTemplateField(
+            template_id=template.id, position=0, label="Class time", field_type="datetime",
+            is_required=True, help_text="When the class started.",
+        ),
+        SupportTemplateField(
+            template_id=template.id, position=1, label="Platform", field_type="single_select",
+            options=[{"value": "web", "label": "Web app"}, {"value": "ios", "label": "iOS app"}],
+        ),
+        SupportTemplateField(
+            template_id=template.id, position=2, label="Class name", field_type="short_text",
+        ),
+    ])
     await session.commit()
-    print("  Created 1 project")
     print("\nE2E seed complete.")
 
 

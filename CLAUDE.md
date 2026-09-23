@@ -94,6 +94,8 @@ frontend/src/
 | `#/regressions` | RegressionsPage |
 | `#/release-reports` | ReleaseReportsPage |
 | `#/contributions` | ContributionsPage |
+| `#/support/new` | SupportReportPage (Support + Admin) |
+| `#/support/reports` | SupportReportsPage |
 | `#/u/:username` | ProfilePage |
 | `#/team` | TeamPage |
 | `#/settings` | SettingsPage |
@@ -117,6 +119,7 @@ All API calls go through `src/lib/api.js`. Export shape:
 ```js
 authApi, issuesApi, inboxApi, reportsApi, teamApi
 projectsApi, timelineApi, attachmentsApi, settingsApi
+supportApi, templatesApi
 ```
 
 Falls back to `mockData.js` when the API is unreachable.
@@ -163,6 +166,8 @@ backend/
 | `/api/v1/inbox` | `api/v1/inbox.py` |
 | `/api/v1/reports` | `api/v1/reports.py` |
 | `/api/v1/team` | `api/v1/team.py` |
+| `/api/v1/support` | `api/v1/support.py` |
+| `/api/v1/projects/{id}/templates` | `api/v1/support_templates.py` |
 | `/api/v1/settings` | `api/v1/settings.py` |
 | `/api/v1/telegram/webhook` | `api/v1/telegram.py` |
 | `/ws/dashboard`, `/ws/inbox` | `api/v1/ws.py` |

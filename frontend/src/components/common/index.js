@@ -1,4 +1,5 @@
 export { ActionButton, GatedButton, actionState } from './ActionButton'
+export { SourceBadge } from './SourceBadge'
 export { CommandPalette } from './CommandPalette'
 export { IssueTable } from './IssueTable'
 export { IssueBoard } from './IssueBoard'

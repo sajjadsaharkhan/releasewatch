@@ -81,3 +81,48 @@ class Factories:
         resp = await (client or self.admin_client).post("/issues", json=payload)
         resp.raise_for_status()
         return SimpleNamespace(**resp.json())
+
+    async def support_template(
+        self,
+        *,
+        project_id: int,
+        name: str | None = None,
+        fields: list[dict] | None = None,
+    ) -> SimpleNamespace:
+        """Create a support template (slice 05). Defaults to one required short-text field."""
+        payload = {
+            "name": name or f"Template {secrets.token_hex(3)}",
+            "fields": fields if fields is not None else [
+                {"label": "What happened", "field_type": "short_text", "is_required": True},
+            ],
+        }
+        resp = await self.admin_client.post(f"/projects/{project_id}/templates", json=payload)
+        resp.raise_for_status()
+        return SimpleNamespace(**resp.json())
+
+    async def support_report(
+        self,
+        client: AsyncClient,
+        *,
+        template: SimpleNamespace,
+        values: dict | None = None,
+        title: str | None = None,
+        description: str | None = None,
+    ) -> SimpleNamespace:
+        """Submit a support report as ``client`` (a Support or Admin user).
+
+        ``values`` defaults to filling every required field with plain text.
+        """
+        if values is None:
+            values = {
+                str(f["id"]): "Filled in" for f in template.fields if f["is_required"]
+            }
+        payload = {
+            "template_id": template.id,
+            "title": title or f"Support report {secrets.token_hex(4)}",
+            "values": values,
+            "description": description,
+        }
+        resp = await client.post("/support/reports", json=payload)
+        resp.raise_for_status()
+        return SimpleNamespace(**resp.json())

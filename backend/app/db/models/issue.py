@@ -103,6 +103,13 @@ class IssueCancelReason(str, enum.Enum):
     no_longer_needed = "no_longer_needed"
 
 
+class IssueSource(str, enum.Enum):
+    """Who filed the item (slice 05). Support sees only ``support`` items (BR-30)."""
+
+    internal = "internal"
+    support = "support"
+
+
 #: Cancel reasons valid for a bug (BR-13) — excludes the task-only reason.
 BUG_CANCEL_REASONS = tuple(r for r in IssueCancelReason if r != IssueCancelReason.no_longer_needed)
 
@@ -135,6 +142,14 @@ class Issue(Base):
     type: Mapped[IssueType] = mapped_column(
         String(16), nullable=False, default=IssueType.bug,
         doc="bug | task. Fixed at creation (BR-07)."
+    )
+    source: Mapped[IssueSource] = mapped_column(
+        String(16), nullable=False, default=IssueSource.internal, index=True,
+        doc="internal | support. Support reports come in through /support/reports (slice 05)."
+    )
+    recurrence_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1,
+        doc="How many times this problem has been reported. Incremented from 06/07."
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

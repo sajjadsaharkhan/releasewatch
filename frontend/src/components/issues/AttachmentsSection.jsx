@@ -16,6 +16,8 @@ export function AttachmentsSection({
   onUploadingChange = null,
   onPendingAttachment = null,
   onUploadComplete = null,
+  // One-row empty state (a button you can also drop onto) instead of the big box.
+  compact = false,
 }) {
   const { toast } = useToast()
   const [dragOver, setDragOver] = useState(false)
@@ -251,6 +253,32 @@ export function AttachmentsSection({
   const uploadsInProgress = activeUploads.size
 
   // Empty state
+  if (attachments.length === 0 && compact) {
+    return (
+      <>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => { if (!disabled) { e.preventDefault(); setDragOver(true) } }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-[var(--radius)] border border-dashed px-3 py-2.5 text-left text-sm transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/40',
+            'disabled:cursor-not-allowed disabled:opacity-50'
+          )}
+        >
+          <Icon name="paperclip" size={15} className="text-muted-foreground" aria-hidden />
+          <span className="text-foreground">Attach files</span>
+          <span className="text-muted-foreground text-[12px]">— screenshots, recordings, or drop them here</span>
+        </button>
+        <input ref={fileRef} type="file" multiple className="hidden" onChange={handleFileSelect} disabled={disabled} />
+      </>
+    )
+  }
+
   if (attachments.length === 0) {
     return (
       <div className="text-center py-12">

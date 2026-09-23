@@ -6,7 +6,7 @@ import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
 import { useTrackNavOrigin } from './hooks/useNavOrigin'
-import { homePath, isSupport } from './lib/roles'
+import { canSubmitSupportReport, homePath, isSupport } from './lib/roles'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -25,6 +25,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const DeletedIssuesPage = lazy(() => import('./pages/DeletedIssuesPage'))
 const MyIssuesPage = lazy(() => import('./pages/MyIssuesPage'))
+const SupportReportsPage = lazy(() => import('./pages/SupportReportsPage'))
 
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
@@ -80,6 +81,14 @@ function AdminRoute({ children }) {
 function TechRoute({ children }) {
   const { user } = useApp()
   if (isSupport(user?.role)) return <Navigate to={homePath(user.role)} replace />
+  return children
+}
+
+// `/support/new` opens the New report modal over the Support reports list — for
+// Support (and Admin, §7.3). Everyone else lands on the list.
+function SupportReportRoute({ children }) {
+  const { user } = useApp()
+  if (!canSubmitSupportReport(user?.role)) return <Navigate to="/support/reports" replace />
   return children
 }
 
@@ -181,6 +190,8 @@ function AppInner() {
             <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
             <Route path="search" element={<TechRoute><SearchPage /></TechRoute>} />
             <Route path="team" element={<TechRoute><TeamPage /></TechRoute>} />
+            <Route path="support/new" element={<SupportReportRoute><SupportReportsPage newReportOpen /></SupportReportRoute>} />
+            <Route path="support/reports" element={<SupportReportsPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
             <Route path="issue/:slug" element={<IssuePage />} />
           </Route>

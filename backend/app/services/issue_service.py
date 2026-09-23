@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueStatus, IssueType, Priority, issue_type_value
+from app.db.models.issue import Issue, IssueSource, IssueStatus, IssueType, Priority, issue_type_value
 from app.db.models.issue_timeline import TimelineEventType
 from app.db.models.project import ProjectKind
 from app.db.models.user import User
@@ -49,12 +49,20 @@ class IssueService:
         db: AsyncSession,
         data: IssueCreate,
         current_user: User,
+        *,
+        source: IssueSource = IssueSource.internal,
+        filed_meta: dict | None = None,
     ) -> Issue:
         """File a new issue (bug or task) against a project, optionally a release.
 
         Automatically assigns the next ``issue_number`` and appends a
         ``filed`` timeline event. Bugs start in ``new`` (BR-11 — every bug
         passes triage). Tasks start in ``todo`` and skip triage (BR-12).
+
+        ``source`` and ``filed_meta`` are set only by ``SupportService`` (slice
+        05) — ``/issues`` always files ``internal`` items. ``filed_meta`` is
+        merged into the ``filed`` event's meta (the template submission's
+        forensic copy).
         """
         from app.db.models.project import Project
         from app.db.models.release import Release
@@ -105,6 +113,7 @@ class IssueService:
             project_id=data.project_id,
             release_id=data.release_id,
             type=data.type,
+            source=source,
             title=data.title,
             description=data.description,
             priority=data.priority,
@@ -138,7 +147,7 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.filed,
             body=None,
-            meta={"priority": data.priority.value if data.priority else None},
+            meta={"priority": data.priority.value if data.priority else None, **(filed_meta or {})},
             is_internal=False,
         )
 

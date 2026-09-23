@@ -14,6 +14,12 @@ export const isSupport = (role) => role === 'support'
 /** Where a role lands after sign-in or on `/`. Support has no dashboard. */
 export const homePath = (role) => (isSupport(role) ? '/inbox' : '/dashboard')
 
+/** File a support report (slice 05) — Support and Admin (§7.3). */
+export const canSubmitSupportReport = (role) => role === 'support' || role === 'admin'
+
+/** Manage support templates (slice 05) — CTO and Admin (§7.3). */
+export const canManageTemplates = (role) => role === 'cto' || role === 'admin'
+
 /** Manage users and projects — Admin only (§7.3). */
 export const canManageUsersAndProjects = (role) => role === 'admin'
 

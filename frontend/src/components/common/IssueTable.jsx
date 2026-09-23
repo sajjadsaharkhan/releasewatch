@@ -4,6 +4,7 @@ import { StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, PriorityBadge } fr
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
 import { issueKey } from '../../lib/issueSlug'
+import { SourceBadge } from './SourceBadge'
 
 const TITLE_WIDTHS = ['w-48', 'w-64', 'w-56', 'w-40', 'w-72', 'w-52', 'w-60', 'w-44']
 
@@ -103,6 +104,7 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
                   )}
                   {!i.is_release_blocker && <PriorityBadge priority={i.priority} />}
                   <span className="text-foreground font-medium truncate max-w-[420px]">{i.title}</span>
+                  <SourceBadge source={i.source} />
                   {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                 </div>
               </td>

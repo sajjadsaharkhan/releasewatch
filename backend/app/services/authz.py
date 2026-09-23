@@ -13,13 +13,13 @@ attachments, inbox.
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import Select, false, select, true
+from sqlalchemy import Select, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import policy
 from app.core.auth import get_current_user
 from app.core.errors import DomainError
-from app.db.models.issue import Issue
+from app.db.models.issue import Issue, IssueSource
 from app.db.models.project import Project
 from app.db.models.user import User, UserRole
 from app.policy import Actor, Target
@@ -47,7 +47,7 @@ def issue_target(issue: Issue, project: Project | None = None, **extra: Any) -> 
         item_id=issue.id,
         item_type=getattr(issue.type, "value", issue.type),
         status=getattr(issue.status, "value", issue.status),
-        source=getattr(issue, "source", None),
+        source=getattr(issue.source, "value", issue.source),
         assignee_id=issue.assignee_id,
         reporter_id=issue.reporter_id,
         project_id=issue.project_id,
@@ -87,10 +87,8 @@ def require_action(action: policy.Action):
 
 
 def support_visibility_clause():
-    """SQL for "support-sourced item". ``issues.source`` arrives in slice 05;
-    until then no item is support-sourced, so Support sees nothing.
-    """
-    return false()
+    """SQL for "support-sourced item" — all Support may see (BR-30)."""
+    return Issue.source == IssueSource.support.value
 
 
 def visibility_clause(user: User):

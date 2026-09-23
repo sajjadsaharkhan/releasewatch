@@ -171,8 +171,8 @@ Rendered by `<RoleBadge>`. The label for `pm` is "Project manager".
 Route access keys off role, not off the badge. `lib/roles.js` holds the role-level gates
 (slice 04, PRD §7.3):
 
-- **Support** (`isSupport`) gets a minimal `Sidebar` (Inbox and profile; New report and Support
-  reports arrive in 05), no project/release switchers, search, New issue button, command
+- **Support** (`isSupport`) gets a minimal `Sidebar` (Inbox, Support reports, and profile —
+  New report is the button on Support reports), no project/release switchers, search, New issue button, command
   palette, or `c` / ⌘K shortcuts. `<TechRoute>` in `App.jsx` sends Support from any tech-only
   screen to `homePath(role)` (`/inbox`).
   `ProfilePage` shows its engineering stats (metric cards, priority breakdown, and the
@@ -190,6 +190,38 @@ Route access keys off role, not off the badge. `lib/roles.js` holds the role-lev
 `actionState(item, action)` for non-button controls). An allowed action is enabled. A blocked
 one is disabled, with the Policy's `detail` as its tooltip. An action in neither list is
 hidden, which is how Support never sees tech-only controls such as the internal-note toggle.
+
+**Support intake (slice 05).** Support files from **New report**, a `Dialog` (`size="lg"`,
+`components/support/SupportReportModal`) that mirrors New issue: the same `ProjectSwitcher`, a
+"What's wrong?" template chooser (radio cards for 2+ templates, a fixed chip for one), then
+Title, the template's questions, an optional description, and a compact attachments row
+(`AttachmentsSection compact`). `/support/new` opens it over `/support/reports`
+(`SupportReportsPage`; only Support has it in the nav, though the route works for every role).
+Questions render through `TemplateFields` — a two-column grid, long text and date-and-time
+span both columns — validated on blur and on submit (focus jumps to the first error).
+Closing with unsaved input asks "Discard this report?". A `template_inactive` 409 keeps every
+value on screen under an amber banner. Similar reports (slice 14) go in the
+`data-slot="similar-reports"` slot right under the title.
+
+CTO and Admin manage templates in **Settings → Support intake** (`SupportIntakeTab`), not
+under Projects — template management and project management have different permissions.
+Three linkable levels via `?project=&template=`: every project with its intake status
+("Accepting reports" while a template is live) and template count → that project's template
+cards (Live/Off, question count, `⋯` menu: Edit, Duplicate, Turn off/Make live) → the
+editor (`TemplateEditor`): compact question rows, one expanded at a time, drag to reorder,
+**Add question** adds a short-text question whose answer type is changed in the row with
+the `Select`, options as chips, and a live preview rendered by the same `TemplateFields`.
+The Live switch is part of the draft (one Save), new and duplicated templates start Off, and
+turning off a project's last live template asks first. Projects rows show a template-count
+chip that links to the project's templates. A support-sourced item shows `<SourceBadge
+source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
+
+`Select` opens upward when there's no room below. `Select` and `Dropdown` are
+`position: fixed` portals, so both follow their trigger when the page scrolls or resizes
+and close once the trigger leaves the viewport.
+
+`lib/markdown.js` honours backslash escapes (`\*` renders a literal `*`) and renders `---` as
+a rule — the support report description relies on both.
 
 A project whose triage lead is missing or deactivated (`needs_triage_lead`) shows
 `<NeedsTriageLeadBadge>` (amber) in the project switcher and Settings → Projects. Settings also

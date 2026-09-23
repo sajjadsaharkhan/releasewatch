@@ -9,6 +9,7 @@ from app.db.models.issue import (
     ISSUE_TYPE_KEY_PREFIX,
     TASK_DEFAULT_PRIORITY,
     IssueCancelReason,
+    IssueSource,
     IssueStatus,
     IssueType,
     Priority,
@@ -210,6 +211,8 @@ class IssueResponse(IssueBase):
     id: int
     issue_number: int
     type: IssueType = IssueType.bug
+    source: IssueSource = IssueSource.internal
+    recurrence_count: int = 1
     project_id: int
     project_name: str | None = None
     release_id: int | None = None

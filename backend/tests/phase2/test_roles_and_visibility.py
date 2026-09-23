@@ -1,18 +1,11 @@
 """Slice 04 (docs/phase-2/04-roles-and-visibility.md) — Support visibility, assignability,
 triage-lead rules, and the ``allowed_actions`` / ``blocked_actions`` response contract.
 
-``issues.source`` arrives in slice 05, so today no item is support-sourced
-and Support sees nothing. The ``support_sees_everything_public`` fixture
-simulates slice 05's data by making every item "support-sourced" for the
-visibility check, so the internal-note filtering (AC-07) is exercised now —
-drop the fixture once real support items exist.
+Support sees only support-sourced items (BR-30). The rig files one through the
+real slice-05 intake (``support_bug``) next to an internal bug and a task.
 """
 
 import pytest
-from sqlalchemy import true
-
-from app import policy
-from app.services import authz
 
 
 @pytest.fixture
@@ -33,18 +26,16 @@ async def rig(factories, client_for):
     assert resp.status_code == 201
     resp = await admin.post(f"/issues/{bug.id}/timeline", json={"body": "Public: we're on it."})
     assert resp.status_code == 201
+    support_client = await client_for(support)
+    template = await factories.support_template(project_id=project.id)
+    support_bug = await factories.support_report(
+        support_client, template=template, title="Customer can't join class",
+    )
     return {
-        "support": support, "support_client": await client_for(support),
+        "support": support, "support_client": support_client, "support_bug": support_bug,
         "qa": qa, "qa_client": await client_for(qa),
         "project": project, "release": release, "bug": bug, "task": task, "admin": admin,
     }
-
-
-@pytest.fixture
-def support_sees_everything_public(monkeypatch):
-    """Pretend every item is support-sourced (what slice 05 makes real)."""
-    monkeypatch.setattr(authz, "support_visibility_clause", lambda: true())
-    monkeypatch.setattr(policy, "_can_view", lambda actor, target: True)
 
 
 # ── AC-08: tasks and internally filed bugs never reach Support ──────────────────
@@ -55,7 +46,8 @@ async def test_ac_08_support_never_sees_tasks_or_internal_bugs(rig):
     c = rig["support_client"]
     listing = await c.get("/issues")
     assert listing.status_code == 200
-    assert listing.json()["items"] == [] and listing.json()["total"] == 0
+    assert [i["id"] for i in listing.json()["items"]] == [rig["support_bug"].id]
+    assert listing.json()["total"] == 1
 
     for iid in (rig["bug"].id, rig["task"].id):
         assert (await c.get(f"/issues/{iid}")).status_code == 404
@@ -63,7 +55,8 @@ async def test_ac_08_support_never_sees_tasks_or_internal_bugs(rig):
         assert (await c.get(f"/issues/{iid}/attachments")).status_code == 404
     assert (await c.get(f"/issues/by-number/{rig['bug'].issue_number}")).status_code == 404
     adjacent = (await c.get(f"/issues/by-number/{rig['bug'].issue_number}/adjacent")).json()
-    assert adjacent == {"prev_number": None, "next_number": None}
+    # The only neighbour Support can step to is its own report.
+    assert adjacent == {"prev_number": None, "next_number": rig["support_bug"].issue_number}
 
     # Tech users still see both.
     qa_list = (await rig["qa_client"].get("/issues")).json()
@@ -71,13 +64,14 @@ async def test_ac_08_support_never_sees_tasks_or_internal_bugs(rig):
 
 
 @pytest.mark.asyncio
-async def test_support_export_is_empty(rig):
+async def test_support_export_has_only_support_items(rig):
     resp = await rig["support_client"].get("/issues/export")
     assert resp.status_code == 200
     rows = resp.text.strip().splitlines()
-    assert len(rows) == 1  # header only
+    assert len(rows) == 2  # header + the support report
+    assert "Customer can't join class" in rows[1]
     qa_rows = (await rig["qa_client"].get("/issues/export")).text.strip().splitlines()
-    assert len(qa_rows) >= 3
+    assert len(qa_rows) >= 4
 
 
 @pytest.mark.asyncio
@@ -140,9 +134,23 @@ async def test_support_inbox_and_ws_skip_invisible_items(rig, pushes, telegram):
 
 
 @pytest.mark.asyncio
-async def test_ac_07_support_never_sees_internal_notes(rig, pushes, support_sees_everything_public):
+async def test_ac_07_support_never_sees_internal_notes(rig, pushes):
     c = rig["support_client"]
-    bug_id = rig["bug"].id
+    bug_id = rig["support_bug"].id
+    admin = rig["admin"]
+    resp = await admin.post(
+        f"/issues/{bug_id}/timeline",
+        json={"body": "Internal: root cause is the payment SDK.", "is_internal": True},
+    )
+    assert resp.status_code == 201
+    resp = await admin.post(f"/issues/{bug_id}/timeline", json={"body": "Public: we're on it."})
+    assert resp.status_code == 201
+    # The public comment notified the reporter; only count what arrives from here on.
+    before = {i["id"] for i in (await c.get("/inbox")).json()["items"]}
+    pushes.clear()
+
+    async def new_inbox():
+        return [i for i in (await c.get("/inbox")).json()["items"] if i["id"] not in before]
 
     timeline = (await c.get(f"/issues/{bug_id}/timeline")).json()
     bodies = [e["body"] for e in timeline["items"]]
@@ -162,7 +170,7 @@ async def test_ac_07_support_never_sees_internal_notes(rig, pushes, support_sees
         },
     )
     internal_id = resp.json()["id"]
-    assert (await c.get("/inbox")).json()["items"] == []
+    assert await new_inbox() == []
     assert f"rw:inbox:{rig['support'].id}" not in [ch for ch, _ in pushes]
 
     # …while a public one does.
@@ -170,7 +178,7 @@ async def test_ac_07_support_never_sees_internal_notes(rig, pushes, support_sees
         f"/issues/{bug_id}/timeline",
         json={"body": "Public ping", "mentioned_user_ids": [rig["support"].id]},
     )
-    assert [i["type"] for i in (await c.get("/inbox")).json()["items"]] == ["mention"]
+    assert [i["type"] for i in await new_inbox()] == ["mention"]
 
     # Support can't touch the internal note either — it doesn't exist for them.
     edited = await c.patch(f"/issues/{bug_id}/timeline/{internal_id}", json={"body": "x"})
@@ -190,8 +198,8 @@ async def test_ac_07_support_never_sees_internal_notes(rig, pushes, support_sees
 
 
 @pytest.mark.asyncio
-async def test_support_item_response_hides_tech_actions(rig, support_sees_everything_public):
-    item = (await rig["support_client"].get(f"/issues/{rig['bug'].id}")).json()
+async def test_support_item_response_hides_tech_actions(rig):
+    item = (await rig["support_client"].get(f"/issues/{rig['support_bug'].id}")).json()
     assert set(item["allowed_actions"]) == {"comment_public", "report_recurrence"}
     assert item["blocked_actions"] == []
     assert item["allowed_transitions"] == [] and item["blocked_transitions"] == []

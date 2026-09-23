@@ -301,7 +301,7 @@ def flush_telegram_notifications() -> dict[str, int]:
 
                 success = await telegram_sender.send_notification(
                     chat_id=tg.chat_id,
-                    template_name=item.event_type,
+                    template_name=(item.meta or {}).get("tg_template", item.event_type),
                     context=tg_ctx,
                     bot_token=bot_token,
                     proxy_url=proxy_url,

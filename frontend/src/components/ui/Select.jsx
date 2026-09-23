@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, createContext, useContext } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/cn'
@@ -11,7 +11,7 @@ export function Select({ value, onChange, children, placeholder = "Select...", c
   const triggerRef = useRef(null)
   const dropdownRef = useRef(null)
 
-  const close = () => setOpen(false)
+  const close = useCallback(() => setOpen(false), [])
 
   const selectedLabel = React.useMemo(() => {
     let label = placeholder
@@ -23,31 +23,41 @@ export function Select({ value, onChange, children, placeholder = "Select...", c
     return label
   }, [children, value, placeholder])
 
-  useEffect(() => {
-    if (!open || !triggerRef.current) return
-    const triggerRect = triggerRef.current.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
+  // Place the fixed menu against the trigger: below it, or above when the menu
+  // (max-h-60 = 240px) wouldn't fit below. Clamped to the viewport's sides.
+  const place = useCallback(() => {
+    if (!triggerRef.current) return false
+    const rect = triggerRef.current.getBoundingClientRect()
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return false
     const padding = 12
+    const width = rect.width
+    const left = Math.max(padding, Math.min(rect.left, window.innerWidth - width - padding))
+    const spaceBelow = window.innerHeight - rect.bottom
+    const flip = spaceBelow < 240 + 8 && rect.top > spaceBelow
+    setPosition(flip
+      ? { bottom: window.innerHeight - rect.top + 4, left, width }
+      : { top: rect.bottom + 4, left, width })
+    return true
+  }, [])
 
-    let left = triggerRect.left
-    const width = triggerRect.width
+  useLayoutEffect(() => {
+    if (open) place()
+  }, [open, place])
 
-    // Ensure dropdown doesn't go off the right edge
-    if (left + width > viewportWidth - padding) {
-      left = viewportWidth - width - padding
+  // Follow the trigger when the page scrolls or resizes; close once it's off screen.
+  useEffect(() => {
+    if (!open) return
+    function follow(e) {
+      if (e?.target && dropdownRef.current?.contains(e.target)) return
+      if (!place()) close()
     }
-
-    // Ensure dropdown doesn't go off the left edge
-    if (left < padding) {
-      left = padding
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
+    return () => {
+      window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', follow)
     }
-
-    setPosition({
-      top: triggerRect.bottom + 4,
-      left: left,
-      width: width,
-    })
-  }, [open])
+  }, [open, place, close])
 
   useEffect(() => {
     if (!open) return
@@ -77,8 +87,8 @@ export function Select({ value, onChange, children, placeholder = "Select...", c
     <SelectContext.Provider value={{ value, handleSelect, close }}>
       <div
         ref={dropdownRef}
-        className="fixed z-[100] mt-1 rounded-lg border border-border bg-card shadow-lg py-1 text-sm max-h-60 overflow-auto"
-        style={{ top: position.top, left: position.left, width: position.width }}
+        className="fixed z-[100] rounded-lg border border-border bg-card shadow-lg py-1 text-sm max-h-60 overflow-auto"
+        style={{ top: position.top, bottom: position.bottom, left: position.left, width: position.width }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

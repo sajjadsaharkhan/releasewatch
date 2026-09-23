@@ -6,14 +6,16 @@ const key = () => `md-${_keyCounter++}`
 // ─── Inline parser ────────────────────────────────────────────────────────────
 /**
  * Parse inline markdown into React elements.
- * Handles: **bold**, _italic_, ~~strike~~, `code`, @mention, [text](url)
+ * Handles: **bold**, _italic_, ~~strike~~, `code`, @mention, [text](url), and
+ * backslash escapes (`\*` → literal `*`) — support reports escape user-entered
+ * values this way (backend/app/support_report.py).
  */
 export function inlineMd(text) {
   if (!text) return []
 
   // Tokenise with a combined regex
   const pattern =
-    /(\*\*(.+?)\*\*)|(_(.+?)_)|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(@[\w]+)/g
+    /(\*\*(.+?)\*\*)|(_(.+?)_)|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(@[\w]+)|\\([\\`*_[\]()~@<>#|!])/g
 
   const elements = []
   let lastIndex = 0
@@ -71,6 +73,9 @@ export function inlineMd(text) {
           match[11]
         )
       )
+    } else if (match[12]) {
+      // \x — an escaped literal
+      elements.push(match[12])
     }
 
     lastIndex = pattern.lastIndex
@@ -124,6 +129,13 @@ export function renderMarkdown(text) {
         )
       )
       i++ // skip closing ```
+      continue
+    }
+
+    // Horizontal rule
+    if (/^(-{3,}|\*{3,})\s*$/.test(line)) {
+      elements.push(React.createElement('hr', { key: key(), className: 'my-4 border-border' }))
+      i++
       continue
     }
 
@@ -213,6 +225,7 @@ export function renderMarkdown(text) {
       !lines[i].startsWith('#') &&
       !lines[i].startsWith('```') &&
       !lines[i].startsWith('> ') &&
+      !/^(-{3,}|\*{3,})\s*$/.test(lines[i]) &&
       !lines[i].match(/^[-*+]\s/) &&
       !lines[i].match(/^\d+\.\s/)
     ) {

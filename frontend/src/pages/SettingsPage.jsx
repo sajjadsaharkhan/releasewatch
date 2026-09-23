@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
+import { Icon } from '../components/ui/Icon'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -14,14 +15,16 @@ import { useToast } from '../hooks/useToast'
 import { ROLE } from '../lib/constants'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
+import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
 import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
 import { GatedButton } from '../components/common'
-import { canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
+import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
 
 const TAB_OPTIONS = [
   { value: 'general', label: 'General' },
   { value: 'team', label: 'Team' },
   { value: 'projects', label: 'Projects' },
+  { value: 'support', label: 'Support intake' },
   { value: 'labels', label: 'Labels' },
   { value: 'integrations', label: 'Integrations' },
   { value: 'configuration', label: 'Configuration' },
@@ -99,7 +102,15 @@ export default function SettingsPage() {
   const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'general'
 
   function setActiveTab(tab) {
-    setSearchParams((prev) => { prev.set('tab', tab); return prev }, { replace: true })
+    setSearchParams((prev) => {
+      prev.set('tab', tab)
+      prev.delete('project')
+      prev.delete('template')
+      return prev
+    }, { replace: true })
+  }
+  function openSupportIntake(projectId) {
+    setSearchParams({ tab: 'support', project: String(projectId) })
   }
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
   const [generalLoading, setGeneralLoading] = useState(true)
@@ -786,6 +797,25 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {canManageTemplates(currentUser?.role) && (
+                        <button
+                          type="button"
+                          onClick={() => openSupportIntake(p.id)}
+                          title="Support templates for this project"
+                          className={cn(
+                            'mr-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition-colors',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            p.active_support_template_count > 0
+                              ? 'border-border text-foreground/80 hover:bg-accent'
+                              : 'border-dashed border-border text-muted-foreground hover:bg-accent'
+                          )}
+                        >
+                          <Icon name="headset" size={12} aria-hidden />
+                          {p.support_template_count > 0
+                            ? `${p.support_template_count} template${p.support_template_count === 1 ? '' : 's'}`
+                            : 'No templates'}
+                        </button>
+                      )}
                       <GatedButton variant="ghost" size="sm" allowed={canManageUsersAndProjects(currentUser?.role)} reason={ONLY_ADMINS_MANAGE_PROJECTS} onClick={() => openEditProject(p)}>Edit</GatedButton>
                       <GatedButton variant="ghost" size="sm" className="text-muted-foreground" allowed={canManageUsersAndProjects(currentUser?.role)} reason={ONLY_ADMINS_MANAGE_PROJECTS} onClick={() => openArchiveConfirm(p.id, 'archive')}>Archive</GatedButton>
                     </div>
@@ -816,6 +846,9 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      {/* Support intake (slice 05) */}
+      {activeTab === 'support' && <SupportIntakeTab />}
 
       {/* Labels */}
       {activeTab === 'labels' && (

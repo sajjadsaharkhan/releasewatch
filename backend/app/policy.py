@@ -94,7 +94,7 @@ class Target:
     item_id: int | None = None
     item_type: str | None = None
     status: str | None = None
-    source: str | None = None  # arrives in slice 05; None = internally filed
+    source: str | None = None  # internal | support (slice 05)
     assignee_id: int | None = None
     reporter_id: int | None = None
     project_id: int | None = None

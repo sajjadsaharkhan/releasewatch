@@ -24,12 +24,15 @@ from app.api.v1 import (
     users,
     ws,
     search,
+    support,
+    support_templates,
 )
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+api_router.include_router(support_templates.router, prefix="/projects", tags=["support"])
 # Releases are nested under projects — the projects router handles /projects/{slug}/releases/*
 # but a dedicated releases router handles actions that don't need the slug context
 api_router.include_router(releases.router, prefix="/releases", tags=["releases"])
@@ -46,3 +49,4 @@ api_router.include_router(users.router, tags=["users"])
 api_router.include_router(settings_router.router, prefix="/settings", tags=["settings"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
+api_router.include_router(support.router, prefix="/support", tags=["support"])

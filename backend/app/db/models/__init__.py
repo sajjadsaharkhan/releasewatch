@@ -15,6 +15,7 @@ from app.db.models.regression_history import RegressionHistory
 from app.db.models.system_setting import SystemSetting
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.issue_embedding import IssueEmbedding
+from app.db.models.support_template import SupportTemplate, SupportTemplateField
 
 __all__ = [
     "User",
@@ -32,4 +33,6 @@ __all__ = [
     "SystemSetting",
     "TelegramIntegration",
     "IssueEmbedding",
+    "SupportTemplate",
+    "SupportTemplateField",
 ]

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../../lib/cn'
 
@@ -12,33 +12,37 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
 
   const close = useCallback(() => setOpen(false), [])
 
-  useEffect(() => {
-    if (!open || !triggerRef.current) return
-    const triggerRect = triggerRef.current.getBoundingClientRect()
+  // Place the fixed menu under the trigger, clamped to the viewport's sides.
+  const place = useCallback(() => {
+    if (!triggerRef.current) return false
+    const rect = triggerRef.current.getBoundingClientRect()
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return false
     const dropdownWidth = width || 140
-    const viewportWidth = window.innerWidth
     const padding = 12
+    let left = align === 'right' ? rect.right - dropdownWidth : rect.left
+    left = Math.max(padding, Math.min(left, window.innerWidth - dropdownWidth - padding))
+    setPosition({ top: rect.bottom + 4, left })
+    return true
+  }, [align, width])
 
-    let left = triggerRect.left
-    if (align === 'right') {
-      left = triggerRect.right - dropdownWidth
+  useLayoutEffect(() => {
+    if (open) place()
+  }, [open, place])
+
+  // Follow the trigger when the page scrolls or resizes; close once it's off screen.
+  useEffect(() => {
+    if (!open) return
+    function follow(e) {
+      if (e?.target && dropdownRef.current?.contains(e.target)) return
+      if (!place()) close()
     }
-
-    // Ensure dropdown doesn't go off the right edge
-    if (left + dropdownWidth > viewportWidth - padding) {
-      left = viewportWidth - dropdownWidth - padding
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
+    return () => {
+      window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', follow)
     }
-
-    // Ensure dropdown doesn't go off the left edge
-    if (left < padding) {
-      left = padding
-    }
-
-    setPosition({
-      top: triggerRect.bottom + 4,
-      left: left,
-    })
-  }, [open, align, width])
+  }, [open, place, close])
 
   useEffect(() => {
     if (!open) return

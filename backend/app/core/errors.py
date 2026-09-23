@@ -19,11 +19,14 @@ class DomainError(Exception):
         detail: str,
         code: str,
         allowed: list[str] | None = None,
+        errors: dict[str, str] | None = None,
     ) -> None:
         self.status_code = status_code
         self.detail = detail
         self.code = code
         self.allowed = allowed
+        #: Per-field messages, e.g. ``{field_id: "This field is required."}`` (slice 05).
+        self.errors = errors
         super().__init__(detail)
 
 
@@ -31,4 +34,6 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     body: dict = {"detail": exc.detail, "code": exc.code}
     if exc.allowed is not None:
         body["allowed"] = exc.allowed
+    if exc.errors is not None:
+        body["errors"] = exc.errors
     return JSONResponse(status_code=exc.status_code, content=body)
