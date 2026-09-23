@@ -481,15 +481,37 @@ async def _cached_embed(cfg: dict, query: str) -> list[float]:
 # ── Public search entry-point ─────────────────────────────────────────────────
 
 
+async def _no_ids() -> list[int]:
+    return []
+
+
+async def _only_visible(db: AsyncSession, ids: list[int], visible_ids: Any) -> list[int]:
+    """Keep the ids (in order) that ``visible_ids`` — a ``select(Issue.id)`` — returns."""
+    if visible_ids is None or not ids:
+        return ids
+    from app.db.models.issue import Issue
+
+    keep = set((await db.execute(visible_ids.where(Issue.id.in_(ids)))).scalars().all())
+    return [i for i in ids if i in keep]
+
+
 async def search(
     db: AsyncSession,
     query: str,
     project_id: int,
     limit: int = 20,
+    *,
+    visible_ids: Any = None,
+    include_talk: bool = True,
 ) -> dict:
     """Run hybrid semantic search and return a results dict.
 
     Falls back to pure lexical search when LLM config is not set.
+
+    ``visible_ids`` (a ``select(Issue.id)`` filtered for the caller) drops
+    items the caller may not see before ranking; ``include_talk=False`` skips
+    the comment retriever, whose embeddings include internal notes — both set
+    for Support (slice 04, AC-07/AC-08).
     """
     query = query.strip()
     if not query:
@@ -506,9 +528,12 @@ async def search(
         # Three retrievers in parallel
         core_ids, talk_ids, lex_ids = await asyncio.gather(
             dense_search(db, qvec, project_id, "core"),
-            dense_search(db, qvec, project_id, "talk"),
+            dense_search(db, qvec, project_id, "talk") if include_talk else _no_ids(),
             lexical_search(db, query, project_id),
         )
+        core_ids = await _only_visible(db, core_ids, visible_ids)
+        talk_ids = await _only_visible(db, talk_ids, visible_ids)
+        lex_ids = await _only_visible(db, lex_ids, visible_ids)
 
         # If no retriever found anything, return empty immediately
         if not core_ids and not talk_ids and not lex_ids:
@@ -538,6 +563,7 @@ async def search(
     except EmbeddingConfigMissing:
         # Graceful degradation: lexical search only
         lex_ids = await lexical_search(db, query, project_id, limit=limit)
+        lex_ids = await _only_visible(db, lex_ids, visible_ids)
         for iid in lex_ids:
             matched_via[iid] = ["lexical"]
         ranked_lex = [(iid, 1.0 / (i + 1)) for i, iid in enumerate(lex_ids)]

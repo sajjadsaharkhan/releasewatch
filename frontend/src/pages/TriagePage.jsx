@@ -68,6 +68,7 @@ function normalizeAttachment(a) {
 export default function TriagePage() {
   const [issues, setIssues] = useState([])
   const [team, setTeam] = useState([])
+  const [assignable, setAssignable] = useState([])
   const [labelsData, setLabelsData] = useState([])
   const [attachments, setAttachments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -93,13 +94,15 @@ export default function TriagePage() {
         const issueParams = { status: 'new', sort }
         if (activeProjectId) issueParams.project_id = activeProjectId
         if (activeReleaseId) issueParams.release_id = activeReleaseId
-        const [issuesRes, teamRes, labelsRes] = await Promise.all([
+        const [issuesRes, teamRes, assignableRes, labelsRes] = await Promise.all([
           issuesApi.list(issueParams),
           teamApi.list(),
+          teamApi.listAssignable(),
           labelsApi.list(),
         ])
         setIssues(issuesRes.data.items)
         setTeam(teamRes.data)
+        setAssignable(assignableRes.data)
         setLabelsData(labelsRes.data)
       } finally {
         setLoading(false)
@@ -321,7 +324,7 @@ export default function TriagePage() {
           <div className="mt-4">
             <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Assign to</div>
             <div className="grid grid-cols-1 gap-1.5">
-              {team.filter(u => ['developer', 'qa', 'admin', 'cto'].includes(u.role)).map(u => (
+              {assignable.map(u => (
                 <button key={u.id} onClick={() => setAssignee(u.id)}
                   className={cn('flex items-center gap-2 px-2.5 h-9 rounded-md border text-[12.5px] transition-colors',
                     String(assignee) === String(u.id)

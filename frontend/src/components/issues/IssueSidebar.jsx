@@ -1,13 +1,14 @@
 import React from 'react'
 import { ChevronDown, Check, CheckCheck, Eye, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { Button } from '../ui/Button'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { Switch } from '../ui/Switch'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
+import { ActionButton, actionState } from '../common/ActionButton'
+import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
@@ -16,6 +17,26 @@ import { relTime } from '../../lib/relTime'
 
 // Status movement is unrestricted — any status can move to any other status,
 // no reason required, no self-verification block (see app/workflow.py).
+// Who may do what comes from the API (allowed_actions / blocked_actions, built by
+// app/policy.py): a blocked control renders disabled with the reason as a
+// tooltip; a hidden one (Support + tech-only controls) renders read-only.
+
+/** A sidebar field's editor when `action` is allowed; otherwise its read-only value. */
+function Editable({ issue, action, readOnly, children }) {
+  const { state, reason } = actionState(issue, action)
+  if (state === 'allowed') return children
+  if (state === 'blocked') {
+    return (
+      <Tooltip content={reason} className="whitespace-normal w-56 text-center">
+        <span tabIndex={0} aria-label={reason} className="cursor-not-allowed opacity-70">
+          {readOnly}
+        </span>
+      </Tooltip>
+    )
+  }
+  return readOnly
+}
+
 export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, reopen, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
@@ -41,12 +62,17 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
     return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
   }
 
+  // A transition's button shows unless Policy hides it entirely (then Workflow's
+  // allowed_transitions is empty too); blocked ones render disabled with a reason.
+  const offers = (to) => actionState(issue, `transition:${to}`).state !== 'hidden'
+
   const changeStatus = (newStatus) =>
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
 
   return (
     <aside className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
+        {allowedTransitions.length === 0 ? <StatusBadge status={issue.status} /> : (
         <Dropdown width={190} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
           {({ close }) => (
             <>
@@ -58,9 +84,11 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             </>
           )}
         </Dropdown>
+        )}
       </MetaRow>
 
       <MetaRow label="Priority">
+        <Editable issue={issue} action="set_priority" readOnly={<PriorityBadge priority={issue.priority} />}>
         <Dropdown width={170} trigger={<button className="w-full text-left"><PriorityBadge priority={issue.priority} /></button>}>
           {({ close }) => (
             <>
@@ -81,9 +109,21 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             </>
           )}
         </Dropdown>
+        </Editable>
       </MetaRow>
 
       <MetaRow label="Assignee">
+        <Editable
+          issue={issue}
+          action="assign"
+          readOnly={
+            <span className="inline-flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
+              {assignee
+                ? <><Avatar user={assignee} size={18} /><span>{assignee.name}</span></>
+                : <span className="text-zinc-400 italic">unassigned</span>}
+            </span>
+          }
+        >
         <Dropdown
           width={220}
           trigger={
@@ -118,6 +158,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             </>
           )}
         </Dropdown>
+        </Editable>
       </MetaRow>
 
       <MetaRow label="Reporter">
@@ -266,6 +307,11 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       </MetaRow>
 
       <MetaRow label="Release blocker">
+        <Editable
+          issue={issue}
+          action="flag_release_blocker"
+          readOnly={<Switch checked={issue.is_release_blocker} disabled onCheckedChange={() => {}} />}
+        >
         <Switch
           checked={issue.is_release_blocker}
           onCheckedChange={(v) => {
@@ -283,6 +329,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             })
           }}
         />
+        </Editable>
       </MetaRow>
         </>
       )}
@@ -308,53 +355,55 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       )}
 
       {/* Actions render only what the API says is possible right now
-          (allowed_transitions / blocked_transitions) — never re-derived here. */}
+          (allowed_actions / blocked_actions) — never re-derived here. */}
       <div className="mt-5 pt-3 border-t border-border space-y-2">
-        {allowedTransitions.includes('in_progress') && issue.status === 'todo' && (
-          <Button className="w-full" onClick={() => changeStatus('in_progress')}>
+        {offers('in_progress') && issue.status === 'todo' && (
+          <ActionButton action="transition:in_progress" item={issue} className="w-full" onClick={() => changeStatus('in_progress')}>
             <Play size={14} className="mr-1" /> Start work
-          </Button>
+          </ActionButton>
         )}
         {bug ? (
           <>
-            {allowedTransitions.includes('in_review') && (
-              <Button className="w-full" onClick={() => changeStatus('in_review')}>
-                <Check size={14} className="mr-1" /> Mark as Fixed
-              </Button>
+            {offers('in_review') && (
+              <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
+                <Check size={14} className="mr-1" /> Mark as fixed
+              </ActionButton>
             )}
             {issue.status === 'in_review' && (
-              <Button className="w-full" onClick={() => changeStatus('done')}>
+              <ActionButton action="transition:done" item={issue} className="w-full" onClick={() => changeStatus('done')}>
                 <Shield size={14} className="mr-1" /> Verify fix
-              </Button>
+              </ActionButton>
             )}
           </>
         ) : (
           <>
-            {issue.status === 'in_progress' && allowedTransitions.includes('in_review') && (
-              <Button className="w-full" onClick={() => changeStatus('in_review')}>
+            {issue.status === 'in_progress' && offers('in_review') && (
+              <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
                 <Eye size={14} className="mr-1" /> Send to review
-              </Button>
+              </ActionButton>
             )}
-            {(issue.status === 'in_progress' || issue.status === 'in_review') && allowedTransitions.includes('done') && (
+            {(issue.status === 'in_progress' || issue.status === 'in_review') && offers('done') && (
               // One primary action per state: "Send to review" leads while in progress.
-              <Button
+              <ActionButton
+                action="transition:done"
+                item={issue}
                 variant={issue.status === 'in_progress' ? 'outline' : 'default'}
                 className="w-full"
                 onClick={() => changeStatus('done')}
               >
                 <CheckCheck size={14} className="mr-1" /> Mark as done
-              </Button>
+              </ActionButton>
             )}
           </>
         )}
-        {issue.status === 'in_review' && allowedTransitions.includes('in_progress') && (
-          <Button variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
+        {issue.status === 'in_review' && offers('in_progress') && (
+          <ActionButton action="transition:in_progress" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
             <Undo2 size={14} className="mr-1" /> Send back to In progress
-          </Button>
+          </ActionButton>
         )}
         {/* Regression and reopen are bug-only (BR-08) — both record a regression. */}
         {bug && (issue.status === 'done' || issue.status === 'in_review') && (
-          <Button variant="outline" className="w-full" onClick={() => {
+          <ActionButton action="flag_regression" item={issue} variant="outline" className="w-full" onClick={() => {
             onConfirm({
               title: 'Mark as regression?',
               body: 'This will log a regression event and notify the reporter, assignee, and project triage lead.',
@@ -363,13 +412,13 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
               onConfirm: () => regress(),
             })
           }}>
-            <RefreshCw size={14} className="mr-1" /> Mark as Regression
-          </Button>
+            <RefreshCw size={14} className="mr-1" /> Mark as regression
+          </ActionButton>
         )}
         {bug && issue.status === 'done' && (
-          <Button variant="outline" className="w-full" onClick={() => reopen()}>
+          <ActionButton action="flag_regression" item={issue} variant="outline" className="w-full" onClick={() => reopen()}>
             <Ban size={14} className="mr-1" /> Reopen
-          </Button>
+          </ActionButton>
         )}
       </div>
     </aside>

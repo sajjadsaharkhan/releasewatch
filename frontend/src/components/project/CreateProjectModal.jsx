@@ -21,20 +21,21 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
 
   useEffect(() => {
     if (!open) return
-    teamApi.list()
+    // Triage lead must be an active tech-role user (BR-15) — the assignable list.
+    teamApi.listAssignable()
       .then((res) => setTeamMembers(res.data || []))
       .catch(() => setTeamMembers([]))
   }, [open])
 
   function handleCreate() {
-    if (!form.name.trim() || !form.slug.trim()) return
+    if (!form.name.trim() || !form.slug.trim() || !form.triageLeadId) return
     onCreate?.({
       name: form.name,
       slug: form.slug,
       color: form.color,
       kind: form.kind,
       desc: form.desc,
-      triage_lead_id: form.triageLeadId || null,
+      triage_lead_id: form.triageLeadId,
     })
     setForm({ name: '', slug: '', color: '#6366f1', kind: 'product', desc: '', triageLeadId: '' })
   }
@@ -103,11 +104,11 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Triage Lead</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Triage lead</label>
           <Select
             value={form.triageLeadId}
             onChange={(val) => setForm((f) => ({ ...f, triageLeadId: val }))}
-            placeholder="Assign a triage lead (optional)"
+            placeholder="Choose a triage lead"
           >
             {teamMembers.map((member) => (
               <SelectItem key={member.id} value={member.id}>
@@ -129,7 +130,12 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
         </div>
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleCreate}>Create project</Button>
+          <Button
+            onClick={handleCreate}
+            disabled={!form.name.trim() || !form.slug.trim() || !form.triageLeadId}
+          >
+            Create project
+          </Button>
         </div>
       </div>
     </Dialog>

@@ -1,31 +1,48 @@
-"""Team management API — list members, invite, change role, deactivate."""
+"""Team management API — list members, invite, change role, deactivate.
 
-from fastapi import APIRouter, Depends, HTTPException, status
+User management is admin-only (``manage_users``, §7.3). ``GET /team?assignable=true``
+is what every assignee picker calls — it never lists Support users (BR-32, AC-47).
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.auth import get_current_user, require_role, get_password_hash, verify_password
+from app.core.auth import get_current_user, get_password_hash
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.schemas.team import TeamMemberResponse, MemberResponse, InviteRequest, ChangeRoleRequest, UserUpdateRequest
+from app.policy import ASSIGNABLE_ROLES, Action
+from app.schemas.team import (
+    ChangeRoleRequest,
+    InviteRequest,
+    MemberResponse,
+    TeamMemberResponse,
+    UserUpdateRequest,
+)
 from app.schemas.user import UserResponse
+from app.services.authz import require_action
+from app.services.project_service import projects_led_by
 
 router = APIRouter()
 
 
 @router.get("", response_model=list[MemberResponse])
 async def list_team(
+    assignable: bool = Query(False, description="Only users who can be assigned work (no Support)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List all active team members with Telegram connection status."""
-    result = await db.execute(
+    query = (
         select(User)
         .options(selectinload(User.telegram_integration))
         .where(User.is_active == True)
         .order_by(User.is_active.desc(), User.name)
     )
+    if assignable:
+        query = query.where(User.role.in_(sorted(ASSIGNABLE_ROLES)))
+    result = await db.execute(query)
     users = result.scalars().all()
 
     return [
@@ -91,7 +108,7 @@ async def list_all_team(
 async def invite_member(
     body: InviteRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(require_action(Action.manage_users)),
 ):
     """Create a new team member with username and password."""
     import secrets
@@ -141,7 +158,7 @@ async def change_role(
     user_id: int,
     body: ChangeRoleRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_action(Action.manage_users)),
 ):
     """Change a team member's role (admin only)."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -214,7 +231,7 @@ async def update_user(
 async def deactivate_member(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_action(Action.manage_users)),
 ):
     """Soft-deactivate a team member — they keep history but cannot log in."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -223,16 +240,39 @@ async def deactivate_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if user.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate yourself")
+    affected = await projects_led_by(db, user.id)
     user.is_active = False
     await db.commit()
-    return {"id": str(user.id), "is_active": False}
+    return {
+        "id": str(user.id),
+        "is_active": False,
+        # These projects now need a new triage lead (AC-23); admins get their triage mail meanwhile.
+        "affected_projects": [_project_ref(p) for p in affected],
+    }
+
+
+@router.get("/{user_id}/deactivation-impact")
+async def deactivation_impact(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_action(Action.manage_users)),
+):
+    """What deactivating this user would orphan — for the confirmation dialog."""
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return {"affected_projects": [_project_ref(p) for p in await projects_led_by(db, user_id)]}
+
+
+def _project_ref(project) -> dict:
+    return {"id": project.id, "name": project.name, "slug": project.slug}
 
 
 @router.patch("/{user_id}/activate")
 async def activate_member(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_action(Action.manage_users)),
 ):
     """Reactivate a deactivated team member."""
     result = await db.execute(select(User).where(User.id == user_id))

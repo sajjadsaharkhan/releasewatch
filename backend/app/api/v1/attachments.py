@@ -23,6 +23,8 @@ from app.db.models.project import Project
 from app.db.models.release import Release
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.policy import Action
+from app.services.authz import authorize, issue_target, load_visible_issue
 from app.schemas.attachment import (
     AttachmentResponse,
     ConfirmRequest,
@@ -58,7 +60,7 @@ async def presign_upload(
     The client must then POST the file directly to S3 and call ``/confirm``
     to register the attachment in the database.
     """
-    issue = await _get_issue_or_404(db, issue_id)
+    issue = await _get_issue_or_404(db, issue_id, current_user, write=True)
     release = await _get_release(db, issue.release_id)
     project = await _get_project(db, issue.project_id)
 
@@ -106,7 +108,7 @@ async def confirm_upload(
     Also enqueues the ``validate_attachment`` Celery task for MIME re-check
     and thumbnail generation.
     """
-    await _get_issue_or_404(db, issue_id)
+    await _get_issue_or_404(db, issue_id, current_user, write=True)
 
     attachment = IssueAttachment(
         issue_id=issue_id,
@@ -133,7 +135,7 @@ async def confirm_upload(
     from app.db.models.inbox_item import InboxEventType
     from app.services.inbox_service import inbox_service
 
-    issue_for_fanout = await _get_issue_or_404(db, issue_id)
+    issue_for_fanout = await _get_issue_or_404(db, issue_id, current_user, write=True)
     await inbox_service.fan_out(
         db=db,
         trigger=InboxEventType.attachment_added,
@@ -177,7 +179,7 @@ async def start_multipart_upload(
     Returns an upload_id and recommended chunk size. The client should then
     call ``/multipart/part`` for each chunk, and finally ``/multipart/complete``.
     """
-    issue = await _get_issue_or_404(db, issue_id)
+    issue = await _get_issue_or_404(db, issue_id, current_user, write=True)
     release = await _get_release(db, issue.release_id)
     project = await _get_project(db, issue.project_id)
 
@@ -246,7 +248,7 @@ async def complete_multipart_upload(
     current_user: User = Depends(get_current_user),
 ) -> AttachmentResponse:
     """Complete a multipart upload and create the database record."""
-    await _get_issue_or_404(db, issue_id)
+    await _get_issue_or_404(db, issue_id, current_user, write=True)
 
     try:
         result = s3_service.complete_multipart_upload(
@@ -277,7 +279,7 @@ async def complete_multipart_upload(
     from app.db.models.inbox_item import InboxEventType
     from app.services.inbox_service import inbox_service
 
-    issue_for_fanout = await _get_issue_or_404(db, issue_id)
+    issue_for_fanout = await _get_issue_or_404(db, issue_id, current_user, write=True)
     await inbox_service.fan_out(
         db=db,
         trigger=InboxEventType.attachment_added,
@@ -312,7 +314,7 @@ async def list_attachments(
     current_user: User = Depends(get_current_user),
 ) -> List[AttachmentResponse]:
     """Return all attachments for an issue, each with a download URL."""
-    await _get_issue_or_404(db, issue_id)
+    await _get_issue_or_404(db, issue_id, current_user)
     result = await db.execute(
         select(IssueAttachment)
         .where(IssueAttachment.issue_id == issue_id)
@@ -357,6 +359,7 @@ async def delete_attachment(
 
     Only the uploader or an admin may delete an attachment.
     """
+    await _get_issue_or_404(db, issue_id, current_user, write=True)
     result = await db.execute(
         select(IssueAttachment).where(
             IssueAttachment.id == attachment_id,
@@ -379,11 +382,13 @@ async def delete_attachment(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _get_issue_or_404(db: AsyncSession, issue_id: int) -> Issue:
-    result = await db.execute(select(Issue).where(Issue.id == issue_id))
-    issue = result.scalar_one_or_none()
-    if issue is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+async def _get_issue_or_404(
+    db: AsyncSession, issue_id: int, user: User, *, write: bool = False,
+) -> Issue:
+    """The issue if ``user`` may see it (404 otherwise); ``write`` also needs ``edit_item``."""
+    issue = await load_visible_issue(db, issue_id, user)
+    if write:
+        authorize(user, Action.edit_item, issue_target(issue))
     return issue
 
 

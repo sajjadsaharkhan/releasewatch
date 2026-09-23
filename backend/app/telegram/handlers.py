@@ -179,12 +179,19 @@ async def _handle_status(
             TelegramIntegration.is_active.is_(True),
         )
     )
-    if result.scalar_one_or_none() is None:
+    integration = result.scalar_one_or_none()
+    if integration is None:
         await client.send_message(
             chat_id=chat_id,
             text="❌ Your Telegram account is not linked. Use <code>/integration &lt;token&gt;</code> to connect.",
             parse_mode="HTML",
         )
+        return
+    from app.db.models.user import User
+    from app.services.authz import visibility_clause
+
+    viewer = await db.get(User, integration.user_id)
+    if viewer is None or not viewer.is_active:
         return
 
     if not issue_ref:
@@ -206,7 +213,12 @@ async def _handle_status(
 
     res = await db.execute(
         select(Issue)
-        .where(Issue.issue_number == int(number_str))
+        .where(
+            Issue.issue_number == int(number_str),
+            Issue.deleted_at.is_(None),
+            # Same "not found" as a missing number — Support can't probe (slice 04).
+            visibility_clause(viewer),
+        )
         .options(selectinload(Issue.project), selectinload(Issue.release))
     )
     issue = res.scalar_one_or_none()

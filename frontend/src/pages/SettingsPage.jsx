@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck } from 'lucide-react'
+import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
@@ -13,8 +13,10 @@ import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { ROLE } from '../lib/constants'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
-import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal } from '../components/project'
+import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
 import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
+import { GatedButton } from '../components/common'
+import { canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
 
 const TAB_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -633,9 +635,14 @@ export default function SettingsPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <SectionTitle>Team Members</SectionTitle>
-            <Button size="sm" onClick={handleInviteModalOpen}>
+            <GatedButton
+              size="sm"
+              allowed={canManageUsersAndProjects(currentUser?.role)}
+              reason={ONLY_ADMINS_MANAGE_USERS}
+              onClick={handleInviteModalOpen}
+            >
               <UserPlus className="h-3.5 w-3.5" /> Add member
-            </Button>
+            </GatedButton>
           </div>
           {teamLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -688,6 +695,9 @@ export default function SettingsPage() {
                       {new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
+                      {!canManageUsersAndProjects(currentUser?.role) ? (
+                        <GatedButton variant="ghost" size="icon-sm" allowed={false} reason={ONLY_ADMINS_MANAGE_USERS}>···</GatedButton>
+                      ) : (
                       <Dropdown
                         align="right"
                         trigger={<Button variant="ghost" size="icon-sm">···</Button>}
@@ -705,6 +715,7 @@ export default function SettingsPage() {
                           </DropdownItem>
                         )}
                       </Dropdown>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -720,10 +731,31 @@ export default function SettingsPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <SectionTitle>Projects</SectionTitle>
-            <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
+            <GatedButton
+              size="sm"
+              allowed={canManageUsersAndProjects(currentUser?.role)}
+              reason={ONLY_ADMINS_MANAGE_PROJECTS}
+              onClick={() => setCreateProjectOpen(true)}
+            >
               <Plus className="h-3.5 w-3.5" /> New project
-            </Button>
+            </GatedButton>
           </div>
+          {(() => {
+            // AC-23 — a project whose lead is unset or deactivated has no triage owner.
+            const leaderless = projects.filter((p) => !p.archived && p.needs_triage_lead)
+            if (leaderless.length === 0) return null
+            return (
+              <div role="status" className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p>
+                  {leaderless.length === 1
+                    ? <><strong>{leaderless[0].name}</strong> has no active triage lead.</>
+                    : <>{leaderless.length} projects have no active triage lead.</>}
+                  {' '}Triage notifications go to every admin until you choose one.
+                </p>
+              </div>
+            )
+          })()}
           {contextProjectsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -742,7 +774,7 @@ export default function SettingsPage() {
                       <p className="font-semibold text-sm leading-snug">{p.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
-                        {triageName && (
+                        {triageName && !p.needs_triage_lead && (
                           <>
                             <span className="text-muted-foreground/40 text-xs">·</span>
                             <span className="text-xs text-muted-foreground">
@@ -750,11 +782,12 @@ export default function SettingsPage() {
                             </span>
                           </>
                         )}
+                        {p.needs_triage_lead && <NeedsTriageLeadBadge />}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => openEditProject(p)}>Edit</Button>
-                      <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => openArchiveConfirm(p.id, 'archive')}>Archive</Button>
+                      <GatedButton variant="ghost" size="sm" allowed={canManageUsersAndProjects(currentUser?.role)} reason={ONLY_ADMINS_MANAGE_PROJECTS} onClick={() => openEditProject(p)}>Edit</GatedButton>
+                      <GatedButton variant="ghost" size="sm" className="text-muted-foreground" allowed={canManageUsersAndProjects(currentUser?.role)} reason={ONLY_ADMINS_MANAGE_PROJECTS} onClick={() => openArchiveConfirm(p.id, 'archive')}>Archive</GatedButton>
                     </div>
                   </div>
                 )
@@ -774,7 +807,7 @@ export default function SettingsPage() {
                         <p className="font-semibold text-sm leading-snug">{p.name}</p>
                         <span className="font-mono text-xs text-muted-foreground">{p.slug}</span>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => openArchiveConfirm(p.id, 'restore')}>Restore</Button>
+                      <GatedButton variant="ghost" size="sm" allowed={canManageUsersAndProjects(currentUser?.role)} reason={ONLY_ADMINS_MANAGE_PROJECTS} onClick={() => openArchiveConfirm(p.id, 'restore')}>Restore</GatedButton>
                     </div>
                   ))}
                 </>

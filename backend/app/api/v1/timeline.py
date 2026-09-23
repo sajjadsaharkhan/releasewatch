@@ -4,6 +4,10 @@ GET    /issues/{id}/timeline                    — list timeline events
 POST   /issues/{id}/timeline                    — add a comment
 PATCH  /issues/{id}/timeline/{event_id}         — edit a comment
 DELETE /issues/{id}/timeline/{event_id}         — delete a comment
+
+Visibility (slice 04): the issue must be visible to the caller (404
+otherwise), and internal notes exist only for tech roles — Support never
+sees, counts, edits, or reacts to one (BR-30, BR-31, AC-07).
 """
 
 from typing import List
@@ -17,6 +21,7 @@ from app.core.auth import get_current_user
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.policy import Action
 from app.schemas.issue import UserSummary
 from app.schemas.timeline import (
     ReactionCreate,
@@ -26,6 +31,7 @@ from app.schemas.timeline import (
     TimelineEventUpdate,
     TimelineListResponse,
 )
+from app.services.authz import authorize, issue_target, load_visible_issue, sees_internal
 from app.services.reaction_service import reaction_service
 from app.services.timeline_service import timeline_service
 
@@ -43,6 +49,22 @@ def _enrich_event(
         for summary in reaction_service.summarize(event, current_user_id)
     ]
     return resp
+
+
+async def _visible_event(
+    db: AsyncSession, issue_id: int, event_id: int, user: User,
+) -> IssueTimeline:
+    """The event, if it belongs to a visible issue and the caller may see it — else 404."""
+    await load_visible_issue(db, issue_id, user)
+    q = select(IssueTimeline).where(
+        IssueTimeline.id == event_id, IssueTimeline.issue_id == issue_id,
+    )
+    if not sees_internal(user):
+        q = q.where(IssueTimeline.is_internal.is_(False))
+    event = (await db.execute(q)).scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timeline event not found")
+    return event
 
 
 async def _reload_event(db: AsyncSession, event_id: int) -> IssueTimeline:
@@ -75,22 +97,16 @@ async def list_timeline(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TimelineListResponse:
-    """Return paginated, chronological timeline events for an issue."""
-    events, total = await timeline_service.list_timeline(
-        db, issue_id, page=page, size=size, include_internal=True
-    )
+    """Return paginated, chronological timeline events for an issue.
 
-    # Re-fetch with actor relationship loaded for enrichment
-    if events:
-        result = await db.execute(
-            select(IssueTimeline)
-            .options(selectinload(IssueTimeline.actor))
-            .where(IssueTimeline.issue_id == issue_id)
-            .order_by(IssueTimeline.created_at.asc())
-            .offset((page - 1) * size)
-            .limit(size)
-        )
-        events = list(result.scalars().all())
+    Public comments, internal notes, and system events share one timeline
+    (FR-06); internal notes are dropped — from the items *and* the total — for
+    anyone who isn't a tech role (BR-31).
+    """
+    await load_visible_issue(db, issue_id, current_user)
+    events, total = await timeline_service.list_timeline(
+        db, issue_id, page=page, size=size, include_internal=sees_internal(current_user),
+    )
 
     return TimelineListResponse(
         items=[_enrich_event(e, current_user.id) for e in events],
@@ -113,9 +129,18 @@ async def create_comment(
     current_user: User = Depends(get_current_user),
 ) -> TimelineEventResponse:
     """Append a comment (or internal note) to the issue timeline."""
+    from sqlalchemy.orm import selectinload as _sel
+
     from app.db.models.inbox_item import InboxEventType
     from app.db.models.issue import Issue
     from app.services.inbox_service import inbox_service
+
+    visible = await load_visible_issue(db, issue_id, current_user, _sel(Issue.project))
+    authorize(
+        current_user,
+        Action.comment_internal if payload.is_internal else Action.comment_public,
+        issue_target(visible, visible.project),
+    )
 
     event = await timeline_service.create_event(
         db=db,
@@ -190,6 +215,7 @@ async def edit_comment(
     current_user: User = Depends(get_current_user),
 ) -> TimelineEventResponse:
     """Edit the body of a comment. Only the author (or admin) may edit."""
+    await _visible_event(db, issue_id, event_id, current_user)
     event = await timeline_service.edit_comment(db, event_id, payload.body, current_user)
     await db.commit()
 
@@ -218,15 +244,7 @@ async def delete_comment(
     current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a comment from the timeline. Only the author or admin may delete."""
-    result = await db.execute(
-        select(IssueTimeline).where(
-            IssueTimeline.id == event_id,
-            IssueTimeline.issue_id == issue_id,
-        )
-    )
-    event = result.scalar_one_or_none()
-    if event is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timeline event not found")
+    event = await _visible_event(db, issue_id, event_id, current_user)
 
     if event.event_type != TimelineEventType.comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only comments can be deleted")
@@ -263,6 +281,7 @@ async def add_reaction(
     """
     from app.db.models.issue import Issue
 
+    await _visible_event(db, issue_id, event_id, current_user)
     event, reaction_id, changed = await reaction_service.add(
         db, issue_id, event_id, current_user, payload.emoji_key
     )
@@ -300,6 +319,7 @@ async def remove_reaction(
     current_user: User = Depends(get_current_user),
 ) -> TimelineEventResponse:
     """Remove your reaction from a comment. Never notifies anyone."""
+    await _visible_event(db, issue_id, event_id, current_user)
     await reaction_service.remove(db, issue_id, event_id, current_user, emoji_key)
     await db.commit()
 

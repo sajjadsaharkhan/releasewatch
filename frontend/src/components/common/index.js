@@ -1,3 +1,4 @@
+export { ActionButton, GatedButton, actionState } from './ActionButton'
 export { CommandPalette } from './CommandPalette'
 export { IssueTable } from './IssueTable'
 export { IssueBoard } from './IssueBoard'

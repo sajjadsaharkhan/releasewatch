@@ -16,6 +16,7 @@ import { issueSlug } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { FIXED_STATUSES, PRIORITY, PRIORITIES } from '../lib/constants'
+import { isSupport, isTech } from '../lib/roles'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -116,6 +117,16 @@ export default function ProfilePage() {
         return u
       })
       .then(u => {
+        // Support only reports, so a Support profile loads just its reported items
+        // (filtered server-side to what the viewer may see). Full work stats exist
+        // only between tech users (see showWorkStats below).
+        if (isSupport(u.role)) {
+          issuesApi.list({ reporter_id: u.id, size: 200 })
+            .then((res) => setReportedIssues(res.data?.items ?? []))
+            .catch(() => toast.error('Failed to load profile data'))
+          return
+        }
+        if (!isTech(u.role) || !isTech(currentUser?.role)) return
         Promise.all([
           issuesApi.list({ reporter_id: u.id, size: 200 }),
           issuesApi.list({ assignee_id: u.id, size: 200 }),
@@ -204,6 +215,12 @@ export default function ProfilePage() {
   }
 
   const isOwnProfile = currentUser?.username === user.username
+  // Engineering stats (fixed count, regression rate, mean times, priority
+  // breakdown, activity, assigned list) describe tech work: shown only when both
+  // the profile owner and the viewer are tech roles (§7.3). Support only reports,
+  // so a Support profile shows just its Reported card and tab.
+  const showWorkStats = isTech(user.role) && isTech(currentUser?.role)
+  const showReportsOnly = isSupport(user.role)
   const fixedIssues = assignedIssues.filter((i) => FIXED_STATUSES.includes(i.status))
   const fixRate = assignedIssues.length > 0 ? Math.round((fixedIssues.length / assignedIssues.length) * 100) : 0
 
@@ -214,15 +231,22 @@ export default function ProfilePage() {
   })).filter((d) => d.value > 0)
 
   const TAB_OPTIONS = [
-    { value: 'public', label: 'Activity' },
-    { value: 'assigned', label: 'Assigned', badge: assignedIssues.length },
-    { value: 'reported', label: 'Reported', badge: reportedIssues.length },
+    ...(showWorkStats ? [
+      { value: 'public', label: 'Activity' },
+      { value: 'assigned', label: 'Assigned', badge: assignedIssues.length },
+      { value: 'reported', label: 'Reported', badge: reportedIssues.length },
+    ] : []),
+    ...(showReportsOnly ? [
+      { value: 'reported', label: 'Reported', badge: reportedIssues.length },
+    ] : []),
     ...(isOwnProfile ? [
       { value: 'edit', label: 'Edit Profile' },
       { value: 'security', label: 'Security' },
       { value: 'telegram', label: 'Telegram' },
     ] : []),
   ]
+  // The remembered tab may not exist for this profile (e.g. 'public' on a Support profile).
+  const currentTab = TAB_OPTIONS.some((t) => t.value === activeTab) ? activeTab : TAB_OPTIONS[0]?.value
 
   async function loadTelegramStatus() {
     setTelegramLoading(true)
@@ -320,6 +344,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Top section: cards (2/3) + priority breakdown (1/3) */}
+        {showWorkStats && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" description="Total issues reported by this user" />
@@ -348,9 +373,17 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+        )}
 
+        {showReportsOnly && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" description="Total issues reported by this user" />
+          </div>
+        )}
+
+        {TAB_OPTIONS.length > 0 && (
         <Tabs
-          value={activeTab}
+          value={currentTab}
           onValueChange={(tab) => {
             setActiveTab(tab)
             if (tab === 'telegram' && isOwnProfile && !telegramStatus) {
@@ -360,8 +393,9 @@ export default function ProfilePage() {
           options={TAB_OPTIONS}
           className="mb-5"
         />
+        )}
 
-        {activeTab === 'public' && (
+        {currentTab === 'public' && (
           <div>
             <h3 className="text-sm font-semibold mb-3">Activity (this year)</h3>
             <div className="rounded-xl border border-border bg-card p-5">
@@ -380,19 +414,19 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {activeTab === 'assigned' && (
+        {currentTab === 'assigned' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <IssueTable issues={assignedIssues} onOpen={(i) => navigate(`/issue/${issueSlug(i)}`)} />
           </div>
         )}
 
-        {activeTab === 'reported' && (
+        {currentTab === 'reported' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <IssueTable issues={reportedIssues} onOpen={(i) => navigate(`/issue/${issueSlug(i)}`)} />
           </div>
         )}
 
-        {activeTab === 'edit' && isOwnProfile && (
+        {currentTab === 'edit' && isOwnProfile && (
           <div className="max-w-md space-y-4">
             <h3 className="text-sm font-semibold">Edit Profile</h3>
             {[
@@ -428,7 +462,7 @@ export default function ProfilePage() {
           />
         )}
 
-        {activeTab === 'security' && isOwnProfile && (
+        {currentTab === 'security' && isOwnProfile && (
           <div className="max-w-md space-y-4">
             <h3 className="text-sm font-semibold">Change Password</h3>
             {[
@@ -449,7 +483,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {activeTab === 'telegram' && isOwnProfile && (
+        {currentTab === 'telegram' && isOwnProfile && (
           <div className="w-full">
             {telegramLoading ? (
               <div className="rounded-xl border border-border bg-card flex items-center justify-center py-16">

@@ -33,20 +33,25 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
 
   useEffect(() => {
     if (!open) return
-    teamApi.list()
+    // Triage lead must be an active tech-role user (BR-15) — the assignable list.
+    teamApi.listAssignable()
       .then((res) => setTeamMembers(res.data || []))
       .catch(() => setTeamMembers([]))
   }, [open])
 
+  // A deactivated (or Support) lead isn't in the list — the admin must pick a new one (AC-23).
+  const leadIsValid = teamMembers.some((m) => String(m.id) === String(form.triageLeadId))
+  const canSave = form.name.trim() && form.slug.trim() && leadIsValid
+
   function handleSave() {
-    if (!form.name.trim() || !form.slug.trim()) return
+    if (!canSave) return
     onSave?.({
       name: form.name,
       slug: form.slug,
       color: form.color,
       kind: form.kind,
       desc: form.desc,
-      triage_lead_id: form.triageLeadId || null,
+      triage_lead_id: form.triageLeadId,
     })
   }
 
@@ -114,11 +119,16 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Triage Lead</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Triage lead</label>
+          {teamMembers.length > 0 && !leadIsValid && (
+            <p className="mb-1.5 text-xs text-amber-700 dark:text-amber-400">
+              This project needs a triage lead. Triage notifications go to admins until you choose one.
+            </p>
+          )}
           <Select
-            value={form.triageLeadId}
+            value={leadIsValid ? form.triageLeadId : ''}
             onChange={(val) => setForm((f) => ({ ...f, triageLeadId: val }))}
-            placeholder="Assign a triage lead (optional)"
+            placeholder="Choose a triage lead"
           >
             {teamMembers.map((member) => (
               <SelectItem key={member.id} value={member.id}>
@@ -140,7 +150,7 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
         </div>
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save changes</Button>
+          <Button onClick={handleSave} disabled={!canSave}>Save changes</Button>
         </div>
       </div>
     </Dialog>

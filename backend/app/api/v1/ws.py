@@ -25,6 +25,17 @@ async def _authenticate_ws(token: str | None) -> str | None:
         return None
 
 
+async def _is_tech_user(user_id: str) -> bool:
+    """Support never gets the dashboard feed — it carries internal items (slice 04)."""
+    from app.db.models.user import User
+    from app.db.session import task_session
+    from app.policy import is_tech
+
+    async with task_session() as db:
+        user = await db.get(User, int(user_id))
+        return user is not None and user.is_active and is_tech(user.role)
+
+
 @router.websocket("/dashboard")
 async def ws_dashboard(
     websocket: WebSocket,
@@ -39,6 +50,9 @@ async def ws_dashboard(
     user_id = await _authenticate_ws(token)
     if not user_id:
         await websocket.close(code=4001)
+        return
+    if not await _is_tech_user(user_id):
+        await websocket.close(code=4003)
         return
 
     await websocket.accept()

@@ -21,8 +21,22 @@ from app.db.models.issue import Issue, IssueStatus, IssueType, Priority, issue_t
 from app.db.models.issue_timeline import TimelineEventType
 from app.db.models.project import ProjectKind
 from app.db.models.user import User
+from app.policy import is_assignable
 from app.schemas.issue import IssueCreate
 from app.workflow import Workflow
+
+
+async def ensure_assignable(db: AsyncSession, assignee_id: int | None) -> None:
+    """BR-32 — refuse (422 ``not_assignable``) giving work to a Support or inactive user."""
+    if assignee_id is None:
+        return
+    user = await db.get(User, int(assignee_id))
+    if user is None or not user.is_active or not is_assignable(user.role):
+        raise DomainError(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "That user can't be assigned work.",
+            "not_assignable",
+        )
 
 
 class IssueService:
@@ -51,6 +65,8 @@ class IssueService:
         project = project_result.scalar_one_or_none()
         if project is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+        await ensure_assignable(db, data.assignee_id)
 
         release = None
         if data.release_id is not None:
@@ -397,6 +413,7 @@ class IssueService:
         prev_priority = getattr(issue.priority, "value", issue.priority)
         prev_assignee = issue.assignee_id
 
+        await ensure_assignable(db, assignee_id)
         issue.assignee_id = assignee_id
         issue.priority = priority
         issue.triaged_at = now
@@ -491,7 +508,11 @@ class IssueService:
             )
 
         prev_assignee_id = issue.assignee_id
-        issue.assignee_id = issue.reporter_id
+        # The ball goes back to the reporter — unless they can't hold work (BR-32:
+        # a Support reporter is never assigned); then the assignee stays put.
+        reporter = await db.get(User, issue.reporter_id) if issue.reporter_id else None
+        if reporter is not None and is_assignable(reporter.role):
+            issue.assignee_id = issue.reporter_id
         db.add(issue)
         await db.flush()
 
@@ -740,6 +761,7 @@ class IssueService:
             new_assignee_str = str(new_assignee) if new_assignee else None
             old_assignee_str = str(issue.assignee_id) if issue.assignee_id else None
             if new_assignee_str != old_assignee_str:
+                await ensure_assignable(db, new_assignee)
                 events_to_emit.append((
                     TimelineEventType.assigned,
                     {"assignee_id": new_assignee_str, "prev_assignee_id": old_assignee_str},

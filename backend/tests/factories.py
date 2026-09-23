@@ -12,8 +12,9 @@ from httpx import AsyncClient
 
 
 class Factories:
-    def __init__(self, admin_client: AsyncClient):
+    def __init__(self, admin_client: AsyncClient, admin_id: int | None = None):
         self.admin_client = admin_client
+        self.admin_id = admin_id
 
     async def user(
         self,
@@ -40,8 +41,8 @@ class Factories:
             "slug": f"test-project-{suffix}",
             **overrides,
         }
-        if triage_lead_id is not None:
-            payload["triage_lead_id"] = triage_lead_id
+        # BR-15: every project needs a triage lead — default to the bootstrap admin.
+        payload["triage_lead_id"] = triage_lead_id if triage_lead_id is not None else self.admin_id
         resp = await self.admin_client.post("/projects", json=payload)
         resp.raise_for_status()
         return SimpleNamespace(**resp.json())

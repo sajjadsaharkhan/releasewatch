@@ -158,6 +158,14 @@ class BlockedTransition(BaseModel):
     detail: str
 
 
+class BlockedAction(BaseModel):
+    """A Policy action the actor can see but not perform, with the reason (slice 04, §7.3)."""
+
+    action: str
+    code: str
+    detail: str
+
+
 class TriageRequest(BaseModel):
     """Payload for POST /issues/{id}/triage."""
 
@@ -237,6 +245,10 @@ class IssueResponse(IssueBase):
     project_triage_lead_id: int | None = None
     allowed_transitions: list[str] = Field(default_factory=list)
     blocked_transitions: list[BlockedTransition] = Field(default_factory=list)
+    #: Policy over every item action for the current user (``app/policy.py``).
+    #: Actions in neither list are hidden from this user entirely (Support).
+    allowed_actions: list[str] = Field(default_factory=list)
+    blocked_actions: list[BlockedAction] = Field(default_factory=list)
 
     @computed_field  # type: ignore[misc]
     @property

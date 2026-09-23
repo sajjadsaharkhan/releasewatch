@@ -19,6 +19,12 @@ release_changed      → assignee + reporter + triage_lead (new release's triage
 project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
 priority_changed     → assignee + reporter + triage_lead
+
+"triage leads" is the project's active triage lead, or every active admin
+while the project has none (AC-23). Whatever the event, a recipient who may
+not see the item — or, for an internal note, anyone who isn't a tech role —
+is dropped before any row, WebSocket push, or Telegram send exists
+(slice 04, BR-30/31).
 """
 
 import html as html_lib
@@ -239,6 +245,7 @@ class InboxFanOutService:
         recipients.update(forced_recipients)
         if suppress_user_ids:
             recipients -= suppress_user_ids
+        recipients = await self._drop_invisible(db, recipients, issue, timeline_event)
         logger.info("[fan_out] trigger=%s final_recipients=%s", trigger, recipients)
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
@@ -309,6 +316,7 @@ class InboxFanOutService:
             from app.db.models.system_setting import SystemSetting
             from app.db.models.telegram_integration import TelegramIntegration
             from app.config import settings as app_settings
+            from app.services.project_service import project_needs_triage_lead
 
             # Load persisted matrix and overlay on defaults so notifications fire
             # out-of-the-box before an admin has explicitly saved settings.
@@ -380,6 +388,8 @@ class InboxFanOutService:
             release = release_result.scalar_one_or_none()
             project_result = await db.execute(select(Project).where(Project.id == issue.project_id))
             project = project_result.scalar_one_or_none()
+
+            needs_lead = project is not None and await project_needs_triage_lead(db, project)
 
             project_name = project.name if project else "Unknown Project"
             release_name = release.version if release else "Unknown Release"
@@ -460,8 +470,10 @@ class InboxFanOutService:
                     item.telegram_status = "skipped"
                     continue
 
-                is_project_triage_lead = (
-                    project is not None and project.triage_lead_id == user.id
+                is_project_triage_lead = project is not None and (
+                    project.triage_lead_id == user.id
+                    # AC-23: admins stand in while the project has no active lead.
+                    or (needs_lead and user.role == UserRole.admin)
                 )
                 should_notify = is_reaction or (
                     (row.get("reporter") and issue.reporter_id == user.id)
@@ -573,8 +585,32 @@ class InboxFanOutService:
             # still pick the item up once its retry clock elapses.
             logger.warning("Telegram requeue skipped (best-effort)", exc_info=True)
 
+    @staticmethod
+    async def _drop_invisible(
+        db: AsyncSession,
+        recipients: set[str],
+        issue: Issue,
+        timeline_event: IssueTimeline | None,
+    ) -> set[str]:
+        """Keep only recipients who may see ``issue`` (and the note, if it's internal)."""
+        from app.policy import Action, allows, is_tech
+        from app.services.authz import actor_of, issue_target
+
+        if not recipients:
+            return recipients
+        result = await db.execute(select(User).where(User.id.in_([int(r) for r in recipients])))
+        target = issue_target(issue)
+        internal = timeline_event is not None and timeline_event.is_internal
+        return {
+            str(u.id)
+            for u in result.scalars().all()
+            if allows(actor_of(u), Action.view_item, target)
+            and (not internal or is_tech(u.role))
+        }
+
     async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:
-        """Return the project's designated triage lead as the sole triage recipient."""
+        """Return the project's triage lead — or every active admin when the
+        project needs one (lead unset or deactivated, AC-23)."""
         from app.db.models.project import Project
 
         if issue.project_id:
@@ -592,6 +628,8 @@ class InboxFanOutService:
                 tl = tl_result.scalar_one_or_none()
                 if tl:
                     return [tl]
+            if project is not None:
+                return await self._users_with_role(db, UserRole.admin)
 
         return []
 
@@ -619,7 +657,7 @@ class InboxFanOutService:
 
             for item in items:
                 await publish(
-                    f"ws:inbox:{item.user_id}",
+                    f"rw:inbox:{item.user_id}",
                     {
                         "type": "inbox_item",
                         "event_type": trigger.value,

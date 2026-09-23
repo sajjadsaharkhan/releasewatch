@@ -26,6 +26,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     timelineHasMore,
     timelineLoadingMore,
     teamUsers,
+    assignableUsers,
     availableLabels,
     availableReleases,
     availableProjects,
@@ -113,7 +114,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
         <IssueSidebar
           issue={localIssue}
           currentCycle={currentCycle}
-          teamUsers={teamUsers}
+          teamUsers={assignableUsers}
           availableLabels={availableLabels}
           availableReleases={availableReleases}
           availableProjects={availableProjects}

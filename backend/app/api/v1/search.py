@@ -9,13 +9,15 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
 from app.core.redis_client import get_cached, set_cached
+from app.db.models.issue import Issue
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.services.authz import sees_internal, visibility_clause
 from app.services.search_service import search as _search
 
 import hashlib
@@ -27,9 +29,10 @@ router = APIRouter()
 _CACHE_TTL = 60  # seconds
 
 
-def _cache_key(project_id: int, q: str) -> str:
+def _cache_key(project_id: int, q: str, scope: str) -> str:
+    """``scope`` keeps Support's filtered results apart from everyone else's."""
     h = hashlib.sha256(q.lower().encode()).hexdigest()[:16]
-    return f"search:{project_id}:{h}"
+    return f"search:{scope}:{project_id}:{h}"
 
 
 @router.get("", summary="Semantic + hybrid search over issues")
@@ -46,12 +49,19 @@ async def search_issues(
     configured.  Results include a ``matched_via`` field showing which retrievers
     surfaced each hit (useful for relevance debugging).
     """
-    cache_key = _cache_key(project_id, q)
+    tech = sees_internal(current_user)
+    cache_key = _cache_key(project_id, q, "all" if tech else f"user{current_user.id}")
     cached = await get_cached(cache_key)
     if cached is not None:
         return cached
 
-    result = await _search(db, q, project_id, limit=limit)
+    result = await _search(
+        db, q, project_id, limit=limit,
+        visible_ids=None if tech else select(Issue.id).where(
+            Issue.deleted_at.is_(None), visibility_clause(current_user),
+        ),
+        include_talk=tech,
+    )
 
     await set_cached(cache_key, result, ttl=_CACHE_TTL)
     return result

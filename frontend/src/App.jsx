@@ -6,6 +6,7 @@ import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
 import { useTrackNavOrigin } from './hooks/useNavOrigin'
+import { homePath, isSupport } from './lib/roles'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -74,9 +75,23 @@ function AdminRoute({ children }) {
   return children
 }
 
+// Tech-only screens (§7.3). Support never sees them — it lands on its own home
+// instead. Auth is already settled by the enclosing ProtectedRoute.
+function TechRoute({ children }) {
+  const { user } = useApp()
+  if (isSupport(user?.role)) return <Navigate to={homePath(user.role)} replace />
+  return children
+}
+
+// Sends `/` and unknown paths to the signed-in user's home.
+function HomeRedirect() {
+  const { user } = useApp()
+  return <Navigate to={homePath(user?.role)} replace />
+}
+
 // Public route wrapper (redirect if already authenticated)
 function PublicRoute({ children }) {
-  const { isAuthenticated, authLoading } = useApp()
+  const { isAuthenticated, authLoading, user } = useApp()
 
   if (authLoading) {
     return (
@@ -87,7 +102,7 @@ function PublicRoute({ children }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={homePath(user?.role)} replace />
   }
 
   return children
@@ -102,13 +117,16 @@ function PageFallback() {
 }
 
 function AppInner() {
-  const { setCommandPaletteOpen, setNewIssueOpen, createProjectOpen, setCreateProjectOpen, refetchProjects } = useApp()
+  const { setCommandPaletteOpen, setNewIssueOpen, createProjectOpen, setCreateProjectOpen, refetchProjects, user } = useApp()
+  // Support can't file items or search tech items (§7.3) — no shortcuts for them.
+  const support = isSupport(user?.role)
 
   // Track where the user came from so issue detail can send them back there
   useTrackNavOrigin()
 
   useEffect(() => {
     function handleKey(e) {
+      if (support) return
       // Cmd+K / Ctrl+K → command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
@@ -129,7 +147,7 @@ function AppInner() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [setCommandPaletteOpen, setNewIssueOpen])
+  }, [setCommandPaletteOpen, setNewIssueOpen, support])
 
   return (
     <>
@@ -149,20 +167,20 @@ function AppInner() {
 
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
+            <Route index element={<HomeRedirect />} />
+            <Route path="dashboard" element={<TechRoute><DashboardPage /></TechRoute>} />
             <Route path="inbox" element={<InboxPage />} />
-            <Route path="issues" element={<IssuesPage />} />
-            <Route path="triage" element={<TriagePage />} />
-            <Route path="my-issues" element={<MyIssuesPage />} />
-            <Route path="releases" element={<ReleasesPage />} />
-            <Route path="releases/:id" element={<ReleaseDetailPage />} />
+            <Route path="issues" element={<TechRoute><IssuesPage /></TechRoute>} />
+            <Route path="triage" element={<TechRoute><TriagePage /></TechRoute>} />
+            <Route path="my-issues" element={<TechRoute><MyIssuesPage /></TechRoute>} />
+            <Route path="releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
+            <Route path="releases/:id" element={<TechRoute><ReleaseDetailPage /></TechRoute>} />
             <Route path="regressions" element={<AdminRoute><RegressionsPage /></AdminRoute>} />
             <Route path="contributions" element={<AdminRoute><ContributionsPage /></AdminRoute>} />
             <Route path="deleted-issues" element={<AdminRoute><DeletedIssuesPage /></AdminRoute>} />
             <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="team" element={<TeamPage />} />
+            <Route path="search" element={<TechRoute><SearchPage /></TechRoute>} />
+            <Route path="team" element={<TechRoute><TeamPage /></TechRoute>} />
             <Route path="u/:username" element={<ProfilePage />} />
             <Route path="issue/:slug" element={<IssuePage />} />
           </Route>
@@ -172,7 +190,7 @@ function AppInner() {
             path="*"
             element={
               <ProtectedRoute>
-                <Navigate to="/dashboard" replace />
+                <HomeRedirect />
               </ProtectedRoute>
             }
           />
@@ -180,7 +198,7 @@ function AppInner() {
       </Suspense>
 
       {/* Global overlays */}
-      <CommandPalette />
+      {!support && <CommandPalette />}
       <CreateProjectModal
         open={createProjectOpen}
         onClose={() => setCreateProjectOpen(false)}

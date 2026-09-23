@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
 from app.db.models.issue import Issue
+from app.services.authz import visibility_clause
 from app.db.models.label import Label
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
@@ -41,7 +42,7 @@ async def list_labels(
         count_result = await db.execute(
             select(func.count())
             .select_from(Issue)
-            .where(Issue.labels.any(label.name))
+            .where(Issue.labels.any(label.name), visibility_clause(current_user))
         )
         issue_count = count_result.scalar() or 0
 
@@ -115,7 +116,7 @@ async def get_label(
     issue_count_result = await db.execute(
         select(func.count())
         .select_from(Issue)
-        .where(Issue.labels.any(label.name))
+        .where(Issue.labels.any(label.name), visibility_clause(current_user))
     )
     issue_count = issue_count_result.scalar() or 0
 

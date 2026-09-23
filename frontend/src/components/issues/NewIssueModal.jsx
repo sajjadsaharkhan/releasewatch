@@ -47,6 +47,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   const [allReleases, setAllReleases] = useState([])
   const [labels, setLabels] = useState([])
   const [teamUsers, setTeamUsers] = useState([])
+  const [assignableUsers, setAssignableUsers] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
 
   // Fetch projects, releases, and labels when modal opens.
@@ -60,16 +61,18 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     async function fetchData() {
       setDataLoading(true)
       try {
-        const [projectsRes, releasesRes, labelsRes, teamRes] = await Promise.all([
+        const [projectsRes, releasesRes, labelsRes, teamRes, assignableRes] = await Promise.all([
           projectsApi.list(),
           releasesApi.list(),
           labelsApi.list(),
           teamApi.list(),
+          teamApi.listAssignable(),
         ])
         setProjects(projectsRes.data || [])
         setAllReleases(releasesRes.data?.releases || [])
         setLabels(labelsRes.data || [])
         setTeamUsers(teamRes.data || [])
+        setAssignableUsers(assignableRes.data || [])
 
         setForm((f) => ({
           ...f,
@@ -315,7 +318,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       onChange={(id) => set('assigneeId', id)}
                       placeholder="Unassigned"
                     >
-                      {teamUsers.map((u) => (
+                      {assignableUsers.map((u) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                       ))}
                     </Select>

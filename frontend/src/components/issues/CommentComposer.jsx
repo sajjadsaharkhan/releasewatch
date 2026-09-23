@@ -79,7 +79,7 @@ export function CommentComposer({
 
   function handleSubmit() {
     if (!body.trim()) return
-    onSubmit?.(body, isInternal, mentionedUserIds)
+    onSubmit?.(body, showInternal && isInternal, mentionedUserIds)
     if (mode === 'create') {
       setBody('')
       setIsInternal(false)

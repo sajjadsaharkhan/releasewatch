@@ -72,6 +72,9 @@ function EventDot({ type }) {
 }
 
 export function IssueTimeline({ events = [], comments = [], issue, users = [], labels = [], currentUser, onAddComment, onUpdateComment, onDeleteComment, onToggleReaction, hasMore = false, loadingMore = false, onLoadMore }) {
+  // The internal-note toggle exists only for users Policy lets post one — it's
+  // absent for Support (BR-31), not disabled.
+  const canPostInternal = issue?.allowed_actions?.includes('comment_internal') ?? false
   const [editingCommentId, setEditingCommentId] = useState(null)
   const { toast } = useToast()
 
@@ -327,6 +330,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                       initialValue={item.body}
                       initialInternal={item.isInternal}
                       initialMentionedUsers={item.mentionedUsers || []}
+                      showInternal={canPostInternal}
                       mode="edit"
                       onSubmit={handleEditComment}
                       onCancelEdit={() => setEditingCommentId(null)}
@@ -496,6 +500,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
           onSubmit={handleSubmitComment}
           placeholder="Leave a comment…"
           users={users}
+          showInternal={canPostInternal}
         />
       </div>
     </div>

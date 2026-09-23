@@ -165,10 +165,35 @@ lists.
 
 ### Role — `ROLE` in `lib/constants.js`
 
-`qa` blue · `developer` violet · `cto` rose · `admin` zinc. Rendered by `<RoleBadge>`.
+`support` teal · `qa` blue · `developer` violet · `pm` amber · `cto` rose · `admin` zinc.
+Rendered by `<RoleBadge>`. The label for `pm` is "Project manager".
 
-Route access keys off role, not off the badge: `ADMIN_ROLES = ['admin', 'cto']` gates the
-Reports section in `Sidebar`, the Settings link in `Topbar`, and `<AdminRoute>` in `App.jsx`.
+Route access keys off role, not off the badge. `lib/roles.js` holds the role-level gates
+(slice 04, PRD §7.3):
+
+- **Support** (`isSupport`) gets a minimal `Sidebar` (Inbox and profile; New report and Support
+  reports arrive in 05), no project/release switchers, search, New issue button, command
+  palette, or `c` / ⌘K shortcuts. `<TechRoute>` in `App.jsx` sends Support from any tech-only
+  screen to `homePath(role)` (`/inbox`).
+  `ProfilePage` shows its engineering stats (metric cards, priority breakdown, and the
+  Activity/Assigned/Reported tabs) only when both the profile owner and the viewer have a tech
+  role. Support only reports, so a Support profile shows the header, the Reported card, and
+  the Reported tab (plus Edit profile, Security, and Telegram on its own profile).
+- `ADMIN_ROLES = ['admin', 'cto']` still gates the Reports section in `Sidebar`, the Settings
+  link in `Topbar`, and `<AdminRoute>`. Inside Settings, managing users and projects is
+  **Admin only** (`canManageUsersAndProjects`); a CTO sees those controls disabled with a
+  tooltip rather than hidden.
+
+**Per-item permissions never key off role in the UI.** Every `IssueResponse` carries
+`allowed_actions` and `blocked_actions` (`{action, code, detail}`) from
+`backend/app/policy.py`. Render item controls through `<ActionButton action item>` (or
+`actionState(item, action)` for non-button controls). An allowed action is enabled. A blocked
+one is disabled, with the Policy's `detail` as its tooltip. An action in neither list is
+hidden, which is how Support never sees tech-only controls such as the internal-note toggle.
+
+A project whose triage lead is missing or deactivated (`needs_triage_lead`) shows
+`<NeedsTriageLeadBadge>` (amber) in the project switcher and Settings → Projects. Settings also
+shows an amber banner above the list while any project needs a lead.
 
 ### Badge tones — `Badge.jsx`
 
@@ -372,11 +397,12 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Sheet` | Right-side drawer |
 | `Tabs` | Underline style, optional `icon` and `badge` per option |
 | `Segmented` | Pill toggle group inside a `bg-muted` track |
-| `Tooltip` | 300ms open delay, `side`: top · bottom · left · right |
+| `Tooltip` | 300ms open delay (also opens on focus), `side`: top · bottom · left · right; `wrapperClassName` sizes the hover wrapper (e.g. `flex w-full`) |
 | `Toast` | `ToastProvider` + `useToast()`; max 3 stacked, 4000ms default |
 | `Empty` | `icon` · `title` · `body` · children slot for a CTA |
 | `Avatar` / `AvatarGroup` | `size` in px; group overlaps −8px, `max` then `+N` |
 | `Switch` · `Slider` · `Calendar` · `DatePicker` · `Popover` · `Icon` | — |
+| `ActionButton` / `GatedButton` (`components/common`) | `ActionButton`: `action` + `item`, see §3 Role. `GatedButton`: `allowed` + `reason`, for role-level gates. Both render a disabled `Button` inside a focusable wrapper so the tooltip still opens |
 
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
 should use the primitive rather than re-declaring the classes.

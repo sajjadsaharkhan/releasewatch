@@ -11,10 +11,15 @@ from app.db.base import Base
 
 
 class UserRole(str, enum.Enum):
-    """Roles a team member can hold within Releasewatch."""
+    """Roles a team member can hold within Releasewatch (PRD §7.1).
 
+    Tech roles are everything but ``support`` — see ``app/policy.py``.
+    """
+
+    support = "support"
     qa = "qa"
     developer = "developer"
+    pm = "pm"
     cto = "cto"
     admin = "admin"
 

@@ -8,6 +8,7 @@ import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
+import { canManageUsersAndProjects, isSupport } from '../../lib/roles'
 
 export function Topbar() {
   const { theme, toggleTheme, setCommandPaletteOpen, activeProjectId, switchProject, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, setNewIssueOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
@@ -17,6 +18,9 @@ export function Topbar() {
   // Use authenticated user if available, otherwise fall back to mock user
   const currentUser = user ? { ...user, avatar_color: user.avatar_color || '#6366f1' } : null
   const isAdmin = ['admin', 'cto'].includes(user?.role)
+  // Support has no project/release context, search, or direct filing (§7.3).
+  const support = isSupport(user?.role)
+  const canCreateProject = canManageUsersAndProjects(user?.role)
 
   const handleLogout = async () => {
     await logout()
@@ -25,23 +29,25 @@ export function Topbar() {
   return (
     <header className="flex h-12 shrink-0 items-center border-b border-border bg-card px-4 gap-3">
       {/* Mobile menu button */}
-      <button
+      {!support && <button
         className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
       >
         {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </button>
+      </button>}
 
       {/* Project and Release selectors */}
-      <div className="hidden lg:flex items-center gap-2">
+      {!support && <div className="hidden lg:flex items-center gap-2">
         {projectsLoading ? (
           <div className="flex items-center justify-center w-[260px] h-8">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : projects.length === 0 ? (
-          <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
-            Create project
-          </Button>
+          canCreateProject && (
+            <Button size="sm" onClick={() => setCreateProjectOpen(true)}>
+              Create project
+            </Button>
+          )
         ) : (
           <ProjectSwitcher
             projects={projects}
@@ -49,7 +55,7 @@ export function Topbar() {
             onChange={switchProject}
             compact
             width={260}
-            onCreateProject={() => setCreateProjectOpen(true)}
+            onCreateProject={canCreateProject ? () => setCreateProjectOpen(true) : undefined}
           />
         )}
         {releasesLoading ? (
@@ -65,10 +71,11 @@ export function Topbar() {
             width={220}
           />
         ) : null}
-      </div>
+      </div>}
 
       {/* Centered search box */}
       <div className="flex-1 flex justify-center px-2 lg:px-0">
+        {!support && (
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className={cn(
@@ -83,17 +90,18 @@ export function Topbar() {
             ⌘K
           </kbd>
         </button>
+        )}
       </div>
 
       {/* Create issue button */}
-      <Button
+      {!support && <Button
         size="sm"
         onClick={() => setNewIssueOpen(true)}
         className="hidden sm:flex items-center gap-1.5 shrink-0"
       >
         <Plus className="h-3.5 w-3.5" />
         <span className="hidden md:inline">New issue</span>
-      </Button>
+      </Button>}
 
       {/* User avatar dropdown */}
       <Dropdown
@@ -126,7 +134,7 @@ export function Topbar() {
       </Dropdown>
 
       {/* Mobile menu overlay */}
-      {mobileMenuOpen && (
+      {mobileMenuOpen && !support && (
         <div className="fixed inset-0 top-12 bg-background z-50 lg:hidden p-4 space-y-4">
           <Button
             onClick={() => { setNewIssueOpen(true); setMobileMenuOpen(false) }}
@@ -143,15 +151,17 @@ export function Topbar() {
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : projects.length === 0 ? (
-                <Button onClick={() => setCreateProjectOpen(true)} className="w-full">
-                  Create project
-                </Button>
+                canCreateProject && (
+                  <Button onClick={() => setCreateProjectOpen(true)} className="w-full">
+                    Create project
+                  </Button>
+                )
               ) : (
                 <ProjectSwitcher
                   projects={projects}
                   activeProjectId={activeProjectId}
                   onChange={switchProject}
-                  onCreateProject={() => setCreateProjectOpen(true)}
+                  onCreateProject={canCreateProject ? () => setCreateProjectOpen(true) : undefined}
                 />
               )}
             </div>

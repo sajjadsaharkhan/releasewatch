@@ -93,7 +93,8 @@ class TimelineService:
         size:
             Page size (max events per page).
         include_internal:
-            If ``False``, internal events are filtered out (for non-team viewers).
+            If ``False``, internal events are filtered out of both the page and
+            the total — Support viewers (BR-31, AC-07).
 
         Returns
         -------
@@ -109,8 +110,11 @@ class TimelineService:
         )
         total = count_result.scalar_one()
 
+        from sqlalchemy.orm import selectinload
+
         events_result = await db.execute(
-            base_query.order_by(IssueTimeline.created_at.asc())
+            base_query.options(selectinload(IssueTimeline.actor))
+            .order_by(IssueTimeline.created_at.asc())
             .offset((page - 1) * size)
             .limit(size)
         )

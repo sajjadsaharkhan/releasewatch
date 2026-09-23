@@ -17,19 +17,26 @@ from app.db.models.issue import Issue, IssueStatus
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.user import ActivityDataPoint, UserProfileResponse
+from app.services.authz import visibility_clause
 
 router = APIRouter()
 
 _FIXED_STATUSES = {IssueStatus.in_review, IssueStatus.done}
 
 
-async def _build_profile(user: User, db: AsyncSession) -> UserProfileResponse:
-    """Compute issue stats and build a UserProfileResponse for the given user."""
+async def _build_profile(user: User, db: AsyncSession, viewer: User) -> UserProfileResponse:
+    """Compute issue stats and build a UserProfileResponse for the given user.
+
+    Counts cover only items ``viewer`` may see (slice 04 — no side-channel counts for Support).
+    """
+    visible = visibility_clause(viewer)
     reported_count = (
-        await db.execute(select(func.count(Issue.id)).where(Issue.reporter_id == user.id))
+        await db.execute(
+            select(func.count(Issue.id)).where(Issue.reporter_id == user.id, visible)
+        )
     ).scalar_one()
 
-    assigned_q = select(func.count(Issue.id)).where(Issue.assignee_id == user.id)
+    assigned_q = select(func.count(Issue.id)).where(Issue.assignee_id == user.id, visible)
     assigned_count = (await db.execute(assigned_q)).scalar_one()
 
     fixed_count = (
@@ -37,6 +44,7 @@ async def _build_profile(user: User, db: AsyncSession) -> UserProfileResponse:
             select(func.count(Issue.id)).where(
                 Issue.assignee_id == user.id,
                 Issue.status.in_(_FIXED_STATUSES),
+                visible,
             )
         )
     ).scalar_one()
@@ -80,7 +88,7 @@ async def get_user_by_username(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return await _build_profile(user, db)
+    return await _build_profile(user, db, current_user)
 
 
 @router.get("/users/{user_id}/activity", response_model=list[ActivityDataPoint])
@@ -102,7 +110,7 @@ async def get_user_activity(
                 extract("month", Issue.created_at).label("month"),
                 func.count(Issue.id).label("cnt"),
             )
-            .where(Issue.reporter_id == user_id)
+            .where(Issue.reporter_id == user_id, visibility_clause(current_user))
             .where(extract("year", Issue.created_at) == year)
             .group_by(extract("month", Issue.created_at))
         )
@@ -114,7 +122,7 @@ async def get_user_activity(
                 extract("month", Issue.updated_at).label("month"),
                 func.count(Issue.id).label("cnt"),
             )
-            .where(Issue.assignee_id == user_id)
+            .where(Issue.assignee_id == user_id, visibility_clause(current_user))
             .where(Issue.status.in_(_FIXED_STATUSES))
             .where(extract("year", Issue.updated_at) == year)
             .group_by(extract("month", Issue.updated_at))

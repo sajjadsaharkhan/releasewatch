@@ -132,7 +132,13 @@ export const TASK_CANCEL_REASONS = ['no_longer_needed']
 // Statuses that still need work — not done and not cancelled.
 export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'in_progress', 'in_review', 'blocked']
 
+// Mirrors UserRole (backend/app/db/models/user.py). Tech roles = everyone but support
+// (lib/roles.js); per-item permissions come from the API's allowed_actions, not from here.
 export const ROLE = {
+  support: {
+    label: 'Support',
+    pill: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+  },
   qa: {
     label: 'QA',
     pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -140,6 +146,10 @@ export const ROLE = {
   developer: {
     label: 'Developer',
     pill: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  },
+  pm: {
+    label: 'Project manager',
+    pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   },
   cto: {
     label: 'CTO',

@@ -9,11 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user, require_role
+from app.core.auth import get_current_user
 from app.db.models.issue import Issue, IssueStatus
 from app.db.models.release import GoNogoStatus, Release, ReleaseStatus
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 from app.db.session import get_db
+from app.policy import Action
 from app.schemas.release import (
     AnalyticsCycleRow,
     GoNogoRequest,
@@ -23,6 +24,7 @@ from app.schemas.release import (
     ReleaseResponse,
     ReleaseUpdate,
 )
+from app.services.authz import authorize, project_target, require_action
 
 router = APIRouter()
 
@@ -38,6 +40,13 @@ async def _get_release_or_404(db: AsyncSession, release_id: int) -> Release:
             status_code=status.HTTP_404_NOT_FOUND, detail="Release not found"
         )
     return release
+
+
+async def _authorize_manage(db: AsyncSession, user: User, project_id: int) -> None:
+    """``manage_releases`` on the release's project (the triage-lead developer rule needs it)."""
+    from app.db.models.project import Project
+
+    authorize(user, Action.manage_releases, project_target(await db.get(Project, project_id)))
 
 
 async def _add_release_metrics(db: AsyncSession, release: Release) -> dict:
@@ -120,7 +129,7 @@ async def list_releases(
     project_id: int | None = Query(None, description="Filter by project ID"),
     status: str | None = Query(None, description="Filter by status"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_action(Action.view_releases)),
 ) -> ReleaseListResponse:
     """Return all releases across all projects, most recent first."""
     query = select(Release).where(Release.deleted_at.is_(None)).order_by(Release.created_at.desc())
@@ -166,6 +175,7 @@ async def create_release(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project with ID {payload.project_id} not found",
         )
+    authorize(current_user, Action.manage_releases, project_target(project))
 
     release = Release(
         project_id=payload.project_id,
@@ -188,6 +198,7 @@ async def get_release(
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Return a single release by ID."""
+    authorize(current_user, Action.view_releases)
     release = await _get_release_or_404(db, release_id)
     return await _release_to_response(db, release)
 
@@ -205,6 +216,7 @@ async def update_release(
 ) -> ReleaseResponse:
     """Partially update a release (status, staging URL, description, target date)."""
     release = await _get_release_or_404(db, release_id)
+    await _authorize_manage(db, current_user, release.project_id)
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(release, field, value)
@@ -232,6 +244,7 @@ async def get_release_analytics(
     """
     from app.db.models.issue_cycle import IssueCycle
 
+    authorize(current_user, Action.view_releases)
     release = await _get_release_or_404(db, release_id)
 
     # Fetch all cycles joined to their parent issue
@@ -296,7 +309,8 @@ async def approve_release(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
-    """Mark a release as approved for production."""
+    """Mark a release as approved for production (go/no-go: CTO, Admin)."""
+    authorize(current_user, Action.go_nogo)
     release = await _get_release_or_404(db, release_id)
     release.go_nogo_status = GoNogoStatus.approved
     release.go_nogo_by_id = current_user.id
@@ -315,10 +329,11 @@ async def approve_release(
 async def delete_release(
     release_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    """Soft-delete a release. Restricted to admin and CTO roles."""
+    """Soft-delete a release (``manage_releases`` on its project)."""
     release = await _get_release_or_404(db, release_id)
+    await _authorize_manage(db, current_user, release.project_id)
     release.deleted_at = datetime.now(tz=UTC)
     db.add(release)
     await db.commit()
@@ -335,7 +350,8 @@ async def block_release(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
-    """Block a release from production with a reason."""
+    """Block a release from production with a reason (go/no-go: CTO, Admin)."""
+    authorize(current_user, Action.go_nogo)
     release = await _get_release_or_404(db, release_id)
     release.go_nogo_status = GoNogoStatus.blocked
     release.go_nogo_note = payload.note

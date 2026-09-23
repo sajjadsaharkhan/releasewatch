@@ -23,7 +23,8 @@ export default async function globalSetup(config: FullConfig) {
       // under Playwright's default substring name matching — this env has
       // Keycloak configured, so it's rendered too. Disambiguate with exact.
       await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-      await page.waitForURL('**/dashboard')
+      // Tech roles land on the dashboard; Support on its inbox (slice 04).
+      await page.waitForURL(/\/(dashboard|inbox)$/)
       await page.context().storageState({ path: path.join(authDir, `${role}.json`) })
       await page.close()
     }

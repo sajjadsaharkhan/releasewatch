@@ -4,6 +4,11 @@ GET  /inbox                  — paginated inbox items
 GET  /inbox/unread-count     — count of unread items
 POST /inbox/read-all         — mark all as read
 POST /inbox/{item_id}/read   — mark single item as read
+
+Every read goes through ``_own_visible_items``: items about issues the user may
+no longer see, or about internal notes when the user isn't a tech role, are
+filtered out (slice 04, BR-30/31). Fan-out already never creates them; the
+read-side filter covers rows written before the user's role changed.
 """
 
 from datetime import datetime, timezone
@@ -15,11 +20,27 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.db.models.inbox_item import InboxItem
+from app.db.models.issue import Issue
+from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.inbox import ActorInfo, InboxItemResponse, InboxListResponse, UnreadCountResponse
+from app.services.authz import sees_internal, visibility_clause
 
 router = APIRouter()
+
+
+def _own_visible_items(user: User) -> list:
+    """WHERE clauses for "this user's inbox items they may still see"."""
+    clauses = [InboxItem.user_id == user.id]
+    if not sees_internal(user):
+        clauses += [
+            InboxItem.issue_id.in_(select(Issue.id).where(visibility_clause(user))),
+            InboxItem.timeline_id.is_(None) | ~InboxItem.timeline_id.in_(
+                select(IssueTimeline.id).where(IssueTimeline.is_internal.is_(True))
+            ),
+        ]
+    return clauses
 
 
 def _build_response(item: InboxItem) -> InboxItemResponse:
@@ -62,7 +83,7 @@ async def get_inbox(
     current_user: User = Depends(get_current_user),
 ) -> InboxListResponse:
     """Return the authenticated user's inbox, newest first."""
-    base_query = select(InboxItem).where(InboxItem.user_id == current_user.id)
+    base_query = select(InboxItem).where(*_own_visible_items(current_user))
     if is_read is not None:
         base_query = base_query.where(InboxItem.is_read == is_read)
     if event_type is not None:
@@ -72,7 +93,7 @@ async def get_inbox(
     total = count_result.scalar_one()
 
     unread_query = select(func.count(InboxItem.id)).where(
-        InboxItem.user_id == current_user.id,
+        *_own_visible_items(current_user),
         InboxItem.is_read.is_(False),
     )
     if event_type is not None:
@@ -111,7 +132,7 @@ async def get_unread_count(
     """Return only the count of unread inbox items (cheap poll endpoint)."""
     result = await db.execute(
         select(func.count(InboxItem.id)).where(
-            InboxItem.user_id == current_user.id,
+            *_own_visible_items(current_user),
             InboxItem.is_read.is_(False),
         )
     )
@@ -158,7 +179,7 @@ async def mark_item_read(
         )
         .where(
             InboxItem.id == item_id,
-            InboxItem.user_id == current_user.id,
+            *_own_visible_items(current_user),
         )
     )
     item = result.scalar_one_or_none()

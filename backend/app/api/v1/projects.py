@@ -18,27 +18,47 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user, require_role
+from app.core.auth import get_current_user
 from app.db.models.project import Project
 from app.db.models.release import Release, GoNogoStatus
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.project import ProjectArchiveRequest, ProjectCreate, ProjectResponse, ProjectUpdate
 from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, ReleaseUpdate
-from app.services.project_service import guard_kind_change
+from app.policy import Action
+from app.services.authz import authorize, project_target, require_action
+from app.services.project_service import (
+    guard_kind_change,
+    project_needs_triage_lead,
+    validate_triage_lead,
+)
 
 router = APIRouter()
 
 async def _project_to_response(db: AsyncSession, project: Project) -> ProjectResponse:
-    """Build a ProjectResponse, resolving triage_lead_name from the DB."""
+    """Build a ProjectResponse, resolving triage_lead_name and needs_triage_lead from the DB."""
     triage_lead_name: str | None = None
     if project.triage_lead_id:
         result = await db.execute(select(User).where(User.id == project.triage_lead_id))
         tl = result.scalar_one_or_none()
         if tl:
             triage_lead_name = tl.name or tl.username
-    data = ProjectResponse.model_validate(project).model_dump(exclude={"triage_lead_name"})
-    return ProjectResponse(**data, triage_lead_name=triage_lead_name)
+    data = ProjectResponse.model_validate(project).model_dump(
+        exclude={"triage_lead_name", "needs_triage_lead"}
+    )
+    return ProjectResponse(
+        **data,
+        triage_lead_name=triage_lead_name,
+        needs_triage_lead=await project_needs_triage_lead(db, project),
+    )
+
+
+async def _apply_project_update(db: AsyncSession, project: Project, update_data: dict) -> None:
+    if "triage_lead_id" in update_data:
+        await validate_triage_lead(db, update_data["triage_lead_id"])
+    await guard_kind_change(db, project, update_data)
+    for field, value in update_data.items():
+        setattr(project, field, value)
 
 
 # ── Projects ──────────────────────────────────────────────────────────────────
@@ -65,9 +85,10 @@ async def list_projects(
 async def create_project(
     payload: ProjectCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> ProjectResponse:
-    """Create a new project (admin / CTO only)."""
+    """Create a new project (admin only, §7.3). A triage lead is required (BR-15)."""
+    await validate_triage_lead(db, payload.triage_lead_id)
     # Check slug uniqueness
     existing = await db.execute(select(Project).where(Project.slug == payload.slug))
     if existing.scalar_one_or_none():
@@ -108,14 +129,11 @@ async def update_project(
     slug: str,
     payload: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> ProjectResponse:
     """Partially update a project's metadata."""
     project = await _get_project_or_404(db, slug)
-    update_data = payload.model_dump(exclude_unset=True)
-    await guard_kind_change(db, project, update_data)
-    for field, value in update_data.items():
-        setattr(project, field, value)
+    await _apply_project_update(db, project, payload.model_dump(exclude_unset=True))
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -130,7 +148,7 @@ async def update_project(
 async def archive_project(
     slug: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> None:
     """Soft-delete a project by setting ``archived_at``."""
     project = await _get_project_or_404(db, slug)
@@ -174,7 +192,7 @@ async def update_project_by_id(
     project_id: str,
     payload: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> ProjectResponse:
     """Partially update a project's metadata by ID."""
     try:
@@ -185,10 +203,7 @@ async def update_project_by_id(
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
-    update_data = payload.model_dump(exclude_unset=True)
-    await guard_kind_change(db, project, update_data)
-    for field, value in update_data.items():
-        setattr(project, field, value)
+    await _apply_project_update(db, project, payload.model_dump(exclude_unset=True))
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -205,7 +220,7 @@ async def archive_project_by_id(
     project_id: str,
     payload: ProjectArchiveRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> ProjectResponse:
     """Archive or restore a project by ID."""
     try:
@@ -239,6 +254,7 @@ async def list_releases(
     current_user: User = Depends(get_current_user),
 ) -> List[ReleaseResponse]:
     """Return all releases for a project, most recent first."""
+    authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
     project = await _get_project_or_404(db, slug)
@@ -261,12 +277,13 @@ async def create_release(
     slug: str,
     payload: ReleaseCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Create a new release under the given project."""
     from app.api.v1.releases import _release_to_response
 
     project = await _get_project_or_404(db, slug)
+    authorize(current_user, Action.manage_releases, project_target(project))
     release = Release(
         project_id=project.id,
         version=payload.version,
@@ -293,6 +310,7 @@ async def get_release(
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Return a single release identified by project slug + version string."""
+    authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
     release = await _get_release_or_404(db, slug, version)
@@ -309,11 +327,12 @@ async def update_release(
     version: str,
     payload: ReleaseUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
+    current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Partially update a release (status, staging URL, description, target date)."""
     from app.api.v1.releases import _release_to_response
 
+    authorize(current_user, Action.manage_releases, project_target(await _get_project_or_404(db, slug)))
     release = await _get_release_or_404(db, slug, version)
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -334,7 +353,7 @@ async def submit_go_nogo(
     version: str,
     payload: GoNogoRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.cto, UserRole.admin)),
+    current_user: User = Depends(require_action(Action.go_nogo)),
 ) -> ReleaseResponse:
     """Record a go or no-go gate decision for a release (CTO / admin only)."""
     from app.api.v1.releases import _release_to_response

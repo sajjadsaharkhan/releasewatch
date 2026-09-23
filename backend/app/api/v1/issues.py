@@ -23,6 +23,10 @@ GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numb
 Every status change goes through ``IssueService.transition()``
 (``app/workflow.py`` decides what's allowed) — see
 docs/phase-2/02-unified-status-model.md.
+
+Every route checks ``app/policy.py`` (who may act) via ``app/services/authz.py``,
+and every read starts from ``visible_issues`` — an item the caller may not see
+is a 404, never a 403 (docs/phase-2/04-roles-and-visibility.md).
 """
 
 import csv
@@ -46,7 +50,9 @@ from app.db.models.project import Project, ProjectKind
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.policy import Action, item_actions, transition
 from app.schemas.issue import (
+    BlockedAction,
     BlockedTransition,
     DuplicateRequest,
     FixRequest,
@@ -63,6 +69,15 @@ from app.schemas.issue import (
     TriageRequest,
     UserSummary,
     VerifyRequest,
+)
+from app.services.authz import (
+    actor_of,
+    authorize,
+    authorize_issue,
+    issue_target,
+    load_visible_issue,
+    project_target,
+    visibility_clause,
 )
 from app.services.issue_service import issue_service
 from app.workflow import Workflow
@@ -102,6 +117,7 @@ def _parse_statuses(raw: str | None) -> list[IssueStatus] | None:
 def _apply_filters(
     query,
     *,
+    actor: User,
     project_id,
     release_id,
     status,
@@ -118,7 +134,7 @@ def _apply_filters(
     has_release=None,
     project_kind=None,
 ):
-    query = query.where(Issue.deleted_at.is_(None))
+    query = query.where(Issue.deleted_at.is_(None), visibility_clause(actor))
     if project_id:
         query = query.where(Issue.project_id == project_id)
     if release_id:
@@ -161,6 +177,14 @@ def _apply_filters(
     return query
 
 
+#: PATCH fields that need their own Policy action on top of ``edit_item``.
+_FIELD_ACTIONS = {
+    "assignee_id": Action.assign,
+    "priority": Action.set_priority,
+    "due_date": Action.set_due_date,
+}
+
+
 def _apply_sort(query, sort: str):
     if sort == "oldest":
         return query.order_by(Issue.created_at.asc(), Issue.issue_number.asc())
@@ -173,7 +197,7 @@ def _apply_sort(query, sort: str):
 
 
 def _workflow_fields(issue: Issue, current_user: User) -> dict:
-    """Compute allowed_transitions / blocked_transitions for one issue."""
+    """Compute allowed/blocked transitions (Workflow ∩ Policy) and actions (Policy) for one issue."""
     release = issue.release
     context = {
         "actor_id": current_user.id,
@@ -184,9 +208,21 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
     }
     item_type = issue_type_value(issue.type)
     targets = Workflow.allowed_targets(item_type, issue.status, context)
+    allowed_actions, blocked_actions = item_actions(
+        actor_of(current_user), issue_target(issue, issue.project), targets.allowed,
+    )
+    allowed_set = set(allowed_actions)
+    blocked_by_policy = {b["action"]: b for b in blocked_actions}
+    blocked_transitions = [BlockedTransition(**b) for b in targets.blocked]
+    for to in targets.allowed:
+        b = blocked_by_policy.get(transition(to))
+        if b is not None:
+            blocked_transitions.append(BlockedTransition(to=to, code=b["code"], detail=b["detail"]))
     return {
-        "allowed_transitions": targets.allowed,
-        "blocked_transitions": [BlockedTransition(**b) for b in targets.blocked],
+        "allowed_transitions": [to for to in targets.allowed if transition(to) in allowed_set],
+        "blocked_transitions": blocked_transitions,
+        "allowed_actions": allowed_actions,
+        "blocked_actions": [BlockedAction(**b) for b in blocked_actions],
     }
 
 
@@ -271,6 +307,7 @@ async def list_issues(
 ) -> IssueListResponse:
     """Return a paginated, filterable, sortable list of issues."""
     filter_kwargs = dict(
+        actor=current_user,
         project_id=project_id,
         release_id=release_id,
         status=status,
@@ -332,6 +369,7 @@ async def export_issues(
 ) -> StreamingResponse:
     """Export all matching issues as a CSV file (no pagination)."""
     filter_kwargs = dict(
+        actor=current_user,
         project_id=project_id,
         release_id=release_id,
         status=status,
@@ -410,7 +448,11 @@ async def get_issue_by_number(
             selectinload(Issue.reporter),
             selectinload(Issue.release),
             selectinload(Issue.project),
-        ).where(Issue.issue_number == issue_number, Issue.deleted_at.is_(None))
+        ).where(
+            Issue.issue_number == issue_number,
+            Issue.deleted_at.is_(None),
+            visibility_clause(current_user),
+        )
         .limit(1)
     )
     issue = result.scalars().first()
@@ -429,13 +471,19 @@ async def get_adjacent_issues(
     """Return the previous and next non-deleted issue_numbers relative to the given one."""
     prev_result = await db.execute(
         select(Issue.issue_number)
-        .where(Issue.issue_number < issue_number, Issue.deleted_at.is_(None))
+        .where(
+            Issue.issue_number < issue_number, Issue.deleted_at.is_(None),
+            visibility_clause(current_user),
+        )
         .order_by(Issue.issue_number.desc())
         .limit(1)
     )
     next_result = await db.execute(
         select(Issue.issue_number)
-        .where(Issue.issue_number > issue_number, Issue.deleted_at.is_(None))
+        .where(
+            Issue.issue_number > issue_number, Issue.deleted_at.is_(None),
+            visibility_clause(current_user),
+        )
         .order_by(Issue.issue_number.asc())
         .limit(1)
     )
@@ -456,7 +504,14 @@ async def create_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """File a new bug or task. Release is optional (hotfixes, tasks). Any authenticated user can file issues."""
+    """File a new bug or task. Release is optional (hotfixes, tasks). Tech roles only (§7.3)."""
+    authorize(current_user, Action.create_item)
+    if payload.assignee_id is not None:
+        authorize(current_user, Action.assign)
+    if payload.is_release_blocker:
+        project = await db.get(Project, payload.project_id)
+        if project is not None:
+            authorize(current_user, Action.flag_release_blocker, project_target(project))
     issue = await issue_service.create(db, payload, current_user)
     await db.commit()
     result = await db.execute(
@@ -543,18 +598,14 @@ async def get_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Return a single issue by UUID."""
-    result = await db.execute(
-        select(Issue).options(
-            selectinload(Issue.assignee),
-            selectinload(Issue.reporter),
-            selectinload(Issue.release),
-            selectinload(Issue.project),
-        ).where(Issue.id == issue_id, Issue.deleted_at.is_(None))
+    """Return a single issue by id — 404 when the caller may not see it."""
+    issue = await load_visible_issue(
+        db, issue_id, current_user,
+        selectinload(Issue.assignee),
+        selectinload(Issue.reporter),
+        selectinload(Issue.release),
+        selectinload(Issue.project),
     )
-    issue = result.scalar_one_or_none()
-    if issue is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
     enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
 
@@ -567,10 +618,20 @@ async def update_issue(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Partially update editable fields of an issue; emits a timeline event per changed field."""
+    data = payload.model_dump(exclude_unset=True)
+    issue = await authorize_issue(db, issue_id, current_user, Action.edit_item)
+    target = issue_target(issue, issue.project)
+    for field, action in _FIELD_ACTIONS.items():
+        if field in data:
+            authorize(current_user, action, target)
+    if "is_release_blocker" in data and data["is_release_blocker"] != issue.is_release_blocker:
+        authorize(current_user, Action.flag_release_blocker, target)
+    if data.get("status") is not None:
+        authorize(current_user, transition(data["status"]), target)
     issue = await issue_service.update(
         db=db,
         issue_id=issue_id,
-        payload=payload.model_dump(exclude_unset=True),
+        payload=data,
         actor=current_user,
     )
     await db.commit()
@@ -600,14 +661,9 @@ async def delete_issue(
     current_user: User = Depends(get_current_user),
 ) -> None:
     """Soft-delete an issue (CTO, admin, reporter, or triage lead of the issue's release)."""
-    result = await db.execute(
-        select(Issue)
-        .options(selectinload(Issue.release), selectinload(Issue.project))
-        .where(Issue.id == issue_id, Issue.deleted_at.is_(None))
+    issue = await load_visible_issue(
+        db, issue_id, current_user, selectinload(Issue.release), selectinload(Issue.project),
     )
-    issue = result.scalar_one_or_none()
-    if issue is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
 
     is_privileged = current_user.role in (UserRole.admin, UserRole.cto)
     is_reporter = issue.reporter_id == current_user.id
@@ -683,6 +739,9 @@ async def triage_issue(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Accept: assign the issue and set its priority (required). Maps to new -> todo."""
+    issue = await authorize_issue(db, issue_id, current_user, Action.triage)
+    if payload.is_release_blocker:
+        authorize(current_user, Action.flag_release_blocker, issue_target(issue, issue.project))
     await issue_service.triage(
         db, issue_id, payload.assignee_id, payload.priority, current_user,
         labels=payload.labels, is_release_blocker=payload.is_release_blocker,
@@ -703,6 +762,7 @@ async def needs_clarification(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Move the issue to Needs info and ask the reporter for more information."""
+    await authorize_issue(db, issue_id, current_user, Action.triage)
     await issue_service.needs_clarification(
         db, issue_id, current_user, message=payload.message
     )
@@ -718,6 +778,7 @@ async def mark_fixed(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Developer marks the issue as fixed (optionally linking the MR). Maps to -> in_review."""
+    await authorize_issue(db, issue_id, current_user, transition(IssueStatus.in_review))
     await issue_service.mark_fixed(db, issue_id, payload.mr_url, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -731,6 +792,10 @@ async def verify_fix(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """QA verifies the developer's fix. Outcome: pass | fail | partial."""
+    to = {"pass": IssueStatus.done, "fail": IssueStatus.in_progress}.get(
+        payload.outcome, IssueStatus.in_review,
+    )
+    await authorize_issue(db, issue_id, current_user, transition(to))
     await issue_service.verify_fix(db, issue_id, payload.outcome, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -743,6 +808,7 @@ async def reopen_issue(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Reopen a Done bug. Maps to the regression action; 409 done_is_final otherwise."""
+    await authorize_issue(db, issue_id, current_user, Action.flag_regression)
     await issue_service.reopen(db, issue_id, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -760,6 +826,8 @@ async def link_duplicate(
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
     """Mark this issue as a duplicate of another issue and cancel it."""
+    await authorize_issue(db, issue_id, current_user, Action.triage)
+    await load_visible_issue(db, payload.parent_id, current_user)
     await issue_service.link_duplicate(db, issue_id, payload.parent_id, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -776,7 +844,7 @@ async def transition_issue(
 
     409 with ``{detail, code, allowed}`` when Workflow refuses the move.
     """
-    issue = await issue_service.get(db, issue_id)
+    issue = await authorize_issue(db, issue_id, current_user, transition(payload.to))
     await issue_service.transition(
         db, issue, to=payload.to, actor=current_user,
         reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
@@ -791,7 +859,8 @@ async def flag_regression(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Flag a regression on a Done or In review bug (BR-24). Requires an unshipped release."""
+    """Flag a regression (QA, the project's triage lead, PM, Admin — §9.2)."""
+    await authorize_issue(db, issue_id, current_user, Action.flag_regression)
     await issue_service.regress(db, issue_id, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -808,6 +877,7 @@ async def list_issue_cycles(
     current_user: User = Depends(get_current_user),
 ) -> list[IssueCycleResponse]:
     """Return all workflow cycles for an issue, ordered by cycle number."""
+    await load_visible_issue(db, issue_id, current_user)
     result = await db.execute(
         select(IssueCycle)
         .where(IssueCycle.issue_id == issue_id)
@@ -828,6 +898,7 @@ async def list_regression_history(
     current_user: User = Depends(get_current_user),
 ) -> list[RegressionHistoryResponse]:
     """Return all regression events recorded for an issue, ordered oldest-first."""
+    await load_visible_issue(db, issue_id, current_user)
     result = await db.execute(
         select(RegressionHistory)
         .options(

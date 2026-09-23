@@ -1,5 +1,6 @@
 import React from 'react'
 import { ChevronDown, Check, Circle } from 'lucide-react'
+import { NeedsTriageLeadBadge } from '../project'
 import { cn } from '../../lib/cn'
 import { getContrastColor } from '../../lib/colors'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
@@ -53,7 +54,10 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
                   <Circle className="h-4 w-4 shrink-0 opacity-70" />
                 )}
                 <div className="flex flex-col">
-                  <span>{p.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    {p.name}
+                    {p.needs_triage_lead && <NeedsTriageLeadBadge className="px-1.5 text-[10px]" />}
+                  </span>
                   <span className="text-[10px] text-muted-foreground">{p.desc}</span>
                 </div>
               </span>

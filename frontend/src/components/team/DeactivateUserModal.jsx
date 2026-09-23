@@ -11,15 +11,23 @@ import { RoleBadge } from '../ui/Badge'
 export function DeactivateUserModal({ open, onClose, user, onDeactivated, currentUser }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  // Projects this user is triage lead of — they lose their lead (AC-23).
+  const [affectedProjects, setAffectedProjects] = useState([])
   const { toast } = useToast()
 
   const isDeactivatingSelf = currentUser?.id === user?.id
 
   useEffect(() => {
-    if (open) {
-      setError(null)
-    }
-  }, [open])
+    if (!open) return
+    setError(null)
+    setAffectedProjects([])
+    if (!user || isDeactivatingSelf) return
+    let cancelled = false
+    teamApi.deactivationImpact(user.id)
+      .then((res) => { if (!cancelled) setAffectedProjects(res.data?.affected_projects || []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [open, user, isDeactivatingSelf])
 
   async function handleDeactivate() {
     if (isDeactivatingSelf) {
@@ -86,6 +94,20 @@ export function DeactivateUserModal({ open, onClose, user, onDeactivated, curren
               </div>
             </div>
 
+            {affectedProjects.length > 0 && (
+              <div role="status" className="rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-3 py-2 space-y-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  {user.name} is the triage lead of {affectedProjects.length === 1 ? 'this project' : `${affectedProjects.length} projects`}:
+                </p>
+                <ul className="text-sm text-amber-800 dark:text-amber-300 list-disc pl-5">
+                  {affectedProjects.map((p) => <li key={p.id}>{p.name}</li>)}
+                </ul>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Until you choose a new lead, triage notifications for {affectedProjects.length === 1 ? 'it' : 'them'} go to every admin.
+                </p>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-3 py-2">
                 <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
@@ -105,7 +127,7 @@ export function DeactivateUserModal({ open, onClose, user, onDeactivated, curren
               {loading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Deactivating...
+                  Deactivating…
                 </>
               ) : (
                 'Deactivate'

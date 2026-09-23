@@ -26,7 +26,9 @@ class ProjectCreate(ProjectBase):
         pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
         description="URL-safe identifier (lowercase, hyphens only).",
     )
-    triage_lead_id: Optional[int] = None
+    triage_lead_id: Optional[int] = Field(
+        None, description="Required (BR-15) — an active tech-role user. 422 when missing."
+    )
 
 
 class ProjectUpdate(BaseModel):
@@ -56,6 +58,8 @@ class ProjectResponse(ProjectBase):
     created_by_id: Optional[int] = None
     triage_lead_id: Optional[int] = None
     triage_lead_name: Optional[str] = None
+    #: AC-23 — the lead is unset or deactivated; the UI flags the project.
+    needs_triage_lead: bool = False
     archived_at: Optional[datetime] = None
     created_at: datetime
 
@@ -75,6 +79,11 @@ class ProjectResponse(ProjectBase):
     @property
     def triageLeadId(self) -> Optional[int]:
         return self.triage_lead_id
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def needsTriageLead(self) -> bool:
+        return self.needs_triage_lead
 
     @computed_field  # type: ignore[misc]
     @property

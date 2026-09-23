@@ -157,6 +157,12 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: assignableUsers = [] } = useQuery({
+    queryKey: ['team', 'assignable'],
+    queryFn: () => teamApi.listAssignable().then(r => r.data || []),
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: availableLabels = [] } = useQuery({
     queryKey: ['labels'],
     queryFn: () => labelsApi.list().then(r => r.data || []),
@@ -413,6 +419,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     timelineHasMore,
     timelineLoadingMore,
     teamUsers,
+    assignableUsers,
     availableLabels,
     availableReleases,
     availableProjects,

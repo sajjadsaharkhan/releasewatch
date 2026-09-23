@@ -172,6 +172,10 @@ export const reportsApi = {
 // ─── Team ────────────────────────────────────────────────────────────────────
 export const teamApi = {
   list: () => api.get('/team'),
+  // Assignee pickers: never offers Support users (BR-32, AC-47).
+  listAssignable: () => api.get('/team', { params: { assignable: true } }),
+  // Projects this user leads — shown before deactivating them (AC-23).
+  deactivationImpact: (userId) => api.get(`/team/${userId}/deactivation-impact`),
   listAll: () => api.get('/team/all'),
   invite: (data) => api.post('/team/invite', data),
   update: (userId, data) => api.patch(`/team/${userId}`, data),

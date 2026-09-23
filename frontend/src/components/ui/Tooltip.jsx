@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { cn } from '../../lib/cn'
 
-export function Tooltip({ content, children, side = 'top', className }) {
+export function Tooltip({ content, children, side = 'top', className, wrapperClassName }) {
   const [visible, setVisible] = useState(false)
   const timerRef = useRef(null)
 
@@ -24,7 +24,13 @@ export function Tooltip({ content, children, side = 'top', className }) {
   }
 
   return (
-    <span className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
+    <span
+      className={cn('relative inline-flex', wrapperClassName)}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+    >
       {children}
       {visible && (
         <span

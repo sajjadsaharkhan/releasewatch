@@ -30,7 +30,7 @@ The application's own JWT that the frontend sends on every API request. The only
 _Avoid_: app token, session token, access token (ambiguous with the provider's)
 
 **Role**:
-A team member's global capability level: `qa`, `developer`, `cto`, or `admin`. Stored on the local user and is always the source of truth. In Phase 1, any user provisioned via a provider is seeded as `developer` and an admin adjusts them in-app; reading provider groups to seed the role is deferred to a later phase. In-app role management always wins and is never overwritten by a provider.
+A team member's global capability level: `support`, `qa`, `developer`, `pm`, `cto`, or `admin`. Everyone but `support` is a **tech role**. Only tech roles can be assigned work. What each role may do is PRD §7.3, enforced by `backend/app/policy.py`. Support sees only support-sourced items and never internal notes. Stored on the local user and is always the source of truth. In Phase 1, any user provisioned via a provider is seeded as `developer` and an admin adjusts them in-app; reading provider groups to seed the role is deferred to a later phase. In-app role management always wins and is never overwritten by a provider.
 _Avoid_: permission, group (a group is the provider-side concept, deferred past Phase 1)
 
 ### Issue lifecycle

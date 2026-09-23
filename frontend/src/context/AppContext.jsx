@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authApi, projectsApi, releasesApi, inboxApi } from '../lib/api'
+import { isSupport } from '../lib/roles'
 
 const AppContext = createContext(null)
 
@@ -124,7 +125,8 @@ export function AppProvider({ children }) {
 
   // Fetch releases when active project changes
   useEffect(() => {
-    if (!activeProjectId) {
+    // Wait for the user: Support can't read releases (tech-only, §7.3) — don't ask for a 403.
+    if (!activeProjectId || !user || isSupport(user.role)) {
       setReleases([])
       return
     }
@@ -153,7 +155,7 @@ export function AppProvider({ children }) {
     }
 
     fetchReleases()
-  }, [activeProjectId])
+  }, [activeProjectId, user?.role])
 
   // Poll inbox unread count every 30s while authenticated
   useEffect(() => {
@@ -228,7 +230,7 @@ export function AppProvider({ children }) {
 
   // Refetch releases function (can be called after creating/updating releases)
   const refetchReleases = useCallback(async () => {
-    if (!activeProjectId) return
+    if (!activeProjectId || !user || isSupport(user.role)) return
     try {
       const response = await releasesApi.list({ project_id: activeProjectId })
       const releasesList = response.data?.releases || response.data || []
@@ -236,7 +238,7 @@ export function AppProvider({ children }) {
     } catch (err) {
       console.error('Failed to refetch releases:', err)
     }
-  }, [activeProjectId])
+  }, [activeProjectId, user?.role])
 
   const value = {
     theme,

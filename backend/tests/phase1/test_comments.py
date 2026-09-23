@@ -31,8 +31,9 @@ async def test_comment_round_trips_on_timeline(factories, client_for):
 
 
 @pytest.mark.asyncio
-async def test_internal_comment_currently_visible_to_any_caller(factories, client_for):
-    """Documents today's gap: there is no non-internal view of the timeline yet."""
+async def test_internal_comment_visible_to_other_tech_users(factories, client_for):
+    """Internal notes are for every tech role (BR-31); Support's view is covered in
+    tests/phase2/test_roles_and_visibility.py (slice 04 closed the old gap)."""
     other_qa = await factories.user(role="qa")
     project = await factories.project()
     release = await factories.release(project_id=project.id)

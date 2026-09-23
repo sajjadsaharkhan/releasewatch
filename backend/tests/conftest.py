@@ -235,7 +235,7 @@ async def _bootstrap_admin(db_session: AsyncSession) -> User:
 async def factories(client_for, _bootstrap_admin: User) -> Factories:
     """Small factory helpers (user, project, release, issue) via the API."""
     admin_client = await client_for(_bootstrap_admin)
-    return Factories(admin_client)
+    return Factories(admin_client, admin_id=_bootstrap_admin.id)
 
 
 # ── Fakes at the edges ────────────────────────────────────────────────────────
