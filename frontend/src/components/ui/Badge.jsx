@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '../../lib/cn'
-import { SEVERITY, STATUS, ROLE, TYPE, PRIORITY } from '../../lib/constants'
+import { STATUS, ROLE, TYPE, PRIORITY } from '../../lib/constants'
 import { Icon } from './Icon'
 
 const toneClasses = {
@@ -25,36 +25,6 @@ export function Badge({ tone = 'default', className, children, ...props }) {
       {...props}
     >
       {children}
-    </span>
-  )
-}
-
-export function SeverityBadge({ severity, className }) {
-  if (severity == null) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
-          'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500',
-          className
-        )}
-      >
-        Unrated
-      </span>
-    )
-  }
-  const token = SEVERITY[severity]
-  if (!token) return <Badge className={className}>{severity}</Badge>
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
-        token.pill,
-        className
-      )}
-    >
-      <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', token.dot)} />
-      {token.label}
     </span>
   )
 }
@@ -92,31 +62,34 @@ export function TypeIcon({ type, className }) {
   )
 }
 
-// Compact urgent marker — a small filled flag, shown only when true.
-export function UrgentMarker({ className, size = 14 }) {
-  return (
-    <Icon
-      name="flag"
-      size={size}
-      className={cn('shrink-0 fill-red-500 text-red-500', className)}
-      title="Urgent"
-    />
-  )
-}
-
-// Task priority pill — P1..P4 (03, docs/design.md §3 "Priority"). Bugs use
-// SeverityBadge instead.
+// Priority pill with a leading dot (docs/design.md §3 "Priority") — one scale
+// for bugs and tasks. `null` renders "Unrated" (a New/Needs info bug nobody
+// has rated yet, BR-16).
 export function PriorityBadge({ priority, className }) {
+  if (priority == null) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
+          'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500',
+          className
+        )}
+      >
+        Unrated
+      </span>
+    )
+  }
   const token = PRIORITY[priority]
-  if (!token) return null
+  if (!token) return <Badge className={className}>{priority}</Badge>
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
         token.pill,
         className
       )}
     >
+      <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', token.dot)} />
       {token.label}
     </span>
   )

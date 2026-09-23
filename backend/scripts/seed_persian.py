@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.config import settings
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue import Issue, IssueStatus, Priority
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.inbox_item import InboxItem
 
@@ -27,7 +27,7 @@ ISSUES_DATA = [
             "کاربران قادر به تکمیل خرید نیستند و پیام خطای «NullPointerException» در لاگ‌ها مشاهده می‌شود. "
             "این مشکل روی تمام دستگاه‌های Pixel و Samsung با اندروید ۱۴ تایید شده است."
         ),
-        severity=IssueSeverity.blocker, status=IssueStatus.in_progress, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_release_blocker=True,
         labels=["پرداخت", "اندروید", "کرش"],
         environment_name="production", environment_os="Android 14", environment_browser=None,
         reproduction_steps=[
@@ -52,7 +52,7 @@ ISSUES_DATA = [
             "و کاربر از سیستم خارج نمی‌شود اما هیچ درخواستی هم موفق نمی‌شود. "
             "این مشکل باعث می‌شود که کاربر در یک حالت بلاتکلیف گیر کند."
         ),
-        severity=IssueSeverity.blocker, status=IssueStatus.in_progress, is_regression=True, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_regression=True, is_release_blocker=True,
         labels=["احراز هویت", "توکن", "regression"],
         environment_name="staging", environment_os="iOS 17", environment_browser=None,
         reproduction_steps=[
@@ -74,7 +74,7 @@ ISSUES_DATA = [
             "پس از آپدیت به iOS 17، اعلان‌های push برای بیش از ۶۰٪ از کاربران iOS دریافت نمی‌شوند. "
             "بررسی‌های اولیه نشان می‌دهد مشکل از ثبت device token در سرور است."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.todo,
+        priority=Priority.critical, status=IssueStatus.todo,
         labels=["iOS", "push notification", "حیاتی"],
         environment_name="production", environment_os="iOS 17",
         reproduction_steps=[
@@ -95,7 +95,7 @@ ISSUES_DATA = [
             "endpoint /api/auth/login هیچ محدودیتی برای تعداد درخواست‌ها ندارد. "
             "این آسیب‌پذیری امنیتی جدی است و امکان حملات brute-force را فراهم می‌کند."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.in_progress, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_release_blocker=True,
         labels=["امنیت", "rate limiting", "ورود"],
         environment_name="production",
         curl_command="curl -X POST https://api.example.com/auth/login -d '{\"username\":\"test\",\"password\":\"test\"}' --repeat 1000",
@@ -117,7 +117,7 @@ ISSUES_DATA = [
             "کاربران هنگام آپلود تصویر پروفایل با حجم بیشتر از ۵ مگابایت با پیغام خطای «500 Internal Server Error» مواجه می‌شوند. "
             "Nginx timeout روی ۳۰ ثانیه تنظیم شده اما پردازش تصویر بیشتر طول می‌کشد."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.new,
+        priority=Priority.high,   status=IssueStatus.new,
         labels=["آپلود", "تصویر", "پروفایل"],
         environment_name="production", environment_browser="Chrome 120",
         reproduction_steps=[
@@ -137,7 +137,7 @@ ISSUES_DATA = [
             "وقتی کاربر به صفحه دوم یا بعدی نتایج جستجو می‌رود، نتایج تکراری نمایش داده می‌شوند "
             "یا برخی نتایج حذف می‌شوند. مشکل از کش نادرست cursor در API است."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_review,
+        priority=Priority.high,   status=IssueStatus.in_review,
         labels=["جستجو", "صفحه‌بندی"],
         environment_name="staging",
         reproduction_steps=[
@@ -158,7 +158,7 @@ ISSUES_DATA = [
             "هنگام باز کردن اپ در حالت تاریک، یک flash سفید کوتاه قبل از نمایش UI دیده می‌شود. "
             "این مشکل از تأخیر در خواندن تنظیمات تم از storage ناشی می‌شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.todo,
+        priority=Priority.high,   status=IssueStatus.todo,
         labels=["حالت تاریک", "UI", "performance"],
         environment_name="production", environment_os="iOS 16",
         reproduction_steps=[
@@ -177,7 +177,7 @@ ISSUES_DATA = [
             "کاربران با نقش viewer هنگام دسترسی به گزارش‌های پروژه با خطای ۴۰۳ مواجه می‌شوند. "
             "بررسی کد نشان می‌دهد middleware مجوزها به اشتباه نقش viewer را فیلتر می‌کند."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_progress,
+        priority=Priority.high,   status=IssueStatus.in_progress,
         labels=["مجوزها", "گزارش", "کنترل دسترسی"],
         environment_name="production",
         reproduction_steps=[
@@ -198,7 +198,7 @@ ISSUES_DATA = [
             "وقتی کاربر می‌خواهد بیش از ۱۰۰۰۰ رکورد را به CSV export کند، فرآیند بعد از ۳۰ ثانیه timeout می‌شود. "
             "عملیات باید به صورت async و با stream انجام شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.new,
+        priority=Priority.high,   status=IssueStatus.new,
         labels=["export", "CSV", "performance"],
         environment_name="production",
         reproduction_steps=[
@@ -217,7 +217,7 @@ ISSUES_DATA = [
             "تاریخ‌ها همیشه به وقت UTC نمایش داده می‌شوند و منطقه زمانی کاربر در نظر گرفته نمی‌شود. "
             "باید از تنظیمات منطقه زمانی کاربر استفاده شود."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.done,
+        priority=Priority.medium,  status=IssueStatus.done,
         labels=["تاریخ", "منطقه زمانی", "UI"],
         environment_name="production",
         comments=[
@@ -231,7 +231,7 @@ ISSUES_DATA = [
     dict(
         title="غلط تایپی در متن صفحه ورود",
         description="در صفحه ورود به سیستم، متن «فراموش کردی رمز عبورت رو؟» دارای غلط تایپی است و باید «رمز عبور خود را فراموش کرده‌اید؟» باشد.",
-        severity=IssueSeverity.minor, status=IssueStatus.done,
+        priority=Priority.medium,  status=IssueStatus.done,
         labels=["UI", "متن"],
         environment_name="production",
         comments=[
@@ -247,7 +247,7 @@ ISSUES_DATA = [
             "کاربران درخواست کرده‌اند که بتوانند اعلان‌ها را با کشیدن به کنار (swipe) ببندند. "
             "این قابلیت در اکثر اپ‌های مشابه وجود دارد و تجربه کاربری را بهبود می‌دهد."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.new,
+        priority=Priority.medium,  status=IssueStatus.new,
         labels=["UX", "اعلان", "gesture"],
         environment_name="production",
         comments=[
@@ -263,7 +263,7 @@ ISSUES_DATA = [
             "کاربران می‌خواهند با حساب Google یا Apple وارد سیستم شوند. "
             "پیاده‌سازی OAuth 2.0 با این ارائه‌دهندگان لازم است."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.todo,
+        priority=Priority.medium,  status=IssueStatus.todo,
         labels=["احراز هویت", "OAuth", "SSO"],
         environment_name="production",
         comments=[
@@ -280,7 +280,7 @@ ISSUES_DATA = [
             "در ساعات اوج ترافیک (۱۸ تا ۲۲)، connection pool دیتابیس تمام می‌شود و درخواست‌ها با خطای «too many connections» fail می‌شوند. "
             "حداکثر connection‌های فعلی ۱۰۰ تا است که کافی نیست."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.in_progress, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_release_blocker=True,
         labels=["دیتابیس", "performance", "connection pool"],
         environment_name="production",
         comments=[
@@ -298,7 +298,7 @@ ISSUES_DATA = [
             "وقتی کاربر بازه تاریخی را در گزارش فروش تنظیم می‌کند، فیلتر اعمال نمی‌شود "
             "و همه داده‌ها بدون در نظر گرفتن بازه زمانی نمایش داده می‌شوند."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.new,
+        priority=Priority.high,   status=IssueStatus.new,
         labels=["گزارش", "فیلتر", "تاریخ"],
         environment_name="production",
         reproduction_steps=[
@@ -318,7 +318,7 @@ ISSUES_DATA = [
             "کاربران Safari در iOS پس از ورود موفق، با یک صفحه سفید مواجه می‌شوند "
             "و redirect به داشبورد اتفاق نمی‌افتد. مشکل مربوط به cookie SameSite policy است."
         ),
-        severity=IssueSeverity.blocker, status=IssueStatus.in_progress, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_release_blocker=True,
         labels=["Safari", "iOS", "احراز هویت", "cookie"],
         environment_name="production", environment_browser="Safari 17", environment_os="iOS 17",
         reproduction_steps=[
@@ -335,7 +335,7 @@ ISSUES_DATA = [
     dict(
         title="دکمه بازگشت در صفحه تنظیمات درست کار نمی‌کند",
         description="در صفحه تنظیمات حساب کاربری، دکمه «بازگشت» به صفحه قبلی نمی‌رود بلکه به داشبورد می‌رود.",
-        severity=IssueSeverity.minor, status=IssueStatus.new,
+        priority=Priority.medium,  status=IssueStatus.new,
         labels=["UI", "navigation"],
         environment_name="production", environment_browser="Firefox 121",
         comments=[
@@ -350,7 +350,7 @@ ISSUES_DATA = [
             "ایمیل‌های اعلان سیستم به پوشه spam کاربران می‌روند. "
             "بررسی نشان می‌دهد که SPF، DKIM و DMARC به درستی تنظیم نشده‌اند."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.todo,
+        priority=Priority.high,   status=IssueStatus.todo,
         labels=["ایمیل", "spam", "deliverability"],
         environment_name="production",
         comments=[
@@ -367,7 +367,7 @@ ISSUES_DATA = [
             "هنگام آپلود فایل‌های بزرگ، کاربران هیچ نشانه‌ای از پیشرفت عملیات ندارند. "
             "یک نوار پیشرفت (progress bar) باید اضافه شود."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.new,
+        priority=Priority.medium,  status=IssueStatus.new,
         labels=["UX", "آپلود", "UI"],
         environment_name="production",
         comments=[
@@ -383,7 +383,7 @@ ISSUES_DATA = [
             "سرویس پردازش تصویر به مرور زمان حافظه بیشتری مصرف می‌کند و هر ۶ ساعت یکبار crash می‌کند. "
             "پروفایل‌گیری نشان می‌دهد Buffer‌های تصویر آزاد نمی‌شوند."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.in_progress,
+        priority=Priority.critical, status=IssueStatus.in_progress,
         labels=["memory leak", "performance", "تصویر"],
         environment_name="production",
         reproduction_steps=[
@@ -405,7 +405,7 @@ ISSUES_DATA = [
             "یکپارچه‌سازی با درگاه پرداخت زرین‌پال در محیط staging با خطای «invalid_merchant» fail می‌شود. "
             "کلید API محیط staging باید جداگانه تنظیم شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_review,
+        priority=Priority.high,   status=IssueStatus.in_review,
         labels=["پرداخت", "زرین‌پال", "staging"],
         environment_name="staging",
         comments=[
@@ -420,7 +420,7 @@ ISSUES_DATA = [
     dict(
         title="مرتب‌سازی ستون‌های جدول در موبایل کار نمی‌کند",
         description="در نمای موبایل، کلیک روی سرستون‌های جدول برای مرتب‌سازی هیچ اثری ندارد.",
-        severity=IssueSeverity.minor, status=IssueStatus.todo,
+        priority=Priority.medium,  status=IssueStatus.todo,
         labels=["موبایل", "UI", "جدول"],
         environment_name="production", environment_browser="Chrome Mobile",
         comments=[
@@ -436,7 +436,7 @@ ISSUES_DATA = [
             "وقتی کاربر اینترنت ندارد، اپ یک صفحه خطا نشان می‌دهد. "
             "با Service Worker و IndexedDB می‌توان داده‌های آخر را نمایش داد."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.new,
+        priority=Priority.medium,  status=IssueStatus.new,
         labels=["آفلاین", "PWA", "UX"],
         environment_name="production",
         comments=[
@@ -452,7 +452,7 @@ ISSUES_DATA = [
             "پس از release نسخه v2 API، کلاینت‌های موبایل با نسخه‌های قدیمی‌تر از v1.8 "
             "با خطاهای parsing مواجه می‌شوند. backward compatibility حفظ نشده است."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_progress,
+        priority=Priority.high,   status=IssueStatus.in_progress,
         labels=["API", "backward compatibility", "versioning"],
         environment_name="production",
         comments=[
@@ -469,7 +469,7 @@ ISSUES_DATA = [
             "بررسی security نشان می‌دهد که response headers شامل اطلاعات حساس مانند نسخه server، "
             "framework و stack trace در محیط production هستند. این اطلاعات باید حذف شوند."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.in_review, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_review, is_release_blocker=True,
         labels=["امنیت", "headers", "information disclosure"],
         environment_name="production",
         comments=[
@@ -485,7 +485,7 @@ ISSUES_DATA = [
     dict(
         title="loading spinner در حین ذخیره تنظیمات نمایش داده نمی‌شود",
         description="وقتی کاربر تنظیمات را ذخیره می‌کند، هیچ نشانه‌ای از پردازش وجود ندارد و دکمه فعال می‌ماند.",
-        severity=IssueSeverity.minor, status=IssueStatus.in_review,
+        priority=Priority.medium,  status=IssueStatus.in_review,
         labels=["UI", "UX", "loading"],
         environment_name="production",
         comments=[
@@ -501,7 +501,7 @@ ISSUES_DATA = [
             "کاربران می‌خواهند گزارش‌ها را به فرمت PDF خروجی بگیرند. "
             "می‌توان از کتابخانه WeasyPrint یا Puppeteer استفاده کرد."
         ),
-        severity=IssueSeverity.minor, status=IssueStatus.todo,
+        priority=Priority.medium,  status=IssueStatus.todo,
         labels=["export", "PDF", "گزارش"],
         environment_name="production",
         comments=[
@@ -518,7 +518,7 @@ ISSUES_DATA = [
             "جستجو با کلمات فارسی نتایج نامرتبط برمی‌گرداند یا هیچ نتیجه‌ای نشان نمی‌دهد. "
             "موتور جستجوی فعلی از text search فارسی پشتیبانی نمی‌کند."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_progress,
+        priority=Priority.high,   status=IssueStatus.in_progress,
         labels=["جستجو", "فارسی", "i18n"],
         environment_name="production",
         reproduction_steps=[
@@ -538,7 +538,7 @@ ISSUES_DATA = [
             "یکپارچه‌سازی با Google Calendar درست کار نمی‌کند. رویدادها sync نمی‌شوند "
             "و خطای «insufficient_permissions» در log‌ها دیده می‌شود."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.new,
+        priority=Priority.high,   status=IssueStatus.new,
         labels=["تقویم", "Google Calendar", "sync"],
         environment_name="production",
         comments=[
@@ -551,7 +551,7 @@ ISSUES_DATA = [
     dict(
         title="فونت اعداد فارسی در گزارش‌ها نادرست است",
         description="اعداد فارسی در گزارش‌های PDF با فونت اشتباه نمایش داده می‌شوند و ناخوانا هستند.",
-        severity=IssueSeverity.minor, status=IssueStatus.todo,
+        priority=Priority.medium,  status=IssueStatus.todo,
         labels=["فونت", "فارسی", "PDF", "گزارش"],
         environment_name="production",
         comments=[
@@ -567,7 +567,7 @@ ISSUES_DATA = [
             "سرویس ارسال SMS برای تأیید حساب در ساعات اوج مصرف fail می‌شود. "
             "بررسی نشان می‌دهد rate limit API سرویس SMS رسیده و queue مدیریت نمی‌شود."
         ),
-        severity=IssueSeverity.critical, status=IssueStatus.in_progress,
+        priority=Priority.critical, status=IssueStatus.in_progress,
         labels=["SMS", "queue", "reliability"],
         environment_name="production",
         reproduction_steps=[
@@ -588,7 +588,7 @@ ISSUES_DATA = [
             "پیوندهای دعوت به تیم باید ۲۴ ساعته باشند اما بررسی نشان می‌دهد "
             "این پیوندها هیچ‌وقت منقضی نمی‌شوند که یک نقص امنیتی است."
         ),
-        severity=IssueSeverity.major, status=IssueStatus.in_review,
+        priority=Priority.high,   status=IssueStatus.in_review,
         labels=["امنیت", "دعوت‌نامه", "token expiry"],
         environment_name="production",
         comments=[
@@ -684,6 +684,11 @@ async def seed_persian(session: AsyncSession) -> None:
         issue_objs.append((issue_obj, comments, status_changes, filed_at, reporter, assignee))
 
     await session.flush()
+    # issue_number was set explicitly above — move the sequence past it so the
+    # next item filed through the app doesn't reuse a seeded number.
+    await session.execute(text(
+        "SELECT setval('issue_number_seq', (SELECT max(issue_number) FROM issues))"
+    ))
     print(f"  Flushed {len(issue_objs)} issues")
 
     for issue_obj, comments, status_changes, filed_at, reporter, assignee in issue_objs:

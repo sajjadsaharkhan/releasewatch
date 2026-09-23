@@ -12,22 +12,22 @@ async def test_release_report_counts(factories, client_for):
     dev_client = await client_for(developer)
 
     # One new, one triaged(todo)+blocker, one in_review, one done.
-    await factories.issue(release_id=release.id, severity="minor")
+    await factories.issue(release_id=release.id, priority="medium")
     blocker = await factories.issue(
-        release_id=release.id, severity="blocker", is_release_blocker=True
+        release_id=release.id, priority="critical", is_release_blocker=True
     )
-    to_fix = await factories.issue(release_id=release.id, severity="major")
-    to_verify = await factories.issue(release_id=release.id, severity="critical")
+    to_fix = await factories.issue(release_id=release.id, priority="high")
+    to_verify = await factories.issue(release_id=release.id, priority="critical")
 
     await admin.post(
         f"/issues/{blocker.id}/triage",
-        json={"assignee_id": developer.id, "severity": "blocker", "is_release_blocker": True},
+        json={"assignee_id": developer.id, "priority": "critical", "is_release_blocker": True},
     )
 
     for issue in (to_fix, to_verify):
         await admin.post(
             f"/issues/{issue.id}/triage",
-            json={"assignee_id": developer.id, "severity": issue.severity},
+            json={"assignee_id": developer.id, "priority": issue.priority},
         )
         await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
         await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
@@ -47,7 +47,8 @@ async def test_release_report_counts(factories, client_for):
     assert report["status_breakdown"]["todo"] == 1
     assert report["status_breakdown"]["in_review"] == 1
     assert report["status_breakdown"]["done"] == 1
-    assert report["severity_breakdown"]["blocker"] == 1
-    assert report["severity_breakdown"]["critical"] == 1
-    assert report["severity_breakdown"]["major"] == 1
-    assert report["severity_breakdown"]["minor"] == 1
+    # Phase 1's blocker and critical both land on critical (03a mapping).
+    assert report["priority_breakdown"]["critical"] == 2
+    assert report["priority_breakdown"]["high"] == 1
+    assert report["priority_breakdown"]["medium"] == 1
+    assert report["priority_breakdown"]["low"] == 0

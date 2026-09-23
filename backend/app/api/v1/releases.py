@@ -227,7 +227,7 @@ async def get_release_analytics(
     """Return all issue cycles for a release so the frontend can compute
     accurate per-iteration MTTF / MTTV / MTTT and regression rate.
 
-    Each row carries the parent issue's severity and labels so the caller
+    Each row carries the parent issue's priority and labels so the caller
     can group/filter without extra requests.
     """
     from app.db.models.issue_cycle import IssueCycle
@@ -264,7 +264,7 @@ async def get_release_analytics(
     cycles = [
         AnalyticsCycleRow(
             issue_id=cycle.issue_id,
-            issue_severity=getattr(issue.severity, "value", issue.severity),
+            issue_priority=getattr(issue.priority, "value", issue.priority),
             issue_labels=issue.labels or [],
             cycle_number=cycle.cycle_number,
             is_regression_cycle=cycle.cycle_number > 1,

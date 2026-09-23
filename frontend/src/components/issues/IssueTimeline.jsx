@@ -4,24 +4,25 @@ import { cn } from '../../lib/cn'
 import { useToast } from '../../hooks/useToast'
 import { Avatar, UserHoverCard } from '../ui'
 import { Icon } from '../ui/Icon'
-import { Badge, StatusBadge, SeverityBadge, RoleBadge } from '../ui/Badge'
+import { Badge, StatusBadge, PriorityBadge, RoleBadge } from '../ui/Badge'
 import { ENVIRONMENT } from './DescriptionSection'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
 import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
 import { ReactionBar } from './ReactionBar'
+import { isBug, itemNoun } from '../../lib/constants'
 
 const EVENT_STYLES = {
-  filed:               { dot: 'bg-blue-500',   label: 'filed this issue' },
+  filed:               { dot: 'bg-blue-500',   label: (e, item) => (isBug(item) ? 'filed this bug' : 'created this task') },
   status_changed:      { dot: 'bg-zinc-400',   label: (e) => `changed status to ${e.detail ?? e.meta?.to ?? ''}` },
   assigned:            { dot: 'bg-violet-500', label: (e) => null },
   fixed:               { dot: 'bg-green-500',  label: 'marked as fixed' },
   regression:          { dot: 'bg-red-500',    label: 'marked as regression' },
   verified:            { dot: 'bg-teal-500',   label: 'verified the fix' },
-  reopened:            { dot: 'bg-amber-500',  label: 'reopened this issue' },
+  reopened:            { dot: 'bg-amber-500',  label: (e, item) => `reopened this ${itemNoun(item)}` },
   comment:             { dot: 'bg-zinc-400',   label: 'commented' },
-  severity_changed:    { dot: 'bg-amber-500',  label: (e) => null },
+  priority_changed:    { dot: 'bg-amber-500',  label: (e) => null },
   label_added:         { dot: 'bg-blue-500',   label: (e) => null },
   label_removed:       { dot: 'bg-zinc-400',   label: (e) => null },
   blocker_flagged:     { dot: 'bg-red-500',    label: (e) => null },
@@ -39,7 +40,7 @@ const EVENT_STYLES = {
 const EVENT_ICONS = {
   filed:               'file-plus',
   assigned:            'user-plus',
-  severity_changed:    'arrow-up-down',
+  priority_changed:    'arrow-up-down',
   status_changed:      'git-pull-request',
   label_added:         'tag',
   label_removed:       'tag',
@@ -114,12 +115,13 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       )
     }
 
-    if (event.type === 'severity_changed' && from && to) {
+    if (event.type === 'priority_changed' && (from || to)) {
+      // `from` is null when an unrated bug gets its first priority (BR-16).
       return (
         <>
-          changed severity <SeverityBadge severity={from} size="sm" dot />
+          changed priority <PriorityBadge priority={from ?? null} />
           <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
-          <SeverityBadge severity={to} size="sm" dot />
+          <PriorityBadge priority={to ?? null} />
         </>
       )
     }
@@ -261,7 +263,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       )
     }
 
-    if (typeof style.label === 'function') return style.label(event)
+    if (typeof style.label === 'function') return style.label(event, issue)
     return style.label
   }
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw, FileDown } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { SeverityBadge, StatusBadge, Badge, TypeIcon, UrgentMarker, PriorityBadge } from '../ui/Badge'
+import { StatusBadge, Badge, TypeIcon, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { issueKey } from '../../lib/issueSlug'
+import { itemNoun } from '../../lib/constants'
 
 export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
   const [copied, setCopied] = useState(false)
@@ -29,10 +30,7 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
         {issueKey(issue)}
       </div>
       <div className="flex items-center gap-1.5">
-        {issue.is_urgent && <UrgentMarker />}
-        {issue.type === 'task'
-          ? <PriorityBadge priority={issue.priority} />
-          : <SeverityBadge severity={issue.severity} dot />}
+        <PriorityBadge priority={issue.priority} />
         <StatusBadge status={issue.status} />
         {issue.is_regression && (
           <Badge tone="red">
@@ -58,7 +56,7 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
         </Button>
         {canDelete && (
           <Dropdown align="right" trigger={<Button variant="ghost" size="icon"><MoreVertical size={15} /></Button>}>
-            <DropdownItem destructive onClick={onDelete}>Delete issue</DropdownItem>
+            <DropdownItem destructive onClick={onDelete}>Delete {itemNoun(issue)}</DropdownItem>
           </Dropdown>
         )}
       </div>

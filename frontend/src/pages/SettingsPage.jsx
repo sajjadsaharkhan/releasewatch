@@ -62,7 +62,7 @@ const NOTIFICATION_EVENTS = [
   { key: 'release_changed',     label: 'Release changed' },
   { key: 'project_changed',     label: 'Project changed' },
   { key: 'attachment_added',    label: 'Attachment added' },
-  { key: 'severity_changed',    label: 'Severity changed' },
+  { key: 'priority_changed',    label: 'Priority changed' },
 ]
 
 const NOTIFICATION_ROLES = [

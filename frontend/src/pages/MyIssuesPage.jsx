@@ -10,14 +10,14 @@ import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { issuesApi } from '../lib/api'
 import { issueSlug } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
-import { STATUS, SEVERITY, OPEN_STATUSES } from '../lib/constants'
+import { STATUS, PRIORITY, OPEN_STATUSES } from '../lib/constants'
 
 const OPEN_STATUS_SET = new Set(OPEN_STATUSES)
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
-  { value: 'severity', label: 'Severity' },
+  { value: 'priority', label: 'Priority' },
   { value: 'updated', label: 'Last updated' },
 ]
 
@@ -27,12 +27,12 @@ const STATUS_OPTIONS = [
   ...Object.keys(STATUS).map(k => ({ value: k, label: STATUS[k].label })),
 ]
 
-const SEV_OPTIONS = [
+const PRIORITY_OPTIONS = [
   { value: 'all', label: 'Any' },
-  ...Object.keys(SEVERITY).map(k => ({ value: k, label: SEVERITY[k].label })),
+  ...Object.keys(PRIORITY).map(k => ({ value: k, label: PRIORITY[k].label })),
 ]
 
-const PARAM_DEFAULTS = { tab: 'assigned', status: 'open', severity: 'all', sort: 'newest' }
+const PARAM_DEFAULTS = { tab: 'assigned', status: 'open', priority: 'all', sort: 'newest' }
 
 export default function MyIssuesPage() {
   const { user } = useApp()
@@ -41,7 +41,7 @@ export default function MyIssuesPage() {
 
   const tab = searchParams.get('tab') || PARAM_DEFAULTS.tab
   const statusFilter = searchParams.get('status') || PARAM_DEFAULTS.status
-  const severityFilter = searchParams.get('severity') || PARAM_DEFAULTS.severity
+  const priorityFilter = searchParams.get('priority') || PARAM_DEFAULTS.priority
   const sort = searchParams.get('sort') || PARAM_DEFAULTS.sort
 
   const updateParams = useCallback((updates) => {
@@ -88,9 +88,9 @@ export default function MyIssuesPage() {
     let result = issues
     if (statusFilter === 'open') result = result.filter(i => OPEN_STATUS_SET.has(i.status))
     else if (statusFilter !== 'all') result = result.filter(i => i.status === statusFilter)
-    if (severityFilter !== 'all') result = result.filter(i => i.severity === severityFilter)
+    if (priorityFilter !== 'all') result = result.filter(i => i.priority === priorityFilter)
     return result
-  }, [statusFilter, severityFilter])
+  }, [statusFilter, priorityFilter])
 
   const displayedAssigned = useMemo(() => applyFilters(assignedIssues), [applyFilters, assignedIssues])
   const displayedReported = useMemo(() => applyFilters(reportedIssues), [applyFilters, reportedIssues])
@@ -104,7 +104,7 @@ export default function MyIssuesPage() {
     : statusFilter === 'all' ? 'All statuses'
     : STATUS[statusFilter]?.label ?? statusFilter
 
-  const severityLabel = severityFilter === 'all' ? 'Any' : SEVERITY[severityFilter]?.label ?? severityFilter
+  const priorityLabel = priorityFilter === 'all' ? 'Any' : PRIORITY[priorityFilter]?.label ?? priorityFilter
 
   const TAB_OPTIONS = [
     {
@@ -158,10 +158,10 @@ export default function MyIssuesPage() {
         />
         <FilterDropdown
           icon="alert-octagon"
-          label="Severity"
-          value={severityLabel}
-          options={SEV_OPTIONS}
-          onChange={(v) => updateParams({ severity: v })}
+          label="Priority"
+          value={priorityLabel}
+          options={PRIORITY_OPTIONS}
+          onChange={(v) => updateParams({ priority: v })}
         />
         <div className="ml-auto flex items-center gap-2">
           <Icon name="arrow-up-down" size={12} className="text-zinc-400" />

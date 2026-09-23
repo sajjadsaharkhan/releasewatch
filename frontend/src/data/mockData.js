@@ -1284,8 +1284,8 @@ export const MOCK_DASHBOARD_GENERAL = {
   heroMetrics: {
     myActionItems: {
       count: 5,
-      breakdown: { blockers: 1, critical: 2, major: 2 },
-      urgent: 1,
+      breakdown: { blockers: 1, critical: 2, high: 2 },
+      critical: 2,
     },
     activeReleases: {
       count: 3,
@@ -1375,9 +1375,8 @@ export const MOCK_DASHBOARD_GENERAL = {
     {
       id: 'BUG-001',
       title: 'Login fails with Google OAuth on Safari 17',
-      severity: 'blocker',
+      priority: 'critical',
       status: 'in_progress',
-      priority: 'urgent',
       reason: 'Release Blocker',
       releaseId: 'rel-1',
       releaseVersion: 'v2.5.0',
@@ -1388,9 +1387,8 @@ export const MOCK_DASHBOARD_GENERAL = {
     {
       id: 'BUG-010',
       title: 'Regression: Telegram alerts stopped sending',
-      severity: 'blocker',
+      priority: 'critical',
       status: 'new',
-      priority: 'urgent',
       reason: 'Unassigned Blocker',
       releaseId: 'rel-1',
       releaseVersion: 'v2.5.0',
@@ -1401,9 +1399,8 @@ export const MOCK_DASHBOARD_GENERAL = {
     {
       id: 'BUG-006',
       title: 'Mobile: crash on swipe-to-dismiss notification',
-      severity: 'blocker',
+      priority: 'critical',
       status: 'new',
-      priority: 'urgent',
       reason: 'Unassigned Blocker',
       releaseId: 'rel-3',
       releaseVersion: 'mobile-v1.3.0',

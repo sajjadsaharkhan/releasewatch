@@ -4,15 +4,10 @@ import { Search, FileText, Users, LayoutDashboard, Inbox, Tag, BarChart2, Settin
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { searchApi, teamApi } from '../../lib/api'
-import { TypeIcon, UrgentMarker } from '../ui/Badge'
+import { TypeIcon } from '../ui/Badge'
+import { PRIORITY } from '../../lib/constants'
 import { issueSlug, issueKey } from '../../lib/issueSlug'
 
-const SEVERITY_DOT = {
-  blocker: 'bg-red-500',
-  critical: 'bg-red-400',
-  major: 'bg-amber-400',
-  minor: 'bg-slate-400',
-}
 
 const PAGES = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -180,13 +175,12 @@ export function CommandPalette() {
                     {issue.type === 'task' ? (
                       <TypeIcon type="task" />
                     ) : (
-                      <span className={cn('h-2 w-2 rounded-full shrink-0', SEVERITY_DOT[issue.severity] ?? 'bg-slate-400')} />
+                      <span className={cn('h-2 w-2 rounded-full shrink-0', PRIORITY[issue.priority]?.dot ?? 'bg-slate-400')} />
                     )}
                     <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">
                       {issueKey(issue)}
                     </span>
                     <span className="flex-1 text-sm truncate">{issue.title}</span>
-                    {issue.is_urgent && <UrgentMarker />}
                   </div>
                 )
               })}

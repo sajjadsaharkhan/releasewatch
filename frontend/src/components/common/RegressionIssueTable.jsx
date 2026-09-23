@@ -2,7 +2,7 @@ import React from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
-import { SeverityBadge, StatusBadge, Avatar, UserHoverCard } from '../ui'
+import { PriorityBadge, StatusBadge, Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
 import { issueKey } from '../../lib/issueSlug'
 
@@ -34,7 +34,7 @@ export function RegressionIssueTable({ issues = [], labels = [], title, descript
               <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-64">Title</th>
               <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-36">Labels</th>
               <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-24">Regressions</th>
-              <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-28">Severity</th>
+              <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-28">Priority</th>
               <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-32">Status</th>
               <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-24">Assignee</th>
             </tr>
@@ -84,7 +84,7 @@ export function RegressionIssueTable({ issues = [], labels = [], title, descript
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <SeverityBadge severity={issue.severity} dot />
+                    <PriorityBadge priority={issue.priority} />
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={issue.status} />

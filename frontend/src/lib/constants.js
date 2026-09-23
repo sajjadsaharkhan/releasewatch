@@ -1,29 +1,42 @@
-export const SEVERITY = {
-  blocker: {
-    label: 'Blocker',
-    pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    dot: 'bg-red-500',
-    order: 0,
-  },
+// Priority (BR-08/09, docs/phase-2/03a-data-model-refactor.md) — one shared
+// scale for bugs and tasks, highest first. `order` drives sorting; `hex` is
+// the same hue for charts. A New or Needs info bug may have no priority
+// (rendered "Unrated"); a task starts at medium (BR-16).
+export const PRIORITY = {
   critical: {
     label: 'Critical',
+    pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    dot: 'bg-red-500',
+    hex: '#ef4444',
+    order: 0,
+  },
+  high: {
+    label: 'High',
     pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
     dot: 'bg-orange-500',
+    hex: '#f97316',
     order: 1,
   },
-  major: {
-    label: 'Major',
+  medium: {
+    label: 'Medium',
     pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     dot: 'bg-amber-500',
+    hex: '#f59e0b',
     order: 2,
   },
-  minor: {
-    label: 'Minor',
+  low: {
+    label: 'Low',
     pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     dot: 'bg-blue-400',
+    hex: '#3b82f6',
     order: 3,
   },
 }
+
+export const PRIORITIES = Object.keys(PRIORITY)
+
+// A new task's priority (BR-16).
+export const TASK_DEFAULT_PRIORITY = 'medium'
 
 // docs/phase-2/03-tasks-and-placement.md — type icon + key prefix on every
 // row/card, search result, and command palette entry (§3 in docs/design.md).
@@ -33,13 +46,12 @@ export const TYPE = {
   task: { label: 'Task', icon: 'check-square' },
 }
 
-// Task priority (BR-09) — P1 highest to P4 lowest. Bugs use SEVERITY instead.
-export const PRIORITY = {
-  1: { label: 'P1', pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
-  2: { label: 'P2', pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
-  3: { label: 'P3', pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
-  4: { label: 'P4', pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-}
+// Bug-only surfaces (BR-08): environment, reproduction steps, cURL, release
+// blocker, regression. A missing type is a bug, same as the backend default.
+export const isBug = (item) => (item?.type ?? 'bug') === 'bug'
+
+// "bug" / "task" — the noun for UI copy about one item.
+export const itemNoun = (item) => (isBug(item) ? 'bug' : 'task')
 
 // Project kind (§8.1) — only Product projects accept releases (BR-02).
 export const PROJECT_KIND = {
@@ -51,7 +63,7 @@ export const PROJECT_KIND = {
 // docs/phase-2/02-unified-status-model.md — shared by bugs and (slice 03) tasks.
 // Board statuses: todo, in_progress, in_review, done, blocked.
 // Triage statuses (bug-only, kept off boards): new, needs_info.
-// Terminal: cancelled (and done, except via the regression/merge-regression actions).
+// No terminal status: any status can move to any other (tasks: never new/needs_info).
 export const STATUS = {
   new: {
     label: 'New',
@@ -103,8 +115,8 @@ export const TRIAGE_STATUSES = ['new', 'needs_info']
 // re-enumerate the pair at a call site.
 export const FIXED_STATUSES = ['in_review', 'done']
 
-// Cancel reasons (BR-13). Bugs: any of these except `no_longer_needed`,
-// optional. Tasks: `no_longer_needed` only, required (03).
+// Cancel reasons (BR-13), optional for both types. Bugs: any of these except
+// `no_longer_needed`. Tasks: `no_longer_needed` only.
 export const CANCEL_REASON = {
   user_error: 'User error',
   expected_behavior: 'Expected behavior',

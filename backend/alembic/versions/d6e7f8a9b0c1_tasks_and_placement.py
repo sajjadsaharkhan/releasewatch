@@ -1,18 +1,22 @@
 """tasks and placement
 
-Revision ID: c4d5e6f7a8b9
+Revision ID: d6e7f8a9b0c1
 Revises: b1c2d3e4f5a6
 Create Date: 2026-09-23
 
 Slice 03 (docs/phase-2/03-tasks-and-placement.md): adds `issues.type`
 (bug|task, D-defaulted to bug), makes `issues.release_id` nullable with its
 FK changed CASCADE -> SET NULL (D7 — a release can be deleted without
-deleting the work items filed against it), and adds `priority`, `is_urgent`,
-`due_date`. Adds `projects.kind` (product|internal|general, defaulted to
+deleting the work items filed against it), and adds `due_date`. Priority is
+the shared column from b1c2d3e4f5a6 (03a Part 1), so tasks add none of their
+own. Adds `projects.kind` (product|internal|general, defaulted to
 product) and seeds a General project with the first active admin (by id) as
 triage lead, or a null lead if no admin exists.
 
-Written by hand, following b1c2d3e4f5a6's lead.
+Written by hand, following b1c2d3e4f5a6's lead. Rewritten for 03a under a new
+revision id (was c4d5e6f7a8b9) so a database migrated with the old version
+fails loudly instead of keeping a stale schema — rebuild it with
+`make db-reset`.
 """
 
 from typing import Sequence, Union
@@ -21,23 +25,19 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = 'c4d5e6f7a8b9'
+revision: str = 'd6e7f8a9b0c1'
 down_revision: Union[str, None] = 'b1c2d3e4f5a6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ── issues: type, priority, is_urgent, due_date ────────────────────────────
+    # ── issues: type, due_date ─────────────────────────────────────────────
     # NOT NULL + a transient server_default backfills existing rows in place;
     # the default is then dropped so the ORM's Python-side defaults are the
     # single source (raw inserts must state a type explicitly).
     op.add_column('issues', sa.Column(
         'type', sa.String(length=16), nullable=False, server_default='bug',
-    ))
-    op.add_column('issues', sa.Column('priority', sa.SmallInteger(), nullable=True))
-    op.add_column('issues', sa.Column(
-        'is_urgent', sa.Boolean(), nullable=False, server_default=sa.false(),
     ))
     op.add_column('issues', sa.Column('due_date', sa.Date(), nullable=True))
 
@@ -56,7 +56,6 @@ def upgrade() -> None:
 
     # ── Drop the transient backfill defaults ────────────────────────────────
     op.alter_column('issues', 'type', existing_type=sa.String(length=16), server_default=None)
-    op.alter_column('issues', 'is_urgent', existing_type=sa.Boolean(), server_default=None)
     op.alter_column('projects', 'kind', existing_type=sa.String(length=16), server_default=None)
 
     # ── Seed the General project (FR-02) ───────────────────────────────────
@@ -78,7 +77,7 @@ def downgrade() -> None:
     ).scalar()
     if null_release_count:
         raise RuntimeError(
-            f"Cannot downgrade c4d5e6f7a8b9: {null_release_count} issue(s) have "
+            f"Cannot downgrade d6e7f8a9b0c1: {null_release_count} issue(s) have "
             "release_id IS NULL (hotfixes or tasks). Assign a release to each "
             "before downgrading, or accept losing that data."
         )
@@ -97,6 +96,4 @@ def downgrade() -> None:
     )
 
     op.drop_column('issues', 'due_date')
-    op.drop_column('issues', 'is_urgent')
-    op.drop_column('issues', 'priority')
     op.drop_column('issues', 'type')

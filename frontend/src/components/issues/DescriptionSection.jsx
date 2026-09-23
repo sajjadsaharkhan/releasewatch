@@ -6,6 +6,7 @@ import { renderMarkdown } from '../../lib/markdown'
 import { MarkdownComposer } from './MarkdownComposer'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { isBug } from '../../lib/constants'
 
 // Environment enum (will come from API in the future)
 export const ENVIRONMENT = {
@@ -71,6 +72,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
   )
 
   const curlSample = issue?.curl_command
+  const bug = isBug(issue)
 
   return (
     <div>
@@ -89,7 +91,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
           mode="edit"
           onSubmit={(value) => { onDescriptionUpdate?.(value); setIsEditing(false); }}
           onCancelEdit={() => setIsEditing(false)}
-          placeholder="Describe the issue..."
+          placeholder={bug ? 'Describe the bug...' : 'Describe the task...'}
           showInternal={false}
           showMentions={false}
         />
@@ -103,7 +105,8 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
         </div>
       )}
 
-      {isEditingCurl ? (
+      {/* Reproduction (cURL + steps) is bug-only (BR-08). */}
+      {bug && (isEditingCurl ? (
         <div className="mt-5">
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 dark:text-zinc-400">Repro: cURL</div>
@@ -148,9 +151,9 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
             <Icon name="plus" size={11} /> Add
           </button>
         </div>
-      )}
+      ))}
 
-      {isEditingSteps ? (
+      {bug && (isEditingSteps ? (
         <div className="mt-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Steps to Reproduce</h3>
@@ -210,7 +213,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
             <Icon name="plus" size={11} /> Add
           </button>
         </div>
-      )}
+      ))}
     </div>
   )
 }

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus, IssueType, issue_type_value
+from app.db.models.issue import Issue, IssueStatus, IssueType, Priority, issue_type_value
 from app.db.models.issue_timeline import TimelineEventType
 from app.db.models.project import ProjectKind
 from app.db.models.user import User
@@ -91,9 +91,7 @@ class IssueService:
             type=data.type,
             title=data.title,
             description=data.description,
-            severity=data.severity,
             priority=data.priority,
-            is_urgent=data.is_urgent,
             due_date=data.due_date,
             labels=data.labels,
             is_release_blocker=data.is_release_blocker,
@@ -124,26 +122,9 @@ class IssueService:
             actor_id=current_user.id,
             event_type=TimelineEventType.filed,
             body=None,
-            meta={"severity": data.severity.value if data.severity else None},
+            meta={"priority": data.priority.value if data.priority else None},
             is_internal=False,
         )
-
-        if data.is_urgent:
-            await timeline_svc.create_event(
-                db=db,
-                issue_id=issue.id,
-                actor_id=current_user.id,
-                event_type=TimelineEventType.urgent_flagged,
-                body=None,
-                meta=None,
-                is_internal=False,
-            )
-            await InboxFanOutService().fan_out(
-                db=db,
-                trigger=InboxEventType.urgent,
-                issue=issue,
-                actor=current_user,
-            )
 
         if data.pending_attachments:
             from app.db.models.issue_attachment import IssueAttachment
@@ -292,10 +273,13 @@ class IssueService:
         if from_status == IssueStatus.blocked and to_status != IssueStatus.blocked:
             issue.blocked_from_status = None
 
-        # Urgent clears itself on entering done or cancelled (FR-22, BR-27, AC-24).
-        was_urgent = issue.is_urgent
-        if to_status in (IssueStatus.done, IssueStatus.cancelled):
-            issue.is_urgent = False
+        # Movement is unrestricted, so an item can leave done or cancelled for
+        # any status — it's no longer completed or cancelled once it does.
+        if from_status == IssueStatus.done and to_status != IssueStatus.done:
+            issue.completed_at = None
+            issue.verified_at = None
+        if from_status == IssueStatus.cancelled and to_status != IssueStatus.cancelled:
+            issue.cancel_reason = None
 
         db.add(issue)
         await db.flush()
@@ -313,17 +297,6 @@ class IssueService:
             },
             is_internal=False,
         )
-
-        if was_urgent and to_status in (IssueStatus.done, IssueStatus.cancelled):
-            await timeline_svc.create_event(
-                db=db,
-                issue_id=issue.id,
-                actor_id=actor.id,
-                event_type=TimelineEventType.urgent_cleared,
-                body=None,
-                meta=None,
-                is_internal=False,
-            )
 
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.status_changed, issue=issue, actor=actor,
@@ -399,12 +372,12 @@ class IssueService:
         db: AsyncSession,
         issue_id: int,
         assignee_id: int,
-        severity: IssueSeverity,
+        priority: Priority,
         current_user: User,
         labels: list[str] | None = None,
         is_release_blocker: bool | None = None,
     ) -> Issue:
-        """Triage an issue: assign it and confirm severity.
+        """Triage an issue: assign it and set its priority (required, BR-16).
 
         Transitions status ``new -> todo`` (the Phase 1 triage endpoint maps
         to the new "accept" outcome in this slice; full triage outcomes land
@@ -421,11 +394,11 @@ class IssueService:
             )
 
         now = datetime.now(tz=UTC)
-        prev_severity = issue.severity
+        prev_priority = getattr(issue.priority, "value", issue.priority)
         prev_assignee = issue.assignee_id
 
         issue.assignee_id = assignee_id
-        issue.severity = severity
+        issue.priority = priority
         issue.triaged_at = now
         if labels is not None:
             issue.labels = labels
@@ -454,17 +427,14 @@ class IssueService:
             db.add(active_cycle)
 
         timeline_svc = TimelineService()
-        if prev_severity != severity:
+        if prev_priority != priority.value:
             await timeline_svc.create_event(
                 db=db,
                 issue_id=issue.id,
                 actor_id=current_user.id,
-                event_type=TimelineEventType.severity_changed,
+                event_type=TimelineEventType.priority_changed,
                 body=None,
-                meta={
-                    "from": getattr(prev_severity, 'value', prev_severity),
-                    "to": getattr(severity, 'value', severity),
-                },
+                meta={"from": prev_priority, "to": priority.value},
                 is_internal=False,
             )
         await timeline_svc.create_event(
@@ -723,20 +693,20 @@ class IssueService:
             events_to_emit.append((TimelineEventType.description_changed, {}))
             issue.description = payload["description"]
 
-        # ── Severity ──────────────────────────────────────────────────────────
-        if "severity" in payload:
-            new_sev = payload["severity"]
-            old_sev = getattr(issue.severity, 'value', issue.severity)
-            new_sev_val = getattr(new_sev, 'value', new_sev)
-            if old_sev != new_sev_val:
+        # ── Priority ──────────────────────────────────────────────────────────
+        if "priority" in payload:
+            new_priority = payload["priority"]
+            old_val = getattr(issue.priority, 'value', issue.priority)
+            new_val = getattr(new_priority, 'value', new_priority)
+            if old_val != new_val:
                 events_to_emit.append((
-                    TimelineEventType.severity_changed,
-                    {"from": old_sev, "to": new_sev_val},
+                    TimelineEventType.priority_changed,
+                    {"from": old_val, "to": new_val},
                 ))
                 inbox_triggers.append((
-                    InboxEventType.severity_changed, {"from": old_sev, "to": new_sev_val},
+                    InboxEventType.priority_changed, {"from": old_val, "to": new_val},
                 ))
-                issue.severity = new_sev
+                issue.priority = new_priority
 
         # ── Environment name ──────────────────────────────────────────────────
         if "environment_name" in payload and payload["environment_name"] != issue.environment_name:
@@ -763,15 +733,6 @@ class IssueService:
                 events_to_emit.append((TimelineEventType.blocker_cleared, {}))
                 inbox_triggers.append((InboxEventType.blocker_cleared, None))
             issue.is_release_blocker = payload["is_release_blocker"]
-
-        # ── Urgent ────────────────────────────────────────────────────────────
-        if "is_urgent" in payload and payload["is_urgent"] != issue.is_urgent:
-            if payload["is_urgent"]:
-                events_to_emit.append((TimelineEventType.urgent_flagged, {}))
-                inbox_triggers.append((InboxEventType.urgent, None))
-            else:
-                events_to_emit.append((TimelineEventType.urgent_cleared, {}))
-            issue.is_urgent = payload["is_urgent"]
 
         # ── Assignee ──────────────────────────────────────────────────────────
         if "assignee_id" in payload:
@@ -876,7 +837,7 @@ class IssueService:
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
-                      "environment_staging_url", "curl_command", "priority", "due_date"):
+                      "environment_staging_url", "curl_command", "due_date"):
             if field in payload:
                 setattr(issue, field, payload[field])
 

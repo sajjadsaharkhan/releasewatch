@@ -5,7 +5,7 @@ import { cn } from '../../lib/cn'
 import { Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
 import { issueKey } from '../../lib/issueSlug'
-import { SeverityBadge, TypeIcon, UrgentMarker, PriorityBadge } from '../ui/Badge'
+import { TypeIcon, PriorityBadge } from '../ui/Badge'
 
 export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -43,12 +43,7 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
             <TypeIcon type={issue.type} />
             {issueKey(issue)}
           </span>
-          <span className="inline-flex items-center gap-1">
-            {issue.is_urgent && <UrgentMarker />}
-            {issue.type === 'task'
-              ? <PriorityBadge priority={issue.priority} />
-              : <SeverityBadge severity={issue.severity} size="sm" />}
-          </span>
+          <PriorityBadge priority={issue.priority} />
         </div>
         <div className="text-[12.5px] font-medium text-zinc-900 dark:text-zinc-100 leading-snug mb-2">{issue.title}</div>
         <div className="flex items-center justify-between">

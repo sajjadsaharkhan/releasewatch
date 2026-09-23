@@ -38,7 +38,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_role
 from app.db.models.issue import (
-    Issue, IssueSeverity, IssueStatus, IssueType, issue_key, issue_type_value,
+    PRIORITY_RANK, Issue, IssueStatus, IssueType, Priority, issue_key, issue_type_value,
 )
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
@@ -69,12 +69,10 @@ from app.workflow import Workflow
 
 router = APIRouter()
 
-_SEVERITY_ORDER = case(
-    (Issue.severity == IssueSeverity.blocker, 0),
-    (Issue.severity == IssueSeverity.critical, 1),
-    (Issue.severity == IssueSeverity.major, 2),
-    (Issue.severity == IssueSeverity.minor, 3),
-    else_=4,
+#: Highest priority first; unrated items last (FR-37).
+_PRIORITY_ORDER = case(
+    *((Issue.priority == p.value, rank) for p, rank in PRIORITY_RANK.items()),
+    else_=len(PRIORITY_RANK) + 1,
 )
 
 
@@ -108,7 +106,7 @@ def _apply_filters(
     release_id,
     status,
     statuses=None,
-    severity,
+    priority,
     assignee_id,
     reporter_id=None,
     is_regression,
@@ -117,7 +115,6 @@ def _apply_filters(
     labels,
     search,
     type=None,
-    is_urgent=None,
     has_release=None,
     project_kind=None,
 ):
@@ -130,8 +127,8 @@ def _apply_filters(
         query = query.where(Issue.status == status)
     if statuses:
         query = query.where(Issue.status.in_(statuses))
-    if severity:
-        query = query.where(Issue.severity == severity)
+    if priority:
+        query = query.where(Issue.priority == priority)
     if assignee_id:
         query = query.where(Issue.assignee_id == assignee_id)
     if reporter_id:
@@ -146,8 +143,6 @@ def _apply_filters(
         query = query.where(or_(*[Issue.labels.any(name) for name in labels]))
     if type:
         query = query.where(Issue.type == type)
-    if is_urgent is not None:
-        query = query.where(Issue.is_urgent == is_urgent)
     if has_release is not None:
         query = query.where(Issue.release_id.isnot(None) if has_release else Issue.release_id.is_(None))
     if project_kind:
@@ -169,8 +164,8 @@ def _apply_filters(
 def _apply_sort(query, sort: str):
     if sort == "oldest":
         return query.order_by(Issue.created_at.asc(), Issue.issue_number.asc())
-    elif sort == "severity":
-        return query.order_by(_SEVERITY_ORDER, Issue.created_at.desc(), Issue.issue_number.desc())
+    elif sort == "priority":
+        return query.order_by(_PRIORITY_ORDER, Issue.created_at.desc(), Issue.issue_number.desc())
     elif sort == "updated":
         return query.order_by(Issue.updated_at.desc(), Issue.issue_number.desc())
     else:
@@ -257,7 +252,7 @@ async def list_issues(
     statuses: str | None = Query(
         None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
     ),
-    severity: IssueSeverity | None = Query(None),
+    priority: Priority | None = Query(None),
     assignee_id: int | None = Query(None),
     reporter_id: int | None = Query(None),
     is_regression: bool | None = Query(None),
@@ -267,7 +262,6 @@ async def list_issues(
     sort: str = Query("newest"),
     search: str | None = Query(None),
     type: IssueType | None = Query(None),
-    is_urgent: bool | None = Query(None),
     has_release: bool | None = Query(None, description="True: has a release. False: hotfix/task with no release."),
     project_kind: ProjectKind | None = Query(None),
     page: int = Query(1, ge=1),
@@ -281,7 +275,7 @@ async def list_issues(
         release_id=release_id,
         status=status,
         statuses=_parse_statuses(statuses),
-        severity=severity,
+        priority=priority,
         assignee_id=assignee_id,
         reporter_id=reporter_id,
         is_regression=is_regression,
@@ -290,7 +284,6 @@ async def list_issues(
         labels=labels,
         search=search,
         type=type,
-        is_urgent=is_urgent,
         has_release=has_release,
         project_kind=project_kind,
     )
@@ -323,7 +316,7 @@ async def export_issues(
     statuses: str | None = Query(
         None, description="Comma-separated statuses, e.g. new,triaged,in_progress"
     ),
-    severity: IssueSeverity | None = Query(None),
+    priority: Priority | None = Query(None),
     assignee_id: int | None = Query(None),
     is_regression: bool | None = Query(None),
     is_release_blocker: bool | None = Query(None),
@@ -332,7 +325,6 @@ async def export_issues(
     sort: str = Query("newest"),
     search: str | None = Query(None),
     type: IssueType | None = Query(None),
-    is_urgent: bool | None = Query(None),
     has_release: bool | None = Query(None),
     project_kind: ProjectKind | None = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -344,7 +336,7 @@ async def export_issues(
         release_id=release_id,
         status=status,
         statuses=_parse_statuses(statuses),
-        severity=severity,
+        priority=priority,
         assignee_id=assignee_id,
         is_regression=is_regression,
         is_release_blocker=is_release_blocker,
@@ -352,7 +344,6 @@ async def export_issues(
         labels=labels,
         search=search,
         type=type,
-        is_urgent=is_urgent,
         has_release=has_release,
         project_kind=project_kind,
     )
@@ -371,7 +362,7 @@ async def export_issues(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "Key", "Issue #", "Issue ID", "Type", "Title", "Severity", "Priority", "Urgent",
+        "Key", "Issue #", "Issue ID", "Type", "Title", "Priority",
         "Status", "Assignee", "Reporter", "Release", "Due Date", "Labels",
         "Release Blocker", "Regression", "Created At", "Updated At",
     ])
@@ -383,9 +374,7 @@ async def export_issues(
             str(issue.id),
             item_type,
             issue.title,
-            issue.severity,
-            issue.priority,
-            "Yes" if issue.is_urgent else "No",
+            getattr(issue.priority, "value", issue.priority) or "",
             issue.status,
             issue.assignee.name if issue.assignee else "",
             issue.reporter.name if issue.reporter else "",
@@ -512,7 +501,7 @@ async def list_trash(
             type=i.type,
             title=i.title,
             description=i.description,
-            severity=i.severity,
+            priority=i.priority,
             status=i.status,
             release_id=i.release_id,
             release_name=i.release.version if i.release else None,
@@ -693,9 +682,9 @@ async def triage_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Triage: assign the issue and confirm severity. Maps to new -> todo."""
+    """Accept: assign the issue and set its priority (required). Maps to new -> todo."""
     await issue_service.triage(
-        db, issue_id, payload.assignee_id, payload.severity, current_user,
+        db, issue_id, payload.assignee_id, payload.priority, current_user,
         labels=payload.labels, is_release_blocker=payload.is_release_blocker,
     )
     await db.commit()

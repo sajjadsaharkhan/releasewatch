@@ -13,15 +13,14 @@ place that decision lives (rather than being duplicated per caller), and
 ``IssueService.regress()`` still asks it before recording a regression, so
 loosening or re-tightening the rule later only touches this file.
 
-Tasks (slice 03, docs/phase-2/03-tasks-and-placement.md) are a separate,
-newly-introduced item type and follow the gated table in that spec — the
-2026-09-22 decision to unrestrict movement was scoped to bugs only and is
-not extended to tasks here. ``new``/``needs_info`` are bug-only (BR-10) and
-are never offered to tasks.
+Tasks (slice 03) are unrestricted too, by the 2026-09-23 decision: a task can
+move from any of its statuses to any other, including out of ``done`` and
+``cancelled``. ``new``/``needs_info`` are bug-only (BR-10) and are never
+offered to tasks.
 
-Both item types share one rule: a ``cancelled`` target's ``cancel_reason``
-must be valid for the type (BR-13) — ``no_longer_needed`` is task-only, every
-other reason is bug-only.
+Both item types share one rule: a cancel reason is optional, but when one is
+given it must be valid for the type (BR-13) — ``no_longer_needed`` is
+task-only, every other reason is bug-only.
 """
 
 from dataclasses import dataclass, field
@@ -60,39 +59,26 @@ def _as_status(value: Any) -> IssueStatus:
 _BUG_CANCEL_REASON_VALUES = {r.value for r in BUG_CANCEL_REASONS}
 _TASK_CANCEL_REASON_VALUES = {r.value for r in TASK_CANCEL_REASONS}
 
-#: Task transition table (docs/phase-2/03-tasks-and-placement.md). Keyed by
-#: current status; ``blocked``'s target set is completed at lookup time from
-#: the issue's own ``blocked_from_status``.
-_TASK_STATIC_TARGETS: dict[IssueStatus, set[IssueStatus]] = {
-    IssueStatus.todo: {IssueStatus.in_progress, IssueStatus.blocked, IssueStatus.cancelled},
-    IssueStatus.in_progress: {
-        IssueStatus.in_review, IssueStatus.done, IssueStatus.blocked, IssueStatus.cancelled,
-    },
-    IssueStatus.in_review: {
-        IssueStatus.done, IssueStatus.in_progress, IssueStatus.blocked, IssueStatus.cancelled,
-    },
-    IssueStatus.blocked: {IssueStatus.cancelled},
-    IssueStatus.done: set(),
-    IssueStatus.cancelled: set(),
-}
+#: Every status a task can hold — the bug-only triage statuses are excluded (BR-10).
+_TASK_STATUSES = tuple(
+    s for s in IssueStatus if s not in (IssueStatus.new, IssueStatus.needs_info)
+)
 
 
-def _task_targets(from_status: IssueStatus, context: dict[str, Any] | None) -> set[IssueStatus]:
-    targets = set(_TASK_STATIC_TARGETS.get(from_status, set()))
-    if from_status == IssueStatus.blocked:
-        blocked_from = (context or {}).get("blocked_from_status")
-        targets.add(_as_status(blocked_from) if blocked_from else IssueStatus.todo)
-    return targets
+def _task_targets(from_status: IssueStatus) -> set[IssueStatus]:
+    return {s for s in _TASK_STATUSES if s != from_status}
 
 
 def _cancel_reason_error(item_type: str, context: dict[str, Any] | None) -> TransitionCheck | None:
     """Return a refusal if ``context['cancel_reason']`` isn't valid for ``item_type``.
 
-    ``None`` means the reason is valid (or, for a bug, simply absent — a bug
-    doesn't require a reason to cancel, per the 2026-09-22 decision).
+    ``None`` means the reason is valid or absent — neither type requires a
+    reason to cancel (the 2026-09-22 decision, extended to tasks 2026-09-23).
     """
     raw = (context or {}).get("cancel_reason")
     reason = raw.value if isinstance(raw, IssueCancelReason) else raw
+    if reason is None:
+        return None
     if item_type == "task":
         if reason not in _TASK_CANCEL_REASON_VALUES:
             return TransitionCheck(
@@ -101,7 +87,7 @@ def _cancel_reason_error(item_type: str, context: dict[str, Any] | None) -> Tran
                 allowed=[],
             )
         return None
-    if reason is not None and reason not in _BUG_CANCEL_REASON_VALUES:
+    if reason not in _BUG_CANCEL_REASON_VALUES:
         return TransitionCheck(
             False, code="invalid_cancel_reason",
             detail="'no_longer_needed' is a task-only cancel reason.",
@@ -111,7 +97,7 @@ def _cancel_reason_error(item_type: str, context: dict[str, Any] | None) -> Tran
 
 
 class Workflow:
-    """Bugs: every status is reachable from every other. Tasks: a gated table."""
+    """Every status is reachable from every other — for tasks, every task status."""
 
     @staticmethod
     def allowed_targets(
@@ -128,7 +114,7 @@ class Workflow:
             )
         if item_type == "task":
             return WorkflowTargets(
-                allowed=[s.value for s in _task_targets(from_st, context)],
+                allowed=[s.value for s in _task_targets(from_st)],
                 blocked=[],
             )
         return WorkflowTargets(allowed=[], blocked=[])

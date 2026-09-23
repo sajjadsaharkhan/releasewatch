@@ -12,7 +12,7 @@ import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
 import { ProjectSwitcher, ReleaseSwitcher } from '../common'
-import { SEVERITY, PRIORITY, TYPE } from '../../lib/constants'
+import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TYPE } from '../../lib/constants'
 import { ENVIRONMENT } from './DescriptionSection'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
 import { useApp } from '../../hooks/useApp'
@@ -22,7 +22,6 @@ const INITIAL_FORM = {
   title: '',
   projectId: '',
   releaseId: '',
-  severity: null,
   priority: null,
   environment: null,
   description: '',
@@ -31,13 +30,14 @@ const INITIAL_FORM = {
   labels: [],
   assigneeId: '',
   dueDate: null,
-  isUrgent: false,
   isReleaseBlocker: false,
 }
 
 export function NewIssueModal({ open, onClose, onCreated }) {
   const { activeProjectId, activeReleaseId } = useApp()
   const [form, setForm] = useState(INITIAL_FORM)
+  // A bug may stay unrated until triage; a task starts at medium (BR-16).
+  const priority = form.priority ?? (form.type === 'task' ? TASK_DEFAULT_PRIORITY : null)
   const [loading, setLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [errors, setErrors] = useState({})
@@ -154,7 +154,6 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   function validate() {
     const errs = {}
     if (!form.title.trim()) errs.title = 'Title is required'
-    if (form.type === 'task' && !form.priority) errs.priority = 'Priority is required'
     return errs
   }
 
@@ -175,16 +174,15 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         labels: form.labels,
         assignee_id: form.assigneeId || null,
         due_date: form.dueDate ? form.dueDate.toISOString().slice(0, 10) : null,
-        is_urgent: form.isUrgent,
+        priority,
         pending_attachments: pendingAttachments,
       }
 
       const payload = form.type === 'task'
-        ? { ...shared, priority: form.priority }
+        ? shared
         : {
           ...shared,
           release_id: releasesAllowed ? (form.releaseId || null) : null,
-          severity: form.severity,
           environment_name: form.environment || null,
           curl_command: form.curlCommand || null,
           is_release_blocker: form.isReleaseBlocker,
@@ -262,8 +260,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                   {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
                 </div>
 
-                {/* Project + (Release | Priority) + Severity in one row */}
-                <div className={cn('grid gap-3', isTask ? 'grid-cols-[200px_180px]' : 'grid-cols-[200px_180px_1fr]')}>
+                {/* Project + Release (bugs) + Priority in one row */}
+                <div className={cn('grid gap-3', isTask ? 'grid-cols-[200px_1fr]' : 'grid-cols-[200px_180px_1fr]')}>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Project</label>
                     <ProjectSwitcher
@@ -272,31 +270,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       onChange={setProject}
                     />
                   </div>
-                  {isTask ? (
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Priority <span className="text-destructive">*</span>
-                      </label>
-                      <div className="flex gap-1">
-                        {Object.keys(PRIORITY).map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => set('priority', Number(p))}
-                            aria-pressed={form.priority === Number(p)}
-                            className={cn(
-                              'h-8 px-2.5 rounded-md text-[11px] font-medium border transition-colors',
-                              form.priority === Number(p)
-                                ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
-                                : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
-                            )}
-                          >
-                            {PRIORITY[p].label}
-                          </button>
-                        ))}
-                      </div>
-                      {errors.priority && <p className="mt-1 text-xs text-destructive">{errors.priority}</p>}
-                    </div>
-                  ) : releasesAllowed && (
+                  {!isTask && releasesAllowed && (
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                         Release <span className="text-muted-foreground/70 font-normal">(optional)</span>
@@ -309,51 +283,31 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       />
                     </div>
                   )}
-                  {!isTask && (
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Severity <span className="text-muted-foreground/70 font-normal">(optional)</span>
-                      </label>
-                      <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1">
-                        <div className="flex gap-1 min-w-max pb-1">
-                          <button
-                            onClick={() => set('severity', null)}
-                            aria-pressed={form.severity == null}
-                            className={cn(
-                              'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
-                              'flex items-center gap-1 whitespace-nowrap',
-                              form.severity == null
-                                ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
-                                : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
-                            )}
-                          >
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      Priority{' '}
+                      {!isTask && <span className="text-muted-foreground/70 font-normal">(optional until triage)</span>}
+                    </label>
+                    <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1">
+                      <div className="flex gap-1 min-w-max pb-1">
+                        {!isTask && (
+                          <PriorityOption selected={priority == null} onClick={() => set('priority', null)}>
                             Unrated
-                          </button>
-                          {Object.keys(SEVERITY).map(s => (
-                            <button
-                              key={s}
-                              onClick={() => set('severity', s)}
-                              aria-pressed={form.severity === s}
-                              className={cn(
-                                'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
-                                'flex items-center gap-1 whitespace-nowrap',
-                                form.severity === s
-                                  ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
-                                  : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
-                              )}
-                            >
-                              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', SEVERITY[s].dot)} />
-                              {SEVERITY[s].label}
-                            </button>
-                          ))}
-                        </div>
+                          </PriorityOption>
+                        )}
+                        {PRIORITIES.map(p => (
+                          <PriorityOption key={p} selected={priority === p} onClick={() => set('priority', p)}>
+                            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', PRIORITY[p].dot)} />
+                            {PRIORITY[p].label}
+                          </PriorityOption>
+                        ))}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Assignee + Due date + Urgent */}
-                <div className="grid grid-cols-[1fr_180px_auto] gap-3 items-end">
+                {/* Assignee + Due date */}
+                <div className="grid grid-cols-[1fr_180px] gap-3 items-end">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Assignee</label>
                     <Select
@@ -373,10 +327,6 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       onChange={(date) => set('dueDate', date)}
                       placeholder="No due date"
                     />
-                  </div>
-                  <div className="flex items-center gap-2 h-9">
-                    <Switch checked={form.isUrgent} onCheckedChange={(v) => set('isUrgent', v)} />
-                    <span className="text-sm font-medium">Urgent</span>
                   </div>
                 </div>
 
@@ -528,5 +478,24 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         </div>
       </div>
     </Dialog>
+  )
+}
+
+function PriorityOption({ selected, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        'h-8 px-2 rounded-md text-[11px] font-medium border transition-colors',
+        'flex items-center gap-1 whitespace-nowrap',
+        selected
+          ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
+          : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted'
+      )}
+    >
+      {children}
+    </button>
   )
 }

@@ -15,7 +15,7 @@ class TimelineEventType(str, enum.Enum):
 
     filed = "filed"
     status_changed = "status_changed"
-    severity_changed = "severity_changed"
+    priority_changed = "priority_changed"
     assigned = "assigned"
     label_added = "label_added"
     label_removed = "label_removed"
@@ -34,8 +34,6 @@ class TimelineEventType(str, enum.Enum):
     project_changed = "project_changed"
     environment_changed = "environment_changed"
     needs_clarification = "needs_clarification"
-    urgent_flagged = "urgent_flagged"
-    urgent_cleared = "urgent_cleared"
 
 
 class IssueTimeline(Base):

@@ -1,4 +1,4 @@
-.PHONY: dev dev-build stop migrate migrate-down seed seed-admin test test-local lint format shell logs \
+.PHONY: dev dev-build stop migrate migrate-down seed seed-admin db-reset test test-local lint format shell logs \
 	e2e e2e-up e2e-down e2e-ui e2e-headed backend-dev-deps
 
 # ── Local development ─────────────────────────────────────────────────────────
@@ -25,6 +25,18 @@ migrate-new:
 	docker compose exec api alembic revision --autogenerate -m "$$msg"
 
 seed:
+	docker compose exec api python -m scripts.seed
+
+# Rebuild the dev database from scratch: drop, create, upgrade head, seed.
+# Also drops the pytest database so the next `make test` re-migrates it.
+# Needed whenever a Phase 2 migration is rewritten (03a).
+db-reset:
+	docker compose exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+		-c "DROP DATABASE IF EXISTS \"$${POSTGRES_DB}_test\" WITH (FORCE)" \
+		-c "DROP DATABASE IF EXISTS \"$$POSTGRES_DB\" WITH (FORCE)" \
+		-c "CREATE DATABASE \"$$POSTGRES_DB\"" && \
+		psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector"'
+	docker compose exec api alembic upgrade head
 	docker compose exec api python -m scripts.seed
 
 seed-admin:

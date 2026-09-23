@@ -10,7 +10,7 @@ new code has one target to hit. See [Known drift](#14-known-drift) for the full 
 |---|---|
 | Design tokens (CSS vars, both themes) | `frontend/src/styles/globals.css` |
 | Token → Tailwind binding, font stacks, radius | `frontend/tailwind.config.js` |
-| Semantic color scales (severity / status / role) | `frontend/src/lib/constants.js` |
+| Semantic color scales (priority / status / role) | `frontend/src/lib/constants.js` |
 | Class merging | `frontend/src/lib/cn.js` |
 | Primitive components | `frontend/src/components/ui/` |
 | Shell (sidebar, topbar, main) | `frontend/src/components/layout/` |
@@ -25,7 +25,7 @@ not read top to bottom. Three consequences run through every rule below:
 
 1. **Density over air.** Base UI text is 12–13px, table rows are `py-2`, the topbar is
    `h-12`. More rows on screen beats more whitespace.
-2. **State is encoded in form, not just words.** Severity, status, role, and health each
+2. **State is encoded in form, not just words.** Priority, status, role, and health each
    have a fixed color and shape so a row's condition reads before it is read.
 3. **The neutral surface stays quiet.** Color is reserved for meaning. Chrome —
    sidebar, topbar, cards, tables — is zinc-based and near-monochrome so the semantic
@@ -82,7 +82,7 @@ body { @apply bg-background text-foreground font-sans antialiased; }
 
 ### Semantic colors bypass the tokens — on purpose
 
-Severity, status, role, health, and charts use **raw Tailwind palette colors with explicit
+Priority, status, role, health, and charts use **raw Tailwind palette colors with explicit
 `dark:` variants**, not CSS vars. They encode meaning that must stay stable across themes,
 and there are more of them than the token set can hold. The formula is fixed:
 
@@ -97,33 +97,26 @@ keeps dark pills from reading as solid blocks. Any new semantic pill uses this f
 
 ## 3. Color semantics
 
-### Severity — `SEVERITY` in `lib/constants.js`
+### Priority — `PRIORITY` in `lib/constants.js`
 
-Ordered; `order` drives sorting. Rendered by `<SeverityBadge>` as a pill with a leading dot.
+One shared scale for bugs and tasks (BR-08/09, docs/phase-2/03a-data-model-refactor.md).
+Ordered; `order` drives sorting, `hex` is the same hue for charts. Rendered by
+`<PriorityBadge>` as a pill with a leading dot.
 
 | Key | Label | Hue | Dot | order |
 |---|---|---|---|---|
-| `blocker` | Blocker | red | `bg-red-500` | 0 |
-| `critical` | Critical | orange | `bg-orange-500` | 1 |
-| `major` | Major | amber | `bg-amber-500` | 2 |
-| `minor` | Minor | blue | `bg-blue-400` | 3 |
+| `critical` | Critical | red | `bg-red-500` | 0 |
+| `high` | High | orange | `bg-orange-500` | 1 |
+| `medium` | Medium | amber | `bg-amber-500` | 2 |
+| `low` | Low | blue | `bg-blue-400` | 3 |
 
-Red → orange → amber is a heat ramp; blue steps off it because *minor* is not "less hot", it's
-a different kind of thing. Bugs may have no severity at all — New and Needs info bugs nobody
-has rated yet render with no severity badge (D4, slice 02). `enhancement` was removed in slice
-02; improvements are filed as tasks (slice 03) instead.
+Red → orange → amber is a heat ramp; blue steps off it because *low* is not "less hot", it's
+a different kind of thing. A New or Needs info bug may have no priority — it renders as a grey
+"Unrated" pill. Accepting a bug requires a priority; a task starts at `medium` (BR-16). Phase 1's
+Blocker became Critical plus the release-blocker flag, which has its own red "Blocker" badge.
 
-### Priority — `PRIORITY` in `lib/constants.js`
-
-Task-only (BR-09), the priority equivalent of severity — P1 highest to P4 lowest, no "unrated"
-state (priority is required to file a task). Rendered by `<PriorityBadge>` as a pill.
-
-| Key | Label | Hue |
-|---|---|---|
-| `1` | P1 | red |
-| `2` | P2 | orange |
-| `3` | P3 | amber |
-| `4` | P4 | blue |
+There is no Urgent flag, marker or filter (removed in v2.2). "Do this first" is a pin in the
+personal queue (slice 10).
 
 ### Type — `TYPE` in `lib/constants.js`
 
@@ -161,15 +154,14 @@ needs work" set. Use these; do not re-enumerate the lists at a call site.
 
 An item's next statuses come from the API (`IssueResponse.allowed_transitions`, computed by the
 backend's Workflow module) — the frontend never hardcodes the status list, it renders what the
-API returned. Bug status movement is unrestricted by product decision (2026-09-22): any status
-can move to any other status from the sidebar's status control, with no confirmation dialog and
-no reason required. Tasks (slice 03) are gated instead — `todo → in_progress → in_review →
-done`, with `blocked` reachable from any of the three and `cancelled` reachable from any
-non-done status — so always render `allowed_transitions` rather than assuming every status is
-reachable. `CANCEL_REASON` (`lib/constants.js`) holds a `cancel_reason` per the reason a bug is
-optionally cancelled with (any value except `no_longer_needed`) or a task is required to be
-cancelled with (`no_longer_needed` only) — `BUG_CANCEL_REASONS` / `TASK_CANCEL_REASONS` give the
-filtered lists for the cancel dialog's select.
+API returned. Status movement is unrestricted by product decision (bugs 2026-09-22, tasks
+2026-09-23): any status can move to any other status from the sidebar's status control, with no
+confirmation dialog and no reason required — including out of `done` and `cancelled`. Tasks are
+never offered the bug-only triage statuses (`new`, `needs_info`), so still render
+`allowed_transitions` rather than the full `STATUS` list. `CANCEL_REASON` (`lib/constants.js`)
+holds the optional `cancel_reason` values: a bug may give any value except `no_longer_needed`, a
+task only `no_longer_needed` — `BUG_CANCEL_REASONS` / `TASK_CANCEL_REASONS` give the filtered
+lists.
 
 ### Role — `ROLE` in `lib/constants.js`
 
@@ -181,7 +173,7 @@ Reports section in `Sidebar`, the Settings link in `Topbar`, and `<AdminRoute>` 
 ### Badge tones — `Badge.jsx`
 
 `default` (zinc) · `blue` · `green` · `amber` · `red` · `purple` · `zinc` (dimmer than
-default) · `orange`. Use a tone only when no severity/status/role token fits.
+default) · `orange`. Use a tone only when no priority/status/role token fits.
 
 ### MetricCard tones — `MetricCard.jsx`
 
@@ -213,7 +205,7 @@ default height 180px in `<ResponsiveContainer>`, tooltip inherits card + border 
 it survives the theme flip. Series palette in use — `#ef4444` red, `#f59e0b` amber,
 `#6366f1` indigo (default), `#3b82f6` blue, `#f97316` orange, `#22c55e`/`#10b981` green,
 `#8b5cf6` violet, `#14b8a6` teal, `#ec4899` pink, `#6b7280` grey. Match the series hue to
-the semantic hue whenever the series *is* a severity or status.
+the semantic hue whenever the series *is* a priority or status.
 
 Empty chart state is text, not a blank frame:
 `<div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">`.
@@ -371,7 +363,7 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 |---|---|
 | `Button` | `variant`: `default` · `outline` · `ghost` · `destructive` · `secondary` · `link`; `size`: `sm` (h-8) · `md` (h-9) · `lg` (h-10) · `icon` (9×9) · `icon-sm` (8×8); `loading` renders a spinner and disables |
 | `Badge` | `tone` (8 values) |
-| `SeverityBadge` / `StatusBadge` / `RoleBadge` | take the raw key, fall back to a plain `<Badge>` on an unknown key |
+| `PriorityBadge` / `StatusBadge` / `RoleBadge` | take the raw key, fall back to a plain `<Badge>` on an unknown key; `PriorityBadge` renders "Unrated" for `null` |
 | `Card` | `Card` · `CardHeader` · `CardTitle` · `CardDesc` · `CardBody` |
 | `Input` / `Textarea` | `error` flips border and ring to destructive |
 | `Select` / `SelectItem` | portaled, checkmark on selection |

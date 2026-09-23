@@ -4,11 +4,11 @@ import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { Switch } from '../components/ui/Switch'
 import { Avatar } from '../components/ui/Avatar'
-import { SeverityBadge, StatusBadge } from '../components/ui/Badge'
+import { PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { Icon } from '../components/ui/Icon'
 import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { MediaPreview } from '../components/common/MediaPreview'
-import { SEVERITY } from '../lib/constants'
+import { PRIORITY, PRIORITIES } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { useToast } from '../components/ui/Toast'
@@ -19,7 +19,7 @@ import { useApp } from '../context/AppContext'
 const SORT_OPTIONS = [
   { value: 'oldest', label: 'Oldest first' },
   { value: 'newest', label: 'Newest first' },
-  { value: 'severity', label: 'Severity' },
+  { value: 'priority', label: 'Priority' },
 ]
 
 function calculateAge(createdAt) {
@@ -75,7 +75,8 @@ export default function TriagePage() {
   const [sort, setSort] = useState('oldest')
   const [selectedId, setSelectedId] = useState(null)
   const [assignee, setAssignee] = useState(null)
-  const [severity, setSeverity] = useState('major')
+  // Accept requires a priority (BR-16, AC-16) — no default, the triager picks one.
+  const [priority, setPriority] = useState(null)
   const [labels, setLabels] = useState([])
   const [blocker, setBlocker] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -129,7 +130,7 @@ export default function TriagePage() {
 
   useEffect(() => {
     if (selected) {
-      setSeverity(selected.severity || 'major')
+      setPriority(selected.priority ?? null)
       setLabels(selected.labels || [])
       setBlocker(selected.is_release_blocker || false)
       setAssignee(null)
@@ -137,12 +138,12 @@ export default function TriagePage() {
   }, [selected?.id])
 
   async function handleTriage() {
-    if (!assignee) return
+    if (!assignee || !priority) return
     setSubmitting(true)
     try {
       await issuesApi.triage(selected.id, {
         assignee_id: assignee,
-        severity,
+        priority,
         labels,
         is_release_blocker: blocker,
       })
@@ -253,7 +254,7 @@ export default function TriagePage() {
                   className={cn('w-full text-left px-7 py-3 border-b border-border hover:bg-muted/50 transition-colors',
                     String(selectedId) === String(i.id) && 'bg-muted/80')}>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <SeverityBadge severity={i.severity} dot />
+                    <PriorityBadge priority={i.priority} />
                     <span className="font-mono text-[11px] text-muted-foreground">{issueKey(i)}</span>
                     <span className="ml-auto inline-flex items-center gap-1 text-[11px]">
                       <span className={cn('h-1.5 w-1.5 rounded-full', issueSla.dot)} />
@@ -278,7 +279,7 @@ export default function TriagePage() {
         <div className="px-5 py-5">
           <div className="flex items-center gap-2 mb-2">
             <span className="font-mono text-[12px] text-muted-foreground">{issueKey(selected)}</span>
-            <SeverityBadge severity={selected.severity} dot />
+            <PriorityBadge priority={selected.priority} />
             <StatusBadge status={selected.status} />
           </div>
           <h2 className="text-[17px] font-semibold leading-snug text-foreground">{selected.title}</h2>
@@ -298,17 +299,19 @@ export default function TriagePage() {
           )}
 
           <div className="mt-5">
-            <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Severity</div>
+            <div className="text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">
+              Priority <span className="text-destructive">*</span>
+            </div>
             <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1">
               <div className="flex gap-1.5 min-w-max pb-1">
-                {Object.keys(SEVERITY).map(s => (
-                  <button key={s} onClick={() => setSeverity(s)}
+                {PRIORITIES.map(p => (
+                  <button key={p} onClick={() => setPriority(p)} aria-pressed={priority === p}
                     className={cn('h-8 px-2.5 rounded-md text-[11.5px] font-medium border transition-colors flex items-center gap-1.5 whitespace-nowrap',
-                      severity === s
+                      priority === p
                         ? 'bg-foreground text-background border-foreground dark:bg-background dark:text-foreground dark:border-background'
                         : 'bg-background text-muted-foreground border-border hover:bg-muted dark:bg-background dark:text-muted-foreground dark:border-border dark:hover:bg-muted')}>
-                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', SEVERITY[s].dot)} />
-                    {SEVERITY[s].label}
+                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', PRIORITY[p].dot)} />
+                    {PRIORITY[p].label}
                   </button>
                 ))}
               </div>
@@ -364,7 +367,13 @@ export default function TriagePage() {
           </div>
 
           <div className="mt-5 flex items-center gap-2">
-            <Button onClick={handleTriage} disabled={!assignee} loading={submitting} className="flex-1">
+            <Button
+              onClick={handleTriage}
+              disabled={!assignee || !priority}
+              title={!priority ? 'Choose a priority to accept' : !assignee ? 'Choose an assignee' : undefined}
+              loading={submitting}
+              className="flex-1"
+            >
               <Icon name="send" size={13} /> Assign &amp; triage
             </Button>
             <Button variant="outline" className="flex-1" onClick={handleNeedsClarification}>

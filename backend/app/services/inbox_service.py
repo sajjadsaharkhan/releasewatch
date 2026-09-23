@@ -18,7 +18,7 @@ environment_changed  → assignee + reporter
 release_changed      → assignee + reporter + triage_lead (new release's triage lead)
 project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
-urgent               → assignee
+priority_changed     → assignee + reporter + triage_lead
 """
 
 import html as html_lib
@@ -223,7 +223,7 @@ class InboxFanOutService:
             if issue.reporter_id:
                 recipients.add(str(issue.reporter_id))
 
-        elif trigger == InboxEventType.severity_changed:
+        elif trigger == InboxEventType.priority_changed:
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
             if issue.reporter_id:
@@ -231,11 +231,6 @@ class InboxFanOutService:
             # Matrix has triage: True — include release triage lead
             leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
-
-        elif trigger == InboxEventType.urgent:
-            if issue.assignee_id:
-                # Use forced_recipients so self-flagging still creates a notification.
-                forced_recipients.add(str(issue.assignee_id))
 
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).
@@ -417,7 +412,7 @@ class InboxFanOutService:
             def _esc(v: object) -> str:
                 return html_lib.escape(str(v)) if v is not None else ""
 
-            severity_val = issue.severity.value if hasattr(issue.severity, "value") else str(issue.severity)
+            priority_val = getattr(issue.priority, "value", issue.priority) or "unrated"
             context = {
                 "issue_number": issue.issue_number,
                 "title": _esc(issue.title),
@@ -425,7 +420,7 @@ class InboxFanOutService:
                 "comment_url": comment_url,
                 "actor": _esc(actor_name),
                 "actor_url": actor_url,
-                "severity": _esc(severity_val),
+                "priority": _esc(priority_val),
                 "excerpt": _esc(_meta.get("body_snippet", "")),
                 "emoji": _meta.get("emoji", ""),
                 "project_name": _esc(project_name),
@@ -438,8 +433,8 @@ class InboxFanOutService:
                 "new_environment": _esc(to_val),
                 "old_release": _esc(from_val),
                 "new_release": _esc(to_val),
-                "old_severity": _esc(from_val),
-                "new_severity": _esc(to_val),
+                "old_priority": _esc(from_val or "unrated"),
+                "new_priority": _esc(to_val or "unrated"),
                 "old_project": _esc(from_val),
                 "new_project": _esc(to_val),
             }

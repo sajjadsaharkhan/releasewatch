@@ -1,6 +1,6 @@
 import React from 'react'
 import { RefreshCw } from 'lucide-react'
-import { SeverityBadge, StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, UrgentMarker, PriorityBadge } from '../ui'
+import { StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, PriorityBadge } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
 import { issueKey } from '../../lib/issueSlug'
@@ -95,16 +95,13 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
               </td>
               <td className="px-2 py-2">
                 <div className="flex items-center gap-1.5">
-                  {i.is_urgent && <UrgentMarker />}
                   {i.is_release_blocker && (
                     <Badge tone="red">
                       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                       Blocker
                     </Badge>
                   )}
-                  {i.type === 'task'
-                    ? <PriorityBadge priority={i.priority} />
-                    : !i.is_release_blocker && <SeverityBadge severity={i.severity} dot />}
+                  {!i.is_release_blocker && <PriorityBadge priority={i.priority} />}
                   <span className="text-foreground font-medium truncate max-w-[420px]">{i.title}</span>
                   {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                 </div>

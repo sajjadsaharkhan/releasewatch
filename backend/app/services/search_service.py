@@ -408,10 +408,10 @@ async def hydrate(
 
     result = await db.execute(
         text("""
-            SELECT i.id, i.issue_number, i.title, i.severity, i.status,
+            SELECT i.id, i.issue_number, i.title, i.priority, i.status,
                    i.description,
                    u.name AS assignee_name,
-                   i.type, i.is_urgent
+                   i.type
             FROM issues i
             LEFT JOIN users u ON u.id = i.assignee_id
             WHERE i.id = ANY(:ids)
@@ -433,7 +433,7 @@ async def hydrate(
             "issue_id": row[0],
             "issue_number": row[1],
             "title": row[2],
-            "severity": row[3],
+            "priority": row[3],
             "status": row[4],
             "score": round(rrf_score, 4),
             "snippet": snippet,
@@ -441,7 +441,6 @@ async def hydrate(
             "assignee": row[6],
             "type": item_type,
             "key": issue_key(item_type, number),
-            "is_urgent": bool(row[8]),
         })
     return out
 

@@ -1,23 +1,9 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { cn } from '../../lib/cn'
+import { PRIORITY, PRIORITIES } from '../../lib/constants'
 
-const SEVERITY_COLORS = {
-  blocker: '#ef4444',
-  critical: '#f97316',
-  major: '#f59e0b',
-  minor: '#3b82f6',
-}
-
-const SEVERITY_LABELS = {
-  blocker: 'Blocker',
-  critical: 'Critical',
-  major: 'Major',
-  minor: 'Minor',
-}
-
-export function SeverityDistributionChart({ data, height = 220, className }) {
-  const severities = ['blocker', 'critical', 'major', 'minor']
+export function PriorityDistributionChart({ data, height = 220, className }) {
 
   return (
     <div className={cn('rounded-xl border border-border bg-card p-5', className)}>
@@ -44,19 +30,19 @@ export function SeverityDistributionChart({ data, height = 220, className }) {
               fontSize: '12px',
             }}
             labelStyle={{ color: 'hsl(var(--foreground))' }}
-            formatter={(value, name) => [value, SEVERITY_LABELS[name] || name]}
+            formatter={(value, name) => [value, PRIORITY[name]?.label || name]}
           />
           <Legend
             wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-            formatter={(value) => SEVERITY_LABELS[value] || value}
+            formatter={(value) => PRIORITY[value]?.label || value}
           />
-          {severities.map((severity) => (
+          {PRIORITIES.map((priority) => (
             <Bar
-              key={severity}
-              dataKey={severity}
-              fill={SEVERITY_COLORS[severity]}
+              key={priority}
+              dataKey={priority}
+              fill={PRIORITY[priority].hex}
               radius={[4, 4, 0, 0]}
-              name={severity}
+              name={priority}
             />
           ))}
         </BarChart>

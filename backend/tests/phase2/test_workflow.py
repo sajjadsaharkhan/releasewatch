@@ -24,7 +24,7 @@ async def _todo_bug(factories, client_for, release_id, developer):
     admin = factories.admin_client
     resp = await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "severity": "major"},
+        json={"assignee_id": developer.id, "priority": "high"},
     )
     assert resp.status_code == 200
     return issue

@@ -28,12 +28,12 @@ async def test_release_metrics_count_by_new_statuses(factories, client_for):
 
     await admin.post(
         f"/issues/{blocker.id}/triage",
-        json={"assignee_id": developer.id, "severity": "blocker", "is_release_blocker": True},
+        json={"assignee_id": developer.id, "priority": "critical", "is_release_blocker": True},
     )
     for issue in (to_review, to_done):
         await admin.post(
             f"/issues/{issue.id}/triage",
-            json={"assignee_id": developer.id, "severity": "major"},
+            json={"assignee_id": developer.id, "priority": "high"},
         )
         await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
         await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
@@ -69,7 +69,7 @@ async def test_user_profile_fixed_count_uses_in_review_and_done(factories, clien
     for issue in (in_progress_issue, in_review_issue, done_issue):
         await admin.post(
             f"/issues/{issue.id}/triage",
-            json={"assignee_id": developer.id, "severity": "minor"},
+            json={"assignee_id": developer.id, "priority": "medium"},
         )
         await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
 

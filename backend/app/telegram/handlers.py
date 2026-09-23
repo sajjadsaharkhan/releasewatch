@@ -225,6 +225,7 @@ async def _handle_status(
         f"\n🔁 Regression · appeared {issue.regression_count}×" if issue.is_regression else ""
     )
 
+    priority = str(getattr(issue.priority, "value", issue.priority) or "unrated")
     await client.send_message(
         chat_id=chat_id,
         text=(
@@ -232,7 +233,7 @@ async def _handle_status(
             f"📦 <b>{project_name}</b> · <code>{release_version}</code>\n"
             f"\n"
             f"Status: <code>{html_escape(str(issue.status))}</code> · "
-            f"Severity: <code>{html_escape(str(issue.severity))}</code>"
+            f"Priority: <code>{html_escape(priority)}</code>"
             f"{blocker_line}"
             f"{regression_line}"
         ),

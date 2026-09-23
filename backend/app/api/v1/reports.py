@@ -58,7 +58,7 @@ async def get_time_to_fix(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """MTTF by severity with mean, median, fastest, slowest percentiles."""
+    """Average time-to-fix per developer."""
     filters = {"release_id": release_id, "role": role}
     return await _svc.get_time_to_fix(db, filters)
 

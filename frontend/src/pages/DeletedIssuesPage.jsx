@@ -4,7 +4,7 @@ import { issuesApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
-import { Button, Badge, SeverityBadge, StatusBadge, Dialog, Icon } from '../components/ui'
+import { Button, Badge, PriorityBadge, StatusBadge, Dialog, Icon } from '../components/ui'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { MediaPreview } from '../components/common/MediaPreview'
 import { relTime, fullTime } from '../lib/relTime'
@@ -205,7 +205,7 @@ export default function DeletedIssuesPage() {
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
-                    <SeverityBadge severity={issue.severity} dot />
+                    <PriorityBadge priority={issue.priority} />
                     <span className="font-mono text-[11px] text-muted-foreground">
                       {issueKey(issue)}
                     </span>
@@ -241,7 +241,7 @@ export default function DeletedIssuesPage() {
                 <span className="font-mono text-[12px] text-muted-foreground">
                   {issueKey(selected)}
                 </span>
-                <SeverityBadge severity={selected.severity} dot />
+                <PriorityBadge priority={selected.priority} />
                 <StatusBadge status={selected.status} />
               </div>
 

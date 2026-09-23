@@ -89,7 +89,7 @@ async def test_status_migration_upgrade_and_downgrade(factories, db_session):
                 )
                 return result.scalar_one()
 
-            new_id = await _insert_issue("new", "new", severity="enhancement")
+            new_id = await _insert_issue("new", "new")
             triaged_id = await _insert_issue("triaged", "triaged", assignee_id=fixer.id)
             fixed_id = await _insert_issue("fixed", "fixed", assignee_id=fixer.id)
             now = datetime.now(UTC)
@@ -132,7 +132,7 @@ async def test_status_migration_upgrade_and_downgrade(factories, db_session):
 
         async with engine.connect() as conn:
             rows = (await conn.execute(text(
-                "SELECT id, status, severity, cancel_reason, blocked_from_status, "
+                "SELECT id, status, cancel_reason, blocked_from_status, "
                 "review_requested_by_id, completed_at, assignee_id "
                 "FROM issues WHERE id = ANY(:ids)"
             ), {"ids": [
@@ -142,7 +142,6 @@ async def test_status_migration_upgrade_and_downgrade(factories, db_session):
             by_id = {r["id"]: r for r in rows}
 
         assert by_id[new_id]["status"] == "new"
-        assert by_id[new_id]["severity"] == "minor"  # enhancement -> minor
 
         assert by_id[triaged_id]["status"] == "todo"
 

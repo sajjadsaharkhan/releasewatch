@@ -19,7 +19,7 @@ async def test_regression_increments_count_and_records_history(factories, client
     dev_client = await client_for(developer)
     await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "severity": "major"},
+        json={"assignee_id": developer.id, "priority": "high"},
     )
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})

@@ -9,7 +9,7 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { Icon } from '../components/ui/Icon'
 import { IssueTable, IssueTableSkeleton } from '../components/common/IssueTable'
 import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
-import { SEVERITY, STATUS, OPEN_STATUSES, TYPE } from '../lib/constants'
+import { PRIORITY, STATUS, OPEN_STATUSES, TYPE } from '../lib/constants'
 import { issuesApi, teamApi, labelsApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
@@ -23,11 +23,11 @@ const VIEW_OPTIONS = [
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
-  { value: 'severity', label: 'Severity' },
+  { value: 'priority', label: 'Priority' },
   { value: 'updated', label: 'Last updated' },
 ]
 
-const SEV_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(SEVERITY).map(k => ({ value: k, label: SEVERITY[k].label }))]
+const PRIORITY_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(PRIORITY).map(k => ({ value: k, label: PRIORITY[k].label }))]
 const TYPE_OPTIONS = [{ value: 'all', label: 'Any' }, ...Object.keys(TYPE).map(k => ({ value: k, label: TYPE[k].label }))]
 const STATUS_OPTIONS = [
   { value: 'open', label: 'Open issues' },
@@ -58,7 +58,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   const sort = searchParams.get('sort') || 'newest'
   const filter = {
     type:     searchParams.get('type')     || 'all',
-    severity: searchParams.get('severity') || 'all',
+    priority: searchParams.get('priority') || 'all',
     status:   searchParams.get('status')   || 'all',
     assignee: searchParams.get('assignee') || 'all',
     reporter: searchParams.get('reporter') || 'all',
@@ -71,7 +71,7 @@ export default function IssuesPage({ filterAssigned = false }) {
     const p = new URLSearchParams()
     if (newSort !== 'newest')           p.set('sort',     newSort)
     if (newFilter.type     !== 'all')   p.set('type',     newFilter.type)
-    if (newFilter.severity !== 'all')   p.set('severity', newFilter.severity)
+    if (newFilter.priority !== 'all')   p.set('priority', newFilter.priority)
     if (newFilter.status   !== 'all')   p.set('status',   newFilter.status)
     if (newFilter.assignee !== 'all')   p.set('assignee', newFilter.assignee)
     if (newFilter.reporter !== 'all')   p.set('reporter', newFilter.reporter)
@@ -100,7 +100,7 @@ export default function IssuesPage({ filterAssigned = false }) {
   const apiParams = useMemo(() => {
     const _sort     = searchParams.get('sort')     || 'newest'
     const type      = searchParams.get('type')     || 'all'
-    const severity  = searchParams.get('severity') || 'all'
+    const priority  = searchParams.get('priority') || 'all'
     const status    = searchParams.get('status')   || 'all'
     const assignee  = searchParams.get('assignee') || 'all'
     const reporter  = searchParams.get('reporter') || 'all'
@@ -111,7 +111,7 @@ export default function IssuesPage({ filterAssigned = false }) {
       size: 200,
       ...(activeProjectId && { project_id: activeProjectId }),
       ...(type !== 'all' && { type }),
-      ...(severity !== 'all' && { severity }),
+      ...(priority !== 'all' && { priority }),
       // "open" is a set of states, so it goes out as `statuses` — that keeps the
       // total count and the CSV export in step with the rows on screen.
       ...(status === 'open'
@@ -239,10 +239,10 @@ export default function IssuesPage({ filterAssigned = false }) {
         />
         <FilterDropdown
           icon="alert-octagon"
-          label="Severity"
-          value={filter.severity === 'all' ? 'Any' : SEVERITY[filter.severity].label}
-          options={SEV_OPTIONS}
-          onChange={(v) => updateParams({ ...filter, severity: v }, sort)}
+          label="Priority"
+          value={filter.priority === 'all' ? 'Any' : PRIORITY[filter.priority]?.label ?? 'Any'}
+          options={PRIORITY_OPTIONS}
+          onChange={(v) => updateParams({ ...filter, priority: v }, sort)}
         />
         <FilterDropdown
           icon="circle-dashed"

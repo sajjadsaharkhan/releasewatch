@@ -126,12 +126,12 @@ class ReleaseListResponse(BaseModel):
 class AnalyticsCycleRow(BaseModel):
     """Flattened cycle row returned by the release analytics endpoint.
 
-    Carries enough issue context (severity, labels) for the frontend to group
+    Carries enough issue context (priority, labels) for the frontend to group
     and filter without additional requests.
     """
 
     issue_id: int
-    issue_severity: str
+    issue_priority: str | None = None
     issue_labels: List[str]
     cycle_number: int
     is_regression_cycle: bool

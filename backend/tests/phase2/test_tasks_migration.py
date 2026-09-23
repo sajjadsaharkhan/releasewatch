@@ -1,4 +1,4 @@
-"""Migration test for c4d5e6f7a8b9 (slice 03 — tasks and placement).
+"""Migration test for d6e7f8a9b0c1 (slice 03 — tasks and placement).
 
 Mirrors test_status_migration.py's pattern: downgrade to the previous head,
 insert a Phase-2-shaped (pre-slice-03) row with raw SQL, upgrade, and assert
@@ -23,7 +23,7 @@ from app.db.session import get_engine
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 PREVIOUS_HEAD = "b1c2d3e4f5a6"
-NEW_HEAD = "c4d5e6f7a8b9"
+NEW_HEAD = "d6e7f8a9b0c1"
 
 
 def _alembic_config() -> Config:
@@ -56,9 +56,9 @@ async def test_tasks_migration_backfills_and_seeds_general(factories, db_session
 
         async with engine.begin() as conn:
             result = await conn.execute(text(
-                "INSERT INTO issues (project_id, release_id, title, severity, status, "
+                "INSERT INTO issues (project_id, release_id, title, priority, status, "
                 "reporter_id, labels, is_release_blocker, is_regression, regression_count) "
-                "VALUES (:project_id, :release_id, :title, 'minor', 'new', :reporter_id, "
+                "VALUES (:project_id, :release_id, :title, 'medium', 'new', :reporter_id, "
                 "'{}', false, false, 0) RETURNING id"
             ), {
                 "project_id": project.id, "release_id": release.id,
@@ -71,12 +71,11 @@ async def test_tasks_migration_backfills_and_seeds_general(factories, db_session
 
         async with engine.connect() as conn:
             issue_row = (await conn.execute(text(
-                "SELECT type, priority, is_urgent, due_date, release_id "
+                "SELECT type, priority, due_date, release_id "
                 "FROM issues WHERE id = :id"
             ), {"id": legacy_issue_id})).mappings().one()
         assert issue_row["type"] == "bug"
-        assert issue_row["priority"] is None
-        assert issue_row["is_urgent"] is False
+        assert issue_row["priority"] == "medium"
         assert issue_row["due_date"] is None
         assert issue_row["release_id"] == release.id
 
@@ -97,10 +96,9 @@ async def test_tasks_migration_backfills_and_seeds_general(factories, db_session
         async with engine.begin() as conn:
             await conn.execute(text(
                 "INSERT INTO issues (project_id, release_id, title, type, status, "
-                "reporter_id, labels, is_release_blocker, is_regression, regression_count, "
-                "is_urgent) "
+                "reporter_id, labels, is_release_blocker, is_regression, regression_count) "
                 "VALUES (:project_id, NULL, 'a task with no release', 'task', 'todo', "
-                ":reporter_id, '{}', false, false, 0, false)"
+                ":reporter_id, '{}', false, false, 0)"
             ), {"project_id": project.id, "reporter_id": admin_id})
 
         with pytest.raises(Exception, match="Cannot downgrade"):

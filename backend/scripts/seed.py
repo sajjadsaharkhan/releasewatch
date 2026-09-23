@@ -16,7 +16,7 @@ from app.core.auth import get_password_hash
 from app.db.models.user import User, UserRole
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseStatus, GoNogoStatus
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus
+from app.db.models.issue import Issue, IssueStatus, Priority
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 
 NOW = datetime.now(tz=timezone.utc)
@@ -80,16 +80,16 @@ async def seed(session: AsyncSession) -> None:
     qa1, dev1, dev2 = users[1], users[2], users[3]
     active_rel = releases[0]
     issues_data = [
-        dict(severity=IssueSeverity.blocker,     status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",            reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True),
-        dict(severity=IssueSeverity.critical,    status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17",  reporter_id=qa1.id,      assignee_id=dev2.id),
-        dict(severity=None,                      status=IssueStatus.new,         title="Profile image upload fails >5MB",             reporter_id=qa1.id,      assignee_id=None),
-        dict(severity=IssueSeverity.major,       status=IssueStatus.in_review,   title="Pagination breaks on search results",         reporter_id=users[4].id, assignee_id=dev1.id),
-        dict(severity=IssueSeverity.minor,       status=IssueStatus.done,        title="Date picker shows wrong timezone",            reporter_id=users[4].id, assignee_id=dev2.id),
-        dict(severity=IssueSeverity.blocker,     status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",          reporter_id=qa1.id,      assignee_id=dev1.id, is_regression=True, regression_count=1),
-        dict(severity=None,                      status=IssueStatus.new,         title="Add swipe-to-dismiss on notification cards",  reporter_id=qa1.id,      assignee_id=None),
-        dict(severity=IssueSeverity.critical,    status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login",    reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True),
-        dict(severity=IssueSeverity.major,       status=IssueStatus.todo,        title="Dark mode flicker on app launch",             reporter_id=qa1.id,      assignee_id=dev1.id),
-        dict(severity=IssueSeverity.minor,       status=IssueStatus.done,        title="Typo in onboarding screen copy",              reporter_id=users[4].id, assignee_id=dev2.id),
+        dict(priority=Priority.critical,     status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",            reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True),
+        dict(priority=Priority.critical,    status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17",  reporter_id=qa1.id,      assignee_id=dev2.id),
+        dict(priority=None,                      status=IssueStatus.new,         title="Profile image upload fails >5MB",             reporter_id=qa1.id,      assignee_id=None),
+        dict(priority=Priority.high,         status=IssueStatus.in_review,   title="Pagination breaks on search results",         reporter_id=users[4].id, assignee_id=dev1.id),
+        dict(priority=Priority.medium,        status=IssueStatus.done,        title="Date picker shows wrong timezone",            reporter_id=users[4].id, assignee_id=dev2.id),
+        dict(priority=Priority.critical,     status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",          reporter_id=qa1.id,      assignee_id=dev1.id, is_regression=True, regression_count=1),
+        dict(priority=None,                      status=IssueStatus.new,         title="Add swipe-to-dismiss on notification cards",  reporter_id=qa1.id,      assignee_id=None),
+        dict(priority=Priority.critical,    status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login",    reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True),
+        dict(priority=Priority.high,         status=IssueStatus.todo,        title="Dark mode flicker on app launch",             reporter_id=qa1.id,      assignee_id=dev1.id),
+        dict(priority=Priority.medium,        status=IssueStatus.done,        title="Typo in onboarding screen copy",              reporter_id=users[4].id, assignee_id=dev2.id),
     ]
     issues = []
     for i, data in enumerate(issues_data, start=1):
@@ -103,6 +103,11 @@ async def seed(session: AsyncSession) -> None:
         issues.append(issue)
     session.add_all(issues)
     await session.flush()
+    # issue_number was set explicitly above — move the sequence past it so the
+    # next item filed through the app doesn't reuse a seeded number.
+    await session.execute(text(
+        "SELECT setval('issue_number_seq', (SELECT max(issue_number) FROM issues))"
+    ))
     print(f"  Created {len(issues)} issues")
 
     print("Seeding timeline events...")

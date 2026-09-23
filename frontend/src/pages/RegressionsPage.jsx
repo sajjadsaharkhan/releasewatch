@@ -8,7 +8,7 @@ import {
   RegressionRateLineChart,
   RegressionTaxChart,
   LabelTrendChart,
-  SeverityDistributionChart,
+  PriorityDistributionChart,
   TeamTable,
   RegressionIssueTable,
 } from '../components/common'
@@ -266,8 +266,8 @@ export default function RegressionsPage() {
             <LabelTrendChart data={kpi.labelRegressionRates} />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-2">Severity Distribution by Release</p>
-            <SeverityDistributionChart data={kpi.severityByRelease} />
+            <p className="text-xs text-muted-foreground mb-2">Priority Distribution by Release</p>
+            <PriorityDistributionChart data={kpi.priorityByRelease} />
           </div>
         </div>
       </div>

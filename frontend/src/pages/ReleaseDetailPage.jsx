@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { cn } from '../lib/cn'
-import { StatusBadge, SeverityBadge, RoleBadge } from '../components/ui/Badge'
+import { StatusBadge, RoleBadge } from '../components/ui/Badge'
 import { EditReleaseModal } from '../components/releases/EditReleaseModal'
 import { DeleteReleaseModal } from '../components/releases/DeleteReleaseModal'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
@@ -18,7 +18,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import { SEVERITY, FIXED_STATUSES } from '../lib/constants'
+import { PRIORITY, PRIORITIES, FIXED_STATUSES } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { issueSlug } from '../lib/issueSlug'
@@ -26,22 +26,15 @@ import { relTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
 import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Trash2 } from 'lucide-react'
 
-const SEVERITY_COLORS = {
-  blocker: '#ef4444',
-  critical: '#f97316',
-  major: '#f59e0b',
-  minor: '#3b82f6',
-}
-
-// Severity items for filter dropdown
-const SEVERITY_ITEMS = Object.keys(SEVERITY).map((key) => ({
+// Priority items for filter dropdown
+const PRIORITY_ITEMS = Object.keys(PRIORITY).map((key) => ({
   value: key,
-  label: SEVERITY[key].label,
-  color: SEVERITY_COLORS[key],
+  label: PRIORITY[key].label,
+  color: PRIORITY[key].hex,
 }))
 
 // ── Analytics helpers that operate on cycle rows from the API ────────────────
-// Each cycle carries issue_severity, issue_labels, and per-iteration timings so
+// Each cycle carries issue_priority, issue_labels, and per-iteration timings so
 // measurements from regression re-runs are isolated from the original pass.
 
 function avg(values) {
@@ -82,23 +75,22 @@ function calculateLabelMetrics(cycles) {
   })).filter(d => d.bugCount > 0)
 }
 
-function calculateSeverityMetrics(cycles) {
-  const order = ['blocker', 'critical', 'major', 'minor']
+function calculatePriorityMetrics(cycles) {
   const metrics = {}
-  order.forEach(sev => { metrics[sev] = { severity: SEVERITY[sev]?.label ?? sev, mttf: [], mttv: [], mttt: [], bugCount: 0, color: SEVERITY_COLORS[sev] } })
+  PRIORITIES.forEach(p => { metrics[p] = { priority: PRIORITY[p].label, mttf: [], mttv: [], mttt: [], bugCount: 0, color: PRIORITY[p].hex } })
 
   cycles.forEach(c => {
-    const sev = c.issue_severity
-    if (!metrics[sev]) return
-    metrics[sev].bugCount++
-    if (c.time_to_triage_h != null) metrics[sev].mttt.push(c.time_to_triage_h)
-    if (c.time_to_fix_h    != null) metrics[sev].mttf.push(c.time_to_fix_h)
-    if (c.time_to_verify_h != null) metrics[sev].mttv.push(c.time_to_verify_h)
+    const p = c.issue_priority
+    if (!metrics[p]) return
+    metrics[p].bugCount++
+    if (c.time_to_triage_h != null) metrics[p].mttt.push(c.time_to_triage_h)
+    if (c.time_to_fix_h    != null) metrics[p].mttf.push(c.time_to_fix_h)
+    if (c.time_to_verify_h != null) metrics[p].mttv.push(c.time_to_verify_h)
   })
 
   return Object.values(metrics)
     .filter(m => m.bugCount > 0)
-    .map(m => ({ severity: m.severity, mttf: avg(m.mttf) ?? 0, mttv: avg(m.mttv) ?? 0, mttt: avg(m.mttt) ?? 0, bugCount: m.bugCount, color: m.color }))
+    .map(m => ({ priority: m.priority, mttf: avg(m.mttf) ?? 0, mttv: avg(m.mttv) ?? 0, mttt: avg(m.mttt) ?? 0, bugCount: m.bugCount, color: m.color }))
 }
 
 function calculateDailyTimeMetrics(cycles) {
@@ -252,30 +244,30 @@ export default function ReleaseDetailPage() {
     [team, issues]
   )
 
-  const sevCounts = useMemo(() =>
-    Object.keys(SEVERITY).map(sev => ({
-      name: SEVERITY[sev].label,
-      value: issues.filter(i => i.severity === sev).length,
-      color: SEVERITY_COLORS[sev],
+  const priorityCounts = useMemo(() =>
+    Object.keys(PRIORITY).map(p => ({
+      name: PRIORITY[p].label,
+      value: issues.filter(i => i.priority === p).length,
+      color: PRIORITY[p].hex,
     })).filter(d => d.value > 0),
     [issues]
   )
 
   // ── Analytics tab: filter state + derived metrics from cycles ─────────────
   const [filterBy, setFilterBy] = useState('all')
-  const [selectedSeverity, setSelectedSeverity] = useState(null)
+  const [selectedPriority, setSelectedPriority] = useState(null)
   const [selectedLabel, setSelectedLabel] = useState(null)
 
   const filteredCycles = useMemo(() => {
-    if (filterBy === 'severity' && selectedSeverity)
-      return cycles.filter(c => c.issue_severity === selectedSeverity)
+    if (filterBy === 'priority' && selectedPriority)
+      return cycles.filter(c => c.issue_priority === selectedPriority)
     if (filterBy === 'labels' && selectedLabel)
       return cycles.filter(c => (c.issue_labels || []).includes(selectedLabel))
     return cycles
-  }, [cycles, filterBy, selectedSeverity, selectedLabel])
+  }, [cycles, filterBy, selectedPriority, selectedLabel])
 
   const filteredLabelMetrics    = useMemo(() => calculateLabelMetrics(filteredCycles),    [filteredCycles])
-  const filteredSeverityMetrics = useMemo(() => calculateSeverityMetrics(filteredCycles), [filteredCycles])
+  const filteredPriorityMetrics = useMemo(() => calculatePriorityMetrics(filteredCycles), [filteredCycles])
   const dailyTimeMetrics        = useMemo(() => calculateDailyTimeMetrics(filteredCycles), [filteredCycles])
 
   const filteredAvgTimeToFix    = useMemo(() => avg(filteredCycles.map(c => c.time_to_fix_h)),    [filteredCycles])
@@ -780,22 +772,22 @@ export default function ReleaseDetailPage() {
                 value={filterBy}
                 onValueChange={(val) => {
                   setFilterBy(val)
-                  setSelectedSeverity(null)
+                  setSelectedPriority(null)
                   setSelectedLabel(null)
                 }}
                 options={[
                   { value: 'all', label: 'All Issues' },
-                  { value: 'severity', label: 'By Severity' },
+                  { value: 'priority', label: 'By Priority' },
                   { value: 'labels', label: 'By Label' },
                 ]}
               />
-              {filterBy === 'severity' && (
+              {filterBy === 'priority' && (
                 <ColorSelectDropdown
-                  items={SEVERITY_ITEMS}
-                  value={selectedSeverity}
-                  onChange={setSelectedSeverity}
-                  placeholder="All Severities"
-                  label="Filter by severity"
+                  items={PRIORITY_ITEMS}
+                  value={selectedPriority}
+                  onChange={setSelectedPriority}
+                  placeholder="All Priorities"
+                  label="Filter by priority"
                   compact
                   width={180}
                 />
@@ -934,19 +926,19 @@ export default function ReleaseDetailPage() {
                 )}
               </div>
 
-              {/* Severity-Based Metrics Chart */}
+              {/* Priority-Based Metrics Chart */}
               <div className="rounded-xl border border-border bg-card p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold">Metrics by Severity</h3>
-                  <Tooltip content="Average MTTF and MTTV broken down by issue severity level">
+                  <h3 className="text-sm font-semibold">Metrics by Priority</h3>
+                  <Tooltip content="Average MTTF and MTTV broken down by issue priority level">
                     <Icon name="info" size={14} className="text-muted-foreground cursor-help" />
                   </Tooltip>
                 </div>
-                {filteredSeverityMetrics.length > 0 ? (
+                {filteredPriorityMetrics.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={filteredSeverityMetrics} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                    <BarChart data={filteredPriorityMetrics} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="severity" tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="priority" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
                       <RechartsTooltip />
                       <Legend iconSize={8} />
@@ -957,7 +949,7 @@ export default function ReleaseDetailPage() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
-                    No severity data available
+                    No priority data available
                   </div>
                 )}
               </div>
@@ -965,16 +957,16 @@ export default function ReleaseDetailPage() {
 
             {/* Charts Row 2: Moved from Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Severity donut */}
+              {/* Priority donut */}
               <div className="rounded-xl border border-border bg-card p-5">
-                <h3 className="text-sm font-semibold mb-4">Issue breakdown by severity</h3>
-                {sevCounts.length === 0 ? (
+                <h3 className="text-sm font-semibold mb-4">Issue breakdown by priority</h3>
+                {priorityCounts.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground py-8">No issues</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
-                        data={sevCounts}
+                        data={priorityCounts}
                         cx="50%"
                         cy="50%"
                         innerRadius={55}
@@ -982,7 +974,7 @@ export default function ReleaseDetailPage() {
                         paddingAngle={3}
                         dataKey="value"
                       >
-                        {sevCounts.map((entry) => (
+                        {priorityCounts.map((entry) => (
                           <Cell key={entry.name} fill={entry.color} />
                         ))}
                       </Pie>

@@ -281,26 +281,26 @@ export default function ContributionsPage() {
                   </th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right text-red-600 dark:text-red-400">
                     <div className="flex items-center justify-center gap-1">
-                      Bl
-                      <InfoTooltip content="Blocker severity issues" side="bottom" />
+                      Cr
+                      <InfoTooltip content="Critical priority items" side="bottom" />
                     </div>
                   </th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right text-orange-600 dark:text-orange-400">
                     <div className="flex items-center justify-center gap-1">
-                      Cr
-                      <InfoTooltip content="Critical severity issues" side="bottom" />
+                      Hi
+                      <InfoTooltip content="High priority items" side="bottom" />
                     </div>
                   </th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right text-amber-600 dark:text-amber-400">
                     <div className="flex items-center justify-center gap-1">
-                      Maj
-                      <InfoTooltip content="Major severity issues" side="bottom" />
+                      Med
+                      <InfoTooltip content="Medium priority items" side="bottom" />
                     </div>
                   </th>
                   <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right text-blue-600 dark:text-blue-400">
                     <div className="flex items-center justify-center gap-1">
-                      Min
-                      <InfoTooltip content="Minor severity issues" side="bottom" />
+                      Lo
+                      <InfoTooltip content="Low priority items" side="bottom" />
                     </div>
                   </th>
                   <th
@@ -371,10 +371,10 @@ export default function ContributionsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right font-bold">{entry.reported}</td>
-                        <td className="px-4 py-3 text-right text-red-600 dark:text-red-400 font-medium">{entry.reported_breakdown?.blocker ?? 0}</td>
-                        <td className="px-4 py-3 text-right text-orange-600 dark:text-orange-400">{entry.reported_breakdown?.critical ?? 0}</td>
-                        <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400">{entry.reported_breakdown?.major ?? 0}</td>
-                        <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">{entry.reported_breakdown?.minor ?? 0}</td>
+                        <td className="px-4 py-3 text-right text-red-600 dark:text-red-400 font-medium">{entry.reported_breakdown?.critical ?? 0}</td>
+                        <td className="px-4 py-3 text-right text-orange-600 dark:text-orange-400">{entry.reported_breakdown?.high ?? 0}</td>
+                        <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400">{entry.reported_breakdown?.medium ?? 0}</td>
+                        <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">{entry.reported_breakdown?.low ?? 0}</td>
                         <td className="px-4 py-3 text-right font-bold text-green-600 dark:text-green-400">{entry.fixed}</td>
                         <td className="px-4 py-3 text-right">
                           {entry.fix_rate != null ? (

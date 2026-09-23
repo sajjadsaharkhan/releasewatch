@@ -1,19 +1,19 @@
 const TYPE_EMOJI = { bug: '🐛', task: '✅' }
 
-const SEVERITY_EMOJI = {
-  blocker: '🔴',
+const PRIORITY_EMOJI = {
   critical: '🔴',
-  major: '🟠',
-  minor: '🟡',
+  high: '🟠',
+  medium: '🟡',
+  low: '🔵',
 }
 
 function typeEmoji(issue) {
   return TYPE_EMOJI[issue.type] ?? '🐛'
 }
 
-function severityEmoji(severity, is_release_blocker) {
-  if (severity === 'blocker' || severity === 'critical' || (severity === 'major' && is_release_blocker)) return '🔴'
-  return SEVERITY_EMOJI[severity] ?? '⚪'
+function priorityEmoji(priority, is_release_blocker) {
+  if (is_release_blocker) return '🔴'
+  return PRIORITY_EMOJI[priority] ?? '⚪'
 }
 
 function redactCurl(curl) {
@@ -25,7 +25,7 @@ function redactCurl(curl) {
 
 export function buildIssueMarkdown(issue, comments = []) {
   const isTask = issue.type === 'task'
-  const emoji = isTask ? typeEmoji(issue) : severityEmoji(issue.severity, issue.is_release_blocker)
+  const emoji = isTask ? typeEmoji(issue) : priorityEmoji(issue.priority, issue.is_release_blocker)
   const lines = []
 
   // ── Title line ────────────────────────────────────────────────────────────
@@ -38,10 +38,7 @@ export function buildIssueMarkdown(issue, comments = []) {
     issue.project_name && `Project: ${issue.project_name}`,
     issue.release_version && `Release: ${issue.release_version}`,
     `Status: \`${issue.status}\``,
-    isTask
-      ? (issue.priority != null && `Priority: \`P${issue.priority}\``)
-      : `Severity: \`${issue.severity ?? 'unrated'}\``,
-    issue.is_urgent && '🚨 Urgent',
+    `Priority: \`${issue.priority ?? 'unrated'}\``,
     issue.due_date && `Due: ${issue.due_date}`,
     !isTask && issue.is_release_blocker && '🔴 Release Blocker',
     issue.is_regression && `⚠️ Regression (x${issue.regression_count})`,

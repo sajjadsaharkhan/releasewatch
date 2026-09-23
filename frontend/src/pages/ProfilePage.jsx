@@ -15,13 +15,11 @@ import { userApi, issuesApi, authApi } from '../lib/api'
 import { issueSlug } from '../lib/issueSlug'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
-import { FIXED_STATUSES } from '../lib/constants'
+import { FIXED_STATUSES, PRIORITY, PRIORITIES } from '../lib/constants'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
-
-const SEV_COLORS = { blocker: '#ef4444', critical: '#f97316', major: '#f59e0b', minor: '#3b82f6' }
 
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -209,10 +207,10 @@ export default function ProfilePage() {
   const fixedIssues = assignedIssues.filter((i) => FIXED_STATUSES.includes(i.status))
   const fixRate = assignedIssues.length > 0 ? Math.round((fixedIssues.length / assignedIssues.length) * 100) : 0
 
-  const sevBreakdown = Object.keys(SEV_COLORS).map((sev) => ({
-    name: sev,
-    value: reportedIssues.filter((i) => i.severity === sev).length,
-    color: SEV_COLORS[sev],
+  const priorityBreakdown = PRIORITIES.map((p) => ({
+    name: PRIORITY[p].label,
+    value: reportedIssues.filter((i) => i.priority === p).length,
+    color: PRIORITY[p].hex,
   })).filter((d) => d.value > 0)
 
   const TAB_OPTIONS = [
@@ -321,7 +319,7 @@ export default function ProfilePage() {
           {user.bio && <p className="text-sm text-muted-foreground mt-2 max-w-lg">{user.bio}</p>}
         </div>
 
-        {/* Top section: cards (2/3) + severity breakdown (1/3) */}
+        {/* Top section: cards (2/3) + priority breakdown (1/3) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
             <MetricCard label="Reported" value={reportedIssues.length} icon="file-plus" description="Total issues reported by this user" />
@@ -333,14 +331,14 @@ export default function ProfilePage() {
           </div>
           <div>
             <div className="rounded-xl border border-border bg-card p-5 h-full min-h-[344px] flex flex-col">
-              <h3 className="text-sm font-semibold mb-3">Severity breakdown</h3>
-              {sevBreakdown.length === 0 ? (
+              <h3 className="text-sm font-semibold mb-3">Priority breakdown</h3>
+              {priorityBreakdown.length === 0 ? (
                 <p className="text-center text-xs text-muted-foreground py-8">No issues reported</p>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={sevBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
-                      {sevBreakdown.map((d) => <Cell key={d.name} fill={d.color} />)}
+                    <Pie data={priorityBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                      {priorityBreakdown.map((d) => <Cell key={d.name} fill={d.color} />)}
                     </Pie>
                     <Tooltip />
                     <Legend iconType="circle" iconSize={8} />

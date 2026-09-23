@@ -1,8 +1,8 @@
 import React from 'react'
-import { ChevronDown, Check, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
+import { ChevronDown, Check, CheckCheck, Eye, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
-import { SeverityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
+import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { Switch } from '../ui/Switch'
@@ -11,7 +11,8 @@ import { LabelChip } from '../common/LabelChip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { SEVERITY, STATUS } from '../../lib/constants'
+import { PRIORITIES, STATUS, isBug, itemNoun } from '../../lib/constants'
+import { relTime } from '../../lib/relTime'
 
 // Status movement is unrestricted — any status can move to any other status,
 // no reason required, no self-verification block (see app/workflow.py).
@@ -20,6 +21,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
   const allowedTransitions = issue.allowed_transitions || []
+  const bug = isBug(issue)
+  const noun = itemNoun(issue)
 
   // Use current-cycle metrics so regression re-runs are measured from the
   // regression event, not the original filed_at.
@@ -57,22 +60,22 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </Dropdown>
       </MetaRow>
 
-      <MetaRow label="Severity">
-        <Dropdown width={170} trigger={<button className="w-full text-left"><SeverityBadge severity={issue.severity} dot /></button>}>
+      <MetaRow label="Priority">
+        <Dropdown width={170} trigger={<button className="w-full text-left"><PriorityBadge priority={issue.priority} /></button>}>
           {({ close }) => (
             <>
-              {Object.keys(SEVERITY).map(s => (
-                <DropdownItem key={s} onClick={() => {
+              {PRIORITIES.map(p => (
+                <DropdownItem key={p} onClick={() => {
                   close()
-                  if (s === issue.severity) return
+                  if (p === issue.priority) return
                   onConfirm({
-                    title: 'Change severity?',
-                    body: <>Change severity from <SeverityBadge severity={issue.severity} dot /> to <SeverityBadge severity={s} dot />?</>,
-                    confirmLabel: 'Change severity',
-                    onConfirm: () => applyUpdate({ severity: s }, 'Severity updated'),
+                    title: 'Change priority?',
+                    body: <>Change priority from <PriorityBadge priority={issue.priority} /> to <PriorityBadge priority={p} />?</>,
+                    confirmLabel: 'Change priority',
+                    onConfirm: () => applyUpdate({ priority: p }, 'Priority updated'),
                   })
                 }}>
-                  <SeverityBadge severity={s} dot size="sm" />
+                  <PriorityBadge priority={p} />
                 </DropdownItem>
               ))}
             </>
@@ -100,8 +103,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                   close()
                   if (String(u.id) === String(issue.assignee_id)) return
                   onConfirm({
-                    title: 'Reassign issue?',
-                    body: <span>Assign this issue to <strong>{u.name}</strong>{assignee ? <> (currently <strong>{assignee.name}</strong>)</> : ''}?</span>,
+                    title: `Reassign ${noun}?`,
+                    body: <span>Assign this {noun} to <strong>{u.name}</strong>{assignee ? <> (currently <strong>{assignee.name}</strong>)</> : ''}?</span>,
                     confirmLabel: 'Reassign',
                     onConfirm: () => applyUpdate({ assignee_id: u.id }, 'Assignee updated'),
                   })
@@ -142,8 +145,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                   if (String(r.id) === String(issue.release_id)) return
                   onConfirm({
                     title: 'Change release?',
-                    body: <span>Move this issue to release <strong className="font-mono">{r.version}</strong>?</span>,
-                    confirmLabel: 'Move issue',
+                    body: <span>Move this {noun} to release <strong className="font-mono">{r.version}</strong>?</span>,
+                    confirmLabel: `Move ${noun}`,
                     onConfirm: () => applyUpdate({ release_id: r.id }, `Moved to ${r.version}`),
                   })
                 }}>
@@ -181,8 +184,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                   if (String(p.id) === String(issue.project_id)) return
                   onConfirm({
                     title: 'Move to another project?',
-                    body: <span>Move this issue to project <strong>{p.name}</strong>?</span>,
-                    confirmLabel: 'Move issue',
+                    body: <span>Move this {noun} to project <strong>{p.name}</strong>?</span>,
+                    confirmLabel: `Move ${noun}`,
                     onConfirm: () => applyUpdate({ project_id: p.id }, `Moved to ${p.name}`),
                   })
                 }}>
@@ -202,6 +205,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </Dropdown>
       </MetaRow>
 
+      {/* Bug-only rows (BR-08): environment, regressions, release blocker. */}
+      {bug && (
       <MetaRow label="Environment">
         <Dropdown width={160} trigger={
           <button className="w-full text-left">
@@ -233,6 +238,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           )}
         </Dropdown>
       </MetaRow>
+      )}
 
       <MetaRow label="Labels">
         <div className="flex flex-wrap gap-1">
@@ -250,6 +256,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </div>
       </MetaRow>
 
+      {bug && (
+        <>
       <MetaRow label="Regressions">
         <Badge tone={issue.regression_count > 0 ? 'red' : 'default'}>
           <RefreshCw size={10} />
@@ -276,7 +284,10 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           }}
         />
       </MetaRow>
+        </>
+      )}
 
+      {bug ? (
       <div className="mt-4 pt-3 border-t border-border space-y-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cycle {cycleNum} metrics</span>
@@ -288,6 +299,13 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         <TimeMetric label="Time to fix" value={ttFix != null ? fmtH(ttFix) : 'in-flight'} tone={ttFix != null ? 'default' : 'amber'} />
         <TimeMetric label="Time to verify" value={issue.verified_at != null && ttVerify != null ? (fmtH(ttVerify) ?? '< 1m') : '—'} />
       </div>
+      ) : (
+      <div className="mt-4 pt-3 border-t border-border space-y-2">
+        <span className="block mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Progress</span>
+        <TimeMetric label="Started" value={issue.started_at ? relTime(issue.started_at) : 'not started'} tone={issue.started_at ? 'default' : 'amber'} />
+        <TimeMetric label="Completed" value={issue.completed_at ? relTime(issue.completed_at) : '—'} tone={issue.completed_at ? 'green' : 'default'} />
+      </div>
+      )}
 
       {/* Actions render only what the API says is possible right now
           (allowed_transitions / blocked_transitions) — never re-derived here. */}
@@ -297,22 +315,45 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <Play size={14} className="mr-1" /> Start work
           </Button>
         )}
-        {allowedTransitions.includes('in_review') && (
-          <Button className="w-full" onClick={() => changeStatus('in_review')}>
-            <Check size={14} className="mr-1" /> Mark as Fixed
-          </Button>
-        )}
-        {issue.status === 'in_review' && (
-          <Button variant="success" className="w-full" onClick={() => changeStatus('done')}>
-            <Shield size={14} className="mr-1" /> Verify fix
-          </Button>
+        {bug ? (
+          <>
+            {allowedTransitions.includes('in_review') && (
+              <Button className="w-full" onClick={() => changeStatus('in_review')}>
+                <Check size={14} className="mr-1" /> Mark as Fixed
+              </Button>
+            )}
+            {issue.status === 'in_review' && (
+              <Button className="w-full" onClick={() => changeStatus('done')}>
+                <Shield size={14} className="mr-1" /> Verify fix
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {issue.status === 'in_progress' && allowedTransitions.includes('in_review') && (
+              <Button className="w-full" onClick={() => changeStatus('in_review')}>
+                <Eye size={14} className="mr-1" /> Send to review
+              </Button>
+            )}
+            {(issue.status === 'in_progress' || issue.status === 'in_review') && allowedTransitions.includes('done') && (
+              // One primary action per state: "Send to review" leads while in progress.
+              <Button
+                variant={issue.status === 'in_progress' ? 'outline' : 'default'}
+                className="w-full"
+                onClick={() => changeStatus('done')}
+              >
+                <CheckCheck size={14} className="mr-1" /> Mark as done
+              </Button>
+            )}
+          </>
         )}
         {issue.status === 'in_review' && allowedTransitions.includes('in_progress') && (
           <Button variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
             <Undo2 size={14} className="mr-1" /> Send back to In progress
           </Button>
         )}
-        {(issue.status === 'done' || issue.status === 'in_review') && (
+        {/* Regression and reopen are bug-only (BR-08) — both record a regression. */}
+        {bug && (issue.status === 'done' || issue.status === 'in_review') && (
           <Button variant="outline" className="w-full" onClick={() => {
             onConfirm({
               title: 'Mark as regression?',
@@ -325,7 +366,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <RefreshCw size={14} className="mr-1" /> Mark as Regression
           </Button>
         )}
-        {issue.status === 'done' && (
+        {bug && issue.status === 'done' && (
           <Button variant="outline" className="w-full" onClick={() => reopen()}>
             <Ban size={14} className="mr-1" /> Reopen
           </Button>

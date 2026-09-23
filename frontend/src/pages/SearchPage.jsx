@@ -2,17 +2,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { cn } from '../lib/cn'
-import { Badge, TypeIcon, UrgentMarker } from '../components/ui/Badge'
+import { Badge, TypeIcon, PriorityBadge } from '../components/ui/Badge'
 import { useApp } from '../hooks/useApp'
 import { searchApi, issuesApi } from '../lib/api'
 import { issueSlug, issueKey, parseIssueSlug } from '../lib/issueSlug'
 
-const SEVERITY_TONE = {
-  blocker: 'red',
-  critical: 'red',
-  major: 'amber',
-  minor: 'default',
-}
 
 const STATUS_TONE = {
   new: 'default',
@@ -54,12 +48,7 @@ function ResultCard({ result, onClick }) {
               <TypeIcon type={result.type} />
               {result.key ?? issueKey(result)}
             </span>
-            {result.is_urgent && <UrgentMarker />}
-            {result.type !== 'task' && (
-              <Badge tone={SEVERITY_TONE[result.severity] ?? 'default'} size="sm">
-                {result.severity}
-              </Badge>
-            )}
+            <PriorityBadge priority={result.priority} />
             <Badge tone={STATUS_TONE[result.status] ?? 'default'} size="sm">
               {result.status?.replace('_', ' ')}
             </Badge>
@@ -125,9 +114,8 @@ export default function SearchPage() {
             issue_number: issue.issue_number,
             type: issue.type,
             key: issue.key,
-            is_urgent: issue.is_urgent,
             title: issue.title,
-            severity: issue.severity,
+            priority: issue.priority,
             status: issue.status,
             snippet: issue.description || null,
             matched_via: ['#' + issue.issue_number],
@@ -144,7 +132,7 @@ export default function SearchPage() {
             issue_id: issue.id,
             issue_number: issue.issue_number,
             title: issue.title,
-            severity: issue.severity,
+            priority: issue.priority,
             status: issue.status,
             snippet: issue.description || null,
             matched_via: ['issue number'],

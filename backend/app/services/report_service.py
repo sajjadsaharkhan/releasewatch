@@ -5,7 +5,7 @@ on every request.  Cache is invalidated by the ``invalidate_report_cache``
 Celery task whenever issues or releases are mutated.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -13,7 +13,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.db.models.issue import Issue, IssueSeverity, IssueStatus, issue_key
+from app.db.models.issue import Issue, IssueStatus, Priority, issue_key
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.regression_history import RegressionHistory
@@ -68,7 +68,7 @@ class ReportService:
         )
         issues = issues_result.scalars().all()
 
-        severity_breakdown = {s.value: 0 for s in IssueSeverity}
+        priority_breakdown = {p.value: 0 for p in Priority}
         status_breakdown = {s.value: 0 for s in IssueStatus}
         # "Open" means not done and not cancelled (docs/phase-2/02-unified-status-model.md).
         open_statuses = {
@@ -81,11 +81,13 @@ class ReportService:
         verify_times: list[float] = []
 
         for iss in issues:
-            # `severity`/`status` are plain String columns (no SQLAlchemy Enum
-            # type) — a freshly-queried row's attribute is a plain str, not an
-            # IssueSeverity/IssueStatus instance. Same defensive pattern as
-            # issue_service.py's transition methods.
-            severity_breakdown[getattr(iss.severity, "value", iss.severity)] += 1
+            # `priority`/`status` are plain String columns (no SQLAlchemy Enum
+            # type) — a freshly-queried row's attribute is a plain str, not a
+            # Priority/IssueStatus instance. Same defensive pattern as
+            # issue_service.py's transition methods. Unrated bugs (BR-16) have
+            # no bucket.
+            if iss.priority is not None:
+                priority_breakdown[getattr(iss.priority, "value", iss.priority)] += 1
             status_breakdown[getattr(iss.status, "value", iss.status)] += 1
             if iss.time_to_triage_h is not None:
                 triage_times.append(iss.time_to_triage_h)
@@ -106,7 +108,7 @@ class ReportService:
             "blocker_count": sum(1 for i in issues if i.is_release_blocker),
             "regression_count": sum(1 for i in issues if i.is_regression),
             "go_nogo_status": getattr(release.go_nogo_status, "value", release.go_nogo_status),
-            "severity_breakdown": severity_breakdown,
+            "priority_breakdown": priority_breakdown,
             "status_breakdown": status_breakdown,
             "avg_time_to_triage_h": avg(triage_times),
             "avg_time_to_fix_h": avg(fix_times),
@@ -124,7 +126,7 @@ class ReportService:
         filters: dict[str, Any],
     ) -> dict[str, Any]:
         """Return per-user contribution metrics: table rows, segmented chart data, and label distribution."""
-        SEVERITIES = ["blocker", "critical", "major", "minor"]
+        PRIORITIES = [p.value for p in Priority]
         FIXED_STATUSES = {IssueStatus.in_review.value, IssueStatus.done.value}
 
         query = select(Issue)
@@ -154,9 +156,9 @@ class ReportService:
             return {
                 "user_id": uid,
                 "reported": 0,
-                "reported_breakdown": {s: 0 for s in SEVERITIES},
+                "reported_breakdown": {p: 0 for p in PRIORITIES},
                 "fixed": 0,
-                "fixed_breakdown": {s: 0 for s in SEVERITIES},
+                "fixed_breakdown": {p: 0 for p in PRIORITIES},
                 "assigned": 0,
                 "ttf_list": [],
                 "ttv_list": [],
@@ -166,14 +168,15 @@ class ReportService:
         stats: dict[int, dict[str, Any]] = {}
 
         for iss in issues:
-            sev = iss.severity if isinstance(iss.severity, str) else (iss.severity.value if iss.severity else "minor")
+            prio = getattr(iss.priority, "value", iss.priority)
             status = iss.status if isinstance(iss.status, str) else (iss.status.value if iss.status else "")
 
             if iss.reporter_id and iss.reporter_id in users:
                 uid = iss.reporter_id
                 stats.setdefault(uid, _empty(uid))
                 stats[uid]["reported"] += 1
-                stats[uid]["reported_breakdown"][sev] = stats[uid]["reported_breakdown"].get(sev, 0) + 1
+                if prio:
+                    stats[uid]["reported_breakdown"][prio] += 1
                 for label in (iss.labels or []):
                     stats[uid]["labels"][label] = stats[uid]["labels"].get(label, 0) + 1
 
@@ -183,7 +186,8 @@ class ReportService:
                 stats[uid]["assigned"] += 1
                 if status in FIXED_STATUSES:
                     stats[uid]["fixed"] += 1
-                    stats[uid]["fixed_breakdown"][sev] = stats[uid]["fixed_breakdown"].get(sev, 0) + 1
+                    if prio:
+                        stats[uid]["fixed_breakdown"][prio] += 1
                     if iss.time_to_fix_h is not None:
                         stats[uid]["ttf_list"].append(iss.time_to_fix_h)
                     if iss.time_to_verify_h is not None:
@@ -410,7 +414,7 @@ class ReportService:
             "regressionRateByRelease": [],
             "regressionTaxByRelease": [],
             "labelRegressionRates": [],
-            "severityByRelease": [],
+            "priorityByRelease": [],
             "topDetectors": [],
             "reworkByDeveloper": [],
             "topRegressionIssues": [],
@@ -477,22 +481,13 @@ class ReportService:
                 func.count(Issue.id).filter(
                     Issue.is_regression.is_(True)
                 ).label("reg_count"),
-                func.count(Issue.id).filter(
-                    Issue.is_regression.is_(True),
-                    Issue.severity == IssueSeverity.blocker.value,
-                ).label("sev_blocker"),
-                func.count(Issue.id).filter(
-                    Issue.is_regression.is_(True),
-                    Issue.severity == IssueSeverity.critical.value,
-                ).label("sev_critical"),
-                func.count(Issue.id).filter(
-                    Issue.is_regression.is_(True),
-                    Issue.severity == IssueSeverity.major.value,
-                ).label("sev_major"),
-                func.count(Issue.id).filter(
-                    Issue.is_regression.is_(True),
-                    Issue.severity == IssueSeverity.minor.value,
-                ).label("sev_minor"),
+                *(
+                    func.count(Issue.id).filter(
+                        Issue.is_regression.is_(True),
+                        Issue.priority == p.value,
+                    ).label(f"prio_{p.value}")
+                    for p in Priority
+                ),
                 func.count(Issue.id).filter(Issue.regression_count >= 3).label("chronic"),
             )
             .select_from(Release)
@@ -581,7 +576,7 @@ class ReportService:
         # ── Build chart series from Q2 + Q4 results ────────────────────────────
         rate_series: list[dict] = []
         tax_series: list[dict] = []
-        sev_series: list[dict] = []
+        prio_series: list[dict] = []
         label_series: list[dict] = []
 
         for rel in releases:
@@ -592,7 +587,7 @@ class ReportService:
             if not row or row.total_count == 0:
                 rate_series.append({"release": ver, "rate": 0})
                 tax_series.append({"release": ver, "firstTimeFixHours": 0.0, "regressionReworkHours": 0.0})
-                sev_series.append({"release": ver, "blocker": 0, "critical": 0, "major": 0, "minor": 0})
+                prio_series.append({"release": ver, **{p.value: 0 for p in Priority}})
                 label_series.append({"release": ver, **empty_labels})
                 continue
 
@@ -606,12 +601,9 @@ class ReportService:
                 "firstTimeFixHours": round(first_fix_h, 1),
                 "regressionReworkHours": round(rework_h, 1),
             })
-            sev_series.append({
+            prio_series.append({
                 "release": ver,
-                "blocker": row.sev_blocker,
-                "critical": row.sev_critical,
-                "major": row.sev_major,
-                "minor": row.sev_minor,
+                **{p.value: getattr(row, f"prio_{p.value}") for p in Priority},
             })
             lbl_counts = label_by_release.get(rel.id, {})
             label_series.append({
@@ -772,7 +764,7 @@ class ReportService:
             select(
                 Issue.issue_number,
                 Issue.title,
-                Issue.severity,
+                Issue.priority,
                 Issue.status,
                 Issue.labels,
                 Issue.regression_count,
@@ -800,7 +792,7 @@ class ReportService:
                 "type": _val(r.type),
                 "key": issue_key(r.type, r.issue_number),
                 "title": r.title,
-                "severity": _val(r.severity),
+                "priority": _val(r.priority),
                 "status": _val(r.status),
                 "labels": r.labels or [],
                 "regressions": r.regression_count or 0,
@@ -825,7 +817,7 @@ class ReportService:
             "regressionRateByRelease": rate_series,
             "regressionTaxByRelease": tax_series,
             "labelRegressionRates": label_series,
-            "severityByRelease": sev_series,
+            "priorityByRelease": prio_series,
             "topDetectors": top_detectors,
             "reworkByDeveloper": rework_by_dev,
             "topRegressionIssues": top_regression_issues,
@@ -872,6 +864,7 @@ class ReportService:
         my_issues = (await db.execute(
             select(Issue).where(Issue.assignee_id == current_user.id, Issue.status.in_(OPEN))
         )).scalars().all()
+        my_by_priority = Counter(_val(i.priority) for i in my_issues)
 
         # ── 2. Active releases with computed health ───────────────────────────
         active_releases = (await db.execute(
@@ -963,7 +956,8 @@ class ReportService:
         low_fruit = (await db.execute(
             select(Issue).where(
                 Issue.status.in_([IssueStatus.new.value, IssueStatus.todo.value]),
-                Issue.severity == IssueSeverity.minor.value,
+                # Phase 1's minor (and enhancement) — now medium and low.
+                Issue.priority.in_([Priority.medium.value, Priority.low.value]),
                 Issue.assignee_id.is_(None),
             ).order_by(filed_or_created.asc()).limit(5)
         )).scalars().all()
@@ -977,15 +971,15 @@ class ReportService:
         for iss in awaiting_triage:
             ref = iss.filed_at or iss.created_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_triage", "waitingHours": h})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "priority": _val(iss.priority), "status": _val(iss.status), "category": "awaiting_triage", "waitingHours": h})
         for iss in awaiting_verify:
             ref = iss.fixed_at or iss.updated_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "awaiting_verification", "waitingHours": h, "fixer": _user_obj(fixers.get(iss.assignee_id))})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "priority": _val(iss.priority), "status": _val(iss.status), "category": "awaiting_verification", "waitingHours": h, "fixer": _user_obj(fixers.get(iss.assignee_id))})
         for iss in low_fruit:
             ref = iss.filed_at or iss.created_at
             h = round((now - ref).total_seconds() / 3600) if ref else 0
-            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "severity": _val(iss.severity), "status": _val(iss.status), "category": "low_hanging_fruit", "waitingHours": h, "estimatedTime": "1-2h"})
+            stale_items.append({"id": iss.issue_number, "type": _val(iss.type), "key": issue_key(iss.type, iss.issue_number), "title": iss.title, "priority": _val(iss.priority), "status": _val(iss.status), "category": "low_hanging_fruit", "waitingHours": h, "estimatedTime": "1-2h"})
 
         # ── 6. Activity stream ────────────────────────────────────────────────
         ActorUser = aliased(User)
@@ -1070,11 +1064,11 @@ class ReportService:
             "heroMetrics": {
                 "myActionItems": {
                     "count": len(my_issues),
-                    "urgent": sum(1 for i in my_issues if _val(i.severity) in ("blocker", "critical")),
+                    "critical": my_by_priority[Priority.critical.value],
                     "breakdown": {
-                        "blockers": sum(1 for i in my_issues if _val(i.severity) == "blocker"),
-                        "critical": sum(1 for i in my_issues if _val(i.severity) == "critical"),
-                        "major": sum(1 for i in my_issues if _val(i.severity) == "major"),
+                        "blockers": sum(1 for i in my_issues if i.is_release_blocker),
+                        "critical": my_by_priority[Priority.critical.value],
+                        "high": my_by_priority[Priority.high.value],
                     },
                 },
                 "activeReleases": {

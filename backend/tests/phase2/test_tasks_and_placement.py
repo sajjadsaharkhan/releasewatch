@@ -1,10 +1,9 @@
 """Slice 03 (docs/phase-2/03-tasks-and-placement.md): tasks, hotfix placement,
 project kinds.
 
-Bug status movement stays unrestricted (02's later decision, unchanged by
-this slice). Tasks are new here and follow the gated table in the spec —
-see ``app/workflow.py``'s ``_TASK_STATIC_TARGETS``. Table-driven, mirroring
-02's pattern: one test per allowed row, plus the nearest disallowed target.
+Status movement is unrestricted for both types (the 2026-09-22 decision for
+bugs, extended to tasks on 2026-09-23): a task can move from any of its
+statuses to any other. ``new`` and ``needs_info`` stay bug-only (BR-10).
 """
 
 import pytest
@@ -14,8 +13,7 @@ from app.db.session import get_engine
 
 
 async def _new_task(factories, project_id, **overrides):
-    payload = {"priority": 2, **overrides}
-    return await factories.issue(project_id=project_id, type="task", **payload)
+    return await factories.issue(project_id=project_id, type="task", **overrides)
 
 
 async def _task_in(factories, project_id, target_status, **overrides):
@@ -61,7 +59,9 @@ async def test_bug_still_starts_in_new_and_has_bug_key(factories, rig):
     assert bug.key.startswith("BUG-")
 
 
-# ── Task workflow table ──────────────────────────────────────────────────────
+# ── Task workflow: free movement between task statuses ───────────────────────
+
+TASK_STATUSES = ["todo", "in_progress", "in_review", "done", "blocked", "cancelled"]
 
 
 @pytest.mark.asyncio
@@ -75,14 +75,11 @@ async def test_task_todo_to_in_progress_allowed(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_task_todo_to_done_directly_refused(factories, rig):
+async def test_task_todo_to_done_directly_allowed(factories, rig):
     task = await _new_task(factories, rig["project"].id)
     resp = await factories.admin_client.post(f"/issues/{task.id}/transition", json={"to": "done"})
-    assert resp.status_code == 409
-    body = resp.json()
-    assert body["code"] == "invalid_transition"
-    assert "in_progress" in body["allowed"]
-    assert "done" not in body["allowed"]
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "done"
 
 
 @pytest.mark.asyncio
@@ -147,13 +144,63 @@ async def test_task_unblock_returns_to_blocked_from_status(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_task_done_is_terminal(factories, rig):
+@pytest.mark.parametrize("from_status", ["todo", "in_progress", "in_review", "done", "blocked"])
+async def test_task_offers_every_other_task_status(factories, rig, from_status):
+    task = await _task_in(factories, rig["project"].id, from_status)
+    resp = await factories.admin_client.get(f"/issues/{task.id}")
+    allowed = set(resp.json()["allowed_transitions"])
+    assert allowed == set(TASK_STATUSES) - {from_status}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("to_status", ["todo", "in_progress", "in_review", "blocked", "cancelled"])
+async def test_task_done_can_move_to_any_task_status(factories, rig, to_status):
     task = await _task_in(factories, rig["project"].id, "done")
     resp = await factories.admin_client.post(
-        f"/issues/{task.id}/transition", json={"to": "in_progress"}
+        f"/issues/{task.id}/transition", json={"to": to_status}
     )
-    assert resp.status_code == 409
-    assert resp.json()["code"] == "invalid_transition"
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == to_status
+
+
+@pytest.mark.asyncio
+async def test_task_cancelled_can_be_restored(factories, rig):
+    task = await _new_task(factories, rig["project"].id)
+    admin = factories.admin_client
+    await admin.post(
+        f"/issues/{task.id}/transition",
+        json={"to": "cancelled", "cancel_reason": "no_longer_needed"},
+    )
+    resp = await admin.post(f"/issues/{task.id}/transition", json={"to": "todo"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "todo"
+    assert body["cancel_reason"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("to_status", ["todo", "blocked", "in_review"])
+async def test_task_leaving_done_clears_completion(factories, rig, to_status):
+    task = await _task_in(factories, rig["project"].id, "done")
+    resp = await factories.admin_client.post(
+        f"/issues/{task.id}/transition", json={"to": to_status}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["completed_at"] is None
+    assert body["verified_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_task_unblock_can_go_anywhere(factories, rig):
+    task = await _task_in(factories, rig["project"].id, "in_progress")
+    admin = factories.admin_client
+    await admin.post(f"/issues/{task.id}/transition", json={"to": "blocked"})
+    resp = await admin.post(f"/issues/{task.id}/transition", json={"to": "done"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "done"
+    assert body["blocked_from_status"] is None
 
 
 @pytest.mark.asyncio
@@ -191,13 +238,16 @@ async def test_task_cancel_with_no_longer_needed_succeeds(factories, rig, from_s
 
 
 @pytest.mark.asyncio
-async def test_task_cancel_without_reason_refused(factories, rig):
+async def test_task_cancel_without_reason_allowed(factories, rig):
+    """Like a bug, a task may be cancelled from the status control with no reason."""
     task = await _new_task(factories, rig["project"].id)
     resp = await factories.admin_client.post(
         f"/issues/{task.id}/transition", json={"to": "cancelled"}
     )
-    assert resp.status_code == 409
-    assert resp.json()["code"] == "invalid_cancel_reason"
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "cancelled"
+    assert body["cancel_reason"] is None
 
 
 @pytest.mark.asyncio
@@ -237,40 +287,10 @@ async def test_bug_cancel_with_bug_reason_still_succeeds(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_task_requires_priority(factories, rig):
-    resp = await factories.admin_client.post("/issues", json={
-        "title": "no priority", "type": "task", "project_id": rig["project"].id,
-    })
-    assert resp.status_code == 422
-    # Field-level error, so a form can highlight the priority control (spec:
-    # "Validation, all 422 with a field error").
-    locs = [tuple(e["loc"]) for e in resp.json()["detail"]]
-    assert ("body", "priority") in locs
-
-
-@pytest.mark.asyncio
-async def test_task_cannot_have_severity(factories, rig):
-    resp = await factories.admin_client.post("/issues", json={
-        "title": "has severity", "type": "task", "project_id": rig["project"].id,
-        "priority": 2, "severity": "major",
-    })
-    assert resp.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_bug_cannot_have_priority(factories, rig):
-    resp = await factories.admin_client.post("/issues", json={
-        "title": "has priority", "type": "bug", "project_id": rig["project"].id,
-        "release_id": rig["release"].id, "priority": 2,
-    })
-    assert resp.status_code == 422
-
-
-@pytest.mark.asyncio
 async def test_task_cannot_be_release_blocker(factories, rig):
     resp = await factories.admin_client.post("/issues", json={
         "title": "blocker task", "type": "task", "project_id": rig["project"].id,
-        "priority": 2, "is_release_blocker": True,
+        "is_release_blocker": True,
     })
     assert resp.status_code == 422
 
@@ -279,7 +299,7 @@ async def test_task_cannot_be_release_blocker(factories, rig):
 async def test_task_cannot_have_curl_command(factories, rig):
     resp = await factories.admin_client.post("/issues", json={
         "title": "curl task", "type": "task", "project_id": rig["project"].id,
-        "priority": 2, "curl_command": "curl https://example.com",
+        "curl_command": "curl https://example.com",
     })
     assert resp.status_code == 422
 
@@ -288,7 +308,7 @@ async def test_task_cannot_have_curl_command(factories, rig):
 async def test_task_cannot_have_environment_name(factories, rig):
     resp = await factories.admin_client.post("/issues", json={
         "title": "env task", "type": "task", "project_id": rig["project"].id,
-        "priority": 2, "environment_name": "staging",
+        "environment_name": "staging",
     })
     assert resp.status_code == 422
 
@@ -297,7 +317,6 @@ async def test_task_cannot_have_environment_name(factories, rig):
 async def test_task_cannot_have_reproduction_steps(factories, rig):
     resp = await factories.admin_client.post("/issues", json={
         "title": "repro task", "type": "task", "project_id": rig["project"].id,
-        "priority": 2,
         "reproduction_steps": [{"step_order": 1, "description": "do a thing"}],
     })
     assert resp.status_code == 422
@@ -402,17 +421,6 @@ async def test_filter_by_has_release(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_filter_by_is_urgent(factories, rig):
-    urgent = await factories.issue(
-        project_id=rig["project"].id, release_id=rig["release"].id, is_urgent=True,
-    )
-    resp = await factories.admin_client.get("/issues", params={"is_urgent": "true"})
-    assert resp.status_code == 200
-    ids = [i["id"] for i in resp.json()["items"]]
-    assert urgent.id in ids
-
-
-@pytest.mark.asyncio
 async def test_filter_by_project_kind(factories, rig):
     internal_project = await factories.project(kind="internal")
     internal_task = await _new_task(factories, internal_project.id)
@@ -428,64 +436,38 @@ async def test_filter_by_project_kind(factories, rig):
     assert product_bug.id not in ids
 
 
-# ── AC-24: urgent clears on done; verifying a hotfix closes it (FR-21) ──────
+# ── AC-24: a bug accepted with no release reaches Done when verified (FR-21) ─
 
 
 @pytest.mark.asyncio
-async def test_ac_24_urgent_hotfix_verified_clears_urgent(factories, client_for, rig):
+async def test_ac_24_hotfix_verified_reaches_done(factories, client_for, rig):
     developer = await factories.user(role="developer")
     admin = factories.admin_client
 
-    bug = await factories.issue(
-        project_id=rig["project"].id, release_id=None, is_urgent=True,
-    )
-    assert bug.is_urgent is True
+    bug = await factories.issue(project_id=rig["project"].id, release_id=None)
     assert bug.release_id is None
 
+    # Accept with no release — the hotfix path needs no special outcome.
     resp = await admin.post(
-        f"/issues/{bug.id}/triage", json={"assignee_id": developer.id, "severity": "major"},
+        f"/issues/{bug.id}/triage", json={"assignee_id": developer.id, "priority": "high"},
     )
     assert resp.status_code == 200
-    assert resp.json()["is_urgent"] is True
+    assert resp.json()["status"] == "todo"
+    assert resp.json()["release_id"] is None
 
     dev_client = await client_for(developer)
     resp = await dev_client.post(f"/issues/{bug.id}/transition", json={"to": "in_progress"})
     assert resp.status_code == 200
-    assert resp.json()["is_urgent"] is True
 
     resp = await dev_client.post(f"/issues/{bug.id}/fix", json={"mr_url": None})
     assert resp.status_code == 200
     assert resp.json()["status"] == "in_review"
-    assert resp.json()["is_urgent"] is True
 
     resp = await admin.post(f"/issues/{bug.id}/verify", json={"outcome": "pass"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "done"
-    assert body["is_urgent"] is False
-
-    timeline = await admin.get(f"/issues/{bug.id}/timeline")
-    assert timeline.status_code == 200
-    event_types = [e["event_type"] for e in timeline.json()["items"]]
-    assert "urgent_flagged" in event_types
-    assert "urgent_cleared" in event_types
-
-
-@pytest.mark.asyncio
-async def test_setting_urgent_via_patch_notifies_assignee(factories, client_for, rig):
-    developer = await factories.user(role="developer")
-    bug = await factories.issue(
-        project_id=rig["project"].id, release_id=rig["release"].id, assignee_id=developer.id,
-    )
-    resp = await factories.admin_client.patch(f"/issues/{bug.id}", json={"is_urgent": True})
-    assert resp.status_code == 200
-    assert resp.json()["is_urgent"] is True
-
-    dev_client = await client_for(developer)
-    inbox_resp = await dev_client.get("/inbox")
-    assert inbox_resp.status_code == 200
-    types = [item["type"] for item in inbox_resp.json()["items"]]
-    assert "urgent" in types
+    assert body["release_id"] is None
 
 
 # ── Deleting a release nulls release_id instead of deleting the issue ───────

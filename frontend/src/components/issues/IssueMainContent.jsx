@@ -9,6 +9,7 @@ import { AttachmentsSection } from './AttachmentsSection'
 import { RegressionTimelineSection } from './RegressionTimelineSection'
 import { IssueTimeline } from './IssueTimeline'
 import { relTime } from '../../lib/relTime'
+import { isBug } from '../../lib/constants'
 
 export function IssueMainContent({
   issue,
@@ -34,6 +35,7 @@ export function IssueMainContent({
   const [editedTitle, setEditedTitle] = useState('')
 
   const reporter = issue.reporter_user
+  const bug = isBug(issue)
 
   const saveTitle = () => {
     const trimmed = editedTitle.trim()
@@ -73,7 +75,7 @@ export function IssueMainContent({
       )}
 
       <div className="mt-1.5 flex items-center gap-2 text-[12px] text-zinc-500 flex-wrap">
-        <span>Filed by</span>
+        <span>{bug ? 'Filed by' : 'Created by'}</span>
         <Avatar user={reporter} size={16} />
         <span className="text-zinc-700 dark:text-zinc-200">{reporter?.name}</span>
         {reporter?.role && <RoleBadge role={reporter.role} />}
@@ -90,7 +92,8 @@ export function IssueMainContent({
           options={[
             { value: 'activity', label: 'Activity', icon: 'activity', badge: events.length + comments.length },
             { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: issue.attachments?.length || null },
-            { value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: regressions.length || null },
+            // Regressions are bug-only (BR-08) — a task has no regression history.
+            ...(bug ? [{ value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: regressions.length || null }] : []),
           ]}
         />
       </div>
@@ -132,7 +135,7 @@ export function IssueMainContent({
             onUploadComplete={() => fetchAttachments?.(issue.id)}
           />
         )}
-        {tab === 'regression' && <RegressionTimelineSection regressions={regressions} />}
+        {bug && tab === 'regression' && <RegressionTimelineSection regressions={regressions} />}
       </div>
     </div>
   )

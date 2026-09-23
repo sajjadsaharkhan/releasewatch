@@ -11,7 +11,7 @@ export { MediaPreview, MediaCard, MediaPreviewSurface, FullscreenMediaOverlay } 
 export { RegressionRateLineChart } from './RegressionRateLineChart'
 export { RegressionTaxChart } from './RegressionTaxChart'
 export { LabelTrendChart } from './LabelTrendChart'
-export { SeverityDistributionChart } from './SeverityDistributionChart'
+export { PriorityDistributionChart } from './PriorityDistributionChart'
 export { TeamTable } from './TeamTable'
 export { ChronicRecurrenceTable } from './ChronicRecurrenceTable'
 export { RecurrenceMatrix } from './RecurrenceMatrix'

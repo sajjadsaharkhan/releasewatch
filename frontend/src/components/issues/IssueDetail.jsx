@@ -9,6 +9,7 @@ import { IssueHeader } from './IssueHeader'
 import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
 import { ExportMarkdownModal } from './ExportMarkdownModal'
+import { itemNoun } from '../../lib/constants'
 
 export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, adjacent }) {
   const { user: currentUser } = useApp()
@@ -80,8 +81,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
         onExportMarkdown={() => setExportModalOpen(true)}
         canDelete={canDeleteIssue(currentUser, localIssue)}
         onDelete={() => confirm({
-          title: 'Delete issue',
-          body: 'This will permanently delete the issue and all its activity. This cannot be undone.',
+          title: `Delete ${itemNoun(localIssue)}`,
+          body: `This will permanently delete the ${itemNoun(localIssue)} and all its activity. This cannot be undone.`,
           confirmLabel: 'Delete',
           tone: 'destructive',
           onConfirm: () => deleteIssue(onClose),

@@ -4,7 +4,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { MetricCard } from '../components/common/MetricCard'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
-import { SeverityBadge } from '../components/ui/Badge'
+import { PriorityBadge } from '../components/ui/Badge'
 import { reportsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { useToast } from '../hooks/useToast'
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             value={heroMetrics.myActionItems.count}
             icon="clipboard-list"
             tone="blue"
-            delta={heroMetrics.myActionItems.urgent > 0 ? `${heroMetrics.myActionItems.urgent} urgent` : undefined}
+            delta={heroMetrics.myActionItems.critical > 0 ? `${heroMetrics.myActionItems.critical} critical` : undefined}
             description="Assigned to me"
             className="group-hover:border-primary/30 transition-colors"
           />
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                     to={`/issue/${issueSlug(item)}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
-                    <SeverityBadge severity={item.severity} />
+                    <PriorityBadge priority={item.priority} />
                     <span className="font-mono text-xs text-muted-foreground">{issueKey(item)}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">{item.waitingHours}h</span>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                     to={`/issue/${issueSlug(item)}`}
                     className="flex items-center gap-2 py-1.5 hover:bg-accent/50 -mx-2 px-2 rounded transition-colors"
                   >
-                    <SeverityBadge severity={item.severity} />
+                    <PriorityBadge priority={item.priority} />
                     <span className="font-mono text-xs text-muted-foreground">{issueKey(item)}</span>
                     <p className="text-sm truncate flex-1">{item.title}</p>
                     <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">

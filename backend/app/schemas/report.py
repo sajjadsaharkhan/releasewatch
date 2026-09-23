@@ -5,12 +5,11 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class SeverityBreakdown(BaseModel):
-    blocker: int = 0
+class PriorityBreakdown(BaseModel):
     critical: int = 0
-    major: int = 0
-    minor: int = 0
-    enhancement: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
 
 
 class StatusBreakdown(BaseModel):
@@ -34,7 +33,7 @@ class ReleaseReportResponse(BaseModel):
     blocker_count: int
     regression_count: int
     go_nogo_status: str
-    severity_breakdown: SeverityBreakdown
+    priority_breakdown: PriorityBreakdown
     status_breakdown: StatusBreakdown
     avg_time_to_triage_h: Optional[float] = None
     avg_time_to_fix_h: Optional[float] = None

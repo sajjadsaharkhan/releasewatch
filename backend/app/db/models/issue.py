@@ -34,13 +34,24 @@ def issue_key(item_type: "IssueType | str | None", issue_number: int) -> str:
     return f"{prefix}-{issue_number}"
 
 
-class IssueSeverity(str, enum.Enum):
-    """How badly the issue impacts end-users or release quality."""
+class Priority(str, enum.Enum):
+    """The shared importance scale for bugs and tasks (BR-09, 03a).
 
-    blocker = "blocker"
+    Null on a New or Needs info bug nobody has rated; required when a bug
+    is accepted; a task starts at ``medium`` (BR-16).
+    """
+
     critical = "critical"
-    major = "major"
-    minor = "minor"
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
+#: Default priority for a new task (BR-16).
+TASK_DEFAULT_PRIORITY = Priority.medium
+
+#: Sort rank per priority, highest first (FR-37). Unrated sorts after every rank.
+PRIORITY_RANK = {p: rank for rank, p in enumerate(Priority, start=1)}
 
 
 class IssueStatus(str, enum.Enum):
@@ -127,17 +138,9 @@ class Issue(Base):
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    severity: Mapped[IssueSeverity | None] = mapped_column(
-        String(32), nullable=True, default=None,
-        doc="Bug-only. Null on New/Needs info bugs nobody has rated yet (D4)."
-    )
-    priority: Mapped[int | None] = mapped_column(
-        SmallInteger, nullable=True,
-        doc="Task-only. 1 (highest) - 4 (lowest), required for tasks, null for bugs."
-    )
-    is_urgent: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False,
-        doc="Cleared automatically on entering done or cancelled (FR-22, BR-27, AC-24)."
+    priority: Mapped[Priority | None] = mapped_column(
+        String(16), nullable=True, default=None,
+        doc="Shared by bugs and tasks. Null on New/Needs info bugs nobody has rated yet (BR-16)."
     )
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[IssueStatus] = mapped_column(
@@ -262,4 +265,4 @@ class Issue(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Issue #{self.issue_number} status={self.status} severity={self.severity}>"
+        return f"<Issue #{self.issue_number} status={self.status} priority={self.priority}>"

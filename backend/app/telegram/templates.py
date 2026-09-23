@@ -2,10 +2,10 @@
 
 Keys align with InboxEventType values so inbox_service can dispatch by event
 key.  Dynamic fields are filled in by the sender:
-  issue_number, title, issue_url, comment_url, actor, actor_url, severity,
+  issue_number, title, issue_url, comment_url, actor, actor_url, priority,
   excerpt, project_name, release_name, release_deadline,
   old_status/new_status, old_environment/new_environment, old_release/new_release,
-  old_severity/new_severity, version, gate_status, approver, blocker, note
+  old_priority/new_priority, version, gate_status, approver, blocker, note
 """
 
 MESSAGE_TEMPLATES: dict[str, str] = {
@@ -13,13 +13,13 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "🐛 <b>New issue filed!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
-        "Severity: <code>{severity}</code>"
+        "Priority: <code>{priority}</code>"
     ),
     "assigned": (
         "👋 <b>You've been assigned!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
-        "Severity: <code>{severity}</code>\n"
+        "Priority: <code>{priority}</code>\n"
         "\n"
         "<i>Time to shine ⭐ — assigned by <a href=\"{actor_url}\">{actor}</a></i>"
     ),
@@ -64,7 +64,7 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "🔁 <b>Regression detected!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
-        "Severity: <code>{severity}</code>\n"
+        "Priority: <code>{priority}</code>\n"
         "\n"
         "<i>This one came back from the dead 👻</i>"
     ),
@@ -86,7 +86,7 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "🚨 <b>RELEASE BLOCKER FILED!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
-        "Severity: <code>{severity}</code>\n"
+        "Priority: <code>{priority}</code>\n"
         "⏰ <b>Deadline:</b> {release_deadline}\n"
         "\n"
         "<i>Filed by <a href=\"{actor_url}\">{actor}</a> — all hands on deck! 🚒</i>"
@@ -134,13 +134,13 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "<i><a href=\"{actor_url}\">{actor}</a> attached a file</i>"
     ),
-    "severity_changed": (
-        "🔥 <b>Severity just changed!</b>\n"
+    "priority_changed": (
+        "🔥 <b>Priority just changed!</b>\n"
         "🐛 <a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "🗂 <b>{project_name}</b> · <code>{release_name}</code>\n"
         "\n"
-        "📤 From: <code>{old_severity}</code>\n"
-        "📥 To:      <code>{new_severity}</code>\n"
+        "📤 From: <code>{old_priority}</code>\n"
+        "📥 To:      <code>{new_priority}</code>\n"
         "\n"
         "⚠️ Updated by <a href=\"{actor_url}\">{actor}</a>"
     ),
@@ -164,12 +164,5 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "<i>Blocked by {blocker}</i>\n"
         "Reason: {note}"
-    ),
-    "urgent": (
-        "🚨 <b>Marked Urgent!</b>\n"
-        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
-        "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
-        "\n"
-        "<i>Flagged by <a href=\"{actor_url}\">{actor}</a> — handle before anything else</i>"
     ),
 }
