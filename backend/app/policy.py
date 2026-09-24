@@ -121,6 +121,9 @@ class Denied:
     hidden: bool = False
     #: True when the actor may not even know the item exists — routes answer 404.
     not_found: bool = False
+    #: True when the refusal is a domain rule about the item's state, not about
+    #: who the actor is — routes answer 409 instead of 403 (slice 07).
+    conflict: bool = False
     ok: bool = False
 
 
@@ -277,6 +280,25 @@ def _deny_role(actor: Actor, action: str, roles: frozenset[str]) -> Denied:
     return Denied("forbidden_role", f"{_ROLE_LABELS.get(role, role)} can't {label}.")
 
 
+#: FR-16 / BR-23 — shown on the disabled Report recurrence button of a Done bug.
+RECURRENCE_ON_DONE_DETAIL = (
+    "Fixed items can't take a recurrence. File a new report; "
+    "triage will merge it into this item as a regression."
+)
+
+
+def _recurrence_denial(target: Target) -> Denied | None:
+    """FR-13/16 — a recurrence goes on an open or Cancelled bug, never a task or a Done bug."""
+    if target.item_type is not None and target.item_type != "bug":
+        return Denied(
+            "recurrence_bug_only", "Recurrences can be reported on bugs only.",
+            hidden=True, conflict=True,
+        )
+    if target.status == "done":
+        return Denied("recurrence_on_done", RECURRENCE_ON_DONE_DETAIL, conflict=True)
+    return None
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 
@@ -309,6 +331,11 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
         and not is_assignable(target.assignee_role)
     ):
         return Denied("not_assignable", "Support users can't be assigned work.")
+
+    if key == Action.report_recurrence:
+        denial = _recurrence_denial(target)
+        if denial is not None:
+            return denial
 
     return ALLOWED
 

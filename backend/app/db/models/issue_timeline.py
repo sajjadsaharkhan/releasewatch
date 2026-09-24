@@ -36,6 +36,9 @@ class TimelineEventType(str, enum.Enum):
     needs_clarification = "needs_clarification"
     #: A triage outcome (slice 06) — ``meta.outcome`` plus the outcome's inputs.
     triaged = "triaged"
+    #: A Report recurrence (slice 07) — a public comment carrying the new
+    #: occurrence's details; ``meta.recurrence_count`` is the count after it.
+    recurrence = "recurrence"
 
 
 class IssueTimeline(Base):

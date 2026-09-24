@@ -152,6 +152,9 @@ export const issuesApi = {
   transition: (id, data) => api.post(`/issues/${id}/transition`, data),
   // Flags a regression on a Done or In review bug (BR-24). No body.
   regress: (id) => api.post(`/issues/${id}/regression`),
+  // One more occurrence of an open or Cancelled bug (slice 07). `data` is
+  // {comment, pending_attachments?}; 409 recurrence_on_done / recurrence_bug_only.
+  reportRecurrence: (id, data) => api.post(`/issues/${id}/recurrences`, data),
 }
 
 // ─── Inbox ───────────────────────────────────────────────────────────────────

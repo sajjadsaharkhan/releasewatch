@@ -87,7 +87,9 @@ async def _embed_issue_async(issue_id: int) -> dict:
             select(IssueTimeline.body)
             .where(
                 IssueTimeline.issue_id == issue_id,
-                IssueTimeline.event_type == TimelineEventType.comment,
+                IssueTimeline.event_type.in_(
+                    (TimelineEventType.comment, TimelineEventType.recurrence)
+                ),
                 IssueTimeline.body.isnot(None),
             )
             .order_by(IssueTimeline.created_at)

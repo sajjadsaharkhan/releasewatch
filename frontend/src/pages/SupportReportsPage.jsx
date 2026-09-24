@@ -10,12 +10,14 @@ import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Tooltip } from '../components/ui/Tooltip'
 import { FilterDropdown } from '../components/common/FilterDropdown'
 import { MultiSelectFilterDropdown } from '../components/common/MultiSelectFilterDropdown'
+import { ReportedCount } from '../components/common/ReportedCount'
 import { projectsApi, supportApi, teamApi } from '../lib/api'
 import { STATUS } from '../lib/constants'
 import { issueSlug } from '../lib/issueSlug'
 import { relTime, fullTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
 import { SupportReportModal } from '../components/support'
+import { ReportRecurrenceButton, referenceDescription } from '../components/issues'
 import { canSubmitSupportReport } from '../lib/roles'
 
 // Every support-sourced item across all projects (slice 05, FR-11). Support works
@@ -39,6 +41,8 @@ export default function SupportReportsPage({ newReportOpen = false }) {
   const page = Number(searchParams.get('page') ?? 1)
   // 'me', a user id, or absent for everyone.
   const reporter = searchParams.get('reporter') ?? 'all'
+  // `?ref=<key>` — "New report referencing this" from a Done bug (slice 07, FR-16).
+  const refKey = searchParams.get('ref')
 
   const [query, setQuery] = useState(q)
   const [projects, setProjects] = useState([])
@@ -180,8 +184,8 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                 <th scope="col" className="text-left font-medium px-3 py-2">Reporter</th>
                 <th scope="col" className="text-left font-medium px-3 py-2">Status</th>
                 <th scope="col" className="text-left font-medium px-3 py-2">Assignee</th>
-                <th scope="col" className="text-right font-medium px-3 py-2 hidden sm:table-cell">Reports</th>
-                <th scope="col" className="text-right font-medium px-7 py-2">Updated</th>
+                <th scope="col" className="text-right font-medium px-3 py-2">Updated</th>
+                <th scope="col" className="px-5 py-2 w-10"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -195,6 +199,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                       <TypeIcon type="bug" />
                       <span className="font-mono text-[12px] text-muted-foreground shrink-0">{r.key}</span>
                       <span className="truncate text-foreground">{r.title}</span>
+                      <ReportedCount count={r.recurrence_count} />
                     </Link>
                   </td>
                   <td className="px-3 py-2.5 hidden md:table-cell">
@@ -221,13 +226,22 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                       </UserHoverCard>
                     ) : <span className="text-[11px] text-muted-foreground italic">unassigned</span>}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground hidden sm:table-cell">
-                    {r.recurrence_count}
-                  </td>
-                  <td className="px-7 py-2.5 text-right text-[12px] text-muted-foreground whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-right text-[12px] text-muted-foreground whitespace-nowrap">
                     <Tooltip content={fullTime(r.updated_at)}>
                       <span>{relTime(r.updated_at)}</span>
                     </Tooltip>
+                  </td>
+                  <td className="px-5 py-1.5 text-right">
+                    <ReportRecurrenceButton
+                      compact
+                      item={r}
+                      onReported={(updated) => setData((d) => ({
+                        ...d,
+                        items: d.items.map((row) => (
+                          row.id === updated.id ? { ...row, recurrence_count: updated.recurrence_count } : row
+                        )),
+                      }))}
+                    />
                   </td>
                 </tr>
               ))}
@@ -250,6 +264,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
       {canSubmitSupportReport(user?.role) && (
         <SupportReportModal
           open={newReportOpen}
+          initialDescription={refKey ? referenceDescription(refKey) : ''}
           onClose={() => navigate('/support/reports')}
           onSubmitted={() => setReloadKey((k) => k + 1)}
         />

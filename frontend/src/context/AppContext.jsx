@@ -19,6 +19,9 @@ export function AppProvider({ children }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [newIssueOpen, setNewIssueOpen] = useState(false)
+  // Fields New issue opens prefilled with, e.g. `{type, description}` from
+  // "New report referencing this" (slice 07). Consumed once on open.
+  const [newIssueDraft, setNewIssueDraft] = useState(null)
   const [onIssueCreated, setOnIssueCreated] = useState(null)
   const [createReleaseOpen, setCreateReleaseOpen] = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
@@ -255,6 +258,8 @@ export function AppProvider({ children }) {
     setQuery,
     newIssueOpen,
     setNewIssueOpen,
+    newIssueDraft,
+    setNewIssueDraft,
     onIssueCreated,
     setOnIssueCreated,
     createReleaseOpen,

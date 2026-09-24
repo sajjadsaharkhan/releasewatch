@@ -1,6 +1,7 @@
 """MergeService — the one place a merge's effects on the original are written (BR-49, BR-50).
 
-Used by the Duplicate triage outcome (slice 06) and, from 07, by recurrence.
+Used by the Duplicate triage outcome (slice 06) and by Report recurrence
+(slice 07, ``app/services/recurrence_service.py``).
 ``merge_into`` runs inside the caller's transaction, so a duplicate's
 cancellation and the merge commit or fail together.
 
@@ -10,7 +11,9 @@ Effects, in order:
 2. A public comment on the original carrying the merged content, crediting
    the merged report's reporter with an @mention. A tech reporter gets the
    mention notice (it tells them where their report went); a Support reporter
-   doesn't — their own ``support_*`` notice already says so.
+   doesn't — their own ``support_*`` notice already says so. A recurrence
+   posts its own comment as a ``recurrence`` event, uncredited: its reporter
+   is the actor.
 3. The merged report's reporter is subscribed to the original.
 4. A status effect by the original's status:
 
@@ -24,6 +27,7 @@ Effects, in order:
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import Issue, IssueStatus
 from app.db.models.issue_subscriber import SubscriptionReason
-from app.db.models.issue_timeline import TimelineEventType
+from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.regression_history import RegressionSource
 from app.db.models.user import User
 from app.policy import is_tech
@@ -55,6 +59,13 @@ async def lock_original(db: AsyncSession, issue_id: int) -> Issue | None:
     )).scalar_one_or_none()
 
 
+@dataclass
+class MergeResult:
+    original: Issue
+    #: The public timeline event carrying the merged content.
+    comment: IssueTimeline
+
+
 class MergeService:
 
     async def merge_into(
@@ -69,8 +80,10 @@ class MergeService:
         actor: User,
         reason: SubscriptionReason,
         comment_meta: dict | None = None,
-    ) -> Issue:
-        """Apply the merge effects to ``original`` and return it, refreshed.
+        event_type: TimelineEventType = TimelineEventType.comment,
+        credit_reporter: bool = True,
+    ) -> MergeResult:
+        """Apply the merge effects to ``original``; return it, refreshed, with the comment.
 
         ``attachments`` are pending uploads (``PendingAttachment``-shaped) to
         attach to the original — recurrence (07) passes them; the Duplicate
@@ -95,14 +108,14 @@ class MergeService:
         )
         await db.refresh(original, ["recurrence_count"])
 
-        reporter = await db.get(User, reporter_id) if reporter_id else None
+        reporter = await db.get(User, reporter_id) if reporter_id and credit_reporter else None
         if reporter is not None:
             content_md = f"{content_md}\n\nReported by @{reporter.username}"
         comment = await TimelineService().create_event(
             db=db,
             issue_id=original.id,
             actor_id=actor.id,
-            event_type=TimelineEventType.comment,
+            event_type=event_type,
             body=content_md,
             meta=comment_meta,
             is_internal=False,
@@ -148,7 +161,7 @@ class MergeService:
                 db=db, trigger=InboxEventType.recurrence_on_cancelled, issue=original, actor=actor,
             )
 
-        return original
+        return MergeResult(original=original, comment=comment)
 
 
 merge_service = MergeService()

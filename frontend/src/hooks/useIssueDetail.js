@@ -31,8 +31,11 @@ function normalizeTimelineItems(apiItems) {
   const events = []
   const comments = []
   for (const e of apiItems) {
-    if (e.event_type === 'comment') {
+    // A recurrence (slice 07) is a public comment carrying a new occurrence's
+    // details — rendered as a comment card, marked as a recurrence.
+    if (e.event_type === 'comment' || e.event_type === 'recurrence') {
       comments.push({
+        isRecurrence: e.event_type === 'recurrence',
         id: e.id,
         actor: e.actor_id,
         actor_user: e.actor_user,
@@ -250,26 +253,14 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     await fetchCycles(id)
   }
 
-  // Reopens a Done bug — maps to the regression action server-side; 409
-  // (done_is_final) when the bug isn't Done or its release has shipped.
-  const reopen = async () => {
-    const id = issueIdRef.current
-    try {
-      const res = await issuesApi.reopen(id)
-      const updatedIssue = res.data
-      setLocalIssue(prev => ({
-        ...updatedIssue,
-        attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
-      }))
-      onUpdate?.(updatedIssue)
-      toast({ title: 'Issue reopened' })
-    } catch (err) {
-      toast({ title: err.response?.data?.detail || 'Could not reopen this issue' })
-      return
-    }
-    await fetchTimeline(id)
-    await fetchRegressions(id)
-    await fetchCycles(id)
+  // After Report recurrence (slice 07): new count on the item, new entry on the timeline.
+  const recurrenceReported = async (updatedIssue) => {
+    setLocalIssue(prev => ({
+      ...updatedIssue,
+      attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
+    }))
+    onUpdate?.(updatedIssue)
+    await fetchTimeline(issueIdRef.current)
   }
 
   const addComment = async (body, isInternal, mentionedUserIds) => {
@@ -438,7 +429,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     currentCycle,
     applyUpdate,
     regress,
-    reopen,
+    recurrenceReported,
     addComment,
     updateComment,
     deleteComment,

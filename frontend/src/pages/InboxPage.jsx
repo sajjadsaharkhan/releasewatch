@@ -247,7 +247,10 @@ export default function InboxPage() {
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
           {current.items.map((item) => {
             const actor = item.actor
-            const desc = TYPE_DESCRIPTIONS[item.type] ?? item.type
+            // A recurrence reaches the assignee and reporter as a comment (slice 07).
+            const desc = item.type === 'comment' && item.meta?.recurrence
+              ? 'reported a recurrence on'
+              : TYPE_DESCRIPTIONS[item.type] ?? item.type
             const anchor = timelineAnchor(item)
             const issueTo = anchor ? `/issue/${item.issueId}#${anchor}` : `/issue/${item.issueId}`
             const snippet = COMMENT_TYPES.has(item.type) ? (item.meta?.body_snippet ?? null) : null

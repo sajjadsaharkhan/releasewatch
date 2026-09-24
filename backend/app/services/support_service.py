@@ -17,7 +17,7 @@ from app.db.models.issue import Issue, IssueSource, IssueStatus, IssueType, issu
 from app.db.models.project import Project
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.user import User
-from app.schemas.issue import IssueCreate, UserSummary
+from app.schemas.issue import BlockedAction, IssueCreate, UserSummary
 from app.schemas.support import (
     SupportReportCreate,
     SupportReportList,
@@ -25,7 +25,8 @@ from app.schemas.support import (
     TemplateCreate,
     TemplateFieldIn,
 )
-from app.services.authz import visible_issues
+from app.policy import Action, decide
+from app.services.authz import actor_of, issue_target, visible_issues
 from app.support_report import FieldSpec, TemplateSpec, compose_report
 
 
@@ -47,8 +48,21 @@ def template_spec(template: SupportTemplate) -> TemplateSpec:
     )
 
 
-def report_row(issue: Issue) -> SupportReportRow:
+#: The item actions a Support reports row reports on.
+ROW_ACTIONS = (Action.report_recurrence,)
+
+
+def report_row(issue: Issue, actor: User) -> SupportReportRow:
     """One Support reports row. Needs ``project``, ``reporter`` and ``assignee`` loaded."""
+    allowed: list[str] = []
+    blocked: list[BlockedAction] = []
+    target = issue_target(issue, issue.project)
+    for action in ROW_ACTIONS:
+        d = decide(actor_of(actor), action, target)
+        if d.ok:
+            allowed.append(action.value)
+        elif not d.hidden:
+            blocked.append(BlockedAction(action=action.value, code=d.code, detail=d.detail))
     return SupportReportRow(
         id=issue.id,
         issue_number=issue.issue_number,
@@ -62,6 +76,8 @@ def report_row(issue: Issue) -> SupportReportRow:
         reporter_name=issue.reporter.name if issue.reporter else None,
         reporter_user=UserSummary.model_validate(issue.reporter) if issue.reporter else None,
         assignee_user=UserSummary.model_validate(issue.assignee) if issue.assignee else None,
+        allowed_actions=allowed,
+        blocked_actions=blocked,
         created_at=issue.created_at,
         updated_at=issue.updated_at,
     )
@@ -208,7 +224,7 @@ class SupportService:
         )).scalars().all()
 
         return SupportReportList(
-            items=[report_row(i) for i in rows],
+            items=[report_row(i, actor) for i in rows],
             total=total,
             page=page,
             size=size,

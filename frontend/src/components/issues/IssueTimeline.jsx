@@ -342,7 +342,8 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
 
             if (isComment) {
               const isEditing = editingCommentId === item.id
-              const ownComment = isOwnComment(item)
+              // Recurrences are a record, not a conversation: no edit, delete, or reactions.
+              const ownComment = isOwnComment(item) && !item.isRecurrence
 
               return (
                 <li key={item.id ?? idx} id={`comment-${item.id}`} className="relative pl-10 pr-2 py-2">
@@ -368,11 +369,21 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                       'rounded-lg border bg-card px-3.5 py-2.5 relative group',
                       item.isInternal
                         ? 'border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-900/50'
-                        : 'border-border',
+                        : item.isRecurrence
+                          ? 'border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 dark:border-violet-900/50'
+                          : 'border-border',
                     )}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{actor?.name ?? actorId}</span>
                         <RoleBadge role={actor?.role} />
+                        {item.isRecurrence && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+                            <Icon name="repeat" size={10} aria-hidden="true" /> Recurrence
+                            {item.meta?.recurrence_count > 1 && (
+                              <span className="tabular-nums text-zinc-500 dark:text-zinc-400">· reported {item.meta.recurrence_count} times</span>
+                            )}
+                          </span>
+                        )}
                         {item.isInternal && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                             <Icon name="lock" size={10} /> Internal note
@@ -424,6 +435,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                           never grows two rules stacked on top of each other.
                           Always rendered: the add-reaction button lives here and
                           must be visible without hovering. */}
+                      {!item.isRecurrence && (
                       <div className="mt-2 pt-2 border-t border-border space-y-2">
                           <ReactionBar
                             reactions={item.reactions ?? []}
@@ -453,6 +465,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                             </div>
                           )}
                       </div>
+                      )}
                     </div>
                   )}
                 </li>

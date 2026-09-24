@@ -2,8 +2,9 @@
 
 ``app/policy.py`` stays pure; this module is the one place that knows how to
 snapshot a ``User``/``Issue``/``Project`` for it, how a denial maps to a
-status code (404 when the actor may not know the item exists, 403
-otherwise), and how Support visibility (BR-30) is expressed as SQL.
+status code (404 when the actor may not know the item exists, 409 for a
+rule about the item's state, 403 otherwise), and how Support visibility
+(BR-30) is expressed as SQL.
 
 Every read path over issues filters through ``visibility_clause`` /
 ``visible_issues`` — lists, detail, by-number, export, search, timeline,
@@ -65,11 +66,12 @@ def raise_if_denied(decision: policy.Decision) -> None:
         return
     if decision.not_found:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-    raise DomainError(status.HTTP_403_FORBIDDEN, decision.detail, decision.code)
+    code = status.HTTP_409_CONFLICT if decision.conflict else status.HTTP_403_FORBIDDEN
+    raise DomainError(code, decision.detail, decision.code)
 
 
 def authorize(user: User, action: Any, target: Target | None = None) -> None:
-    """Raise 404/403 unless Policy allows ``user`` to do ``action`` on ``target``."""
+    """Raise 404/409/403 unless Policy allows ``user`` to do ``action`` on ``target``."""
     raise_if_denied(policy.decide(actor_of(user), action, target))
 
 

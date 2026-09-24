@@ -70,7 +70,7 @@ async def submit_report(
 
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue.id,), countdown=0)
-    return report_row(await load_report(db, issue.id))
+    return report_row(await load_report(db, issue.id), current_user)
 
 
 @router.get("/reports", response_model=SupportReportList, summary="Support reports list")

@@ -9,6 +9,7 @@ import { Empty } from '../components/ui/Empty'
 import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
 import { MediaPreview } from '../components/common/MediaPreview'
 import { SourceBadge } from '../components/common/SourceBadge'
+import { ReportedCount } from '../components/common/ReportedCount'
 import { TriageOutcomePanel } from '../components/triage'
 import { issuesApi, teamApi, attachmentsApi, releasesApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
@@ -193,11 +194,7 @@ export default function TriagePage() {
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="font-mono text-[11px] text-muted-foreground">{issueKey(i)}</span>
                       <SourceBadge source={i.source} />
-                      {i.recurrence_count > 1 && (
-                        <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400" title={`Reported ${i.recurrence_count} times`}>
-                          <Icon name="repeat" size={11} aria-hidden="true" />×{i.recurrence_count}
-                        </span>
-                      )}
+                      <ReportedCount count={i.recurrence_count} />
                       <span className="ml-auto text-[11px] text-muted-foreground" title={fullTime(i.created_at)}>
                         filed {relTime(i.created_at)}
                       </span>

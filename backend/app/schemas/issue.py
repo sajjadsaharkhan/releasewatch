@@ -222,6 +222,17 @@ class MoveRequest(BaseModel):
     project_id: int
 
 
+class RecurrenceCreate(BaseModel):
+    """Payload for POST /issues/{id}/recurrences (FR-13, BR-22, AC-09).
+
+    ``comment`` carries the new customer's details. ``pending_attachments``
+    are pre-uploaded files (slice 05's flow) to attach to the bug.
+    """
+
+    comment: RequiredComment
+    pending_attachments: list[PendingAttachment] = Field(default_factory=list)
+
+
 class FixRequest(BaseModel):
     """Payload for POST /issues/{id}/fix."""
 

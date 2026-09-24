@@ -34,8 +34,10 @@ const INITIAL_FORM = {
 }
 
 export function NewIssueModal({ open, onClose, onCreated }) {
-  const { activeProjectId, activeReleaseId } = useApp()
+  const { activeProjectId, activeReleaseId, newIssueDraft, setNewIssueDraft } = useApp()
   const [form, setForm] = useState(INITIAL_FORM)
+  // Remounts the description composer when a draft prefills it.
+  const [composerKey, setComposerKey] = useState(0)
   // A bug may stay unrated until triage; a task starts at medium (BR-16).
   const priority = form.priority ?? (form.type === 'task' ? TASK_DEFAULT_PRIORITY : null)
   const [loading, setLoading] = useState(false)
@@ -87,6 +89,14 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     }
     fetchData()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A draft (e.g. "New report referencing this", slice 07) prefills the form once.
+  useEffect(() => {
+    if (!open || !newIssueDraft) return
+    setForm((f) => ({ ...f, ...newIssueDraft }))
+    setComposerKey((k) => k + 1)
+    setNewIssueDraft(null)
+  }, [open, newIssueDraft]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset form when modal closes
   useEffect(() => {
@@ -368,6 +378,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
               <CommentComposer
+                key={composerKey}
                 initialValue={form.description}
                 onChange={(val) => set('description', val)}
                 placeholder={isTask ? 'Describe the task…' : 'Describe the issue, expected vs actual behavior…'}

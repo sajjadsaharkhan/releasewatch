@@ -24,6 +24,7 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
   { value: 'priority', label: 'Priority' },
+  { value: 'reported', label: 'Most reported' },
   { value: 'updated', label: 'Last updated' },
 ]
 

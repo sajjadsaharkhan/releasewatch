@@ -12,6 +12,7 @@ POST   /issues/{id}/restore                 — restore a soft-deleted issue (CT
 DELETE /issues/{id}/permanent               — permanently delete one trashed issue (CTO/admin only)
 POST   /issues/{id}/triage                  — apply a triage outcome (accept | needs_info | duplicate | reject)
 POST   /issues/{id}/move                    — move a New/Needs info bug to another project
+POST   /issues/{id}/recurrences             — report a recurrence on an open or Cancelled bug
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
 POST   /issues/{id}/verify                  — verify the fix (in_review -> done | in_progress)
 POST   /issues/{id}/reopen                  — reopen a Done bug (maps to the regression action)
@@ -61,6 +62,7 @@ from app.schemas.issue import (
     IssueUpdate,
     LabelDetail,
     MoveRequest,
+    RecurrenceCreate,
     RegressionHistoryResponse,
     TransitionRequest,
     TrashIssueResponse,
@@ -188,6 +190,12 @@ def _apply_sort(query, sort: str):
         return query.order_by(Issue.created_at.asc(), Issue.issue_number.asc())
     elif sort == "priority":
         return query.order_by(_PRIORITY_ORDER, Issue.created_at.desc(), Issue.issue_number.desc())
+    elif sort == "reported":
+        # Most reported first (slice 07) — ties by priority, then newest.
+        return query.order_by(
+            Issue.recurrence_count.desc(), _PRIORITY_ORDER,
+            Issue.created_at.desc(), Issue.issue_number.desc(),
+        )
     elif sort == "updated":
         return query.order_by(Issue.updated_at.desc(), Issue.issue_number.desc())
     else:
@@ -763,6 +771,35 @@ async def move_issue(
     issue = await authorize_issue(db, issue_id, current_user, Action.triage)
     await triage_service.move_project(db, issue, payload.project_id, current_user)
     await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.post(
+    "/{issue_id}/recurrences",
+    response_model=IssueResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Report a recurrence",
+)
+async def report_recurrence(
+    issue_id: int,
+    payload: RecurrenceCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """Record one more occurrence of an open or Cancelled bug (slice 07, FR-13–16).
+
+    Any role, on a bug they can see. 422 on an empty comment; 409
+    ``recurrence_bug_only`` on a task and ``recurrence_on_done`` on a Done bug.
+    """
+    from app.services.recurrence_service import recurrence_service
+
+    issue = await authorize_issue(db, issue_id, current_user, Action.report_recurrence)
+    await recurrence_service.report(db, issue, payload, current_user)
+    await db.commit()
+
+    from app.tasks.search import embed_issue
+    embed_issue.apply_async((issue_id,), countdown=10)
+
     return await _reload_and_enrich(db, issue_id, current_user)
 
 

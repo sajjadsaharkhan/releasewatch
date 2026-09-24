@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.db.models.issue import IssueStatus
 from app.db.models.support_template import FieldType
 from app.schemas.attachment import PendingAttachment
-from app.schemas.issue import UserSummary
+from app.schemas.issue import BlockedAction, UserSummary
 
 
 class SelectOption(BaseModel):
@@ -117,6 +117,10 @@ class SupportReportRow(BaseModel):
     reporter_user: UserSummary | None = None
     #: Who is working on it — shown with a user hover card in the list.
     assignee_user: UserSummary | None = None
+    #: Policy on the row's own actions — ``report_recurrence`` (slice 07), so the
+    #: list's Report recurrence button takes its state and reason from the API.
+    allowed_actions: list[str] = Field(default_factory=list)
+    blocked_actions: list[BlockedAction] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

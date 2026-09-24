@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, Check, CheckCheck, Eye, RefreshCw, Shield, Undo2, Play, Ban } from 'lucide-react'
+import { ChevronDown, CheckCheck, Eye, RefreshCw, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -8,6 +8,7 @@ import { Switch } from '../ui/Switch'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
 import { ActionButton, actionState } from '../common/ActionButton'
+import { ReportRecurrenceButton } from './ReportRecurrenceButton'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
@@ -37,7 +38,7 @@ function Editable({ issue, action, readOnly, children }) {
   return readOnly
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, reopen, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
@@ -65,6 +66,9 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   // A transition's button shows unless Policy hides it entirely (then Workflow's
   // allowed_transitions is empty too); blocked ones render disabled with a reason.
   const offers = (to) => actionState(issue, `transition:${to}`).state !== 'hidden'
+
+  // Blocked returns to where it was blocked from (or To do, if that's unknown).
+  const unblockTo = issue.blocked_from_status || 'todo'
 
   const changeStatus = (newStatus) =>
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
@@ -299,6 +303,11 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
 
       {bug && (
         <>
+      {/* How many times it was reported — the original plus every recurrence and merge (BR-22). */}
+      <MetaRow label="Times reported">
+        <span className="tabular-nums text-zinc-700 dark:text-zinc-200">{issue.recurrence_count ?? 1}</span>
+      </MetaRow>
+
       <MetaRow label="Regressions">
         <Badge tone={issue.regression_count > 0 ? 'red' : 'default'}>
           <RefreshCw size={10} />
@@ -354,59 +363,49 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       </div>
       )}
 
-      {/* Actions render only what the API says is possible right now
+      {/* Quick actions — the next step along the flow for the current status
+          (docs/phase-2/02-unified-status-model.md): To do → In progress → In review
+          → Done, Blocked → back where it was. Any other move is the Status
+          control above. Each button still renders only what the API allows
           (allowed_actions / blocked_actions) — never re-derived here. */}
       <div className="mt-5 pt-3 border-t border-border space-y-2">
-        {offers('in_progress') && issue.status === 'todo' && (
+        {issue.status === 'todo' && offers('in_progress') && (
           <ActionButton action="transition:in_progress" item={issue} className="w-full" onClick={() => changeStatus('in_progress')}>
             <Play size={14} className="mr-1" /> Start work
           </ActionButton>
         )}
-        {bug ? (
-          <>
-            {offers('in_review') && (
-              <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
-                <Check size={14} className="mr-1" /> Mark as fixed
-              </ActionButton>
-            )}
-            {issue.status === 'in_review' && (
-              <ActionButton action="transition:done" item={issue} className="w-full" onClick={() => changeStatus('done')}>
-                <Shield size={14} className="mr-1" /> Verify fix
-              </ActionButton>
-            )}
-          </>
-        ) : (
-          <>
-            {issue.status === 'in_progress' && offers('in_review') && (
-              <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
-                <Eye size={14} className="mr-1" /> Send to review
-              </ActionButton>
-            )}
-            {(issue.status === 'in_progress' || issue.status === 'in_review') && offers('done') && (
-              // One primary action per state: "Send to review" leads while in progress.
-              <ActionButton
-                action="transition:done"
-                item={issue}
-                variant={issue.status === 'in_progress' ? 'outline' : 'default'}
-                className="w-full"
-                onClick={() => changeStatus('done')}
-              >
-                <CheckCheck size={14} className="mr-1" /> Mark as done
-              </ActionButton>
-            )}
-          </>
+        {issue.status === 'in_progress' && offers('in_review') && (
+          <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
+            <Eye size={14} className="mr-1" /> Send to review
+          </ActionButton>
+        )}
+        {/* A task may skip review (slice 03); a bug's fix is always reviewed. */}
+        {!bug && issue.status === 'in_progress' && offers('done') && (
+          <ActionButton action="transition:done" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('done')}>
+            <CheckCheck size={14} className="mr-1" /> Mark as done
+          </ActionButton>
+        )}
+        {issue.status === 'in_review' && offers('done') && (
+          <ActionButton action="transition:done" item={issue} className="w-full" onClick={() => changeStatus('done')}>
+            <CheckCheck size={14} className="mr-1" /> Mark as done
+          </ActionButton>
         )}
         {issue.status === 'in_review' && offers('in_progress') && (
           <ActionButton action="transition:in_progress" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
             <Undo2 size={14} className="mr-1" /> Send back to In progress
           </ActionButton>
         )}
-        {/* Regression and reopen are bug-only (BR-08) — both record a regression. */}
-        {bug && (issue.status === 'done' || issue.status === 'in_review') && (
+        {issue.status === 'blocked' && offers(unblockTo) && (
+          <ActionButton action={`transition:${unblockTo}`} item={issue} className="w-full" onClick={() => changeStatus(unblockTo)}>
+            <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
+          </ActionButton>
+        )}
+        {/* The regression action (bug-only, BR-08): a Done bug came back. */}
+        {bug && issue.status === 'done' && (
           <ActionButton action="flag_regression" item={issue} variant="outline" className="w-full" onClick={() => {
             onConfirm({
               title: 'Mark as regression?',
-              body: 'This will log a regression event and notify the reporter, assignee, and project triage lead.',
+              body: 'This moves the bug back to In progress, logs a regression, and notifies the reporter, assignee, and project triage lead.',
               confirmLabel: 'Mark as regression',
               tone: 'destructive',
               onConfirm: () => regress(),
@@ -415,11 +414,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <RefreshCw size={14} className="mr-1" /> Mark as regression
           </ActionButton>
         )}
-        {bug && issue.status === 'done' && (
-          <ActionButton action="flag_regression" item={issue} variant="outline" className="w-full" onClick={() => reopen()}>
-            <Ban size={14} className="mr-1" /> Reopen
-          </ActionButton>
-        )}
+        {/* Bug-only; disabled with guidance on Done (FR-16), absent on tasks. */}
+        <ReportRecurrenceButton item={issue} className="w-full" onReported={onRecurrenceReported} />
       </div>
     </aside>
   )

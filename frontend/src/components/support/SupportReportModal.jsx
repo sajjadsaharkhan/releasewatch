@@ -18,7 +18,7 @@ import { useToast } from '../../hooks/useToast'
 // template), fill its fields, give it a title. The server composes the fields
 // into the bug's description.
 
-export function SupportReportModal({ open, onClose, onSubmitted }) {
+export function SupportReportModal({ open, onClose, onSubmitted, initialDescription = '' }) {
   const { toast } = useToast()
 
   const [projects, setProjects] = useState(null)
@@ -49,6 +49,14 @@ export function SupportReportModal({ open, onClose, onSubmitted }) {
     setRetired(null)
     setComposerKey((k) => k + 1)
   }
+
+  // "New report referencing this" (slice 07) opens with the old key already
+  // written into the description, so triage sees the link.
+  useEffect(() => {
+    if (!open || !initialDescription) return
+    setDescription(initialDescription)
+    setComposerKey((k) => k + 1)
+  }, [open, initialDescription])
 
   useEffect(() => {
     if (!open) return

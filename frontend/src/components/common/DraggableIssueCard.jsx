@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
+import { ReportedCount } from './ReportedCount'
 import { issueKey } from '../../lib/issueSlug'
 import { TypeIcon, PriorityBadge } from '../ui/Badge'
 
@@ -39,9 +40,12 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
         {...attributes}
       >
         <div className="flex items-center justify-between mb-1.5">
-          <span className="font-mono text-[10.5px] text-zinc-500 inline-flex items-center gap-1">
-            <TypeIcon type={issue.type} />
-            {issueKey(issue)}
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono text-[10.5px] text-zinc-500 inline-flex items-center gap-1">
+              <TypeIcon type={issue.type} />
+              {issueKey(issue)}
+            </span>
+            <ReportedCount count={issue.recurrence_count} className="text-[10.5px]" />
           </span>
           <PriorityBadge priority={issue.priority} />
         </div>

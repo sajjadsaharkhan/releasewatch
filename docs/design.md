@@ -217,8 +217,7 @@ chip that links to the project's templates. A support-sourced item shows `<Sourc
 source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
 
 **Triage** (`pages/TriagePage.jsx`, slice 06): a queue with **New** and **Needs info** `Tabs`
-(count badges), oldest first, each row showing key, `SourceBadge`, a `×N` recurrence marker
-when reported more than once, "filed 3h ago", and the reporter. The detail pane has a
+(count badges), oldest first, each row showing key, `SourceBadge`, `<ReportedCount>` when reported more than once, "filed 3h ago", and the reporter. The detail pane has a
 **Move to project** dropdown (disabled while the bug has a release) and
 `components/triage/TriageOutcomePanel`: four outcome buttons — Accept, Needs info,
 Duplicate, Reject — each opening one small form with exactly its inputs (priority chips,
@@ -449,6 +448,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `UserPicker` (`components/common`) | Single-select person picker with search by full name or username (`@username` shown per row); `users`, `value` (id or null), `onChange`, `emptyLabel` (default "Unassigned"; falsy makes a choice required). Arrow keys + Enter, Escape closes. Use it wherever a list of people is long enough to scan |
 | `ActionButton` / `GatedButton` (`components/common`) | `ActionButton`: `action` + `item`, see §3 Role. `GatedButton`: `allowed` + `reason`, for role-level gates. Both render a disabled `Button` inside a focusable wrapper so the tooltip still opens |
 
+| `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the red regression marker and the priority pills |
+| `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
 should use the primitive rather than re-declaring the classes.
 
