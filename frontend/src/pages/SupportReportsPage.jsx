@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { cn } from '../lib/cn'
 import { Button } from '../components/ui/Button'
 import { Empty } from '../components/ui/Empty'
 import { Icon } from '../components/ui/Icon'
@@ -24,6 +25,23 @@ import { canSubmitSupportReport } from '../lib/roles'
 // as a team — everyone sees the whole team's reports — so rows name the reporter
 // and the Reporter filter narrows to "Me" or a teammate. Support also uses the
 // page to file new reports (the New report button).
+
+// A person in a row — avatar with their hover card, then their name ("You" for
+// the viewer). Reporter and Assignee both render through it so they match.
+function PersonCell({ person, currentUser, empty }) {
+  if (!person) {
+    // Copy rules: italic lowercase "unassigned" for an empty assignee, "—" otherwise.
+    return <span className={cn('text-[11px] text-muted-foreground', empty === 'unassigned' && 'italic')}>{empty}</span>
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground whitespace-nowrap">
+      <UserHoverCard user={person} size={20}>
+        <Avatar user={person} size={20} />
+      </UserHoverCard>
+      {String(person.id) === String(currentUser?.id) ? 'You' : person.name}
+    </span>
+  )
+}
 
 const STATUS_OPTIONS = Object.keys(STATUS).map((k) => ({ value: k, label: STATUS[k].label }))
 const PAGE_SIZE = 50
@@ -209,22 +227,11 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    {r.reporter_user ? (
-                      <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground whitespace-nowrap">
-                        <UserHoverCard user={r.reporter_user} size={20}>
-                          <Avatar user={r.reporter_user} size={20} />
-                        </UserHoverCard>
-                        {String(r.reporter_user.id) === String(user?.id) ? 'You' : r.reporter_user.name}
-                      </span>
-                    ) : <span className="text-[11px] text-muted-foreground">—</span>}
+                    <PersonCell person={r.reporter_user} currentUser={user} empty="—" />
                   </td>
                   <td className="px-3 py-2.5"><StatusBadge status={r.status} /></td>
                   <td className="px-3 py-2.5">
-                    {r.assignee_user ? (
-                      <UserHoverCard user={r.assignee_user} size={25}>
-                        <Avatar user={r.assignee_user} size={25} />
-                      </UserHoverCard>
-                    ) : <span className="text-[11px] text-muted-foreground italic">unassigned</span>}
+                    <PersonCell person={r.assignee_user} currentUser={user} empty="unassigned" />
                   </td>
                   <td className="px-3 py-2.5 text-right text-[12px] text-muted-foreground whitespace-nowrap">
                     <Tooltip content={fullTime(r.updated_at)}>
