@@ -72,13 +72,13 @@ async def test_ac_16_priority_required_on_accept(factories, rig):
     bug = await factories.issue(project_id=rig["project"].id, release_id=rig["release"].id)
     admin = factories.admin_client
 
-    resp = await admin.post(f"/issues/{bug.id}/triage", json={"assignee_id": developer.id})
+    resp = await admin.post(f"/issues/{bug.id}/triage", json={"outcome": "accept", "assignee_id": developer.id})
     assert resp.status_code == 422
     locs = [tuple(e["loc"]) for e in resp.json()["detail"]]
-    assert ("body", "priority") in locs
+    assert ("body", "accept", "priority") in locs  # the triage body is a tagged union (06)
 
     resp = await admin.post(
-        f"/issues/{bug.id}/triage", json={"assignee_id": developer.id, "priority": None},
+        f"/issues/{bug.id}/triage", json={"outcome": "accept", "assignee_id": developer.id, "priority": None},
     )
     assert resp.status_code == 422
 
@@ -87,7 +87,7 @@ async def test_ac_16_priority_required_on_accept(factories, rig):
     assert still_new["priority"] is None
 
     resp = await admin.post(
-        f"/issues/{bug.id}/triage", json={"assignee_id": developer.id, "priority": "medium"},
+        f"/issues/{bug.id}/triage", json={"outcome": "accept", "assignee_id": developer.id, "priority": "medium"},
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "todo"

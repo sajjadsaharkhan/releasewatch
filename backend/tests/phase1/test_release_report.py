@@ -19,15 +19,16 @@ async def test_release_report_counts(factories, client_for):
     to_fix = await factories.issue(release_id=release.id, priority="high")
     to_verify = await factories.issue(release_id=release.id, priority="critical")
 
+    await admin.patch(f"/issues/{blocker.id}", json={"is_release_blocker": True})
     await admin.post(
         f"/issues/{blocker.id}/triage",
-        json={"assignee_id": developer.id, "priority": "critical", "is_release_blocker": True},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "critical"},
     )
 
     for issue in (to_fix, to_verify):
         await admin.post(
             f"/issues/{issue.id}/triage",
-            json={"assignee_id": developer.id, "priority": issue.priority},
+            json={"outcome": "accept", "assignee_id": developer.id, "priority": issue.priority},
         )
         await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
         await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})

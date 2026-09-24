@@ -16,6 +16,7 @@ from app.db.models.system_setting import SystemSetting
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.issue_embedding import IssueEmbedding
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
+from app.db.models.issue_subscriber import IssueSubscriber
 
 __all__ = [
     "User",
@@ -35,4 +36,5 @@ __all__ = [
     "IssueEmbedding",
     "SupportTemplate",
     "SupportTemplateField",
+    "IssueSubscriber",
 ]

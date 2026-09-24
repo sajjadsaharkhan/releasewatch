@@ -13,13 +13,14 @@ attachments, inbox.
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import Select, select, true
+from sqlalchemy import Select, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import policy
 from app.core.auth import get_current_user
 from app.core.errors import DomainError
 from app.db.models.issue import Issue, IssueSource
+from app.db.models.issue_subscriber import IssueSubscriber
 from app.db.models.project import Project
 from app.db.models.user import User, UserRole
 from app.policy import Actor, Target
@@ -43,11 +44,13 @@ def issue_target(issue: Issue, project: Project | None = None, **extra: Any) -> 
     """Snapshot an issue. ``project`` defaults to ``issue.project`` when it's already loaded."""
     if project is None:
         project = issue.__dict__.get("project")  # never trigger a lazy load in async code
+    subscriptions = issue.__dict__.get("subscriptions") or ()
     return Target(
         item_id=issue.id,
         item_type=getattr(issue.type, "value", issue.type),
         status=getattr(issue.status, "value", issue.status),
         source=getattr(issue.source, "value", issue.source),
+        subscriber_ids=frozenset(s.user_id for s in subscriptions),
         assignee_id=issue.assignee_id,
         reporter_id=issue.reporter_id,
         project_id=issue.project_id,
@@ -86,15 +89,17 @@ def require_action(action: policy.Action):
 # ── Visibility (BR-30) ────────────────────────────────────────────────────────
 
 
-def support_visibility_clause():
-    """SQL for "support-sourced item" — all Support may see (BR-30)."""
-    return Issue.source == IssueSource.support.value
+def support_visibility_clause(user: User):
+    """SQL for what Support may see (BR-30): support-sourced items, plus items
+    the user is subscribed to (slice 06 — a report merged into an internal original)."""
+    subscribed = select(IssueSubscriber.issue_id).where(IssueSubscriber.user_id == user.id)
+    return or_(Issue.source == IssueSource.support.value, Issue.id.in_(subscribed))
 
 
 def visibility_clause(user: User):
     """WHERE clause restricting ``Issue`` rows to what ``user`` may see."""
     if getattr(user.role, "value", user.role) == UserRole.support.value:
-        return support_visibility_clause()
+        return support_visibility_clause(user)
     return true()
 
 

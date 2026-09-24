@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue import Issue, IssueStatus
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
-from app.db.models.regression_history import RegressionHistory
+from app.db.models.regression_history import RegressionHistory, RegressionSource
 from app.db.models.release import Release
 from app.db.models.user import User
 
@@ -30,8 +30,9 @@ class RegressionService:
         self,
         db: AsyncSession,
         issue: Issue,
-        release: Release,
+        release: Release | None,
         detected_by: User,
+        source: RegressionSource = RegressionSource.action,
     ) -> RegressionHistory:
         """Record a regression event for an issue and update its counter.
 
@@ -46,9 +47,15 @@ class RegressionService:
         issue:
             The regressed ``Issue`` row (already updated to ``regression`` status).
         release:
-            The release in which the regression was detected.
+            The release in which the regression was detected. ``None`` only for
+            a merge regression whose merged report had no release (BR-49) —
+            release reports and fragility select by release, so the cycle
+            stays out of them (BR-25).
         detected_by:
             The user who identified the regression.
+        source:
+            ``action`` for the direct regression action, ``merge`` for a
+            merge into a Done bug (``MergeService``, slice 06).
 
         Returns
         -------
@@ -84,7 +91,8 @@ class RegressionService:
 
         history = RegressionHistory(
             issue_id=issue.id,
-            release_id=release.id,
+            release_id=release.id if release is not None else None,
+            source=source,
             regression_number=regression_number,
             detected_at=now,
             detected_by_id=detected_by.id,

@@ -19,12 +19,20 @@ release_changed      → assignee + reporter + triage_lead (new release's triage
 project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
 priority_changed     → assignee + reporter + triage_lead
+needs_info_replied   → triage leads (slice 06, FR-19)
+moved_into_project   → the new project's triage leads (slice 06, FR-20)
+recurrence_on_cancelled → triage leads (a merge or recurrence on a Cancelled item)
+support_needs_info   → Support-role subscribers (slice 06, §13)
+support_cancelled    → Support-role subscribers
+support_done         → Support-role subscribers
 
 "triage leads" is the project's active triage lead, or every active admin
 while the project has none (AC-23). Whatever the event, a recipient who may
 not see the item — or, for an internal note, anyone who isn't a tech role —
 is dropped before any row, WebSocket push, or Telegram send exists
-(slice 04, BR-30/31).
+(slice 04, BR-30/31). Support users are also dropped from every event except
+the three ``support_*`` ones and ``mention`` (slice 06), so Support never gets
+internal content by notification.
 """
 
 import html as html_lib
@@ -37,8 +45,8 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.notification_defaults import DEFAULT_NOTIFICATION_MATRIX
-from app.db.models.inbox_item import InboxItem, InboxEventType
+from app.core.notification_defaults import resolve_matrix
+from app.db.models.inbox_item import SUPPORT_EVENTS, SUPPORT_RECEIVABLE, InboxItem, InboxEventType
 from app.db.models.issue import Issue, IssueSource
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User, UserRole
@@ -238,6 +246,25 @@ class InboxFanOutService:
             leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
 
+        elif trigger in (
+            InboxEventType.needs_info_replied,
+            InboxEventType.moved_into_project,
+            InboxEventType.recurrence_on_cancelled,
+        ):
+            # moved_into_project: issue.project_id is already the new project.
+            leads = await self._triage_recipients(db, issue)
+            recipients.update(str(u.id) for u in leads)
+
+        elif trigger in SUPPORT_EVENTS:
+            from app.services.subscriber_service import subscriber_ids
+
+            ids = await subscriber_ids(db, issue.id)
+            if ids:
+                result = await db.execute(
+                    select(User.id).where(User.id.in_(ids), User.role == UserRole.support)
+                )
+                recipients.update(str(uid) for uid in result.scalars().all())
+
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).
         logger.info("[fan_out] trigger=%s recipients_before_discard=%s actor_id=%s", trigger, recipients, actor.id)
@@ -245,7 +272,7 @@ class InboxFanOutService:
         recipients.update(forced_recipients)
         if suppress_user_ids:
             recipients -= suppress_user_ids
-        recipients = await self._drop_invisible(db, recipients, issue, timeline_event)
+        recipients = await self._drop_invisible(db, recipients, issue, timeline_event, trigger)
         logger.info("[fan_out] trigger=%s final_recipients=%s", trigger, recipients)
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
@@ -326,9 +353,7 @@ class InboxFanOutService:
                 .where(SystemSetting.key == "matrix")
             )
             setting = result.scalar_one_or_none()
-            matrix: dict = dict(DEFAULT_NOTIFICATION_MATRIX)
-            if setting and setting.value:
-                matrix.update(setting.value)
+            matrix = resolve_matrix(setting.value if setting else None)
 
             event_key = trigger.value
             row = matrix.get(event_key)
@@ -391,6 +416,12 @@ class InboxFanOutService:
 
             needs_lead = project is not None and await project_needs_triage_lead(db, project)
 
+            subscribers: set[int] = set()
+            if row and row.get("subscriber"):
+                from app.services.subscriber_service import subscriber_ids
+
+                subscribers = await subscriber_ids(db, issue.id)
+
             project_name = project.name if project else "Unknown Project"
             release_name = release.version if release else "Unknown Release"
             release_deadline = (
@@ -447,6 +478,14 @@ class InboxFanOutService:
                 "new_priority": _esc(to_val or "unrated"),
                 "old_project": _esc(from_val),
                 "new_project": _esc(to_val),
+                # support_cancelled (slice 06): the human-readable reason, or
+                # where a merged report went.
+                "cancel_reason": _esc(_meta.get("reason_label", "")),
+                "merged_into_key": _esc(_meta.get("merged_into_key", "")),
+                "merged_into_url": (
+                    f"{frontend_base}/issue/issue-{_meta['merged_into_number']}"
+                    if _meta.get("merged_into_number") else issue_url
+                ),
             }
 
             from app.telegram.templates import MESSAGE_TEMPLATES
@@ -461,6 +500,8 @@ class InboxFanOutService:
                 and getattr(issue.source, "value", issue.source) == IssueSource.support.value
             ):
                 template_key = "support_report_filed"
+            elif trigger == InboxEventType.support_cancelled and _meta.get("merged_into_key"):
+                template_key = "support_merged"
             if template_key not in MESSAGE_TEMPLATES:
                 logger.warning("No Telegram template for event: %s", template_key)
                 return
@@ -487,6 +528,7 @@ class InboxFanOutService:
                     or (row.get("assignee") and issue.assignee_id == user.id)
                     or (row.get("triage") and is_project_triage_lead)
                     or (row.get("cto") and user.role in (UserRole.cto, UserRole.admin))
+                    or (row.get("subscriber") and user.id in subscribers)
                 )
                 if not should_notify:
                     item.telegram_status = "skipped"
@@ -603,8 +645,13 @@ class InboxFanOutService:
         recipients: set[str],
         issue: Issue,
         timeline_event: IssueTimeline | None,
+        trigger: InboxEventType | None = None,
     ) -> set[str]:
-        """Keep only recipients who may see ``issue`` (and the note, if it's internal)."""
+        """Keep only recipients who may see ``issue`` (and the note, if it's internal).
+
+        Support users keep only the three ``support_*`` events and mentions
+        (slice 06) — never comments, status changes, or anything else.
+        """
         from app.policy import Action, allows, is_tech
         from app.services.authz import actor_of, issue_target
 
@@ -613,11 +660,13 @@ class InboxFanOutService:
         result = await db.execute(select(User).where(User.id.in_([int(r) for r in recipients])))
         target = issue_target(issue)
         internal = timeline_event is not None and timeline_event.is_internal
+        support_may_receive = trigger in SUPPORT_RECEIVABLE
         return {
             str(u.id)
             for u in result.scalars().all()
             if allows(actor_of(u), Action.view_item, target)
             and (not internal or is_tech(u.role))
+            and (support_may_receive or is_tech(u.role))
         }
 
     async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:

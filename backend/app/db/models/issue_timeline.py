@@ -34,6 +34,8 @@ class TimelineEventType(str, enum.Enum):
     project_changed = "project_changed"
     environment_changed = "environment_changed"
     needs_clarification = "needs_clarification"
+    #: A triage outcome (slice 06) — ``meta.outcome`` plus the outcome's inputs.
+    triaged = "triaged"
 
 
 class IssueTimeline(Base):

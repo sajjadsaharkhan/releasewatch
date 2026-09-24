@@ -8,7 +8,7 @@ export function DroppableColumn({ status, issues, onOpen }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex flex-col min-h-0" data-testid={`board-column-${status}`}>
       <div className="px-1 pb-2 flex items-center gap-1.5">
         <StatusBadge status={status} size="sm" />
         <span className="text-[11px] text-zinc-500 tabular-nums">{issues.length}</span>

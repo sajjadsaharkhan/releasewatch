@@ -32,7 +32,7 @@ router = APIRouter()
 # In production these would be stored per-user/workspace in a settings table.
 # For now they are returned as a default matrix and accepted as-is.
 
-from app.core.notification_defaults import DEFAULT_NOTIFICATION_MATRIX as _DEFAULT_NOTIFICATION_MATRIX
+from app.core.notification_defaults import resolve_matrix
 
 _gitlab_config: dict = {}
 
@@ -43,11 +43,7 @@ async def get_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the notification preference matrix (event types × roles)."""
-    stored = await _get_setting(db, "notifications", "matrix")
-    matrix = dict(_DEFAULT_NOTIFICATION_MATRIX)
-    if stored:
-        matrix.update(stored)
-    return matrix
+    return resolve_matrix(await _get_setting(db, "notifications", "matrix"))
 
 
 @router.put("/notifications")
@@ -57,8 +53,8 @@ async def save_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     """Persist notification preferences. Body must match the matrix shape."""
-    current = await _get_setting(db, "notifications", "matrix") or dict(_DEFAULT_NOTIFICATION_MATRIX)
-    current.update(body)
+    current = resolve_matrix(await _get_setting(db, "notifications", "matrix"))
+    current = resolve_matrix({**current, **body})
     await _set_setting(db, "notifications", "matrix", current)
     return current
 

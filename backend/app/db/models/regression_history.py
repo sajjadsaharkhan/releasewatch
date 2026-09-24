@@ -2,10 +2,21 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger
+import enum
+
+from sqlalchemy import DateTime, ForeignKey, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+class RegressionSource(str, enum.Enum):
+    """How a regression cycle started (slice 06, D12)."""
+
+    #: The direct regression action (``POST /issues/{id}/regression``, BR-24).
+    action = "action"
+    #: A report merged into a Done bug (BR-49) — may have no release.
+    merge = "merge"
 
 
 class RegressionHistory(Base):
@@ -23,8 +34,13 @@ class RegressionHistory(Base):
     issue_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    release_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True
+    release_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=True, index=True,
+        doc="Null for a merge regression whose merged report had no release (BR-49). "
+            "Release reports and fragility select by release, so these cycles stay out (BR-25).",
+    )
+    source: Mapped[RegressionSource] = mapped_column(
+        String(16), nullable=False, default=RegressionSource.action,
     )
     regression_number: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, default=1,

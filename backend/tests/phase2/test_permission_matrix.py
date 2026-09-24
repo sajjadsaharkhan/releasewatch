@@ -89,7 +89,7 @@ async def test_triage(world, role):
     c = await _as(world, role)
     resp = await c.post(
         f"/issues/{world.bug.id}/triage",
-        json={"assignee_id": world.users["qa"].id, "priority": "high"},
+        json={"outcome": "accept", "assignee_id": world.users["qa"].id, "priority": "high"},
     )
     assert resp.status_code == _expect(role, TECH, 200), resp.text
 

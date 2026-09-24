@@ -4,8 +4,8 @@ Per product decision (2026-09-22, superseding the original slice-02 spec's
 Workflow gating): a bug can move from any status to any other status via
 POST /issues/{id}/transition (and PATCH), with no reason required, no
 self-verification block, and no release gate on the regression action. See
-``app/workflow.py``. The dedicated action endpoints (/triage,
-/needs-clarification, /fix, /verify, /reopen) keep their own specific
+``app/workflow.py``. The dedicated action endpoints (/triage, /fix,
+/verify, /reopen) keep their own specific
 preconditions — those aren't part of Workflow and weren't loosened.
 """
 
@@ -24,7 +24,7 @@ async def _todo_bug(factories, client_for, release_id, developer):
     admin = factories.admin_client
     resp = await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "priority": "high"},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "high"},
     )
     assert resp.status_code == 200
     return issue

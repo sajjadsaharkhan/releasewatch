@@ -1,9 +1,9 @@
 """Issue schemas."""
 
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, computed_field, model_validator
 
 from app.db.models.issue import (
     ISSUE_TYPE_KEY_PREFIX,
@@ -167,14 +167,59 @@ class BlockedAction(BaseModel):
     detail: str
 
 
-class TriageRequest(BaseModel):
-    """Payload for POST /issues/{id}/triage."""
+#: A comment that must say something — whitespace alone doesn't count.
+RequiredComment = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
-    assignee_id: int
+
+class AcceptOutcome(BaseModel):
+    """Accept → To do. ``release_id`` omitted keeps the bug's release (none → hotfix path)."""
+
+    outcome: Literal["accept"]
     priority: Priority = Field(description="Required to accept a bug (BR-16, AC-16).")
-    labels: list[str] | None = None
-    is_release_blocker: bool | None = None
-    note: str | None = None
+    assignee_id: int | None = None
+    release_id: int | None = None
+
+
+class NeedsInfoOutcome(BaseModel):
+    """Needs info → a public comment saying what's missing (BR-18, AC-17)."""
+
+    outcome: Literal["needs_info"]
+    comment: RequiredComment
+
+
+class DuplicateOutcome(BaseModel):
+    """Duplicate → merged into ``duplicate_of_id`` and cancelled (FR-18, BR-20, BR-49)."""
+
+    outcome: Literal["duplicate"]
+    duplicate_of_id: int
+    comment: str | None = None
+
+
+class RejectOutcome(BaseModel):
+    """Reject → cancelled with one of the three reject reasons (FR-18)."""
+
+    outcome: Literal["reject"]
+    reason: Literal[
+        IssueCancelReason.user_error,
+        IssueCancelReason.expected_behavior,
+        IssueCancelReason.cannot_reproduce,
+    ]
+    comment: str | None = None
+
+
+class TriageRequest(RootModel):
+    """Payload for POST /issues/{id}/triage — a tagged union on ``outcome``."""
+
+    root: Annotated[
+        AcceptOutcome | NeedsInfoOutcome | DuplicateOutcome | RejectOutcome,
+        Field(discriminator="outcome"),
+    ]
+
+
+class MoveRequest(BaseModel):
+    """Payload for POST /issues/{id}/move (FR-20)."""
+
+    project_id: int
 
 
 class FixRequest(BaseModel):
@@ -189,18 +234,6 @@ class VerifyRequest(BaseModel):
 
     outcome: str = Field(pattern=r"^(pass|fail|partial)$")
     note: str | None = None
-
-
-class DuplicateRequest(BaseModel):
-    """Payload for POST /issues/{id}/duplicate."""
-
-    parent_id: int
-
-
-class NeedsClarificationRequest(BaseModel):
-    """Payload for POST /issues/{id}/needs-clarification."""
-
-    message: str | None = None
 
 
 class IssueResponse(IssueBase):
@@ -330,7 +363,10 @@ class RegressionHistoryResponse(BaseModel):
     id: int
     regression_number: int
     detected_at: datetime
-    release_id: int
+    #: Null for a merge regression whose merged report had no release (BR-49).
+    release_id: int | None = None
     release_version: str | None = None
+    #: ``action`` (the direct regression action) or ``merge`` (slice 06).
+    source: str = "action"
     detected_by: UserSummary | None = None
     previous_fix_by: UserSummary | None = None

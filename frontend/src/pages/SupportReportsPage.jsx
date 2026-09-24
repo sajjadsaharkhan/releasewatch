@@ -10,7 +10,7 @@ import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Tooltip } from '../components/ui/Tooltip'
 import { FilterDropdown } from '../components/common/FilterDropdown'
 import { MultiSelectFilterDropdown } from '../components/common/MultiSelectFilterDropdown'
-import { projectsApi, supportApi } from '../lib/api'
+import { projectsApi, supportApi, teamApi } from '../lib/api'
 import { STATUS } from '../lib/constants'
 import { issueSlug } from '../lib/issueSlug'
 import { relTime, fullTime } from '../lib/relTime'
@@ -18,8 +18,10 @@ import { useApp } from '../hooks/useApp'
 import { SupportReportModal } from '../components/support'
 import { canSubmitSupportReport } from '../lib/roles'
 
-// Every support-sourced item across all projects (slice 05, FR-11). Support uses
-// it to follow up and to file new reports (the New report button).
+// Every support-sourced item across all projects (slice 05, FR-11). Support works
+// as a team — everyone sees the whole team's reports — so rows name the reporter
+// and the Reporter filter narrows to "Me" or a teammate. Support also uses the
+// page to file new reports (the New report button).
 
 const STATUS_OPTIONS = Object.keys(STATUS).map((k) => ({ value: k, label: STATUS[k].label }))
 const PAGE_SIZE = 50
@@ -35,9 +37,12 @@ export default function SupportReportsPage({ newReportOpen = false }) {
     [searchParams]
   )
   const page = Number(searchParams.get('page') ?? 1)
+  // 'me', a user id, or absent for everyone.
+  const reporter = searchParams.get('reporter') ?? 'all'
 
   const [query, setQuery] = useState(q)
   const [projects, setProjects] = useState([])
+  const [supportTeam, setSupportTeam] = useState([])
   const [data, setData] = useState(null)
   const [error, setError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -56,7 +61,12 @@ export default function SupportReportsPage({ newReportOpen = false }) {
 
   useEffect(() => {
     projectsApi.list().then((res) => setProjects(res.data || [])).catch(() => {})
+    teamApi.list()
+      .then((res) => setSupportTeam((res.data || []).filter((u) => u.role === 'support')))
+      .catch(() => {})
   }, [])
+
+  const reporterId = reporter === 'me' ? user?.id : reporter === 'all' ? undefined : reporter
 
   // Debounce the search box into the URL.
   useEffect(() => {
@@ -71,20 +81,29 @@ export default function SupportReportsPage({ newReportOpen = false }) {
       q: q || undefined,
       project_id: projectId === 'all' ? undefined : projectId,
       status: statuses.length ? statuses : undefined,
+      reporter_id: reporterId,
       page,
       size: PAGE_SIZE,
     })
       .then((res) => { if (!cancelled) setData(res.data) })
       .catch(() => { if (!cancelled) setError(true) })
     return () => { cancelled = true }
-  }, [q, projectId, statuses, page, reloadKey])
+  }, [q, projectId, statuses, reporterId, page, reloadKey])
 
   const projectOptions = [
     { value: 'all', label: 'All projects' },
     ...projects.map((p) => ({ value: String(p.id), label: p.name })),
   ]
   const projectLabel = projectOptions.find((o) => o.value === projectId)?.label ?? 'All projects'
-  const filtered = Boolean(q || projectId !== 'all' || statuses.length)
+  const reporterOptions = [
+    { value: 'all', label: 'Anyone' },
+    { value: 'me', label: 'Me' },
+    ...supportTeam
+      .filter((u) => String(u.id) !== String(user?.id))
+      .map((u) => ({ value: String(u.id), label: u.name })),
+  ]
+  const reporterLabel = reporterOptions.find((o) => o.value === reporter)?.label ?? 'Anyone'
+  const filtered = Boolean(q || projectId !== 'all' || statuses.length || reporter !== 'all')
   const lastPage = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
 
   return (
@@ -122,6 +141,13 @@ export default function SupportReportsPage({ newReportOpen = false }) {
           options={projectOptions}
           onChange={(v) => updateParams({ project: v })}
         />
+        <FilterDropdown
+          icon="user"
+          label="Reporter"
+          value={reporterLabel}
+          options={reporterOptions}
+          onChange={(v) => updateParams({ reporter: v })}
+        />
         <MultiSelectFilterDropdown
           icon="circle-dashed"
           label="Status"
@@ -151,6 +177,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
               <tr>
                 <th scope="col" className="text-left font-medium px-7 py-2">Report</th>
                 <th scope="col" className="text-left font-medium px-3 py-2 hidden md:table-cell">Project</th>
+                <th scope="col" className="text-left font-medium px-3 py-2">Reporter</th>
                 <th scope="col" className="text-left font-medium px-3 py-2">Status</th>
                 <th scope="col" className="text-left font-medium px-3 py-2">Assignee</th>
                 <th scope="col" className="text-right font-medium px-3 py-2 hidden sm:table-cell">Reports</th>
@@ -175,6 +202,16 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                       <span className="h-2 w-2 rounded-full" style={{ background: r.project_color ?? '#6366f1' }} aria-hidden />
                       {r.project_name}
                     </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {r.reporter_user ? (
+                      <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground whitespace-nowrap">
+                        <UserHoverCard user={r.reporter_user} size={20}>
+                          <Avatar user={r.reporter_user} size={20} />
+                        </UserHoverCard>
+                        {String(r.reporter_user.id) === String(user?.id) ? 'You' : r.reporter_user.name}
+                      </span>
+                    ) : <span className="text-[11px] text-muted-foreground">—</span>}
                   </td>
                   <td className="px-3 py-2.5"><StatusBadge status={r.status} /></td>
                   <td className="px-3 py-2.5">

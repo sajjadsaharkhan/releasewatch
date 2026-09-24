@@ -95,6 +95,9 @@ class Target:
     item_type: str | None = None
     status: str | None = None
     source: str | None = None  # internal | support (slice 05)
+    #: Who is subscribed to the item's Support notices (slice 06) — a Support
+    #: subscriber may view it even when it isn't support-sourced.
+    subscriber_ids: frozenset[int] = frozenset()
     assignee_id: int | None = None
     reporter_id: int | None = None
     project_id: int | None = None
@@ -230,9 +233,11 @@ def is_assignable(role: Any) -> bool:
 
 
 def _can_view(actor: Actor, target: Target) -> bool:
-    """BR-30 — Support sees only support-sourced items; everyone else sees everything."""
+    """BR-30 — Support sees support-sourced items, plus items they're subscribed to
+    (a report merged into an internal original, 2026-09-24 decision); everyone
+    else sees everything."""
     if _role(actor.role) == Role.support.value:
-        return target.source == "support"
+        return target.source == "support" or actor.id in target.subscriber_ids
     return True
 
 

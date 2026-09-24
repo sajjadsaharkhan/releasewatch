@@ -152,6 +152,13 @@ async def create_comment(
         is_internal=payload.is_internal,
         mentioned_user_ids=payload.mentioned_user_ids or [],
     )
+    # FR-19 — a reporter or Support reply sends a Needs info item back to New,
+    # in the same transaction as the comment.
+    from app.services.triage_service import triage_service
+
+    await triage_service.on_comment(
+        db, visible, current_user, body=payload.body, is_internal=payload.is_internal,
+    )
     await db.commit()
 
     result = await db.execute(

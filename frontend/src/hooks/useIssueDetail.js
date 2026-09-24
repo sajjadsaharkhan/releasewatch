@@ -42,6 +42,7 @@ function normalizeTimelineItems(apiItems) {
         mentionedUsers: e.mentioned_user_ids || [],
         editedAt: e.edited_at,
         reactions: e.reactions || [],
+        meta: e.meta,
       })
     } else {
       events.push({
@@ -283,6 +284,15 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       setTimelineBaseItems(prev => [...prev, newItem])
       setTimelineTotal(prev => prev + 1)
       toast({ title: 'Comment added' })
+      // A reporter or Support reply on a Needs info item sends it back to New
+      // server-side (FR-19) — pick up the new status and its timeline event.
+      if (localIssue?.status === 'needs_info' && !isInternal) {
+        issuesApi.get(id).then(fresh => {
+          setLocalIssue(prev => ({ ...prev, ...fresh.data }))
+          onUpdate?.(fresh.data)
+          fetchTimeline(id)
+        }).catch(() => {})
+      }
     } catch {
       toast({ title: 'Failed to add comment' })
     }

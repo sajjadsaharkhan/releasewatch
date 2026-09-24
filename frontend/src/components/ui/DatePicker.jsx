@@ -25,8 +25,13 @@ export function DatePicker({
   minDate,
   maxDate,
 }) {
+  const [open, setOpen] = React.useState(false)
+
+  // Picking a day is the whole interaction — close so the panel doesn't sit
+  // over the fields below it.
   const handleSelect = (date) => {
     onChange?.(date)
+    setOpen(false)
   }
 
   const disabledProp = React.useMemo(() => {
@@ -40,7 +45,7 @@ export function DatePicker({
   }, [minDate, maxDate])
 
   return (
-    <Popover align={align}>
+    <Popover align={align} open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"

@@ -30,8 +30,16 @@ export function ToastProvider({ children }) {
     timers.current[id] = setTimeout(() => dismiss(id), duration)
   }, [dismiss])
 
+  // `toast.error(title, body?)` — the error form docs/design.md §7 prescribes.
+  // Same stack and styling; the title says what failed.
+  const api = React.useMemo(() => {
+    const fn = (opts) => toast(opts)
+    fn.error = (title, body) => toast({ title, body })
+    return fn
+  }, [toast])
+
   return (
-    <ToastContext.Provider value={{ toast, dismiss }}>
+    <ToastContext.Provider value={{ toast: api, dismiss }}>
       {children}
       {/* Toast stack */}
       <div

@@ -173,7 +173,8 @@ async def test_ac_07_support_never_sees_internal_notes(rig, pushes):
     assert await new_inbox() == []
     assert f"rw:inbox:{rig['support'].id}" not in [ch for ch, _ in pushes]
 
-    # …while a public one does.
+    # …while a public one does (a mention is one of the few things Support is
+    # notified of — slice 06, 2026-09-24 decision).
     await rig["admin"].post(
         f"/issues/{bug_id}/timeline",
         json={"body": "Public ping", "mentioned_user_ids": [rig["support"].id]},
@@ -249,7 +250,7 @@ async def test_ac_47_support_not_assignable(rig):
     sid, bug_id = rig["support"].id, rig["bug"].id
     for method, url, body in [
         ("patch", f"/issues/{bug_id}", {"assignee_id": sid}),
-        ("post", f"/issues/{bug_id}/triage", {"assignee_id": sid, "priority": "low"}),
+        ("post", f"/issues/{bug_id}/triage", {"outcome": "accept", "assignee_id": sid, "priority": "low"}),
         ("post", "/issues", {"title": "t", "project_id": rig["project"].id, "assignee_id": sid}),
     ]:
         resp = await getattr(admin, method)(url, json=body)

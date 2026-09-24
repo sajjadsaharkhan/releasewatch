@@ -138,12 +138,15 @@ export const issuesApi = {
   restore: (id) => api.post(`/issues/${id}/restore`),
   permanentDelete: (id) => api.delete(`/issues/${id}/permanent`),
   clearTrash: () => api.delete('/issues/trash/clear'),
+  // One triage outcome on a New / Needs info bug (slice 06). `data.outcome` is
+  // 'accept' {priority, assignee_id?, release_id?} · 'needs_info' {comment} ·
+  // 'duplicate' {duplicate_of_id, comment?} · 'reject' {reason, comment?}.
   triage: (id, data) => api.post(`/issues/${id}/triage`, data),
+  // Move a New / Needs info bug with no release to another project (FR-20).
+  move: (id, projectId) => api.post(`/issues/${id}/move`, { project_id: projectId }),
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),
   verify: (id, data) => api.post(`/issues/${id}/verify`, data),
   reopen: (id) => api.post(`/issues/${id}/reopen`),
-  duplicate: (id, parentId) => api.post(`/issues/${id}/duplicate`, { parent_id: parentId }),
-  needsClarification: (id, data) => api.post(`/issues/${id}/needs-clarification`, data),
   // Generic status change — board drags and the sidebar's status control.
   // `to` is required; `reason`/`comment`/`cancel_reason` are optional.
   transition: (id, data) => api.post(`/issues/${id}/transition`, data),

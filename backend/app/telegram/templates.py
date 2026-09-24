@@ -5,7 +5,8 @@ key.  Dynamic fields are filled in by the sender:
   issue_number, title, issue_url, comment_url, actor, actor_url, priority,
   excerpt, project_name, release_name, release_deadline,
   old_status/new_status, old_environment/new_environment, old_release/new_release,
-  old_priority/new_priority, version, gate_status, approver, blocker, note
+  old_priority/new_priority, version, gate_status, approver, blocker, note,
+  cancel_reason (support_cancelled)
 """
 
 MESSAGE_TEMPLATES: dict[str, str] = {
@@ -21,6 +22,58 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "\n"
         "<i>Reported by <a href=\"{actor_url}\">{actor}</a></i>"
+    ),
+    # Slice 06 — to the triage lead (§13).
+    "needs_info_replied": (
+        "↩️ <b>Reporter replied — back in your triage queue</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b>\n"
+        "\n"
+        "<i><a href=\"{actor_url}\">{actor}</a>:</i> \"{excerpt}\""
+    ),
+    "moved_into_project": (
+        "📥 <b>Moved into your triage queue</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📤 From: <b>{old_project}</b>\n"
+        "📥 To:      <b>{new_project}</b>\n"
+        "\n"
+        "<i>Moved by <a href=\"{actor_url}\">{actor}</a></i>"
+    ),
+    "recurrence_on_cancelled": (
+        "🔂 <b>A cancelled item was reported again</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b>\n"
+        "\n"
+        "<i>Reported by <a href=\"{actor_url}\">{actor}</a> — it stays cancelled.</i>"
+    ),
+    # Slice 06 — the only three messages Support receives (§13).
+    "support_needs_info": (
+        "❓ <b>Your report needs more information</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "<i><a href=\"{actor_url}\">{actor}</a> asks:</i> \"{excerpt}\"\n"
+        "\n"
+        "<a href=\"{issue_url}\">Reply on the report →</a>"
+    ),
+    "support_cancelled": (
+        "🚫 <b>Your report was closed without a fix</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "Reason: <b>{cancel_reason}</b>"
+    ),
+    # support_cancelled for a report merged as a duplicate — not a dead end.
+    "support_merged": (
+        "🔗 <b>Your report was merged into another report</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "It's the same problem as <a href=\"{merged_into_url}\">{merged_into_key}</a>. "
+        "You'll hear from us when that one is fixed."
+    ),
+    "support_done": (
+        "✅ <b>Your report is fixed</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "<i>You can let the customer know.</i>"
     ),
     "assigned": (
         "👋 <b>You've been assigned!</b>\n"

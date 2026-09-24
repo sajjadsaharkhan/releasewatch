@@ -216,6 +216,17 @@ turning off a project's last live template asks first. Projects rows show a temp
 chip that links to the project's templates. A support-sourced item shows `<SourceBadge
 source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
 
+**Triage** (`pages/TriagePage.jsx`, slice 06): a queue with **New** and **Needs info** `Tabs`
+(count badges), oldest first, each row showing key, `SourceBadge`, a `×N` recurrence marker
+when reported more than once, "filed 3h ago", and the reporter. The detail pane has a
+**Move to project** dropdown (disabled while the bug has a release) and
+`components/triage/TriageOutcomePanel`: four outcome buttons — Accept, Needs info,
+Duplicate, Reject — each opening one small form with exactly its inputs (priority chips,
+assignee and release `Select`s; a required question; the same-project `DuplicatePicker`;
+a reject-reason `Select`). A `duplicate_of_duplicate` refusal shows an amber inline notice
+with "Use BUG-n instead". While an item is in Needs info, the item page pins the triager's
+question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
+
 `Select` opens upward when there's no room below. `Select` and `Dropdown` are
 `position: fixed` portals, so both follow their trigger when the page scrolls or resizes
 and close once the trigger leaves the viewport.
@@ -434,6 +445,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Empty` | `icon` · `title` · `body` · children slot for a CTA |
 | `Avatar` / `AvatarGroup` | `size` in px; group overlaps −8px, `max` then `+N` |
 | `Switch` · `Slider` · `Calendar` · `DatePicker` · `Popover` · `Icon` | — |
+| `IssueHoverCard` (`components/common`) | A work item's key as a chip link — type icon in its hue + mono key (`issueId`, `label`) that shows its card on hover or focus — key, status, priority, source, title, assignee, project. Fetched on first hover. The item-side twin of `UserHoverCard`; use it wherever copy names another item |
+| `UserPicker` (`components/common`) | Single-select person picker with search by full name or username (`@username` shown per row); `users`, `value` (id or null), `onChange`, `emptyLabel` (default "Unassigned"; falsy makes a choice required). Arrow keys + Enter, Escape closes. Use it wherever a list of people is long enough to scan |
 | `ActionButton` / `GatedButton` (`components/common`) | `ActionButton`: `action` + `item`, see §3 Role. `GatedButton`: `allowed` + `reason`, for role-level gates. Both render a disabled `Button` inside a focusable wrapper so the tooltip still opens |
 
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
@@ -455,7 +468,7 @@ the scrolling `<main>` will clip.
   and auth transitions; `<Loader2 className="animate-spin">` inline in the topbar.
 - **Empty:** `<Empty>` for a whole view; a centered `py-12 text-center text-sm
   text-muted-foreground` line for a filtered-to-nothing table.
-- **Error:** `toast.error(...)` — never a bare `console.error` as the only user-visible
+- **Error:** `toast.error(title, body?)` — never a bare `console.error` as the only user-visible
   outcome.
 
 ---
@@ -628,17 +641,9 @@ Real inconsistencies in the current code. Fix opportunistically; do not propagat
    `role="button"` — the rows are unreachable by keyboard.
 7. **`prefers-reduced-motion` covers `reaction-pop` only.** The toast, sheet, dialog, and
    3-second timeline-highlight animations all ignore it.
-8. **`toast.error(...)` does not exist — 11 call sites are broken.** `ToastProvider`
-   exposes `toast` as a plain function taking `{ title, body, target, duration }`; there
-   is no `.error` on it. `DashboardPage`, `ContributionsPage`, `RegressionsPage` and
-   others call `toast.error('…')` inside `.catch()` handlers, so it throws a TypeError
-   into an already-rejected chain and the user sees nothing. Modals use the correct
-   `toast({ title })` form. Two of those also pass `tone`, which `ToastProvider` ignores.
-   **Use `toast({ title })` in new code**, and treat `.error`/`.success` as a helper that
-   still needs to be written.
-9. **`Icon.jsx` reads `process.env.NODE_ENV`** in a Vite app; the idiomatic guard is
+8. **`Icon.jsx` reads `process.env.NODE_ENV`** in a Vite app; the idiomatic guard is
    `import.meta.env.DEV`.
-10. **`kebabToPascal` is duplicated** in `ui/Icon.jsx` and `ui/Tabs.jsx`.
-11. **`Sidebar` imports `cn`, `ProjectSwitcher`, `activeProjectId` and `switchProject`
+9. **`kebabToPascal` is duplicated** in `ui/Icon.jsx` and `ui/Tabs.jsx`.
+10. **`Sidebar` imports `cn`, `ProjectSwitcher`, `activeProjectId` and `switchProject`
     and uses none of them** — leftovers from when the project switcher lived in the
     sidebar rather than the topbar. Lint noise, not a design issue.

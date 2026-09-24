@@ -113,6 +113,8 @@ class SupportReportRow(BaseModel):
     project_color: str | None = None
     recurrence_count: int
     reporter_name: str | None = None
+    #: Who filed it — Support works as a team, so the list shows whose report it is.
+    reporter_user: UserSummary | None = None
     #: Who is working on it — shown with a user hover card in the list.
     assignee_user: UserSummary | None = None
     created_at: datetime

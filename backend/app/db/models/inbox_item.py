@@ -30,6 +30,29 @@ class InboxEventType(str, enum.Enum):
     attachment_added = "attachment_added"
     priority_changed = "priority_changed"
     needs_clarification = "needs_clarification"
+    # Slice 06 — triage outcomes (docs/phase-2/06-triage-outcomes.md).
+    needs_info_replied = "needs_info_replied"
+    moved_into_project = "moved_into_project"
+    recurrence_on_cancelled = "recurrence_on_cancelled"
+    # The only three events Support ever receives (§13), sent to the item's
+    # Support-role subscribers. ``fan_out`` drops Support from everything else.
+    support_needs_info = "support_needs_info"
+    support_cancelled = "support_cancelled"
+    support_done = "support_done"
+
+
+#: Events whose audience is Support subscribers (§13).
+SUPPORT_EVENTS = frozenset({
+    InboxEventType.support_needs_info,
+    InboxEventType.support_cancelled,
+    InboxEventType.support_done,
+})
+
+#: Everything a Support user may be notified of: the three Support notices,
+#: plus being @mentioned in a public comment on an item they can see (the
+#: 2026-09-24 decision — a mention is someone asking them directly). Internal
+#: notes never reach Support (BR-31).
+SUPPORT_RECEIVABLE = SUPPORT_EVENTS | {InboxEventType.mention}
 
 
 class TelegramDeliveryStatus(str, enum.Enum):

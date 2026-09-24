@@ -5,6 +5,7 @@ import { Tabs } from '../components/ui/Tabs'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
+import { IssueHoverCard } from '../components/common/IssueHoverCard'
 import { Empty } from '../components/ui/Empty'
 import { inboxApi } from '../lib/api'
 import { useApp } from '../context/AppContext'
@@ -45,6 +46,12 @@ const TYPE_DESCRIPTIONS = {
   release_changed:     'changed release on',
   attachment_added:    'added an attachment to',
   needs_clarification: 'needs clarification on',
+  needs_info_replied:  'replied on',
+  moved_into_project:  'moved into your project',
+  recurrence_on_cancelled: 'reported a cancelled item again',
+  support_needs_info:  'needs more information on',
+  support_cancelled:   'closed without a fix',
+  support_done:        'fixed',
 }
 
 // Per-tab state shape
@@ -244,6 +251,8 @@ export default function InboxPage() {
             const anchor = timelineAnchor(item)
             const issueTo = anchor ? `/issue/${item.issueId}#${anchor}` : `/issue/${item.issueId}`
             const snippet = COMMENT_TYPES.has(item.type) ? (item.meta?.body_snippet ?? null) : null
+            // A report cancelled as a duplicate was merged — say where it went.
+            const merged = item.type === 'support_cancelled' && item.meta?.merged_into_id
             return (
               <div
                 key={item.id}
@@ -267,7 +276,7 @@ export default function InboxPage() {
                   <p className="text-sm leading-snug">
                     <span className="font-medium">{actor?.name}</span>
                     {' '}
-                    <span className="text-muted-foreground">{desc}</span>
+                    <span className="text-muted-foreground">{merged ? 'merged your report' : desc}</span>
                     {' '}
                     <Link
                       to={issueTo}
@@ -276,6 +285,12 @@ export default function InboxPage() {
                     >
                       {item.issueTitle}
                     </Link>
+                    {merged && (
+                      <>
+                        {' '}<span className="text-muted-foreground">into</span>{' '}
+                        <IssueHoverCard issueId={item.meta.merged_into_id} label={item.meta.merged_into_key} />
+                      </>
+                    )}
                   </p>
 
                   {/* Comment/mention preview */}

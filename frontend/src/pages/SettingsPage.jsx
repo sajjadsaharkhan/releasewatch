@@ -68,6 +68,13 @@ const NOTIFICATION_EVENTS = [
   { key: 'project_changed',     label: 'Project changed' },
   { key: 'attachment_added',    label: 'Attachment added' },
   { key: 'priority_changed',    label: 'Priority changed' },
+  { key: 'needs_clarification', label: 'Needs info (tech reporter)' },
+  { key: 'needs_info_replied',  label: 'Reporter replied on Needs info' },
+  { key: 'moved_into_project',  label: 'Moved into project' },
+  { key: 'recurrence_on_cancelled', label: 'Cancelled item reported again' },
+  { key: 'support_needs_info',  label: 'Support: needs info' },
+  { key: 'support_cancelled',   label: 'Support: cancelled' },
+  { key: 'support_done',        label: 'Support: fixed' },
 ]
 
 const NOTIFICATION_ROLES = [
@@ -75,6 +82,7 @@ const NOTIFICATION_ROLES = [
   { key: 'assignee', label: 'Assignee' },
   { key: 'triage',   label: 'Triage Lead' },
   { key: 'cto',      label: 'CTO' },
+  { key: 'subscriber', label: 'Subscriber' },
 ]
 
 function SectionTitle({ children }) {
@@ -1315,7 +1323,7 @@ export default function SettingsPage() {
         <div>
           <SectionTitle>Notification Matrix</SectionTitle>
           <p className="text-xs text-muted-foreground mb-4">
-            Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead matches the project's designated triage lead; CTO matches team role.
+            Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead matches the project's designated triage lead; CTO matches team role; Subscriber matches anyone subscribed to the item (its reporter, and reporters of duplicates merged into it). Support users only ever receive the three Support events.
           </p>
           {notifLoading ? (
             <div className="flex items-center justify-center py-12">

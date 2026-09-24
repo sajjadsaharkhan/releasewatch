@@ -1,0 +1,154 @@
+"""MergeService — the one place a merge's effects on the original are written (BR-49, BR-50).
+
+Used by the Duplicate triage outcome (slice 06) and, from 07, by recurrence.
+``merge_into`` runs inside the caller's transaction, so a duplicate's
+cancellation and the merge commit or fail together.
+
+Effects, in order:
+
+1. ``recurrence_count += 1`` — an atomic ``UPDATE``, never read-modify-write.
+2. A public comment on the original carrying the merged content, crediting
+   the merged report's reporter with an @mention. A tech reporter gets the
+   mention notice (it tells them where their report went); a Support reporter
+   doesn't — their own ``support_*`` notice already says so.
+3. The merged report's reporter is subscribed to the original.
+4. A status effect by the original's status:
+
+   - ``done`` → **merge regression**: a regression cycle is recorded (in the
+     merged report's release, or with no release), then the original moves to
+     ``in_progress`` (reason ``merge_regression``) and its assignee gets the
+     Phase 1 regression notification. Support hears nothing (§13).
+   - ``cancelled`` → stays cancelled; the triage lead gets
+     ``recurrence_on_cancelled``.
+   - anything else → no status change.
+"""
+
+from collections.abc import Sequence
+
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.inbox_item import InboxEventType
+from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue_subscriber import SubscriptionReason
+from app.db.models.issue_timeline import TimelineEventType
+from app.db.models.regression_history import RegressionSource
+from app.db.models.user import User
+from app.policy import is_tech
+
+#: The Workflow reason for the Done → In progress move a merge makes.
+MERGE_REGRESSION_REASON = "merge_regression"
+
+
+async def lock_original(db: AsyncSession, issue_id: int) -> Issue | None:
+    """Row-lock a merge target, re-reading its current state.
+
+    ``FOR NO KEY UPDATE``, not ``FOR UPDATE``: rows that reference the original
+    (subscribers, timeline events) take a ``KEY SHARE`` lock on it, and a
+    ``FOR UPDATE`` waiting on another merge's ``KEY SHARE`` deadlocks.
+    Callers take it before inserting anything that references the original.
+    """
+    return (await db.execute(
+        select(Issue).where(Issue.id == issue_id, Issue.deleted_at.is_(None))
+        .with_for_update(key_share=True)
+        .execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+
+
+class MergeService:
+
+    async def merge_into(
+        self,
+        db: AsyncSession,
+        original: Issue,
+        *,
+        content_md: str,
+        reporter_id: int | None,
+        attachments: Sequence = (),
+        source_release_id: int | None,
+        actor: User,
+        reason: SubscriptionReason,
+        comment_meta: dict | None = None,
+    ) -> Issue:
+        """Apply the merge effects to ``original`` and return it, refreshed.
+
+        ``attachments`` are pending uploads (``PendingAttachment``-shaped) to
+        attach to the original — recurrence (07) passes them; the Duplicate
+        outcome leaves the duplicate's own attachments where they are.
+        """
+        from app.db.models.issue_attachment import IssueAttachment
+        from app.db.models.release import Release
+        from app.services.inbox_service import InboxFanOutService
+        from app.services.issue_service import issue_service
+        from app.services.regression_service import regression_service
+        from app.services.subscriber_service import subscribe
+        from app.services.timeline_service import TimelineService
+
+        # Serialize merges into the same original: the status effect below
+        # reads the original's status and must not act on a stale one.
+        original = await lock_original(db, original.id)
+
+        await db.execute(
+            update(Issue)
+            .where(Issue.id == original.id)
+            .values(recurrence_count=Issue.recurrence_count + 1)
+        )
+        await db.refresh(original, ["recurrence_count"])
+
+        reporter = await db.get(User, reporter_id) if reporter_id else None
+        if reporter is not None:
+            content_md = f"{content_md}\n\nReported by @{reporter.username}"
+        comment = await TimelineService().create_event(
+            db=db,
+            issue_id=original.id,
+            actor_id=actor.id,
+            event_type=TimelineEventType.comment,
+            body=content_md,
+            meta=comment_meta,
+            is_internal=False,
+            mentioned_user_ids=[reporter.id] if reporter is not None else None,
+        )
+        for pending in attachments:
+            db.add(IssueAttachment(
+                issue_id=original.id,
+                uploaded_by_id=reporter_id or actor.id,
+                file_name=pending.filename,
+                s3_key=pending.s3_key,
+                mime_type=pending.mime_type,
+                file_size_bytes=pending.file_size_bytes,
+                attachment_type=pending.attachment_type,
+            ))
+
+        await subscribe(db, original.id, reporter_id, reason)
+        await db.flush()
+
+        if reporter is not None and is_tech(reporter.role):
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.mention, issue=original, actor=actor,
+                timeline_event=comment,
+                extra_meta={"mentioned_user_ids": [str(reporter.id)], "body": content_md},
+                meta={"body_snippet": content_md[:200]},
+            )
+
+        status = getattr(original.status, "value", original.status)
+        if status == IssueStatus.done.value:
+            release = await db.get(Release, source_release_id) if source_release_id else None
+            await regression_service.record_regression(
+                db, original, release, actor, source=RegressionSource.merge,
+            )
+            original = await issue_service.transition(
+                db, original, to=IssueStatus.in_progress, actor=actor,
+                reason=MERGE_REGRESSION_REASON,
+            )
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.regression, issue=original, actor=actor,
+            )
+        elif status == IssueStatus.cancelled.value:
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.recurrence_on_cancelled, issue=original, actor=actor,
+            )
+
+        return original
+
+
+merge_service = MergeService()

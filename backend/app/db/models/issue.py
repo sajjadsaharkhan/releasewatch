@@ -110,6 +110,23 @@ class IssueSource(str, enum.Enum):
     support = "support"
 
 
+#: Human-readable cancel reasons — the Support ``support_cancelled`` message (§13).
+CANCEL_REASON_LABELS = {
+    IssueCancelReason.user_error: "User error",
+    IssueCancelReason.expected_behavior: "Expected behavior",
+    IssueCancelReason.cannot_reproduce: "Cannot reproduce",
+    IssueCancelReason.duplicate: "Duplicate",
+    IssueCancelReason.wont_fix: "Won't fix",
+    IssueCancelReason.no_longer_needed: "No longer needed",
+}
+
+#: The reasons the Reject triage outcome accepts (FR-18, slice 06).
+REJECT_REASONS = (
+    IssueCancelReason.user_error,
+    IssueCancelReason.expected_behavior,
+    IssueCancelReason.cannot_reproduce,
+)
+
 #: Cancel reasons valid for a bug (BR-13) — excludes the task-only reason.
 BUG_CANCEL_REASONS = tuple(r for r in IssueCancelReason if r != IssueCancelReason.no_longer_needed)
 
@@ -270,6 +287,9 @@ class Issue(Base):
         "IssueAttachment", back_populates="issue", cascade="all, delete-orphan"
     )
     inbox_items = relationship("InboxItem", back_populates="issue")
+    #: Always loaded (selectin) so Policy's snapshot of an issue can tell
+    #: whether a Support viewer is subscribed (BR-30, slice 06).
+    subscriptions = relationship("IssueSubscriber", lazy="selectin", viewonly=True)
     regression_histories = relationship("RegressionHistory", back_populates="issue")
     embeddings = relationship(
         "IssueEmbedding", back_populates="issue", cascade="all, delete-orphan",

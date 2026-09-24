@@ -4,9 +4,13 @@ All public methods are ``async`` and accept an ``AsyncSession`` as their first
 argument so they can be composed inside a single DB transaction when needed.
 
 ``transition()`` is the only method that writes ``issue.status`` — every
-other status-changing method (``triage``, ``needs_clarification``,
-``mark_fixed``, ``verify_fix``, ``reopen``, ``regress``) ends by calling it.
+other status-changing method (``mark_fixed``, ``verify_fix``, ``reopen``,
+``regress``, and the triage outcomes in ``TriageService``) ends by calling it.
 See docs/phase-2/02-unified-status-model.md and ``app/workflow.py``.
+
+``transition()`` also sends the three Support notices (slice 06, §13) —
+Needs info, Cancelled, Done — to the item's Support subscribers, so every
+path into those statuses notifies Support the same way.
 """
 
 from datetime import UTC, datetime
@@ -17,11 +21,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueSource, IssueStatus, IssueType, Priority, issue_type_value
+from app.db.models.issue import (
+    CANCEL_REASON_LABELS, Issue, IssueCancelReason, IssueSource, IssueStatus, IssueType,
+    issue_type_value,
+)
 from app.db.models.issue_timeline import TimelineEventType
 from app.db.models.project import ProjectKind
 from app.db.models.user import User
 from app.policy import is_assignable
+from app.db.models.issue_subscriber import SubscriptionReason
 from app.schemas.issue import IssueCreate
 from app.workflow import Workflow
 
@@ -137,7 +145,9 @@ class IssueService:
         await db.flush()
 
         from app.db.models.issue_cycle import IssueCycle
+        from app.services.subscriber_service import subscribe
         db.add(IssueCycle(issue_id=issue.id, cycle_number=1, cycle_start_at=now))
+        await subscribe(db, issue.id, current_user.id, SubscriptionReason.reporter)
         await db.flush()
 
         timeline_svc = TimelineService()
@@ -198,9 +208,13 @@ class IssueService:
         reason: str | None = None,
         comment: str | None = None,
         cancel_reason: str | None = None,
+        question: str | None = None,
         _internal_context: dict | None = None,
     ) -> Issue:
         """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
+
+        ``question`` is the Needs info triage outcome's comment, carried into
+        the Support notice.
 
         Asks ``Workflow`` first. On success: sets the status-support columns
         (``started_at``, ``completed_at``, ``cancelled_at``,
@@ -328,8 +342,51 @@ class IssueService:
             timeline_event=event,
             meta={"from": from_status.value, "to": to_status.value},
         )
+        if to_status != from_status:
+            await self.notify_support(db, issue, to_status, actor, question=question)
 
         return issue
+
+    async def notify_support(
+        self,
+        db: AsyncSession,
+        issue: Issue,
+        to_status: IssueStatus,
+        actor: User,
+        *,
+        question: str | None = None,
+    ) -> None:
+        """Send the Support notice for ``to_status``, if it has one (§13).
+
+        Needs info carries the triager's question; Cancelled carries the
+        human-readable reason; Done says it's fixed. Nothing else is sent.
+        """
+        from app.services.inbox_service import InboxFanOutService
+
+        if to_status == IssueStatus.needs_info:
+            trigger = InboxEventType.support_needs_info
+            meta = {"body_snippet": question} if question else None
+        elif to_status == IssueStatus.cancelled:
+            trigger = InboxEventType.support_cancelled
+            raw = getattr(issue.cancel_reason, "value", issue.cancel_reason)
+            label = CANCEL_REASON_LABELS.get(IssueCancelReason(raw)) if raw else None
+            meta = {"reason": raw, "reason_label": label or "No reason given"}
+            # A Duplicate outcome is a merge, not a dead end: say where it went.
+            if raw == IssueCancelReason.duplicate.value and issue.parent_issue_id:
+                original = await db.get(Issue, issue.parent_issue_id)
+                if original is not None:
+                    from app.db.models.issue import issue_key
+                    meta["merged_into_id"] = original.id
+                    meta["merged_into_key"] = issue_key(original.type, original.issue_number)
+                    meta["merged_into_number"] = original.issue_number
+        elif to_status == IssueStatus.done:
+            trigger = InboxEventType.support_done
+            meta = None
+        else:
+            return
+        await InboxFanOutService().fan_out(
+            db=db, trigger=trigger, issue=issue, actor=actor, meta=meta,
+        )
 
     # ── Regression action ─────────────────────────────────────────────────────
 
@@ -390,167 +447,6 @@ class IssueService:
                 ) from exc
             raise
 
-    # ── Triage ────────────────────────────────────────────────────────────────
-
-    async def triage(
-        self,
-        db: AsyncSession,
-        issue_id: int,
-        assignee_id: int,
-        priority: Priority,
-        current_user: User,
-        labels: list[str] | None = None,
-        is_release_blocker: bool | None = None,
-    ) -> Issue:
-        """Triage an issue: assign it and set its priority (required, BR-16).
-
-        Transitions status ``new -> todo`` (the Phase 1 triage endpoint maps
-        to the new "accept" outcome in this slice; full triage outcomes land
-        in slice 06).
-        """
-        from app.services.inbox_service import InboxFanOutService
-        from app.services.timeline_service import TimelineService
-
-        issue = await self._get_issue_or_404(db, issue_id)
-        if getattr(issue.status, "value", issue.status) != IssueStatus.new.value:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot triage an issue in status '{issue.status}'",
-            )
-
-        now = datetime.now(tz=UTC)
-        prev_priority = getattr(issue.priority, "value", issue.priority)
-        prev_assignee = issue.assignee_id
-
-        await ensure_assignable(db, assignee_id)
-        issue.assignee_id = assignee_id
-        issue.priority = priority
-        issue.triaged_at = now
-        if labels is not None:
-            issue.labels = labels
-        if is_release_blocker is not None:
-            issue.is_release_blocker = is_release_blocker
-        if issue.filed_at:
-            delta = now - issue.filed_at
-            issue.time_to_triage_h = round(delta.total_seconds() / 3600, 2)
-
-        from app.db.models.issue_cycle import IssueCycle
-        active_cycle_result = await db.execute(
-            select(IssueCycle)
-            .where(IssueCycle.issue_id == issue_id)
-            .order_by(IssueCycle.cycle_number.desc())
-            .limit(1)
-        )
-        active_cycle = active_cycle_result.scalar_one_or_none()
-        if active_cycle:
-            if active_cycle.assignee_id != assignee_id:
-                active_cycle.assignee_id = assignee_id
-            if not active_cycle.triaged_at:
-                active_cycle.triaged_at = now
-                active_cycle.time_to_triage_h = round(
-                    (now - active_cycle.cycle_start_at).total_seconds() / 3600, 2
-                )
-            db.add(active_cycle)
-
-        timeline_svc = TimelineService()
-        if prev_priority != priority.value:
-            await timeline_svc.create_event(
-                db=db,
-                issue_id=issue.id,
-                actor_id=current_user.id,
-                event_type=TimelineEventType.priority_changed,
-                body=None,
-                meta={"from": prev_priority, "to": priority.value},
-                is_internal=False,
-            )
-        await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.assigned,
-            body=None,
-            meta={
-                "assignee_id": str(assignee_id),
-                "prev_assignee_id": str(prev_assignee) if prev_assignee else None,
-            },
-            is_internal=False,
-        )
-
-        db.add(issue)
-        await db.flush()
-
-        issue = await self.transition(
-            db, issue, to=IssueStatus.todo, actor=current_user,
-            _internal_context={"via_triage": True},
-        )
-
-        # Fan-out: assignee gets notified (transition() already fanned out status_changed).
-        await InboxFanOutService().fan_out(
-            db=db, trigger=InboxEventType.assigned, issue=issue, actor=current_user,
-        )
-
-        return issue
-
-    # ── Needs Clarification ───────────────────────────────────────────────────
-
-    async def needs_clarification(
-        self,
-        db: AsyncSession,
-        issue_id: int,
-        current_user: User,
-        message: str | None = None,
-    ) -> Issue:
-        """Move a new issue to Needs info pending reporter clarification.
-
-        Transitions status ``new -> needs_info``, reassigns to the reporter,
-        and posts a ``needs_clarification`` timeline event (with optional
-        message).
-        """
-        from app.services.inbox_service import InboxFanOutService
-        from app.services.timeline_service import TimelineService
-
-        issue = await self._get_issue_or_404(db, issue_id)
-        if getattr(issue.status, "value", issue.status) != IssueStatus.new.value:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot request clarification on an issue in status '{issue.status}'",
-            )
-
-        prev_assignee_id = issue.assignee_id
-        # The ball goes back to the reporter — unless they can't hold work (BR-32:
-        # a Support reporter is never assigned); then the assignee stays put.
-        reporter = await db.get(User, issue.reporter_id) if issue.reporter_id else None
-        if reporter is not None and is_assignable(reporter.role):
-            issue.assignee_id = issue.reporter_id
-        db.add(issue)
-        await db.flush()
-
-        timeline_svc = TimelineService()
-        timeline_event = await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.needs_clarification,
-            body=message or None,
-            meta={"prev_assignee_id": str(prev_assignee_id) if prev_assignee_id else None},
-            is_internal=False,
-        )
-
-        meta = {"body_snippet": message} if message else None
-        await InboxFanOutService().fan_out(
-            db=db,
-            trigger=InboxEventType.needs_clarification,
-            issue=issue,
-            actor=current_user,
-            timeline_event=timeline_event,
-            meta=meta,
-        )
-
-        return await self.transition(
-            db, issue, to=IssueStatus.needs_info, actor=current_user,
-            _internal_context={"via_needs_info": True},
-        )
-
     # ── Fix ───────────────────────────────────────────────────────────────────
 
     async def mark_fixed(
@@ -607,53 +503,6 @@ class IssueService:
             meta={"outcome": outcome},
             is_internal=False,
         )
-        return issue
-
-    # ── Duplicate linking ─────────────────────────────────────────────────────
-
-    async def link_duplicate(
-        self,
-        db: AsyncSession,
-        issue_id: int,
-        parent_id: int,
-        current_user: User,
-    ) -> Issue:
-        """Mark ``issue_id`` as a duplicate of ``parent_id``.
-
-        Sets ``parent_issue_id`` and cancels the issue with reason
-        ``duplicate``. Bypasses Workflow deliberately: full duplicate-merge
-        semantics (BR-49/50) land in slice 06; this keeps the Phase 1 action
-        working from any status in the meantime.
-        """
-        from app.services.timeline_service import TimelineService
-
-        issue = await self._get_issue_or_404(db, issue_id)
-        parent = await self._get_issue_or_404(db, parent_id)
-
-        if issue_id == parent_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An issue cannot be a duplicate of itself.",
-            )
-
-        issue.parent_issue_id = parent_id
-        issue.status = IssueStatus.cancelled
-        issue.cancel_reason = "duplicate"
-        issue.cancelled_at = datetime.now(tz=UTC)
-
-        timeline_svc = TimelineService()
-        await timeline_svc.create_event(
-            db=db,
-            issue_id=issue.id,
-            actor_id=current_user.id,
-            event_type=TimelineEventType.duplicate_linked,
-            body=None,
-            meta={"parent_issue_id": str(parent_id), "parent_number": parent.issue_number},
-            is_internal=False,
-        )
-
-        db.add(issue)
-        await db.flush()
         return issue
 
     # ── Generic update with field diffing ─────────────────────────────────────

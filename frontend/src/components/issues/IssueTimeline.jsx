@@ -12,6 +12,7 @@ import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
 import { ReactionBar } from './ReactionBar'
 import { isBug, itemNoun } from '../../lib/constants'
+import { IssueHoverCard } from '../common/IssueHoverCard'
 
 const EVENT_STYLES = {
   filed:               { dot: 'bg-blue-500',   label: (e, item) => (isBug(item) ? 'filed this bug' : 'created this task') },
@@ -35,6 +36,21 @@ const EVENT_STYLES = {
   project_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to project ${e.meta?.to_name ?? ''}` },
   environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
   needs_clarification: { dot: 'bg-orange-500', label: 'requested clarification from reporter' },
+  triaged:             { dot: 'bg-indigo-500', label: (e) => TRIAGE_LABELS[e.meta?.outcome]?.(e.meta) ?? 'triaged this bug' },
+}
+
+const REJECT_REASON_LABELS = {
+  user_error: 'user error',
+  expected_behavior: 'expected behavior',
+  cannot_reproduce: 'cannot reproduce',
+}
+
+// One `triaged` event per triage outcome (slice 06), carrying its inputs.
+const TRIAGE_LABELS = {
+  accept:     () => 'accepted this bug',
+  needs_info: () => 'asked for more information',
+  duplicate:  (m) => `merged this into ${m?.duplicate_of_key ?? 'another bug'}`,
+  reject:     (m) => `rejected this bug — ${REJECT_REASON_LABELS[m?.reason] ?? 'no reason'}`,
 }
 
 const EVENT_ICONS = {
@@ -59,6 +75,7 @@ const EVENT_ICONS = {
   environment_changed: 'monitor',
   comment:             'message-square',
   needs_clarification: 'help-circle',
+  triaged:             'inbox',
 }
 
 function EventDot({ type }) {
@@ -114,6 +131,16 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
           changed status <StatusBadge status={from} size="sm" />
           <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
           <StatusBadge status={to} size="sm" />
+        </>
+      )
+    }
+
+    // The Duplicate outcome names its original — a link with the item's card on hover.
+    if (event.type === 'triaged' && event.meta?.outcome === 'duplicate' && event.meta?.duplicate_of_id) {
+      return (
+        <>
+          merged this into{' '}
+          <IssueHoverCard issueId={event.meta.duplicate_of_id} label={event.meta.duplicate_of_key} />
         </>
       )
     }

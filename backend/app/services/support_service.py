@@ -60,6 +60,7 @@ def report_row(issue: Issue) -> SupportReportRow:
         project_color=issue.project.color,
         recurrence_count=issue.recurrence_count,
         reporter_name=issue.reporter.name if issue.reporter else None,
+        reporter_user=UserSummary.model_validate(issue.reporter) if issue.reporter else None,
         assignee_user=UserSummary.model_validate(issue.assignee) if issue.assignee else None,
         created_at=issue.created_at,
         updated_at=issue.updated_at,
@@ -176,10 +177,13 @@ class SupportService:
         q: str | None = None,
         project_id: int | None = None,
         statuses: list[IssueStatus] | None = None,
+        reporter_id: int | None = None,
         page: int = 1,
         size: int = 50,
     ) -> SupportReportList:
         base = visible_issues(actor).where(Issue.source == IssueSource.support.value)
+        if reporter_id:
+            base = base.where(Issue.reporter_id == reporter_id)
         if project_id:
             base = base.where(Issue.project_id == project_id)
         if statuses:

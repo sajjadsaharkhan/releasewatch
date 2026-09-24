@@ -27,7 +27,7 @@ async def test_file_triage_fix_verify_pass(factories, client_for, telegram):
     admin = factories.admin_client
     triage_resp = await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "priority": "high"},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "high"},
     )
     assert triage_resp.status_code == 200
     triaged = triage_resp.json()
@@ -65,7 +65,7 @@ async def test_verify_fail_then_reopen(factories, client_for):
     dev_client = await client_for(developer)
     await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "priority": "critical"},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "critical"},
     )
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
@@ -101,13 +101,13 @@ async def test_cannot_triage_twice(factories):
     admin = factories.admin_client
     first = await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "priority": "medium"},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "medium"},
     )
     assert first.status_code == 200
 
     second = await admin.post(
         f"/issues/{issue.id}/triage",
-        json={"assignee_id": developer.id, "priority": "medium"},
+        json={"outcome": "accept", "assignee_id": developer.id, "priority": "medium"},
     )
     assert second.status_code == 409
     body = second.json()

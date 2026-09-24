@@ -10,12 +10,11 @@ PATCH  /issues/{id}                         — update issue fields
 DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or triage lead)
 POST   /issues/{id}/restore                 — restore a soft-deleted issue (CTO/admin only)
 DELETE /issues/{id}/permanent               — permanently delete one trashed issue (CTO/admin only)
-POST   /issues/{id}/triage                  — triage an issue (new -> todo)
-POST   /issues/{id}/needs-clarification     — request clarification (new -> needs_info)
+POST   /issues/{id}/triage                  — apply a triage outcome (accept | needs_info | duplicate | reject)
+POST   /issues/{id}/move                    — move a New/Needs info bug to another project
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
 POST   /issues/{id}/verify                  — verify the fix (in_review -> done | in_progress)
 POST   /issues/{id}/reopen                  — reopen a Done bug (maps to the regression action)
-POST   /issues/{id}/duplicate               — link as duplicate (-> cancelled, reason duplicate)
 POST   /issues/{id}/transition              — generic status change; used by board drags and menus
 POST   /issues/{id}/regression              — flag a regression on a Done/In review bug (BR-24)
 GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numbers
@@ -54,7 +53,6 @@ from app.policy import Action, item_actions, transition
 from app.schemas.issue import (
     BlockedAction,
     BlockedTransition,
-    DuplicateRequest,
     FixRequest,
     IssueCreate,
     IssueCycleResponse,
@@ -62,7 +60,7 @@ from app.schemas.issue import (
     IssueResponse,
     IssueUpdate,
     LabelDetail,
-    NeedsClarificationRequest,
+    MoveRequest,
     RegressionHistoryResponse,
     TransitionRequest,
     TrashIssueResponse,
@@ -731,41 +729,39 @@ async def permanent_delete_issue(
     await db.commit()
 
 
-@router.post("/{issue_id}/triage", response_model=IssueResponse, summary="Triage an issue")
+@router.post("/{issue_id}/triage", response_model=IssueResponse, summary="Apply a triage outcome")
 async def triage_issue(
     issue_id: int,
     payload: TriageRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Accept: assign the issue and set its priority (required). Maps to new -> todo."""
+    """Accept, Needs info, Duplicate, or Reject a New or Needs info bug (slice 06).
+
+    409 ``not_in_triage`` outside New/Needs info; the Duplicate outcome adds
+    ``duplicate_of_self``, ``duplicate_cross_project``, ``duplicate_not_bug``
+    and ``duplicate_of_duplicate`` (with ``suggested_id``).
+    """
+    from app.services.triage_service import triage_service
+
     issue = await authorize_issue(db, issue_id, current_user, Action.triage)
-    if payload.is_release_blocker:
-        authorize(current_user, Action.flag_release_blocker, issue_target(issue, issue.project))
-    await issue_service.triage(
-        db, issue_id, payload.assignee_id, payload.priority, current_user,
-        labels=payload.labels, is_release_blocker=payload.is_release_blocker,
-    )
+    await triage_service.apply(db, issue, payload, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
 
-@router.post(
-    "/{issue_id}/needs-clarification",
-    response_model=IssueResponse,
-    summary="Request clarification from reporter",
-)
-async def needs_clarification(
+@router.post("/{issue_id}/move", response_model=IssueResponse, summary="Move to another project")
+async def move_issue(
     issue_id: int,
-    payload: NeedsClarificationRequest,
+    payload: MoveRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Move the issue to Needs info and ask the reporter for more information."""
-    await authorize_issue(db, issue_id, current_user, Action.triage)
-    await issue_service.needs_clarification(
-        db, issue_id, current_user, message=payload.message
-    )
+    """Move a New or Needs info bug with no release to another project (FR-20, BR-05)."""
+    from app.services.triage_service import triage_service
+
+    issue = await authorize_issue(db, issue_id, current_user, Action.triage)
+    await triage_service.move_project(db, issue, payload.project_id, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
@@ -810,25 +806,6 @@ async def reopen_issue(
     """Reopen a Done bug. Maps to the regression action; 409 done_is_final otherwise."""
     await authorize_issue(db, issue_id, current_user, Action.flag_regression)
     await issue_service.reopen(db, issue_id, current_user)
-    await db.commit()
-    return await _reload_and_enrich(db, issue_id, current_user)
-
-
-@router.post(
-    "/{issue_id}/duplicate",
-    response_model=IssueResponse,
-    summary="Link issue as duplicate",
-)
-async def link_duplicate(
-    issue_id: int,
-    payload: DuplicateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> IssueResponse:
-    """Mark this issue as a duplicate of another issue and cancel it."""
-    await authorize_issue(db, issue_id, current_user, Action.triage)
-    await load_visible_issue(db, payload.parent_id, current_user)
-    await issue_service.link_duplicate(db, issue_id, payload.parent_id, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
@@ -919,6 +896,7 @@ async def list_regression_history(
             detected_at=h.detected_at,
             release_id=h.release_id,
             release_version=h.release.version if h.release else None,
+            source=getattr(h.source, "value", h.source),
             detected_by=UserSummary.model_validate(h.detected_by) if h.detected_by else None,
             previous_fix_by=(
                 UserSummary.model_validate(h.previous_fix_by) if h.previous_fix_by else None

@@ -52,11 +52,11 @@ The pure module (`app/workflow.py`) that is the single place status-transition l
 _Avoid_: writing transition logic in a route or another service — even permissive, Workflow is the one place that decision lives. Not to be confused with Policy (slice 04), which will own *who* may act, not *what* moves are legal.
 
 **Regression action**:
-The dedicated endpoint (`POST /issues/{id}/regression`, `IssueService.regress`) that sends a bug back to `in_progress`, incrementing `regression_count` and recording a `RegressionHistory` row when the bug has a release (silently skipped otherwise, since `regression_history.release_id` is NOT NULL until slice 06). Callable from any status.
+The dedicated endpoint (`POST /issues/{id}/regression`, `IssueService.regress`) that sends a bug back to `in_progress`, incrementing `regression_count` and recording a regression cycle (`source=action`) when the bug has a release (skipped otherwise — the direct action only records release regressions). Callable from any status. The other way a bug becomes a regression is a **merge regression**.
 _Avoid_: treating "regression" as a status a bug sits in, or "regression status" — Phase 1's `regression` status was removed; a regressed bug's status is `in_progress`, distinguished by the `is_regression` flag plus this action.
 
 **Source**:
-Who filed a work item: `internal` (a tech user, through New issue) or `support` (a Support user, through a support template). Stored as `issues.source`, fixed at creation. Support sees only `support` items (BR-30) — that visibility rule is `authz.support_visibility_clause` and `policy._can_view`. Support-sourced items carry a teal "Support" badge in the triage queue and issue rows.
+Who filed a work item: `internal` (a tech user, through New issue) or `support` (a Support user, through a support template). Stored as `issues.source`, fixed at creation. Support sees `support` items plus items they're a **subscriber** of (BR-30, widened 2026-09-24 so a report merged into an internal original stays readable) — that visibility rule is `authz.support_visibility_clause` and `policy._can_view`. Support-sourced items carry a teal "Support" badge in the triage queue and issue rows.
 _Avoid_: "customer bug", "ticket" — a support report is an ordinary bug with `source=support`.
 
 **Support template**:
@@ -70,3 +70,27 @@ _Avoid_: reading template values back from anywhere but the description.
 **Cancel reason**:
 An optional reason (`user_error, expected_behavior, cannot_reproduce, duplicate, wont_fix, no_longer_needed`) recordable when an item is cancelled without being finished (`no_longer_needed` is task-only; the rest are bug-only). Not required — cancelling with no reason is allowed.
 _Avoid_: "closed"/"closing" — Phase 1's `closed` status is gone. A finished bug is Done; an abandoned one is Cancelled, optionally with a reason.
+
+### Triage (slice 06)
+
+**Triage queue**:
+A project's New and Needs info bugs, oldest first, with source, reporter, recurrence count, and age (FR-17). The Triage page's New and Needs info tabs. Tasks never enter it.
+_Avoid_: "unassigned issues" — the queue is about the decision, not the assignee.
+
+**Triage outcome**:
+The one decision a triager (any tech role) applies to a queued bug through `POST /issues/{id}/triage` (`TriageService`): **Accept** (priority required; assignee and release optional — no release is the hotfix path) → To do; **Needs info** (a public comment saying what's missing) → Needs info; **Duplicate** (a merge) → Cancelled, reason Duplicate; **Reject** (user error, expected behavior, or cannot reproduce) → Cancelled. Each writes one `triaged` timeline event with its inputs. Only New and Needs info bugs can be triaged (`not_in_triage`). A public reply by the reporter or any Support user sends a Needs info bug back to New and tells the triage lead (FR-19).
+_Avoid_: "triaged" as a status (gone since slice 02), "needs clarification" (the Phase 1 name).
+
+**Subscriber**:
+A user on an item's `issue_subscribers` list — its reporter (on create), reporters of duplicates merged into it, and (from 07) recurrence reporters. The first reason wins. Support subscribers receive the item's three Support notices — Needs info, Cancelled, Done (`support_needs_info`, `support_cancelled`, `support_done`; a Cancelled that is a merge says "merged into BUG-n"). Besides those, Support is notified only when @mentioned in a public comment on an item they can see (2026-09-24); `fan_out` drops Support from every other event, and internal notes never reach them (BR-31). A Support subscriber may view the item. Support works as a team: every Support user sees every support report, and the Support reports list names the reporter with a "Me" filter.
+_Avoid_: "watcher", "follower".
+
+**Merge**:
+Folding one report into an original (BR-50), owned by `MergeService.merge_into`: the original's `recurrence_count` +1 (atomic UPDATE), the merged content added as a public comment ("Merged from BUG-n … Reported by @reporter" — a tech reporter gets the mention notice, a Support reporter only their Support notice), and the merged report's reporter subscribed. The Duplicate outcome merges and cancels the duplicate; recurrence (07) merges without a second item. The original must be a bug in the same project that isn't itself a duplicate (`duplicate_of_duplicate` suggests its original).
+_Avoid_: "link duplicate" (Phase 1's endpoint, removed).
+
+**Merge regression**:
+A merge into a Done original (BR-49): a regression cycle is recorded (`source=merge`, in the duplicate's release, or with none), the original moves to In progress with the regression flag set and count +1, and its assignee gets the regression notice. Support hears nothing until it's Done again. Merges into Cancelled originals leave them Cancelled and notify the triage lead; any other status is unchanged.
+
+**Regression cycle**:
+One `regression_history` row — the record that a fixed bug came back. `source` is `action` (the regression action) or `merge`. `release_id` is null only for a merge regression whose duplicate had no release; release reports and fragility analysis select by release, so those cycles stay out of them (BR-25).

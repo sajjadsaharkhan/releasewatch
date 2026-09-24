@@ -8,6 +8,7 @@ import { DescriptionSection } from './DescriptionSection'
 import { AttachmentsSection } from './AttachmentsSection'
 import { RegressionTimelineSection } from './RegressionTimelineSection'
 import { IssueTimeline } from './IssueTimeline'
+import { NeedsInfoQuestion } from './NeedsInfoQuestion'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
 
@@ -84,6 +85,8 @@ export function IssueMainContent({
         <span>·</span>
         <span className="font-mono">{issue.release_version || '—'}</span>
       </div>
+
+      <NeedsInfoQuestion issue={issue} comments={comments} />
 
       <div className="mt-4">
         <Tabs

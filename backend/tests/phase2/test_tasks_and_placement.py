@@ -449,7 +449,7 @@ async def test_ac_24_hotfix_verified_reaches_done(factories, client_for, rig):
 
     # Accept with no release — the hotfix path needs no special outcome.
     resp = await admin.post(
-        f"/issues/{bug.id}/triage", json={"assignee_id": developer.id, "priority": "high"},
+        f"/issues/{bug.id}/triage", json={"outcome": "accept", "assignee_id": developer.id, "priority": "high"},
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "todo"

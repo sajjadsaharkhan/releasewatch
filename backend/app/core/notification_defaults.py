@@ -1,25 +1,58 @@
 """Default notification matrix — shared between settings API and inbox fan-out.
 
 Keys align with InboxEventType values.
-Roles: reporter/assignee are per-issue relationships; triage/cto are team roles.
+Roles: reporter/assignee are per-issue relationships; triage/cto are team roles;
+subscriber (slice 06) is anyone on the item's ``issue_subscribers`` list.
 """
 
+#: Every relationship a matrix row can switch on — the settings UI renders one column each.
+MATRIX_KEYS: tuple[str, ...] = ("reporter", "assignee", "triage", "cto", "subscriber")
+
+
+def _row(reporter=False, assignee=False, triage=False, cto=False, subscriber=False) -> dict[str, bool]:
+    return {
+        "reporter": reporter, "assignee": assignee, "triage": triage, "cto": cto,
+        "subscriber": subscriber,
+    }
+
+
 DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
-    "filed":               {"reporter": True,  "assignee": False, "triage": True,  "cto": True},
-    "assigned":            {"reporter": False, "assignee": True,  "triage": False, "cto": False},
-    "mention":             {"reporter": True,  "assignee": True,  "triage": True,  "cto": True},
-    "comment":             {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
-    "status_changed":      {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
-    "regression":          {"reporter": True,  "assignee": True,  "triage": True,  "cto": True},
-    "fixed":               {"reporter": True,  "assignee": False, "triage": False, "cto": False},
-    "verified":            {"reporter": False, "assignee": True,  "triage": False, "cto": False},
-    "blocker_filed":       {"reporter": False, "assignee": False, "triage": True,  "cto": True},
-    "blocker_cleared":     {"reporter": True,  "assignee": True,  "triage": True,  "cto": True},
-    "release_gate":        {"reporter": False, "assignee": False, "triage": True,  "cto": True},
-    "environment_changed": {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
-    "release_changed":     {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
-    "project_changed":     {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
-    "attachment_added":    {"reporter": True,  "assignee": True,  "triage": False, "cto": False},
-    "priority_changed":    {"reporter": True,  "assignee": True,  "triage": True,  "cto": False},
-    "needs_clarification": {"reporter": True,  "assignee": False, "triage": False, "cto": False},
+    "filed":               _row(reporter=True, triage=True, cto=True),
+    "assigned":            _row(assignee=True),
+    "mention":             _row(reporter=True, assignee=True, triage=True, cto=True),
+    "comment":             _row(reporter=True, assignee=True),
+    "status_changed":      _row(reporter=True, assignee=True),
+    "regression":          _row(reporter=True, assignee=True, triage=True, cto=True),
+    "fixed":               _row(reporter=True),
+    "verified":            _row(assignee=True),
+    "blocker_filed":       _row(triage=True, cto=True),
+    "blocker_cleared":     _row(reporter=True, assignee=True, triage=True, cto=True),
+    "release_gate":        _row(triage=True, cto=True),
+    "environment_changed": _row(reporter=True, assignee=True),
+    "release_changed":     _row(reporter=True, assignee=True, triage=True),
+    "project_changed":     _row(reporter=True, assignee=True, triage=True),
+    "attachment_added":    _row(reporter=True, assignee=True),
+    "priority_changed":    _row(reporter=True, assignee=True, triage=True),
+    "needs_clarification": _row(reporter=True),
+    # Slice 06 — to the triage lead (§13).
+    "needs_info_replied":      _row(triage=True),
+    "moved_into_project":      _row(triage=True),
+    "recurrence_on_cancelled": _row(triage=True),
+    # Slice 06 — to Support subscribers, the only events Support receives (§13).
+    "support_needs_info":  _row(subscriber=True),
+    "support_cancelled":   _row(subscriber=True),
+    "support_done":        _row(subscriber=True),
 }
+
+
+def resolve_matrix(stored: dict | None) -> dict[str, dict[str, bool]]:
+    """Overlay a saved matrix on the defaults, row by row.
+
+    Merging per row (not per event) means a matrix saved before a key existed
+    — ``subscriber`` from slice 06 — still gets that key's default.
+    """
+    matrix = {event: dict(row) for event, row in DEFAULT_NOTIFICATION_MATRIX.items()}
+    for event, row in (stored or {}).items():
+        if isinstance(row, dict):
+            matrix[event] = {**matrix.get(event, _row()), **row}
+    return matrix
