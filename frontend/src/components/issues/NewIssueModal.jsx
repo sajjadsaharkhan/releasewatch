@@ -11,8 +11,8 @@ import { DatePicker } from '../ui/DatePicker'
 import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
-import { BacklogCategoryPicker, ProjectSwitcher, ReleaseSwitcher } from '../common'
-import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TECH_DEBT, TYPE } from '../../lib/constants'
+import { BacklogCategoryPicker, ContainerPicker, ProjectSwitcher } from '../common'
+import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TECH_DEBT, TYPE, isOpenRelease } from '../../lib/constants'
 import { ENVIRONMENT } from './DescriptionSection'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
@@ -22,7 +22,7 @@ const INITIAL_FORM = {
   type: 'bug',
   title: '',
   projectId: '',
-  releaseId: '',
+  releaseId: null,
   priority: null,
   environment: null,
   description: '',
@@ -79,11 +79,12 @@ export function NewIssueModal({ open, onClose, onCreated }) {
         setTeamUsers(teamRes.data || [])
         setAssignableUsers(assignableRes.data || [])
 
-        setForm((f) => ({
-          ...f,
-          projectId: seedProjectId || projectsRes.data?.[0]?.id || '',
-          releaseId: seedReleaseId || '',
-        }))
+        const projectId = seedProjectId || projectsRes.data?.[0]?.id || ''
+        // The global release switcher seeds a bug's container — only an open one of this project.
+        const seed = (releasesRes.data?.releases || []).find(
+          (r) => r.id === seedReleaseId && r.projectId === projectId && isOpenRelease(r),
+        )
+        setForm((f) => ({ ...f, projectId, releaseId: seed?.id ?? null }))
       } catch (err) {
         console.error('Failed to load data:', err)
       } finally {
@@ -111,13 +112,9 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     }
   }, [open])
 
-  const selectedProject = projects.find((p) => p.id === form.projectId)
-  const releasesAllowed = selectedProject?.kind === 'product'
-
-  // Filter releases for selected project and only active/blocked status
-  const availableReleases = allReleases.filter(
-    (r) => r.projectId === form.projectId && (r.status === 'active' || r.status === 'blocked')
-  )
+  // The release blocker flag exists only on a bug in a Release, never in the
+  // Stream or the backlog (BR-58). `allReleases` never holds a Stream.
+  const inRelease = form.releaseId != null && allReleases.some((r) => r.id === form.releaseId)
 
   // Create a wrapper issue object for AttachmentsSection display
   const issueWrapper = { attachments }
@@ -131,26 +128,29 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
-  // A bug starts in the active release (it was found there); a task starts in
-  // no release — the backlog — unless one is picked (slice 08).
+  // A bug starts in the active release when it's open (it was found there); a
+  // task starts in the backlog unless a container is picked (slice 08, 08a).
   function setType(type) {
     setForm((f) => ({
       ...f,
       type,
+      isReleaseBlocker: type === 'task' ? false : f.isReleaseBlocker,
       releaseId: type === 'task'
-        ? ''
-        : (f.releaseId || (activeReleaseId && allReleases.some((r) => r.id === activeReleaseId && r.projectId === f.projectId) ? activeReleaseId : '')),
+        ? null
+        : (f.releaseId ?? (activeReleaseId && allReleases.some((r) => r.id === activeReleaseId && r.projectId === f.projectId && isOpenRelease(r)) ? activeReleaseId : null)),
     }))
     setErrors({})
   }
 
   function setProject(id) {
-    const project = projects.find((p) => p.id === id)
-    const firstRelease = project?.kind === 'product' && form.type !== 'task'
-      ? allReleases.find((r) => r.projectId === id && (r.status === 'active' || r.status === 'blocked'))
-      : null
-    // A category belongs to one project — the new project starts at its Default.
-    setForm((f) => ({ ...f, projectId: id, releaseId: firstRelease?.id || '', backlogCategoryId: null }))
+    // Containers and categories belong to one project — start from the
+    // backlog and the new project's Default.
+    setForm((f) => ({ ...f, projectId: id, releaseId: null, isReleaseBlocker: false, backlogCategoryId: null }))
+  }
+
+  function setContainer(id) {
+    const stillInRelease = id != null && allReleases.some((r) => r.id === id)
+    setForm((f) => ({ ...f, releaseId: id, isReleaseBlocker: stillInRelease ? f.isReleaseBlocker : false }))
   }
 
   function addStep() {
@@ -209,16 +209,16 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       const payload = form.type === 'task'
         ? {
           ...shared,
-          release_id: releasesAllowed ? (form.releaseId || null) : null,
+          release_id: form.releaseId,
           backlog_category_id: form.backlogCategoryId,
           is_tech_debt: form.isTechDebt,
         }
         : {
           ...shared,
-          release_id: releasesAllowed ? (form.releaseId || null) : null,
+          release_id: form.releaseId,
           environment_name: form.environment || null,
           curl_command: form.curlCommand || null,
-          is_release_blocker: form.isReleaseBlocker,
+          is_release_blocker: inRelease && form.isReleaseBlocker,
           reproduction_steps: form.steps
             .map((step, idx) => {
               if (!step.trim()) return null
@@ -294,8 +294,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                   {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
                 </div>
 
-                {/* Project + Release + Priority in one row */}
-                <div className={cn('grid gap-3', releasesAllowed ? 'grid-cols-[200px_180px_1fr]' : 'grid-cols-[200px_1fr]')}>
+                {/* Project + Placement + Priority in one row */}
+                <div className="grid gap-3 grid-cols-[200px_200px_1fr]">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Project</label>
                     <ProjectSwitcher
@@ -304,19 +304,10 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       onChange={setProject}
                     />
                   </div>
-                  {releasesAllowed && (
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Release <span className="text-muted-foreground/70 font-normal">(optional)</span>
-                      </label>
-                      <ReleaseSwitcher
-                        releases={availableReleases}
-                        activeReleaseId={form.releaseId}
-                        onChange={(id) => set('releaseId', id)}
-                        allowNone
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Place in</label>
+                    <ContainerPicker projectId={form.projectId} value={form.releaseId} onChange={setContainer} />
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                       Priority{' '}
@@ -424,10 +415,12 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Switch checked={form.isReleaseBlocker} onCheckedChange={(v) => set('isReleaseBlocker', v)} />
-                      <span className="text-sm font-medium">Release blocker</span>
-                    </div>
+                    {inRelease && (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={form.isReleaseBlocker} onCheckedChange={(v) => set('isReleaseBlocker', v)} />
+                        <span className="text-sm font-medium">Release blocker</span>
+                      </div>
+                    )}
                   </>
                 )}
 

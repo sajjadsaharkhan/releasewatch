@@ -290,9 +290,10 @@ with Policy's reason as the tooltip. The page follows the topbar project switche
 debt** (`pages/TechDebtPage.jsx`, `/tech-debt`) is a full-bleed table with `MultiSelectFilterDropdown`
 projects, Status (Open / Done / Cancelled / All) and Assignee filters in the URL, and a Placement
 column (release version or a "Backlog" chip). New Task has a Technical debt `Switch` and, when the
-project has more than Default, an optional `BacklogCategoryPicker`, and starts with no release;
+project has more than Default, an optional `BacklogCategoryPicker`, and starts in the backlog;
 Triage's Accept shows the same optional picker; the item sidebar has Category (the project's
-categories) and (tasks) Tech debt rows and "Remove from release".
+categories) and (tasks) Tech debt rows. Placement everywhere — New issue, triage Accept, the
+sidebar's Placement row, the bulk bar — is one `ContainerPicker` (08a).
 
 `Select` and `Dropdown` open upward when there's no room below. `Select` and `Dropdown` are
 `position: fixed` portals, so both follow their trigger when the page scrolls or resizes
@@ -518,6 +519,7 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 
 | `Checkbox` (`components/ui`) | `checked`, `indeterminate` ("mixed"), `onCheckedChange(next, event)` — the event carries `shiftKey` for ranges; clicks don't bubble, so it sits inside clickable rows |
 | `TechDebtMarker` / `BacklogCategoryBadge` / `BacklogCategoryPicker` (`components/common`) | See §3 Backlog category and technical debt. The picker is a `radiogroup` of chips (arrow keys move), `required` stops a second click from clearing it |
+| `ContainerPicker` (`components/common`) | Where an item lives (08a): Backlog (`inbox`), Stream (`waves`, "ships when Done"), then the project's open releases (`package`, lifecycle status as a muted hint). `projectId`, `value` (container id or null = backlog), `onChange`, `allowBacklog` (false in the bulk bar). Data from `useContainers(projectId)` (react-query, shared). A released or cancelled current container is still listed so the trigger can name it. On a Done item the sidebar shows the container as text instead — Done items never move |
 | `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the red regression marker and the priority pills |
 | `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state

@@ -47,7 +47,8 @@ from app.db.models.issue import (
 )
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
-from app.db.models.project import Project, ProjectKind
+from app.db.models.project import Project
+from app.db.models.release import Release, ReleaseKind
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
@@ -134,8 +135,7 @@ def _apply_filters(
     labels,
     search,
     type=None,
-    has_release=None,
-    project_kind=None,
+    container=None,
     is_tech_debt=None,
 ):
     query = query.where(Issue.deleted_at.is_(None), visibility_clause(actor))
@@ -163,14 +163,16 @@ def _apply_filters(
         query = query.where(or_(*[Issue.labels.any(name) for name in labels]))
     if type:
         query = query.where(Issue.type == type)
-    if has_release is not None:
-        query = query.where(Issue.release_id.isnot(None) if has_release else Issue.release_id.is_(None))
+    if container == "backlog":
+        query = query.where(Issue.release_id.is_(None))
+    elif container == "stream":
+        query = query.where(
+            Issue.release_id.in_(select(Release.id).where(Release.kind == ReleaseKind.stream.value))
+        )
+    elif container:
+        query = query.where(Issue.release_id == int(container))
     if is_tech_debt is not None:
         query = query.where(Issue.is_tech_debt == is_tech_debt)
-    if project_kind:
-        query = query.where(
-            Issue.project_id.in_(select(Project.id).where(Project.kind == project_kind))
-        )
     if search:
         from sqlalchemy import String as SAString
         from sqlalchemy import cast
@@ -284,6 +286,7 @@ async def _build_enriched_responses(
                 if n in label_map
             ],
             "release_version": issue.release.version if issue.release else None,
+            "container_kind": getattr(issue.release.kind, "value", issue.release.kind) if issue.release else None,
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
             **_workflow_fields(issue, current_user),
@@ -310,8 +313,10 @@ async def list_issues(
     sort: str = Query("newest"),
     search: str | None = Query(None),
     type: IssueType | None = Query(None),
-    has_release: bool | None = Query(None, description="True: has a release. False: hotfix/task with no release."),
-    project_kind: ProjectKind | None = Query(None),
+    container: str | None = Query(
+        None, pattern=r"^(backlog|stream|\d+)$",
+        description="backlog (no container), stream (any project's Stream), or a container id.",
+    ),
     is_tech_debt: bool | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
@@ -334,8 +339,7 @@ async def list_issues(
         labels=labels,
         search=search,
         type=type,
-        has_release=has_release,
-        project_kind=project_kind,
+        container=container,
         is_tech_debt=is_tech_debt,
     )
 
@@ -376,8 +380,7 @@ async def export_issues(
     sort: str = Query("newest"),
     search: str | None = Query(None),
     type: IssueType | None = Query(None),
-    has_release: bool | None = Query(None),
-    project_kind: ProjectKind | None = Query(None),
+    container: str | None = Query(None, pattern=r"^(backlog|stream|\d+)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
@@ -396,8 +399,7 @@ async def export_issues(
         labels=labels,
         search=search,
         type=type,
-        has_release=has_release,
-        project_kind=project_kind,
+        container=container,
     )
 
     fetch_q = select(Issue).options(
@@ -548,23 +550,28 @@ async def create_issue(
     return enriched[0]
 
 
-@router.post("/bulk-move", response_model=BulkMoveResponse, summary="Move items to a release")
+@router.post("/bulk-move", response_model=BulkMoveResponse, summary="Move items to the Stream or a release")
 async def bulk_move(
     payload: BulkMoveRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> BulkMoveResponse:
-    """Move several items to one release in one action (FR-25, slice 08).
+    """Move several items to one container — the Stream or an open Release — in
+    one action (FR-25, slice 08; 08a).
 
     All or nothing: if any item can't move, nothing moves and the 409
-    ``bulk_move_failed`` lists each failing id under ``errors``. Guarded by
+    ``bulk_move_failed`` lists each failing id under ``errors`` (a Done item
+    fails the request with ``done_item_immobile``, BR-54). Guarded by
     ``manage_backlog`` on the release's project.
     """
     from app.services.backlog_service import backlog_service, get_release_or_404
 
+    from app.services import container_service as containers
+
     release = await get_release_or_404(db, payload.release_id)
     project = await db.get(Project, release.project_id)
     authorize(current_user, Action.manage_backlog, project_target(project))
+    await containers.resolve(db, release.project_id, release.id)  # release_closed
 
     ids = list(dict.fromkeys(payload.issue_ids))
     rows = (await db.execute(

@@ -180,7 +180,8 @@ RequiredComment = Annotated[str, StringConstraints(strip_whitespace=True, min_le
 
 
 class AcceptOutcome(BaseModel):
-    """Accept → To do. ``release_id`` omitted keeps the bug's release (none → hotfix path)."""
+    """Accept → To do. ``release_id`` (a container: the Stream or an open Release)
+    omitted keeps the bug's container; ``null`` puts it in the backlog (08a)."""
 
     outcome: Literal["accept"]
     priority: Priority = Field(description="Required to accept a bug (BR-16, AC-16).")
@@ -271,6 +272,8 @@ class IssueResponse(IssueBase):
     project_name: str | None = None
     release_id: int | None = None
     release_version: str | None = None
+    #: ``stream`` | ``release`` for the item's container; null in the backlog (08a).
+    container_kind: str | None = None
     status: IssueStatus
     due_date: date | None = None
     reporter_id: int | None = None
@@ -331,6 +334,7 @@ class BulkMoveRequest(BaseModel):
     """Payload for POST /issues/bulk-move (FR-25) — all or nothing."""
 
     issue_ids: list[int] = Field(min_length=1, max_length=500)
+    #: The target container — the project's Stream or an open Release.
     release_id: int
 
 

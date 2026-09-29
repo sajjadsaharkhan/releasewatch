@@ -8,7 +8,7 @@ Usage:
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.config import settings
@@ -16,7 +16,7 @@ from app.core.auth import get_password_hash
 from app.db.models.user import User, UserRole
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseStatus, GoNogoStatus
-from app.db.models.issue import Issue, IssueStatus, Priority
+from app.db.models.issue import Issue, IssueStatus, IssueType, Priority
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 
 NOW = datetime.now(tz=timezone.utc)
@@ -80,36 +80,62 @@ async def seed(session: AsyncSession) -> None:
     print("  Created backlog categories")
 
     print("Seeding releases...")
+    # Every project already has its Stream (ORM hook, BR-51); add Releases in
+    # different lifecycle states.
+    from app.db.models.release import ReleaseKind
     releases = [
-        Release(project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id),
-        Release(project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.archived, go_nogo_status=GoNogoStatus.approved, created_by_id=creator.id),
-        Release(project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id),
+        Release(project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.qa,          go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id,
+                code_freeze_date=(NOW - timedelta(days=2)).date(), target_date=NOW + timedelta(days=5)),
+        Release(project_id=projects[0].id, version="v2.5.0", status=ReleaseStatus.planning,    go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id,
+                target_date=NOW + timedelta(days=30)),
+        Release(project_id=projects[0].id, version="v2.3.0", status=ReleaseStatus.released,    go_nogo_status=GoNogoStatus.approved, created_by_id=creator.id,
+                released_at=NOW - timedelta(days=14)),
+        Release(project_id=projects[1].id, version="v1.8.0", status=ReleaseStatus.development, go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id,
+                target_date=NOW + timedelta(days=12)),
     ]
     session.add_all(releases)
     await session.flush()
-    print(f"  Created {len(releases)} releases")
+    streams = {
+        r.project_id: r for r in (await session.execute(
+            select(Release).where(Release.kind == ReleaseKind.stream.value)
+        )).scalars().all()
+    }
+    print(f"  Created {len(releases)} releases (+ one Stream per project)")
 
     print("Seeding issues...")
-    qa1, dev1, dev2 = users[1], users[2], users[3]
-    active_rel = releases[0]
+    qa1, dev1, dev2 = users[2], users[1], users[3]
+    mobile, api = projects
+    qa_rel, planned_rel, shipped_rel, api_rel = releases
+    mobile_stream, api_stream = streams[mobile.id], streams[api.id]
+    # (project, container or None for the backlog, fields)
     issues_data = [
-        dict(priority=Priority.critical,     status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",            reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True),
-        dict(priority=Priority.critical,    status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17",  reporter_id=qa1.id,      assignee_id=dev2.id),
-        dict(priority=None,                      status=IssueStatus.new,         title="Profile image upload fails >5MB",             reporter_id=qa1.id,      assignee_id=None),
-        dict(priority=Priority.high,         status=IssueStatus.in_review,   title="Pagination breaks on search results",         reporter_id=users[4].id, assignee_id=dev1.id),
-        dict(priority=Priority.medium,        status=IssueStatus.done,        title="Date picker shows wrong timezone",            reporter_id=users[4].id, assignee_id=dev2.id),
-        dict(priority=Priority.critical,     status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",          reporter_id=qa1.id,      assignee_id=dev1.id, is_regression=True, regression_count=1),
-        dict(priority=None,                      status=IssueStatus.new,         title="Add swipe-to-dismiss on notification cards",  reporter_id=qa1.id,      assignee_id=None),
-        dict(priority=Priority.critical,    status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login",    reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True),
-        dict(priority=Priority.high,         status=IssueStatus.todo,        title="Dark mode flicker on app launch",             reporter_id=qa1.id,      assignee_id=dev1.id),
-        dict(priority=Priority.medium,        status=IssueStatus.done,        title="Typo in onboarding screen copy",              reporter_id=users[4].id, assignee_id=dev2.id),
+        # Mobile App — v2.4.1 in QA
+        (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",           reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True)),
+        (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17", reporter_id=qa1.id,      assignee_id=dev2.id)),
+        (mobile, qa_rel, dict(priority=Priority.high,     status=IssueStatus.in_review,   title="Pagination breaks on search results",        reporter_id=users[4].id, assignee_id=dev1.id)),
+        (mobile, qa_rel, dict(priority=Priority.medium,   status=IssueStatus.done,        title="Date picker shows wrong timezone",           reporter_id=users[4].id, assignee_id=dev2.id)),
+        (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",         reporter_id=qa1.id,      assignee_id=dev1.id)),
+        (mobile, qa_rel, dict(priority=None,              status=IssueStatus.new,         title="Profile image upload fails >5MB",            reporter_id=qa1.id,      assignee_id=None)),
+        # Mobile App — v2.5.0 planned, v2.3.0 shipped
+        (mobile, planned_rel, dict(type=IssueType.task, priority=Priority.medium, status=IssueStatus.todo, title="Redesign the onboarding flow", reporter_id=users[7].id, assignee_id=dev2.id)),
+        (mobile, shipped_rel, dict(priority=Priority.medium, status=IssueStatus.done,     title="Typo in onboarding screen copy",             reporter_id=users[4].id, assignee_id=dev2.id)),
+        # Mobile App — Stream
+        (mobile, mobile_stream, dict(priority=Priority.high,   status=IssueStatus.in_progress, title="Dark mode flicker on app launch",      reporter_id=qa1.id,      assignee_id=dev1.id)),
+        (mobile, mobile_stream, dict(type=IssueType.task, priority=Priority.low, status=IssueStatus.done, title="Rotate the App Store screenshots", reporter_id=users[7].id, assignee_id=dev2.id)),
+        # Mobile App — backlog
+        (mobile, None, dict(type=IssueType.task, priority=Priority.medium, status=IssueStatus.todo, title="Add swipe-to-dismiss on notification cards", reporter_id=users[7].id, assignee_id=None)),
+        (mobile, None, dict(type=IssueType.task, priority=Priority.low,    status=IssueStatus.todo, title="Offline mode for the reading list",          reporter_id=users[7].id, assignee_id=None)),
+        # API Gateway — v1.8.0 in development, Stream, backlog
+        (api, api_rel,    dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login", reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True)),
+        (api, api_stream, dict(priority=Priority.high,     status=IssueStatus.todo,        title="Webhook retries flood the queue",           reporter_id=qa1.id,      assignee_id=users[4].id)),
+        (api, None,       dict(type=IssueType.task, priority=Priority.medium, status=IssueStatus.todo, title="Move request logs to structured JSON", reporter_id=users[7].id, assignee_id=None)),
     ]
     issues = []
-    for i, data in enumerate(issues_data, start=1):
+    for i, (project, container, data) in enumerate(issues_data, start=1):
         issue = Issue(
             issue_number=i,
-            project_id=active_rel.project_id,
-            release_id=active_rel.id,
+            project_id=project.id,
+            release_id=container.id if container is not None else None,
             filed_at=NOW - timedelta(hours=24 * i // 3),
             **data,
         )
@@ -121,6 +147,9 @@ async def seed(session: AsyncSession) -> None:
     await session.execute(text(
         "SELECT setval('issue_number_seq', (SELECT max(issue_number) FROM issues))"
     ))
+    # Backlog members need a rank to be ordered (slice 08).
+    for rank, issue in enumerate((i for i in issues if i.release_id is None), start=1):
+        issue.backlog_rank = rank * 1024.0
     print(f"  Created {len(issues)} issues")
 
     print("Seeding timeline events...")

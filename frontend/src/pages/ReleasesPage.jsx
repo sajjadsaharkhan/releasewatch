@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { CreateReleaseModal } from '../components/releases/CreateReleaseModal'
 import { useApp } from '../hooks/useApp'
 import { releasesApi } from '../lib/api'
+import { RELEASE_STATUS } from '../lib/constants'
 
 // Status badge component for release cards - shows actual backend status
 function ReleaseStatusBadge({ release }) {
@@ -32,23 +33,15 @@ function ReleaseStatusBadge({ release }) {
           Released
         </span>
       )
-    case 'blocked':
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs font-semibold">
-          <XCircle className="h-3.5 w-3.5" />
-          Blocked
-        </span>
-      )
-    case 'archived':
+    case 'cancelled':
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-400 text-xs font-semibold">
           <File className="h-3.5 w-3.5" />
-          Archived
+          Cancelled
         </span>
       )
-    case 'active':
     default:
-      // For active releases, show open issues count or just "Active"
+      // For an open release, show its open issue count or its lifecycle status
       if (openIssues > 0) {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-xs font-semibold">
@@ -60,7 +53,7 @@ function ReleaseStatusBadge({ release }) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-semibold">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Active
+          {RELEASE_STATUS[status]?.label ?? 'Open'}
         </span>
       )
   }
@@ -71,7 +64,7 @@ function getStatusIcon(release) {
   if (release.status === 'released' || release.goNoGo === 'approved') {
     return <Ship className="h-5 w-5 text-green-600 dark:text-green-400" />
   }
-  if (release.status === 'blocked' || release.goNoGo === 'blocked') {
+  if (release.goNoGo === 'blocked') {
     return <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
   }
   if (release.blockers > 0) {
@@ -87,7 +80,7 @@ function getStatusBgColor(release) {
   if (release.status === 'released' || release.goNoGo === 'approved') {
     return 'bg-green-100 dark:bg-green-900/40'
   }
-  if (release.status === 'blocked' || release.goNoGo === 'blocked') {
+  if (release.goNoGo === 'blocked') {
     return 'bg-red-100 dark:bg-red-900/40'
   }
   if (release.blockers > 0) {
@@ -198,7 +191,7 @@ export default function ReleasesPage() {
             const dateRange = `${createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 
             // Border color based on status
-            const borderColor = release.status === 'blocked' || (release.blockers || release.blocker_count) > 0
+            const borderColor = release.goNoGo === 'blocked' || (release.blockers || release.blocker_count) > 0
               ? 'border-red-200 dark:border-red-800/30'
               : release.status === 'released'
               ? 'border-green-200 dark:border-green-800/30'
@@ -236,7 +229,7 @@ export default function ReleasesPage() {
                   <div className="text-xs text-muted-foreground">
                     {release.status === 'released' || release.goNoGo === 'approved'
                       ? 'Released and deployed successfully.'
-                      : release.status === 'blocked' || release.goNoGo === 'blocked'
+                      : release.goNoGo === 'blocked'
                       ? 'Blocked by critical issues.'
                       : (release.blockers || release.blocker_count) > 0
                       ? `${(release.blockers || release.blocker_count)} critical issue${(release.blockers || release.blocker_count) > 1 ? 's' : ''} blocking release.`

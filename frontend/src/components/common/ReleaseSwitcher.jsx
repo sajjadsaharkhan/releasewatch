@@ -3,45 +3,36 @@ import { ChevronDown, Tag, Check, Circle, Ship, XCircle, File } from 'lucide-rea
 import { cn } from '../../lib/cn'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { Badge } from '../ui/Badge'
+import { RELEASE_STATUS } from '../../lib/constants'
 
 function getBadgeTone(status) {
-  switch (status) {
-    case 'active': return 'blue'
-    case 'released': return 'green'
-    case 'blocked': return 'red'
-    case 'archived': return 'zinc'
-    default: return 'default'
-  }
+  return RELEASE_STATUS[status]?.tone ?? 'default'
 }
 
 function getStatusIcon(status) {
   switch (status) {
     case 'released':
       return <Ship className="h-3 w-3 text-green-600 dark:text-green-400" />
-    case 'blocked':
-      return <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
-    case 'active':
+    case 'cancelled':
+      return <XCircle className="h-3 w-3 text-zinc-500 dark:text-zinc-400" />
+    case 'qa':
+      return <Circle className="h-3 w-3 text-amber-600 dark:text-amber-400 fill-amber-600" />
+    case 'development':
       return <Circle className="h-3 w-3 text-blue-600 dark:text-blue-400 fill-blue-600" />
-    case 'archived':
+    case 'planning':
     default:
       return <Circle className="h-3 w-3 text-zinc-600 dark:text-zinc-400" />
   }
 }
 
 function getStatusLabel(status) {
-  switch (status) {
-    case 'active': return 'Active'
-    case 'released': return 'Released'
-    case 'blocked': return 'Blocked'
-    case 'archived': return 'Archived'
-    default: return status
-  }
+  return RELEASE_STATUS[status]?.label ?? status
 }
 
-// `allowNone` (03, BR-26): lets the caller represent "no release" as a real,
-// selectable state — a bug filed with no release is a hotfix, not an error.
-// Without it, the switcher always shows *some* release (falling back to the
-// first one), matching every pre-03 call site (Topbar, etc).
+// Releases only — never the Stream (08a): the Phase 1 release switcher keeps
+// its meaning. `allowNone` lets the caller represent "no release" as a real,
+// selectable state; without it, the switcher always shows *some* release
+// (falling back to the first one), matching every pre-03 call site (Topbar, etc).
 export function ReleaseSwitcher({
   releases = [], activeReleaseId, onChange, compact = false, width = null, allowNone = false,
 }) {
@@ -103,7 +94,7 @@ export function ReleaseSwitcher({
                 ) : (
                   <Circle className="h-4 w-4 shrink-0 opacity-70" />
                 )}
-                <span className="text-muted-foreground">No release (hotfix)</span>
+                <span className="text-muted-foreground">No release</span>
               </span>
             </DropdownItem>
           )}

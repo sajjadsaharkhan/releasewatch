@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { issuesApi, teamApi, timelineApi, labelsApi, releasesApi, projectsApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
+import { issuesApi, teamApi, timelineApi, labelsApi, projectsApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
 import { downloadIssueMarkdown } from '../lib/issueMarkdown'
@@ -170,14 +170,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
   const { data: availableLabels = [] } = useQuery({
     queryKey: ['labels'],
     queryFn: () => labelsApi.list().then(r => r.data || []),
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const { data: availableReleases = [] } = useQuery({
-    queryKey: ['releases', localIssue?.project_id],
-    queryFn: () =>
-      releasesApi.list({ project_id: localIssue.project_id }).then(r => r.data?.releases || r.data || []),
-    enabled: !!localIssue?.project_id,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -422,7 +414,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     teamUsers,
     assignableUsers,
     availableLabels,
-    availableReleases,
     availableProjects,
     regressions,
     cycles,

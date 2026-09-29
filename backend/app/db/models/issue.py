@@ -166,7 +166,7 @@ class Issue(Base):
     )
     release_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("releases.id", ondelete="SET NULL"), nullable=True, index=True,
-        doc="Null for hotfixes/tasks with no release (BR-26, D7). Deleting a release sets this null."
+        doc="The item's container — its project's Stream or one of its Releases; null is the backlog (08a)."
     )
     type: Mapped[IssueType] = mapped_column(
         String(16), nullable=False, default=IssueType.bug,

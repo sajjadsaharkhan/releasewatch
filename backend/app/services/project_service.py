@@ -1,42 +1,18 @@
 """ProjectService — domain rules for projects.
 
-Kept the BR-02 guard out of the route layer (CLAUDE.md: thin routes,
-services own state transitions). Permissions live in ``app/policy.py``; the
-data-integrity side (release/kind guard, triage lead rules BR-15/AC-23) lives here.
+Permissions live in ``app/policy.py``; the data-integrity side (triage lead
+rules BR-15/AC-23) lives here. Every project's Stream is created with it by an
+ORM hook (``app/db/models/release.py``), so every writer gets one (BR-51).
 """
 
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
-from app.db.models.project import Project, ProjectKind
-from app.db.models.release import Release
+from app.db.models.project import Project
 from app.db.models.user import User
 from app.policy import is_tech
-
-
-async def guard_kind_change(db: AsyncSession, project: Project, update_data: dict) -> None:
-    """Refuse moving a Product project off Product while it still has releases (BR-02).
-
-    ``update_data`` is the PATCH payload as a dict (``exclude_unset=True``);
-    a payload without ``kind`` passes untouched.
-    """
-    if "kind" not in update_data:
-        return
-    old_kind = getattr(project.kind, "value", project.kind)
-    new_kind = getattr(update_data["kind"], "value", update_data["kind"])
-    if old_kind != ProjectKind.product.value or new_kind == ProjectKind.product.value:
-        return
-    count_result = await db.execute(
-        select(func.count(Release.id)).where(Release.project_id == project.id)
-    )
-    if count_result.scalar_one() > 0:
-        raise DomainError(
-            status.HTTP_409_CONFLICT,
-            "Cannot change kind while the project still has releases.",
-            "project_has_releases",
-        )
 
 
 async def validate_triage_lead(db: AsyncSession, triage_lead_id: int | None) -> None:

@@ -28,7 +28,6 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     teamUsers,
     assignableUsers,
     availableLabels,
-    availableReleases,
     availableProjects,
     regressions,
     currentCycle,
@@ -116,7 +115,6 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           currentCycle={currentCycle}
           teamUsers={assignableUsers}
           availableLabels={availableLabels}
-          availableReleases={availableReleases}
           availableProjects={availableProjects}
           applyUpdate={applyUpdate}
           regress={regress}

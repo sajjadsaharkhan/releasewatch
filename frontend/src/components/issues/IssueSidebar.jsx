@@ -8,13 +8,14 @@ import { Switch } from '../ui/Switch'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
+import { ContainerPicker } from '../common/ContainerPicker'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { CONTAINER_KIND, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime } from '../../lib/relTime'
 
@@ -40,7 +41,7 @@ function Editable({ issue, action, readOnly, children }) {
   return readOnly
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableReleases, availableProjects, applyUpdate, regress, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableProjects, applyUpdate, regress, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
@@ -175,57 +176,40 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </div>
       </MetaRow>
 
-      <MetaRow label="Release">
-        <Dropdown
-          width={200}
-          trigger={
-            <button className="font-mono text-sm text-left text-zinc-800 dark:text-zinc-200 hover:underline">
-              {issue.release_version || '—'}
-            </button>
-          }
-        >
-          {({ close }) => (
-            <>
-              <DropdownLabel>Move to release</DropdownLabel>
-              {availableReleases.map(r => (
-                <DropdownItem key={r.id} onClick={() => {
-                  close()
-                  if (String(r.id) === String(issue.release_id)) return
-                  onConfirm({
-                    title: 'Change release?',
-                    body: <span>Move this {noun} to release <strong className="font-mono">{r.version}</strong>?</span>,
-                    confirmLabel: `Move ${noun}`,
-                    onConfirm: () => applyUpdate({ release_id: r.id }, `Moved to ${r.version}`),
-                  })
-                }}>
-                  <span className={cn('font-mono text-sm', String(r.id) === String(issue.release_id) && 'text-zinc-400')}>
-                    {r.version}
+      <MetaRow label="Placement">
+        {issue.status === 'done' ? (
+          // A Done item never changes container (BR-54).
+          <span
+            className="inline-flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-200"
+            title="A Done item stays where it shipped."
+          >
+            <Icon name={CONTAINER_KIND[issue.container_kind ?? 'backlog'].icon} size={14} className="text-zinc-400" />
+            {issue.container_kind === 'stream' ? 'Stream' : issue.release_version || 'Backlog'}
+          </span>
+        ) : (
+          <ContainerPicker
+            projectId={issue.project_id}
+            value={issue.release_id ?? null}
+            className="h-8 text-[13px]"
+            onChange={(id) => {
+              if (id === (issue.release_id ?? null)) return
+              const to = id == null ? 'the backlog' : 'the new container'
+              const dropsBlocker = issue.is_release_blocker
+              onConfirm({
+                title: id == null ? 'Move to the backlog?' : 'Move this ' + noun + '?',
+                body: (
+                  <span>
+                    Move this {noun} to {to}?
+                    {id == null && ' If it\'s still open it keeps its category and rank.'}
+                    {dropsBlocker && ' It stops being a release blocker unless it lands in another release.'}
                   </span>
-                  {String(r.id) === String(issue.release_id) && (
-                    <span className="ml-auto text-xs text-zinc-400">Current</span>
-                  )}
-                </DropdownItem>
-              ))}
-              {availableReleases.length === 0 && (
-                <DropdownItem>No releases found</DropdownItem>
-              )}
-              {issue.release_id && (
-                <DropdownItem onClick={() => {
-                  close()
-                  onConfirm({
-                    title: 'Remove from release?',
-                    body: <span>Take this {noun} out of <strong className="font-mono">{issue.release_version}</strong>? If it's still open it goes back to the backlog, keeping its category and rank.</span>,
-                    confirmLabel: 'Remove from release',
-                    onConfirm: () => applyUpdate({ release_id: null }, 'Removed from release'),
-                  })
-                }}>
-                  <Icon name="undo-2" size={14} className="text-zinc-400" />
-                  <span className="text-sm">Remove from release</span>
-                </DropdownItem>
-              )}
-            </>
-          )}
-        </Dropdown>
+                ),
+                confirmLabel: `Move ${noun}`,
+                onConfirm: () => applyUpdate({ release_id: id }, id == null ? 'Moved to the backlog' : 'Moved'),
+              })
+            }}
+          />
+        )}
       </MetaRow>
 
       {/* Backlog placement (slice 08): category, and the tech-debt flag on tasks. */}
@@ -391,6 +375,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </Badge>
       </MetaRow>
 
+      {/* The blocker flag exists only on a bug in a Release (BR-58). */}
+      {issue.container_kind === 'release' && (
       <MetaRow label="Release blocker">
         <Editable
           issue={issue}
@@ -416,6 +402,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         />
         </Editable>
       </MetaRow>
+      )}
         </>
       )}
 

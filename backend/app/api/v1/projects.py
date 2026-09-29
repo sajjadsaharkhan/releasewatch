@@ -20,18 +20,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.db.models.project import Project
-from app.db.models.release import Release, GoNogoStatus
+from app.db.models.release import GoNogoStatus, Release, ReleaseKind
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.project import ProjectArchiveRequest, ProjectCreate, ProjectResponse, ProjectUpdate
 from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, ReleaseUpdate
 from app.policy import Action
 from app.services.authz import authorize, project_target, require_action
-from app.services.project_service import (
-    guard_kind_change,
-    project_needs_triage_lead,
-    validate_triage_lead,
-)
+from app.services.container_service import stream_of
+from app.services.project_service import project_needs_triage_lead, validate_triage_lead
 
 from app.services.support_service import support_service
 
@@ -60,6 +57,7 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         exclude={
             "triage_lead_name", "needs_triage_lead",
             "support_template_count", "active_support_template_count", "backlog_category_count",
+            "stream_id",
         }
     )
     return ProjectResponse(
@@ -69,13 +67,13 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         support_template_count=total,
         active_support_template_count=active,
         backlog_category_count=await _backlog_category_count(db, project.id),
+        stream_id=(await stream_of(db, project.id)).id,
     )
 
 
 async def _apply_project_update(db: AsyncSession, project: Project, update_data: dict) -> None:
     if "triage_lead_id" in update_data:
         await validate_triage_lead(db, update_data["triage_lead_id"])
-    await guard_kind_change(db, project, update_data)
     for field, value in update_data.items():
         setattr(project, field, value)
 
@@ -122,7 +120,6 @@ async def create_project(
         color=payload.color,
         description=payload.description,
         default_labels=payload.default_labels,
-        kind=payload.kind,
         triage_lead_id=payload.triage_lead_id,
         created_by_id=current_user.id,
     )
@@ -272,14 +269,18 @@ async def list_releases(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ReleaseResponse]:
-    """Return all releases for a project, most recent first."""
+    """Return all releases for a project, most recent first — never its Stream (08a)."""
     authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
     project = await _get_project_or_404(db, slug)
     result = await db.execute(
         select(Release)
-        .where(Release.project_id == project.id)
+        .where(
+            Release.project_id == project.id,
+            Release.kind == ReleaseKind.release.value,
+            Release.deleted_at.is_(None),
+        )
         .order_by(Release.created_at.desc())
     )
     releases = result.scalars().all()
@@ -308,6 +309,7 @@ async def create_release(
         version=payload.version,
         description=payload.description,
         target_date=payload.target_date,
+        code_freeze_date=payload.code_freeze_date,
         staging_url=payload.staging_url,
         created_by_id=current_user.id,
     )
@@ -349,13 +351,11 @@ async def update_release(
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
     """Partially update a release (status, staging URL, description, target date)."""
-    from app.api.v1.releases import _release_to_response
+    from app.api.v1.releases import _release_to_response, apply_release_update
 
     authorize(current_user, Action.manage_releases, project_target(await _get_project_or_404(db, slug)))
     release = await _get_release_or_404(db, slug, version)
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(release, field, value)
+    apply_release_update(release, payload.model_dump(exclude_unset=True))
     db.add(release)
     await db.commit()
     await db.refresh(release)
@@ -410,6 +410,8 @@ async def _get_release_or_404(db: AsyncSession, slug: str, version: str) -> Rele
         select(Release).where(
             Release.project_id == project.id,
             Release.version == version,
+            Release.kind == ReleaseKind.release.value,
+            Release.deleted_at.is_(None),
         )
     )
     release = result.scalar_one_or_none()

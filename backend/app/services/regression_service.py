@@ -144,7 +144,7 @@ class RegressionService:
         # Fetch the N most recent releases for the project
         releases_result = await db.execute(
             select(Release.id)
-            .where(Release.project_id == project_id)
+            .where(Release.project_id == project_id, Release.kind == "release")
             .order_by(Release.created_at.desc())
             .limit(n_releases)
         )

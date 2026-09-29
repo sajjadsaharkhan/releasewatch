@@ -9,9 +9,11 @@ Slice 03 (docs/phase-2/03-tasks-and-placement.md): adds `issues.type`
 FK changed CASCADE -> SET NULL (D7 — a release can be deleted without
 deleting the work items filed against it), and adds `due_date`. Priority is
 the shared column from b1c2d3e4f5a6 (03a Part 1), so tasks add none of their
-own. Adds `projects.kind` (product|internal|general, defaulted to
-product) and seeds a General project with the first active admin (by id) as
-triage lead, or a null lead if no admin exists.
+own.
+
+08a (PRD v3) removed project kinds and the seeded General project, so this
+revision no longer creates `projects.kind` or seeds General — Phase 2 has not
+shipped, and dev databases are rebuilt with `make db-reset`.
 
 Written by hand, following b1c2d3e4f5a6's lead. Rewritten for 03a under a new
 revision id (was c4d5e6f7a8b9) so a database migrated with the old version
@@ -49,23 +51,8 @@ def upgrade() -> None:
         ['release_id'], ['id'], ondelete='SET NULL',
     )
 
-    # ── projects.kind ───────────────────────────────────────────────────────
-    op.add_column('projects', sa.Column(
-        'kind', sa.String(length=16), nullable=False, server_default='product',
-    ))
-
     # ── Drop the transient backfill defaults ────────────────────────────────
     op.alter_column('issues', 'type', existing_type=sa.String(length=16), server_default=None)
-    op.alter_column('projects', 'kind', existing_type=sa.String(length=16), server_default=None)
-
-    # ── Seed the General project (FR-02) ───────────────────────────────────
-    op.execute("""
-        INSERT INTO projects (name, slug, color, description, kind, default_labels, triage_lead_id, created_at)
-        SELECT 'General', 'general', '#6366f1', NULL, 'general', ARRAY[]::text[],
-               (SELECT id FROM users WHERE role = 'admin' AND is_active = true ORDER BY id ASC LIMIT 1),
-               now()
-        WHERE NOT EXISTS (SELECT 1 FROM projects WHERE slug = 'general')
-    """)
 
 
 def downgrade() -> None:
@@ -81,12 +68,6 @@ def downgrade() -> None:
             "release_id IS NULL (hotfixes or tasks). Assign a release to each "
             "before downgrading, or accept losing that data."
         )
-
-    # Best-effort reverse — deletes the seeded General project outright,
-    # which is only reachable here because the guard above already proved
-    # no issue has a null release_id (so General, if unused, has none either).
-    op.execute("DELETE FROM projects WHERE slug = 'general'")
-    op.drop_column('projects', 'kind')
 
     op.drop_constraint('fk_issues_release_id_releases', 'issues', type_='foreignkey')
     op.alter_column('issues', 'release_id', existing_type=sa.Integer(), nullable=False)

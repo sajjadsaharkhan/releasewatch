@@ -5,6 +5,7 @@ import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { releasesApi } from '../../lib/api'
+import { RELEASE_STATUS, RELEASE_STATUSES } from '../../lib/constants'
 import { useToast } from '../../hooks/useToast'
 
 export function EditReleaseModal({ open, onClose, release, onSave }) {
@@ -13,7 +14,7 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
     version: '',
     targetDate: '',
     description: '',
-    status: 'active',
+    status: 'planning',
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
@@ -24,7 +25,7 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
         version: release.version || '',
         targetDate: release.targetDate ? new Date(release.targetDate).toISOString().split('T')[0] : '',
         description: release.description || '',
-        status: release.status || 'active',
+        status: release.status || 'planning',
       })
     }
   }, [release])
@@ -69,10 +70,9 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
     }
   }
 
-  const statusOptions = [
-    { value: 'active', label: 'Active', description: 'Currently in development' },
-    { value: 'released', label: 'Released', description: 'Has been shipped' },
-  ]
+  // The v3 lifecycle (08a). Ship and cancel get their own flows in slice 09;
+  // until then the plain status control covers every value.
+  const statusOptions = RELEASE_STATUSES.map((value) => ({ value, ...RELEASE_STATUS[value] }))
 
   return (
     <Dialog open={open} onClose={onClose} title="Edit Release" size="md">
@@ -103,14 +103,14 @@ export function EditReleaseModal({ open, onClose, release, onSave }) {
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">
             Status
           </label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {statusOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => set('status', option.value)}
                 className={cn(
-                  'flex-1 rounded-lg border p-3 text-left transition-colors',
+                  'rounded-lg border p-3 text-left transition-colors',
                   form.status === option.value
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-border hover:bg-accent'

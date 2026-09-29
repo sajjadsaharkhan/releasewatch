@@ -8,7 +8,7 @@ import { Icon } from '../ui/Icon'
 import { Select, SelectItem } from '../ui/Select'
 import { Textarea } from '../ui/Textarea'
 import { DuplicatePicker } from './DuplicatePicker'
-import { BacklogCategoryPicker, UserPicker } from '../common'
+import { BacklogCategoryPicker, ContainerPicker, UserPicker } from '../common'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 
 const OUTCOMES = [
@@ -24,8 +24,6 @@ const REJECT_REASONS = [
   { value: 'cannot_reproduce', label: 'Cannot reproduce' },
 ]
 
-const NO_RELEASE = '__none__'
-
 function FieldLabel({ children, required, htmlFor }) {
   return (
     <label htmlFor={htmlFor} className="block text-[10.5px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">
@@ -39,13 +37,13 @@ function FieldLabel({ children, required, htmlFor }) {
  * Each outcome opens a small form asking for exactly its inputs; `onDone`
  * receives the updated item so the page can drop it from the queue.
  */
-export function TriageOutcomePanel({ issue, assignable, releases, acceptsReleases, onDone, toast }) {
+export function TriageOutcomePanel({ issue, assignable, onDone, toast }) {
   const [outcome, setOutcome] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const [priority, setPriority] = useState(null)
   const [assigneeId, setAssigneeId] = useState(null)
-  const [releaseId, setReleaseId] = useState(NO_RELEASE)
+  const [releaseId, setReleaseId] = useState(null)
   const [category, setCategory] = useState(null)
   const { categories } = useBacklogCategories(issue.project_id)
   const [comment, setComment] = useState('')
@@ -57,7 +55,7 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
     setOutcome(null)
     setPriority(issue.priority ?? null)
     setAssigneeId(issue.assignee_id ?? null)
-    setReleaseId(issue.release_id ? String(issue.release_id) : NO_RELEASE)
+    setReleaseId(issue.release_id ?? null)
     setCategory(issue.backlog_category_id ?? null)
     setComment('')
     setReason(null)
@@ -77,9 +75,9 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
         outcome,
         priority,
         assignee_id: assigneeId,
-        // Always sent: the picker is prefilled with the bug's release, so
-        // "No release" is an explicit choice of the hotfix path.
-        release_id: releaseId === NO_RELEASE ? null : Number(releaseId),
+        // Always sent: the picker is prefilled with the bug's container, so
+        // "Backlog" is an explicit choice.
+        release_id: releaseId,
         // Only when changed — otherwise the bug keeps its category (Default).
         ...(category != null && category !== issue.backlog_category_id
           ? { backlog_category_id: category } : {}),
@@ -90,7 +88,7 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
     return { outcome, reason, comment: comment.trim() || null }
   }
 
-  const intoBacklog = releaseId === NO_RELEASE
+  const intoBacklog = releaseId == null
   const canSubmit = {
     accept: !!priority,
     needs_info: comment.trim().length > 0,
@@ -199,17 +197,10 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
                 <FieldLabel>Assignee</FieldLabel>
                 <UserPicker users={assignable} value={assigneeId} onChange={setAssigneeId} />
               </div>
-              {acceptsReleases && (
-                <div>
-                  <FieldLabel>Release</FieldLabel>
-                  <Select value={releaseId} onChange={setReleaseId}>
-                    <SelectItem value={NO_RELEASE}>No release — backlog or hotfix</SelectItem>
-                    {releases.map(r => (
-                      <SelectItem key={r.id} value={String(r.id)}>{r.version}</SelectItem>
-                    ))}
-                  </Select>
-                </div>
-              )}
+              <div>
+                <FieldLabel>Place in</FieldLabel>
+                <ContainerPicker projectId={issue.project_id} value={releaseId} onChange={setReleaseId} />
+              </div>
               {/* Only worth asking when the project has more than Default. */}
               {categories.length > 1 && (
                 <div>
@@ -224,7 +215,7 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
                   />
                   {intoBacklog && (
                     <p className="mt-1.5 text-[11px] text-muted-foreground">
-                      With no release, the bug goes to the project's backlog under this category.
+                      In the backlog, the bug is grouped under this category.
                     </p>
                   )}
                 </div>

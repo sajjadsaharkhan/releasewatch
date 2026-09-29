@@ -36,7 +36,6 @@ def project_target(project: Project | None) -> Target:
         return Target()
     return Target(
         project_id=project.id,
-        project_kind=getattr(project.kind, "value", project.kind),
         triage_lead_id=project.triage_lead_id,
     )
 
@@ -55,7 +54,6 @@ def issue_target(issue: Issue, project: Project | None = None, **extra: Any) -> 
         assignee_id=issue.assignee_id,
         reporter_id=issue.reporter_id,
         project_id=issue.project_id,
-        project_kind=getattr(project.kind, "value", project.kind) if project is not None else None,
         triage_lead_id=project.triage_lead_id if project is not None else None,
         **extra,
     )

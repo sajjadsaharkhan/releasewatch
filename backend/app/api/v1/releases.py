@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.db.models.issue import Issue, IssueStatus
-from app.db.models.release import GoNogoStatus, Release, ReleaseStatus
+from app.db.models.release import GoNogoStatus, Release, ReleaseKind, ReleaseStatus
 from app.db.models.user import User
 from app.db.session import get_db
 from app.policy import Action
@@ -25,6 +25,7 @@ from app.schemas.release import (
     ReleaseUpdate,
 )
 from app.services.authz import authorize, project_target, require_action
+from app.services.container_service import stream_immutable
 
 router = APIRouter()
 
@@ -40,6 +41,25 @@ async def _get_release_or_404(db: AsyncSession, release_id: int) -> Release:
             status_code=status.HTTP_404_NOT_FOUND, detail="Release not found"
         )
     return release
+
+
+def refuse_stream(release: Release) -> None:
+    """FR-46 — no edit, status change, archive, go/no-go, or delete on the Stream."""
+    if release.is_stream:
+        raise stream_immutable()
+
+
+def apply_release_update(release: Release, update_data: dict) -> None:
+    """Write a PATCH to a Release. Reaching Released stamps ``released_at``;
+    the full lifecycle (ship, cancel) is slice 09."""
+    refuse_stream(release)
+    for field, value in update_data.items():
+        setattr(release, field, value)
+    new_status = getattr(update_data.get("status"), "value", update_data.get("status"))
+    if new_status == ReleaseStatus.released.value and release.released_at is None:
+        release.released_at = datetime.now(tz=UTC)
+    elif new_status is not None and new_status != ReleaseStatus.released.value:
+        release.released_at = None
 
 
 async def _authorize_manage(db: AsyncSession, user: User, project_id: int) -> None:
@@ -106,10 +126,13 @@ async def _release_to_response(
     data = {
         "id": release.id,
         "project_id": release.project_id,
+        "kind": release.kind,
         "version": release.version,
         "description": release.description,
         "status": release.status,
         "target_date": release.target_date,
+        "code_freeze_date": release.code_freeze_date,
+        "released_at": release.released_at,
         "staging_url": release.staging_url,
         "go_nogo_status": release.go_nogo_status,
         "go_nogo_note": release.go_nogo_note,
@@ -131,8 +154,13 @@ async def list_releases(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_action(Action.view_releases)),
 ) -> ReleaseListResponse:
-    """Return all releases across all projects, most recent first."""
-    query = select(Release).where(Release.deleted_at.is_(None)).order_by(Release.created_at.desc())
+    """Return all releases across all projects, most recent first. Never the
+    Stream — Phase 1 release screens list releases only (08a)."""
+    query = (
+        select(Release)
+        .where(Release.deleted_at.is_(None), Release.kind == ReleaseKind.release.value)
+        .order_by(Release.created_at.desc())
+    )
 
     if project_id:
         query = query.where(Release.project_id == project_id)
@@ -182,6 +210,7 @@ async def create_release(
         version=payload.version,
         description=payload.description,
         target_date=payload.target_date,
+        code_freeze_date=payload.code_freeze_date,
         staging_url=payload.staging_url,
         created_by_id=current_user.id,
     )
@@ -217,9 +246,7 @@ async def update_release(
     """Partially update a release (status, staging URL, description, target date)."""
     release = await _get_release_or_404(db, release_id)
     await _authorize_manage(db, current_user, release.project_id)
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(release, field, value)
+    apply_release_update(release, payload.model_dump(exclude_unset=True))
     db.add(release)
     await db.commit()
     await db.refresh(release)
@@ -312,6 +339,7 @@ async def approve_release(
     """Mark a release as approved for production (go/no-go: CTO, Admin)."""
     authorize(current_user, Action.go_nogo)
     release = await _get_release_or_404(db, release_id)
+    refuse_stream(release)
     release.go_nogo_status = GoNogoStatus.approved
     release.go_nogo_by_id = current_user.id
     release.go_nogo_at = datetime.now(tz=UTC)
@@ -334,6 +362,7 @@ async def delete_release(
     """Soft-delete a release (``manage_releases`` on its project)."""
     release = await _get_release_or_404(db, release_id)
     await _authorize_manage(db, current_user, release.project_id)
+    refuse_stream(release)
     release.deleted_at = datetime.now(tz=UTC)
     db.add(release)
     await db.commit()
@@ -350,14 +379,15 @@ async def block_release(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseResponse:
-    """Block a release from production with a reason (go/no-go: CTO, Admin)."""
+    """Record a no-go decision (go/no-go: CTO, Admin). "Blocked" is no longer a
+    release status — a blocked release is one in QA with a no-go (08a)."""
     authorize(current_user, Action.go_nogo)
     release = await _get_release_or_404(db, release_id)
+    refuse_stream(release)
     release.go_nogo_status = GoNogoStatus.blocked
     release.go_nogo_note = payload.note
     release.go_nogo_by_id = current_user.id
     release.go_nogo_at = datetime.now(tz=UTC)
-    release.status = ReleaseStatus.blocked.value
     db.add(release)
     await db.commit()
     await db.refresh(release)

@@ -20,7 +20,7 @@ import app.db.models  # noqa: F401 — registers every model's metadata
 from app.config import settings
 from app.core.auth import get_password_hash
 from app.db.base import Base
-from app.db.models.project import Project, ProjectKind
+from app.db.models.project import Project
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.user import User, UserRole
 
@@ -62,7 +62,7 @@ async def seed(session: AsyncSession) -> None:
     await session.flush()
     print(f"  Created {len(users)} users")
 
-    print("Seeding one product project...")
+    print("Seeding one project...")
     project = Project(
         name="E2E Product",
         slug="e2e-product",
@@ -75,7 +75,6 @@ async def seed(session: AsyncSession) -> None:
         name="E2E Internal Tools",
         slug="e2e-internal-tools",
         description="Has no support template — Support must not be offered it",
-        kind=ProjectKind.internal,
         # Older than E2E Product, so the app's default project (newest first) stays E2E Product.
         created_at=datetime.now(UTC) - timedelta(days=1),
         created_by_id=users["e2e-admin"].id,

@@ -7,7 +7,6 @@ backlog when it is not deleted, has no release, and holds a backlog status —
 a board status other than Done (``BACKLOG_STATUSES``). New and Needs info are
 triage; Done and Cancelled are finished. ``backlog_clause`` is the one place
 that predicate is written; ``is_member`` is the same rule for a loaded row.
-From slice 09 both also require ``milestone_id`` null.
 
 **Categories (2026-09-28).** Every item always has one of its project's
 backlog categories — the project's Default unless another is chosen
@@ -279,17 +278,28 @@ class BacklogService:
         release: Release,
         actor: User,
     ) -> list[int]:
-        """Move every item to ``release``, or none (409 ``bulk_move_failed`` with
+        """Move every item to container ``release`` (the Stream or a Release), or
+        none (409 ``bulk_move_failed`` with
         per-item ``errors``). ``issues`` maps each requested id to the visible
         row, or ``None`` when the caller can't see it. Returns the moved ids."""
         from app.services.issue_service import issue_service
 
         errors: dict[str, str] = {}
+        immobile: dict[str, str] = {}
         for issue_id, issue in issues.items():
             if issue is None:
                 errors[str(issue_id)] = "Not found."
             elif issue.project_id != release.project_id:
                 errors[str(issue_id)] = "It belongs to a different project than the release."
+            elif _value(issue.status) == "done" and issue.release_id != release.id:
+                immobile[str(issue_id)] = "It's Done — a Done item never moves."
+        if immobile:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "No items were moved — Done items can't change container.",
+                "done_item_immobile",
+                errors={**errors, **immobile},
+            )
         if errors:
             raise DomainError(
                 status.HTTP_409_CONFLICT,

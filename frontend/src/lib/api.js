@@ -216,6 +216,7 @@ export const teamApi = {
 // ─── Projects ────────────────────────────────────────────────────────────────
 export const projectsApi = {
   list: () => api.get('/projects'),
+  get: (id) => api.get(`/projects/id/${id}`),
   create: (data) => api.post('/projects', data),
   update: (id, data) => api.patch(`/projects/id/${id}`, data),
   archive: (id, archive = true) => api.post(`/projects/id/${id}/archive`, { archive }),

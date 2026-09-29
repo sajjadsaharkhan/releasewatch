@@ -59,7 +59,6 @@ class Action(str, Enum):
     view_backlog = "view_backlog"
     manage_backlog = "manage_backlog"
     manage_releases = "manage_releases"
-    manage_milestones = "manage_milestones"
     view_queue = "view_queue"
     reorder_queue = "reorder_queue"
     pin = "pin"
@@ -103,7 +102,6 @@ class Target:
     assignee_id: int | None = None
     reporter_id: int | None = None
     project_id: int | None = None
-    project_kind: str | None = None
     triage_lead_id: int | None = None
     queue_owner_id: int | None = None
     assignee_role: str | None = None  # for ``assign``: the role of the proposed assignee
@@ -159,7 +157,6 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_backlog: _T,  # the backlog and Technical debt pages (slice 08)
     Action.manage_backlog: _MANAGE,
     Action.manage_releases: _MANAGE,
-    Action.manage_milestones: _MANAGE,
     Action.view_queue: _T,  # own queue; someone else's is CTO/Admin (decide)
     Action.reorder_queue: _T,
     Action.pin: _T,
@@ -201,7 +198,6 @@ _LABELS: dict[str, str] = {
     Action.view_backlog: "view the backlog",
     Action.manage_backlog: "manage the backlog",
     Action.manage_releases: "manage releases",
-    Action.manage_milestones: "manage milestones",
     Action.view_team_overview: "view the team overview",
     Action.go_nogo: "make the release go/no-go call",
     Action.manage_templates: "manage templates",

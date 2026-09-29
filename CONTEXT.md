@@ -71,6 +71,19 @@ _Avoid_: reading template values back from anywhere but the description.
 An optional reason (`user_error, expected_behavior, cannot_reproduce, duplicate, wont_fix, no_longer_needed`) recordable when an item is cancelled without being finished (`no_longer_needed` is task-only; the rest are bug-only). Not required — cancelling with no reason is allowed.
 _Avoid_: "closed"/"closing" — Phase 1's `closed` status is gone. A finished bug is Done; an abandoned one is Cancelled, optionally with a reason.
 
+### Containers (08a)
+
+**Container**:
+Where a work item is placed: its project's **Stream**, one of its **Releases**, or none — the **backlog**. Stored as one column, `issues.release_id` (a row of `releases`; null is the backlog). Every placement path — create, triage Accept, PATCH, bulk move — goes through `container_service.resolve`: the container must be the item's project's (`release_project_mismatch`) and, if a Release, not Released or Cancelled (`release_closed`). A Done item never changes container (`done_item_immobile`, BR-54). The UI has one picker for it, `ContainerPicker` (Backlog / Stream / open releases).
+_Avoid_: "hotfix" (not a concept in v3 — urgent work is an item in the Stream), "milestone" and "project kind" (both removed).
+
+**Stream**:
+The one always-open container every project has (`releases.kind = stream`, BR-51), created with the project by an ORM hook, with no lifecycle status. Each item in it ships on its own when Done. It can't be renamed, cancelled, archived, go/no-go'd or deleted (409 `stream_immutable`, FR-46). Phase 1 release screens — release lists, the release switcher, dashboard, reports — never show it (`kind = release` only); `ProjectResponse.stream_id` and `IssueResponse.container_kind` expose it.
+
+**Release** (container):
+A container whose items ship together (`releases.kind = release`). Lifecycle `planning → development → qa → released`, or `cancelled` (PRD v3 §8.7); `code_freeze_date`, `target_date` (target ship date) and `released_at`. "Blocked" is not a status — a blocked release is one in QA with a no-go decision. The release-blocker flag exists only on a bug in a Release (`release_blocker_release_only`, BR-58); moving the bug out clears it with a `blocker_cleared` event.
+_Avoid_: `active`, `blocked`, `archived` as release statuses (Phase 1 values, gone).
+
 ### Triage (slice 06)
 
 **Triage queue**:
@@ -78,7 +91,7 @@ A project's New and Needs info bugs, oldest first, with source, reporter, recurr
 _Avoid_: "unassigned issues" — the queue is about the decision, not the assignee.
 
 **Triage outcome**:
-The one decision a triager (any tech role) applies to a queued bug through `POST /issues/{id}/triage` (`TriageService`): **Accept** (priority required; assignee, release and backlog category optional — with no release the bug lands in the backlog, in Default unless another category is picked; that is also the hotfix path) → To do; **Needs info** (a public comment saying what's missing) → Needs info; **Duplicate** (a merge) → Cancelled, reason Duplicate; **Reject** (user error, expected behavior, or cannot reproduce) → Cancelled. Each writes one `triaged` timeline event with its inputs. Only New and Needs info bugs can be triaged (`not_in_triage`). A public reply by the reporter or any Support user sends a Needs info bug back to New and tells the triage lead (FR-19).
+The one decision a triager (any tech role) applies to a queued bug through `POST /issues/{id}/triage` (`TriageService`): **Accept** (priority required; assignee, container and backlog category optional — the container is the Stream, an open release, or none, which puts the bug in the backlog, in Default unless another category is picked) → To do; **Needs info** (a public comment saying what's missing) → Needs info; **Duplicate** (a merge) → Cancelled, reason Duplicate; **Reject** (user error, expected behavior, or cannot reproduce) → Cancelled. Each writes one `triaged` timeline event with its inputs. Only New and Needs info bugs can be triaged (`not_in_triage`). A public reply by the reporter or any Support user sends a Needs info bug back to New and tells the triage lead (FR-19).
 _Avoid_: "triaged" as a status (gone since slice 02), "needs clarification" (the Phase 1 name).
 
 **Subscriber**:
@@ -103,7 +116,7 @@ One `regression_history` row — the record that a fixed bug came back. `source`
 ### Backlog (slice 08)
 
 **Backlog**:
-A project's open work that isn't committed to a release: items with no release whose status is a board status other than Done (To do, In progress, In review, Blocked) — never New/Needs info (triage) or Done/Cancelled (BR-04). Membership is derived by `backlog_clause` / `backlog_items()` in `BacklogService`, never stored; from slice 09 it also needs no milestone. Shown as a ranked list, not a board: grouped by the project's backlog categories in their order (collapsible, with counts; every technical-debt task groups under Technical debt, last, whatever its category) or flat in rank order, drag to rank, multi-select and bulk move to a release (`POST /issues/bulk-move`, all or nothing). Ranking and bulk move need `manage_backlog` (PM, CTO, Admin, and a developer who is the project's triage lead). The header's "untouched for over 6 months" count is display only (`updated_at`; re-ranking doesn't count as touching).
+A project's open work that isn't placed yet: items with no **container** whose status is a board status other than Done (To do, In progress, In review, Blocked) — never New/Needs info (triage) or Done/Cancelled (BR-04). Membership is derived by `backlog_clause` / `backlog_items()` in `BacklogService`, never stored. Shown as a ranked list, not a board: grouped by the project's backlog categories in their order (collapsible, with counts; every technical-debt task groups under Technical debt, last, whatever its category) or flat in rank order, drag to rank, multi-select and bulk move to the Stream or an open release (`POST /issues/bulk-move`, all or nothing; a Done item fails it with `done_item_immobile`). Ranking and bulk move need `manage_backlog` (PM, CTO, Admin, and a developer who is the project's triage lead). The header's "untouched for over 6 months" count is display only (`updated_at`; re-ranking doesn't count as touching).
 _Avoid_: "icebox", "parking lot", an "add to backlog" action — placement decides membership.
 
 **Backlog category**:

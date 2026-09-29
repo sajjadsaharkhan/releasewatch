@@ -4,7 +4,7 @@ from app.db.models.user import User
 from app.db.models.user_identity import UserIdentity
 from app.db.models.label import Label
 from app.db.models.project import Project
-from app.db.models.release import Release
+from app.db.models.release import Release, register_stream_hooks
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
@@ -23,6 +23,8 @@ from app.db.models.backlog_category import BacklogCategory, register_default_cat
 # Every project gets its fixed Default backlog category on insert, and every
 # issue inserted without a category gets that Default — whatever creates them.
 register_default_category_hook(Project, Issue)
+# Every project gets its Stream on insert (BR-51); a Release starts in Planning.
+register_stream_hooks(Project)
 
 __all__ = [
     "User",

@@ -1,5 +1,5 @@
 """Slice 03 (docs/phase-2/03-tasks-and-placement.md): tasks, hotfix placement,
-project kinds.
+containers (08a).
 
 Status movement is unrestricted for both types (the 2026-09-22 decision for
 bugs, extended to tasks on 2026-09-23): a task can move from any of its
@@ -322,25 +322,24 @@ async def test_task_cannot_have_reproduction_steps(factories, rig):
     assert resp.status_code == 422
 
 
-# ── Placement: release optionality + project kind (BR-02, BR-03, BR-26) ─────
+# ── Placement: backlog, Stream, or a Release (08a) ──────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_bug_with_no_release_is_a_hotfix(factories, rig):
+async def test_bug_with_no_container_is_in_triage_with_no_container(factories, rig):
     bug = await factories.issue(project_id=rig["project"].id, release_id=None)
     assert bug.release_id is None
+    assert bug.container_kind is None
     assert bug.type == "bug"
 
 
 @pytest.mark.asyncio
-async def test_release_on_non_product_project_refused(factories):
-    project = await factories.project(kind="internal")
+async def test_unknown_container_refused(factories, rig):
     resp = await factories.admin_client.post("/issues", json={
-        "title": "release on internal project", "type": "bug", "project_id": project.id,
+        "title": "unknown container", "type": "bug", "project_id": rig["project"].id,
         "release_id": 999999,
     })
-    assert resp.status_code == 409
-    assert resp.json()["code"] == "releases_not_allowed"
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -354,14 +353,6 @@ async def test_release_from_different_project_refused(factories, rig):
     assert resp.json()["code"] == "release_project_mismatch"
 
 
-@pytest.mark.asyncio
-async def test_task_filed_against_general_project(factories):
-    project = await factories.project(kind="general")
-    task = await _new_task(factories, project.id)
-    assert task.status == "todo"
-    assert task.release_id is None
-
-
 # ── type is immutable once created (BR-07) ───────────────────────────────────
 
 
@@ -371,28 +362,6 @@ async def test_type_immutable_on_patch(factories, rig):
     resp = await factories.admin_client.patch(f"/issues/{task.id}", json={"type": "bug"})
     assert resp.status_code == 409
     assert resp.json()["code"] == "type_immutable"
-
-
-# ── Project kind change refused while it has releases (BR-02) ───────────────
-
-
-@pytest.mark.asyncio
-async def test_project_kind_change_refused_with_releases(factories, rig):
-    resp = await factories.admin_client.patch(
-        f"/projects/id/{rig['project'].id}", json={"kind": "internal"},
-    )
-    assert resp.status_code == 409
-    assert resp.json()["code"] == "project_has_releases"
-
-
-@pytest.mark.asyncio
-async def test_project_kind_change_allowed_without_releases(factories):
-    project = await factories.project()
-    resp = await factories.admin_client.patch(
-        f"/projects/id/{project.id}", json={"kind": "internal"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["kind"] == "internal"
 
 
 # ── GET /issues filters ──────────────────────────────────────────────────────
@@ -411,49 +380,49 @@ async def test_filter_by_type(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_filter_by_has_release(factories, rig):
-    hotfix = await factories.issue(project_id=rig["project"].id, release_id=None)
-    resp = await factories.admin_client.get("/issues", params={"has_release": "false"})
-    assert resp.status_code == 200
-    ids = [i["id"] for i in resp.json()["items"]]
-    assert hotfix.id in ids
-    assert all(i["release_id"] is None for i in resp.json()["items"])
+async def test_filter_by_container(factories, rig):
+    project = rig["project"]
+    stream_id = (await factories.admin_client.get(f"/projects/id/{project.id}")).json()["stream_id"]
+    in_backlog = await _new_task(factories, project.id)
+    in_stream = await _new_task(factories, project.id, release_id=stream_id)
+    in_release = await _new_task(factories, project.id, release_id=rig["release"].id)
+
+    async def ids(container):
+        resp = await factories.admin_client.get(
+            "/issues", params={"container": container, "project_id": project.id},
+        )
+        assert resp.status_code == 200
+        return {i["id"] for i in resp.json()["items"]}
+
+    assert await ids("backlog") == {in_backlog.id}
+    assert await ids("stream") == {in_stream.id}
+    assert await ids(str(rig["release"].id)) == {in_release.id}
 
 
 @pytest.mark.asyncio
-async def test_filter_by_project_kind(factories, rig):
-    internal_project = await factories.project(kind="internal")
-    internal_task = await _new_task(factories, internal_project.id)
-    product_bug = await factories.issue(
-        project_id=rig["project"].id, release_id=rig["release"].id,
-    )
-
-    resp = await factories.admin_client.get("/issues", params={"project_kind": "internal"})
-    assert resp.status_code == 200
-    body = resp.json()
-    ids = [i["id"] for i in body["items"]]
-    assert internal_task.id in ids
-    assert product_bug.id not in ids
+async def test_old_placement_filters_are_gone(factories, rig):
+    resp = await factories.admin_client.get("/issues", params={"container": "hotfix"})
+    assert resp.status_code == 422
 
 
-# ── AC-24: a bug accepted with no release reaches Done when verified (FR-21) ─
+# ── AC-24: a bug in the Stream reaches Done when verified (FR-21, v3) ──────
 
 
 @pytest.mark.asyncio
-async def test_ac_24_hotfix_verified_reaches_done(factories, client_for, rig):
+async def test_ac_24_stream_bug_verified_is_done(factories, client_for, rig):
     developer = await factories.user(role="developer")
     admin = factories.admin_client
+    stream_id = (await admin.get(f"/projects/id/{rig['project'].id}")).json()["stream_id"]
 
     bug = await factories.issue(project_id=rig["project"].id, release_id=None)
-    assert bug.release_id is None
-
-    # Accept with no release — the hotfix path needs no special outcome.
-    resp = await admin.post(
-        f"/issues/{bug.id}/triage", json={"outcome": "accept", "assignee_id": developer.id, "priority": "high"},
-    )
+    resp = await admin.post(f"/issues/{bug.id}/triage", json={
+        "outcome": "accept", "assignee_id": developer.id, "priority": "high",
+        "release_id": stream_id,
+    })
     assert resp.status_code == 200
     assert resp.json()["status"] == "todo"
-    assert resp.json()["release_id"] is None
+    assert resp.json()["release_id"] == stream_id
+    assert resp.json()["container_kind"] == "stream"
 
     dev_client = await client_for(developer)
     resp = await dev_client.post(f"/issues/{bug.id}/transition", json={"to": "in_progress"})
@@ -467,7 +436,7 @@ async def test_ac_24_hotfix_verified_reaches_done(factories, client_for, rig):
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "done"
-    assert body["release_id"] is None
+    assert body["release_id"] == stream_id
 
 
 # ── Deleting a release nulls release_id instead of deleting the issue ───────

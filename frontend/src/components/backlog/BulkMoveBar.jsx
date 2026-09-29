@@ -1,20 +1,19 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import { Check, ChevronUp, Tags } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { Button, Dropdown, DropdownItem, DropdownLabel, Select, SelectItem } from '../ui'
+import { Button, Dropdown, DropdownItem, DropdownLabel } from '../ui'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
+import { ContainerPicker } from '../common/ContainerPicker'
 
 /**
  * The floating bar for a multi-select in the backlog (FR-25): "N selected",
- * a release picker and Move, a Category menu that moves the selection to
- * another category group (rank kept), and Clear. It slides up from the bottom of the
- * scroller while anything is selected and stays out of the way otherwise.
- * `releasesAllowed` false (non-Product projects, BR-02) replaces the picker
- * with a note.
+ * a container picker (the Stream or an open release, 08a) and Move, a Category
+ * menu that moves the selection to another category group (rank kept), and
+ * Clear. It slides up from the bottom of the scroller while anything is
+ * selected and stays out of the way otherwise.
  */
 export function BulkMoveBar({
-  count, releases, releasesAllowed, releaseId, onReleaseChange, onMove, onClear, moving,
+  count, projectId, releaseId, onReleaseChange, onMove, onClear, moving,
   categories = [], selectedCategories = [], onSetCategory, categorizing,
 }) {
   // The category id every selected item already has — shown checked, nothing to do.
@@ -44,30 +43,18 @@ export function BulkMoveBar({
           {count} selected
         </span>
         <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-        {!releasesAllowed ? (
-          <span className="text-[12px] text-muted-foreground">This project doesn't use releases.</span>
-        ) : releases.length === 0 ? (
-          <span className="text-[12px] text-muted-foreground">
-            No open releases. <Link to="/releases" className="underline hover:text-foreground">Create one</Link>
-          </span>
-        ) : (
-          <>
-            <Select
-              value={releaseId}
-              onChange={onReleaseChange}
-              placeholder="Choose a release…"
-              className="h-8 w-44 text-[12.5px]"
-              disabled={!visible}
-            >
-              {releases.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.version}</SelectItem>
-              ))}
-            </Select>
-            <Button size="sm" onClick={onMove} loading={moving} disabled={!releaseId || !visible}>
-              Move to release
-            </Button>
-          </>
-        )}
+        <ContainerPicker
+          projectId={projectId}
+          value={releaseId}
+          onChange={onReleaseChange}
+          allowBacklog={false}
+          placeholder="Stream or a release…"
+          className="h-8 w-48 text-[12.5px]"
+          disabled={!visible}
+        />
+        <Button size="sm" onClick={onMove} loading={moving} disabled={!releaseId || !visible}>
+          Move
+        </Button>
         <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
         <Dropdown
           width={200}

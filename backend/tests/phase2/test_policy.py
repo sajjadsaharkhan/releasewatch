@@ -28,7 +28,6 @@ EXPECTED = {
     Action.flag_tech_debt: {"qa", "developer", "pm", "cto", "admin"},
     Action.manage_backlog: {"pm", "cto", "admin"},
     Action.manage_releases: {"pm", "cto", "admin"},
-    Action.manage_milestones: {"pm", "cto", "admin"},
     Action.view_team_overview: {"cto", "admin"},
     Action.go_nogo: {"cto", "admin"},
     Action.manage_templates: {"cto", "admin"},

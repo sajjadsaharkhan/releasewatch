@@ -5,7 +5,6 @@ import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
 import { Select, SelectItem } from '../ui/Select'
 import { teamApi } from '../../lib/api'
-import { PROJECT_KIND } from '../../lib/constants'
 
 const PROJECT_COLORS = [
   '#ef4444', '#dc2626', '#f97316', '#ea580c', '#f59e0b',
@@ -15,7 +14,7 @@ const PROJECT_COLORS = [
 ]
 
 export function EditProjectModal({ open, onClose, project, onSave }) {
-  const [form, setForm] = useState({ name: '', slug: '', color: '#6366f1', kind: 'product', desc: '', triageLeadId: '' })
+  const [form, setForm] = useState({ name: '', slug: '', color: '#6366f1', desc: '', triageLeadId: '' })
   const [teamMembers, setTeamMembers] = useState([])
 
   useEffect(() => {
@@ -24,7 +23,6 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
         name: project.name,
         slug: project.slug,
         color: project.color,
-        kind: project.kind ?? 'product',
         desc: project.desc ?? '',
         triageLeadId: project.triage_lead_id ?? project.triageLeadId ?? '',
       })
@@ -49,7 +47,6 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
       name: form.name,
       slug: form.slug,
       color: form.color,
-      kind: form.kind,
       desc: form.desc,
       triage_lead_id: form.triageLeadId,
     })
@@ -78,20 +75,6 @@ export function EditProjectModal({ open, onClose, project, onSave }) {
             placeholder="e.g. mobile-app"
             className="font-mono text-sm"
           />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Kind</label>
-          <Select
-            value={form.kind}
-            onChange={(val) => setForm((f) => ({ ...f, kind: val }))}
-          >
-            {Object.entries(PROJECT_KIND).map(([value, token]) => (
-              <SelectItem key={value} value={value}>{token.label}</SelectItem>
-            ))}
-          </Select>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Only Product projects accept releases.
-          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Color</label>

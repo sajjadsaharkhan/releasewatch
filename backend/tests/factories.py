@@ -54,6 +54,16 @@ class Factories:
         resp.raise_for_status()
         return SimpleNamespace(**resp.json())
 
+    async def stream_id(self, *, project_id: int) -> int:
+        """The project's Stream (created with the project, 08a)."""
+        resp = await self.admin_client.get(f"/projects/id/{project_id}")
+        resp.raise_for_status()
+        return resp.json()["stream_id"]
+
+    async def set_release_status(self, release_id: int, status: str) -> None:
+        resp = await self.admin_client.patch(f"/releases/{release_id}", json={"status": status})
+        resp.raise_for_status()
+
     async def issue(
         self,
         *,

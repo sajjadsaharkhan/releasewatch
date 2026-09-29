@@ -17,7 +17,7 @@ from app.db.models.issue import Issue, IssueStatus, Priority, issue_key
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.regression_history import RegressionHistory
-from app.db.models.release import GoNogoStatus, Release, ReleaseStatus
+from app.db.models.release import OPEN_RELEASE_STATUSES, GoNogoStatus, Release, ReleaseKind
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User
 
@@ -434,6 +434,7 @@ class ReportService:
         # ── Q1: N most-recent releases ─────────────────────────────────────────
         releases_q = (
             select(Release.id, Release.version)
+            .where(Release.kind == ReleaseKind.release.value)
             .order_by(Release.created_at.desc())
             .limit(n_releases)
         )
@@ -869,7 +870,10 @@ class ReportService:
         # ── 2. Active releases with computed health ───────────────────────────
         active_releases = (await db.execute(
             select(Release)
-            .where(Release.status.in_([ReleaseStatus.active.value, ReleaseStatus.blocked.value]))
+            .where(
+                Release.kind == ReleaseKind.release.value,
+                Release.status.in_([s.value for s in OPEN_RELEASE_STATUSES]),
+            )
             .options(selectinload(Release.issues), selectinload(Release.project))
             .order_by(Release.created_at.desc())
             .limit(6)

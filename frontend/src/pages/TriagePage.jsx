@@ -11,7 +11,7 @@ import { MediaPreview } from '../components/common/MediaPreview'
 import { SourceBadge } from '../components/common/SourceBadge'
 import { ReportedCount } from '../components/common/ReportedCount'
 import { TriageOutcomePanel } from '../components/triage'
-import { issuesApi, teamApi, attachmentsApi, releasesApi } from '../lib/api'
+import { issuesApi, teamApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { relTime, fullTime } from '../lib/relTime'
 import { useToast } from '../components/ui/Toast'
@@ -25,8 +25,6 @@ const SORT_OPTIONS = [
 ]
 
 const TRIAGE_STATUSES = ['new', 'needs_info']
-// Release placement on accept: only releases that haven't shipped.
-const OPEN_RELEASE_STATUSES = ['active', 'blocked']
 
 function normalizeAttachment(a) {
   const mimeType = a.mime_type || ''
@@ -58,7 +56,6 @@ function QueueSkeleton() {
 export default function TriagePage() {
   const [issues, setIssues] = useState([])
   const [assignable, setAssignable] = useState([])
-  const [releases, setReleases] = useState([])
   const [attachments, setAttachments] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('new')
@@ -102,16 +99,6 @@ export default function TriagePage() {
       .then(r => setAttachments(r.data.map(normalizeAttachment)))
       .catch(() => setAttachments([]))
   }, [selected?.id])
-
-  useEffect(() => {
-    if (!selected || project?.kind !== 'product') { setReleases([]); return }
-    releasesApi.list({ project_id: selected.project_id })
-      .then(r => {
-        const list = Array.isArray(r.data) ? r.data : (r.data.items ?? [])
-        setReleases(list.filter(rel => OPEN_RELEASE_STATUSES.includes(rel.status) || rel.id === selected.release_id))
-      })
-      .catch(() => setReleases([]))
-  }, [selected?.id, selected?.project_id, project?.kind])
 
   function handleDone(updated) {
     setIssues(prev => TRIAGE_STATUSES.includes(updated.status)
@@ -284,8 +271,6 @@ export default function TriagePage() {
             <TriageOutcomePanel
               issue={selected}
               assignable={assignable}
-              releases={releases}
-              acceptsReleases={project?.kind === 'product'}
               onDone={handleDone}
               toast={toast}
             />

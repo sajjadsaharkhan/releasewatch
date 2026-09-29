@@ -5,8 +5,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.db.models.project import ProjectKind
-
 
 class ProjectBase(BaseModel):
     """Fields shared between create and update."""
@@ -15,7 +13,6 @@ class ProjectBase(BaseModel):
     color: str = Field(default="#6366f1", pattern=r"^#[0-9A-Fa-f]{6}$")
     description: Optional[str] = None
     default_labels: List[str] = Field(default_factory=list)
-    kind: ProjectKind = ProjectKind.product
 
 
 class ProjectCreate(ProjectBase):
@@ -39,7 +36,6 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     default_labels: Optional[List[str]] = None
     triage_lead_id: Optional[int] = None
-    kind: Optional[ProjectKind] = None
 
 
 class ProjectArchiveRequest(BaseModel):
@@ -66,6 +62,8 @@ class ProjectResponse(ProjectBase):
     active_support_template_count: int = 0
     #: Backlog categories, Default included (Settings → Backlog categories).
     backlog_category_count: int = 0
+    #: The project's Stream — the container id for continuous work (08a).
+    stream_id: Optional[int] = None
     archived_at: Optional[datetime] = None
     created_at: datetime
 

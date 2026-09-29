@@ -4,9 +4,10 @@ Slice 06 (docs/phase-2/06-triage-outcomes.md, FR-17–20, BR-16–21, BR-49).
 A triager (any tech role — Policy ``triage``) applies one outcome to a New or
 Needs info bug:
 
-- **Accept** — priority required; assignee and release optional. Omitting
-  ``release_id`` keeps the bug's release (none for a support report — the
-  hotfix path); sending ``null`` clears it. → ``todo``.
+- **Accept** — priority required; assignee and container optional. Omitting
+  ``release_id`` keeps the bug's container (none for a support report);
+  sending ``null`` puts it in the backlog, the Stream's id in the Stream
+  (08a). → ``todo``.
 - **Needs info** — a public comment saying what's missing. → ``needs_info``.
 - **Duplicate** — a merge into an original in the same project
   (``MergeService.merge_into``). → ``cancelled`` (reason ``duplicate``).
@@ -33,7 +34,7 @@ from app.db.models.issue import (
 )
 from app.db.models.issue_subscriber import IssueSubscriber, SubscriptionReason
 from app.db.models.issue_timeline import TimelineEventType
-from app.db.models.project import Project, ProjectKind
+from app.db.models.project import Project
 from app.db.models.release import Release
 from app.db.models.user import User, UserRole
 from app.schemas.issue import (
@@ -43,6 +44,7 @@ from app.schemas.issue import (
     RejectOutcome,
     TriageRequest,
 )
+from app.services import container_service as containers
 from app.services.inbox_service import InboxFanOutService
 from app.services.issue_service import ensure_assignable, issue_service
 from app.db.models.backlog_category import BacklogCategory
@@ -183,24 +185,7 @@ class TriageService:
         self, db: AsyncSession, issue: Issue, release_id: int | None, actor: User,
     ) -> None:
         from_release = await db.get(Release, issue.release_id) if issue.release_id else None
-        to_release = None
-        if release_id is not None:
-            project = await db.get(Project, issue.project_id)
-            if getattr(project.kind, "value", project.kind) != ProjectKind.product.value:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "Only Product projects accept a release.",
-                    "releases_not_allowed",
-                )
-            to_release = await db.get(Release, release_id)
-            if to_release is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
-            if to_release.project_id != issue.project_id:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "That release belongs to a different project.",
-                    "release_project_mismatch",
-                )
+        to_release = await containers.resolve(db, issue.project_id, release_id)
         await TimelineService().create_event(
             db=db, issue_id=issue.id, actor_id=actor.id,
             event_type=TimelineEventType.release_changed, body=None,
@@ -210,6 +195,14 @@ class TriageService:
             },
         )
         issue.release_id = release_id
+        # BR-58: leaving a Release drops the blocker flag.
+        if issue.is_release_blocker and (to_release is None or to_release.is_stream):
+            issue.is_release_blocker = False
+            await TimelineService().create_event(
+                db=db, issue_id=issue.id, actor_id=actor.id,
+                event_type=TimelineEventType.blocker_cleared, body=None,
+                meta={"reason": "left_release"},
+            )
 
     @staticmethod
     async def _touch_cycle(db: AsyncSession, issue: Issue, now: datetime) -> None:

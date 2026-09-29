@@ -1,18 +1,19 @@
 """Release schemas."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.db.models.release import GoNogoStatus, ReleaseStatus
+from app.db.models.release import GoNogoStatus, ReleaseKind, ReleaseStatus
 
 
 class ReleaseBase(BaseModel):
     version: str = Field(max_length=64, description="Semantic version, e.g. '2.4.1'")
     staging_url: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = Field(None, description="Release description / notes")
-    target_date: Optional[datetime] = Field(None, description="Target release date")
+    target_date: Optional[datetime] = Field(None, description="Target ship date")
+    code_freeze_date: Optional[date] = Field(None, description="When QA starts (optional)")
 
 
 class ReleaseCreate(ReleaseBase):
@@ -29,6 +30,7 @@ class ReleaseUpdate(BaseModel):
     staging_url: Optional[str] = Field(None, max_length=512)
     description: Optional[str] = None
     target_date: Optional[datetime] = None
+    code_freeze_date: Optional[date] = None
 
 
 class GoNogoRequest(BaseModel):
@@ -45,10 +47,14 @@ class ReleaseResponse(ReleaseBase):
 
     id: int
     project_id: int
+    kind: ReleaseKind = ReleaseKind.release
     version: str
     description: Optional[str] = None
-    status: ReleaseStatus
+    #: Null for the Stream, which has no lifecycle (08a).
+    status: Optional[ReleaseStatus] = None
     target_date: Optional[datetime] = None
+    code_freeze_date: Optional[date] = None
+    released_at: Optional[datetime] = None
     staging_url: Optional[str] = None
     go_nogo_status: GoNogoStatus
     go_nogo_note: Optional[str] = None

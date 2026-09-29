@@ -26,12 +26,12 @@ from app.db.models.issue import (
     issue_type_value,
 )
 from app.db.models.issue_timeline import TimelineEventType
-from app.db.models.project import ProjectKind
 from app.db.models.user import User
 from app.policy import is_assignable
 from app.db.models.issue_subscriber import SubscriptionReason
 from app.schemas.issue import IssueCreate
 from app.services import backlog_service as backlog
+from app.services import container_service as containers
 from app.services.backlog_category_service import backlog_category_service
 from app.workflow import Workflow
 
@@ -75,7 +75,6 @@ class IssueService:
         forensic copy).
         """
         from app.db.models.project import Project
-        from app.db.models.release import Release
         from app.services.inbox_service import InboxFanOutService
         from app.services.timeline_service import TimelineService
 
@@ -86,25 +85,9 @@ class IssueService:
 
         await ensure_assignable(db, data.assignee_id)
 
-        release = None
-        if data.release_id is not None:
-            project_kind = getattr(project.kind, "value", project.kind)
-            if project_kind != ProjectKind.product.value:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "Only Product projects accept a release.",
-                    "releases_not_allowed",
-                )
-            release_result = await db.execute(select(Release).where(Release.id == data.release_id))
-            release = release_result.scalar_one_or_none()
-            if release is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release not found")
-            if release.project_id != data.project_id:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "That release belongs to a different project.",
-                    "release_project_mismatch",
-                )
+        container = await containers.resolve(db, data.project_id, data.release_id)
+        if data.is_release_blocker:
+            containers.ensure_blocker_allowed(issue_type_value(data.type), container)
 
         now = datetime.now(tz=UTC)
         initial_status = IssueStatus.todo if data.type == IssueType.task else IssueStatus.new
@@ -702,6 +685,7 @@ class IssueService:
                 # Resolve version strings for the diff meta
                 from_version = None
                 to_version = None
+                to_rel_obj = None
                 if issue.release_id:
                     from_rel = await db.execute(
                         select(Release).where(Release.id == issue.release_id)
@@ -723,6 +707,13 @@ class IssueService:
                     {"from": from_version or "—", "to": to_version or "—"},
                 ))
                 issue.release_id = new_release_id
+                # BR-58: leaving a Release drops the blocker flag.
+                to_is_release = to_rel_obj is not None and not to_rel_obj.is_stream
+                if issue.is_release_blocker and not to_is_release:
+                    issue.is_release_blocker = False
+                    events_to_emit.append(
+                        (TimelineEventType.blocker_cleared, {"reason": "left_release"})
+                    )
 
         # ── Project ───────────────────────────────────────────────────────────
         if "project_id" in payload:
@@ -804,13 +795,14 @@ class IssueService:
         """Refuse an edit that breaks placement, before anything is written, and
         return the category the item should end up in (``None`` = unchanged).
 
-        - BR-05: the project can't change while the item has a release.
-        - A release must be in the item's (new) project, and that project a Product.
+        - BR-05: the project can't change while the item has a container.
+        - A container must be the item's (new) project's, and open (08a).
+        - A Done item never changes container (BR-54).
+        - The release blocker flag needs a bug in a Release (BR-58).
         - The category must be one of the item's (new) project's. Moving to
           another project lands the item in that project's Default unless a
           category of the new project is given (2026-09-28).
         """
-        from app.db.models.project import Project
         from app.db.models.release import Release
 
         def _set(field: str) -> bool:
@@ -826,29 +818,20 @@ class IssueService:
                 "move_has_release",
             )
 
+        containers.ensure_movable(issue, release_after)
+
         release_changed = release_after is not None and (
             release_after != issue.release_id or project_after != issue.project_id
         )
-        if release_changed:
-            release = await db.get(Release, int(release_after))
-            if release is None or release.deleted_at is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Release not found",
-                )
-            project = await db.get(Project, project_after)
-            kind = getattr(project.kind, "value", project.kind) if project is not None else None
-            if kind is not None and kind != ProjectKind.product.value:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "Only Product projects accept a release.",
-                    "releases_not_allowed",
-                )
-            if release.project_id != project_after:
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "That release belongs to a different project.",
-                    "release_project_mismatch",
-                )
+        container = (
+            await containers.resolve(db, project_after, release_after) if release_changed
+            else await db.get(Release, release_after) if release_after is not None
+            else None
+        )
+
+        # BR-58: the blocker flag exists only on a bug in a Release.
+        if payload.get("is_release_blocker") and not issue.is_release_blocker:
+            containers.ensure_blocker_allowed(issue_type_value(issue.type), container)
 
         if project_after != issue.project_id:
             return await backlog_category_service.resolve(

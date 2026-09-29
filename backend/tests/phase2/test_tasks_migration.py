@@ -41,7 +41,7 @@ async def _upgrade(rev: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_tasks_migration_backfills_and_seeds_general(factories, db_session, _bootstrap_admin):
+async def test_tasks_migration_backfills_types(factories, db_session, _bootstrap_admin):
     project = await factories.project()
     release = await factories.release(project_id=project.id)
     admin_id = _bootstrap_admin.id  # read before rollback expires the ORM instance below
@@ -79,18 +79,16 @@ async def test_tasks_migration_backfills_and_seeds_general(factories, db_session
         assert issue_row["due_date"] is None
         assert issue_row["release_id"] == release.id
 
+        # 08a: this revision no longer adds project kinds or seeds General.
         async with engine.connect() as conn:
-            project_row = (await conn.execute(text(
-                "SELECT kind FROM projects WHERE id = :id"
-            ), {"id": project.id})).mappings().one()
-        assert project_row["kind"] == "product"
-
-        async with engine.connect() as conn:
+            columns = (await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'projects'"
+            ))).scalars().all()
             general = (await conn.execute(text(
-                "SELECT kind, triage_lead_id FROM projects WHERE slug = 'general'"
-            ))).mappings().one()
-        assert general["kind"] == "general"
-        assert general["triage_lead_id"] == admin_id
+                "SELECT count(*) FROM projects WHERE slug = 'general'"
+            ))).scalar_one()
+        assert "kind" not in columns
+        assert general == 0
 
         # ── Downgrade refuses loudly with a null-release_id row present ─────
         async with engine.begin() as conn:

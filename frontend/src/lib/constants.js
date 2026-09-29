@@ -53,12 +53,28 @@ export const isBug = (item) => (item?.type ?? 'bug') === 'bug'
 // "bug" / "task" — the noun for UI copy about one item.
 export const itemNoun = (item) => (isBug(item) ? 'bug' : 'task')
 
-// Project kind (§8.1) — only Product projects accept releases (BR-02).
-export const PROJECT_KIND = {
-  product: { label: 'Product' },
-  internal: { label: 'Internal' },
-  general: { label: 'General' },
+// Containers (08a, PRD v3 §8.1): every project has one Stream (always open,
+// each item ships on its own when Done) and any number of Releases. An item's
+// `release_id` points at either; null is the backlog.
+export const CONTAINER_KIND = {
+  stream: { label: 'Stream', icon: 'waves' },
+  release: { label: 'Release', icon: 'package' },
+  backlog: { label: 'Backlog', icon: 'inbox' },
 }
+
+// Release lifecycle (PRD v3 §8.7). The Stream has no status. "Blocked" is not
+// a status — it's a release in QA with a no-go decision.
+export const RELEASE_STATUS = {
+  planning:    { label: 'Planning',    tone: 'zinc',  description: 'Scope is being decided' },
+  development: { label: 'Development', tone: 'blue',  description: 'Work is in progress' },
+  qa:          { label: 'QA',          tone: 'amber', description: 'Code freeze — release-level QA' },
+  released:    { label: 'Released',    tone: 'green', description: 'Shipped to production' },
+  cancelled:   { label: 'Cancelled',   tone: 'zinc',  description: 'Will not ship' },
+}
+export const RELEASE_STATUSES = Object.keys(RELEASE_STATUS)
+// Releases that still take items — Released and Cancelled are closed (`release_closed`).
+export const OPEN_RELEASE_STATUSES = ['planning', 'development', 'qa']
+export const isOpenRelease = (release) => OPEN_RELEASE_STATUSES.includes(release?.status)
 
 // docs/phase-2/02-unified-status-model.md — shared by bugs and (slice 03) tasks.
 // Board statuses: todo, in_progress, in_review, done, blocked.

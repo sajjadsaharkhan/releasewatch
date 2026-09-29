@@ -8,7 +8,8 @@ import {
 } from '@dnd-kit/sortable'
 import { Clock, Construction, Layers, ListOrdered } from 'lucide-react'
 import { useApp } from '../hooks/useApp'
-import { backlogApi, issuesApi, releasesApi } from '../lib/api'
+import { backlogApi, issuesApi } from '../lib/api'
+import { useContainers } from '../hooks/useContainers'
 import { issueSlug } from '../lib/issueSlug'
 import { cn } from '../lib/cn'
 import { Button, Empty, Segmented, Switch, useToast } from '../components/ui'
@@ -17,16 +18,15 @@ import {
 } from '../components/backlog'
 
 /**
- * A project's backlog (slice 08, FR-23–25): its open items with no release, as
+ * A project's backlog (slice 08, FR-23–25): its open items with no container, as
  * a ranked list — never a board. Grouped by category by default, or flat in
  * rank order. Drag (pointer or keyboard) to rank; select to move many to a
- * release at once. Technical debt is hidden unless "Show technical debt" is on.
+ * container (the Stream or a release) at once. Technical debt is hidden unless "Show technical debt" is on.
  *
  * Membership, grouping, the stale rule and who may manage all come from the
  * API — this page only renders them. View and debt toggle live in the URL.
  */
 
-const OPEN_RELEASE_STATUSES = ['active', 'blocked']
 
 const DND_SCREEN_READER = {
   draggable:
@@ -60,7 +60,6 @@ export default function BacklogPage() {
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [selected, setSelected] = useState(() => new Set())
   const [rowErrors, setRowErrors] = useState({})
-  const [releases, setReleases] = useState([])
   const [releaseId, setReleaseId] = useState(null)
   const [moving, setMoving] = useState(false)
   const [categorizing, setCategorizing] = useState(false)
@@ -120,18 +119,7 @@ export default function BacklogPage() {
     setReleaseId(null)
   }, [project?.id])
 
-  const releasesAllowed = project?.kind === 'product'
-  useEffect(() => {
-    if (!project || !releasesAllowed) { setReleases([]); return }
-    releasesApi.list({ project_id: project.id })
-      .then((res) => {
-        const list = res.data?.releases || res.data || []
-        setReleases(list.filter(
-          (r) => r.project_id === project.id && OPEN_RELEASE_STATUSES.includes(r.status),
-        ))
-      })
-      .catch(() => setReleases([]))
-  }, [project?.id, releasesAllowed]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { streamId, releases } = useContainers(project?.id)
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const items = data?.items ?? []
@@ -242,20 +230,20 @@ export default function BacklogPage() {
     const ids = visibleOrder.filter((id) => selected.has(id))
     const extra = [...selected].filter((id) => !ids.includes(id))
     const all = [...ids, ...extra]
-    const release = releases.find((r) => r.id === releaseId)
+    const target = releaseId === streamId ? 'the Stream' : releases.find((r) => r.id === releaseId)?.version
     setMoving(true)
     try {
       await issuesApi.bulkMove(all, releaseId)
-      toast({ title: `Moved ${all.length} ${all.length === 1 ? 'item' : 'items'} to ${release?.version}` })
+      toast({ title: `Moved ${all.length} ${all.length === 1 ? 'item' : 'items'} to ${target}` })
       clearSelection()
       setReleaseId(null)
       load({ silent: true })
     } catch (err) {
       const body = err.response?.data
-      if (body?.code === 'bulk_move_failed' && body.errors) {
+      if ((body?.code === 'bulk_move_failed' || body?.code === 'done_item_immobile') && body.errors) {
         setRowErrors(body.errors)
         const n = Object.keys(body.errors).length
-        toast.error('Nothing was moved', `${n} of ${all.length} items can't go to ${release?.version}. They're marked in the list.`)
+        toast.error('Nothing was moved', `${n} of ${all.length} items can't go to ${target}. They're marked in the list.`)
       } else {
         toast.error("Couldn't move the items", body?.detail)
       }
@@ -412,7 +400,7 @@ export default function BacklogPage() {
             <Empty
               icon="list-ordered"
               title="Backlog is empty"
-              body="Open work with no release lands here — tasks created without one, bugs accepted without one, and items taken out of a release."
+              body="Work that isn't planned yet lands here — tasks created without a place, bugs accepted into the backlog, and items taken out of the Stream or a release."
             />
           )}
         </div>
@@ -478,8 +466,7 @@ export default function BacklogPage() {
       {canManage && (
         <BulkMoveBar
           count={selected.size}
-          releases={releases}
-          releasesAllowed={releasesAllowed}
+          projectId={project?.id}
           releaseId={releaseId}
           onReleaseChange={setReleaseId}
           onMove={onMove}
