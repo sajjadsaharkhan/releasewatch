@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, RefreshCw, FileDown } from 'lucide-react'
+import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, FileDown } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { StatusBadge, Badge, TypeIcon, PriorityBadge } from '../ui/Badge'
+import { StatusBadge, TypeIcon, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { issueKey } from '../../lib/issueSlug'
 import { TechDebtMarker } from '../common/TechDebtMarker'
@@ -33,12 +33,6 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
       <div className="flex items-center gap-1.5">
         <PriorityBadge priority={issue.priority} />
         <StatusBadge status={issue.status} />
-        {issue.is_regression && (
-          <Badge tone="red">
-            <RefreshCw size={10} />
-            {' '}Regression
-          </Badge>
-        )}
         <TechDebtMarker item={issue} />
       </div>
       <div className="ml-auto flex items-center gap-1.5">

@@ -450,7 +450,7 @@ async def test_ac_49_merge_into_open_copies_content_keeps_status(factories, rig)
 
 
 @pytest.mark.asyncio
-async def test_ac_50_merge_into_done_without_release_records_releaseless_regression(factories, rig, client_for):
+async def test_ac_50_merge_into_done_backlog_item_starts_no_cycle(factories, rig, client_for):
     # A release with real regression data, so the reports have numbers to keep.
     release = await factories.release(project_id=rig["project"].id)
     in_release = await factories.issue(
@@ -478,11 +478,10 @@ async def test_ac_50_merge_into_done_without_release_records_releaseless_regress
 
     after_b = await get(rig["admin"], b.id)
     assert after_b["status"] == "in_progress"
-    assert after_b["is_regression"] is True
-    assert after_b["regression_count"] == 1
     assert after_b["recurrence_count"] == 2
-    cycles = (await rig["admin"].get(f"/issues/{b.id}/regressions")).json()
-    assert [c["release_id"] for c in cycles] == [None]
+    # No container, so no cycle to return from (cycle-model §2).
+    assert after_b["cycle_count"] == 0
+    assert await factories.cycles(b.id) == []
 
     # The assignee gets the Phase 1 regression notification.
     assert "regression" in await inbox_types(rig["dev_client"])
@@ -492,16 +491,19 @@ async def test_ac_50_merge_into_done_without_release_records_releaseless_regress
 
 
 @pytest.mark.asyncio
-async def test_ac_51_merge_into_done_uses_duplicate_release_for_cycle(factories, rig):
+async def test_ac_51_merge_into_done_in_unshipped_release_is_release_qa(factories, rig):
     release = await factories.release(project_id=rig["project"].id)
-    b = await factories.issue(project_id=rig["project"].id)
+    b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
     await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
     await to_status(rig["admin"], b.id, "done")
 
-    a = await factories.issue(project_id=rig["project"].id, release_id=release.id)
+    a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
-    cycles = (await rig["admin"].get(f"/issues/{b.id}/regressions")).json()
-    assert [c["release_id"] for c in cycles] == [release.id]
+    cycles = await factories.cycles(b.id)
+    assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
+        ("planned", release.id), ("release_qa", release.id),
+    ]
+    assert cycles[1]["start_merged_issue_id"] == a.id
     assert (await get(rig["admin"], b.id))["status"] == "in_progress"
 
 
@@ -513,7 +515,7 @@ async def test_ac_52_merge_into_in_review_keeps_status(factories, rig):
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == "in_review" and after["is_regression"] is False
+    assert after["status"] == "in_review" and after["returned"] is None
     assert after["recurrence_count"] == 2
 
 

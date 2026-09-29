@@ -17,10 +17,11 @@ Effects, in order:
 3. The merged report's reporter is subscribed to the original.
 4. A status effect by the original's status:
 
-   - ``done`` → **merge regression**: a regression cycle is recorded (in the
-     merged report's release, or with no release), then the original moves to
-     ``in_progress`` (reason ``merge_regression``) and its assignee gets the
-     Phase 1 regression notification. Support hears nothing (§13).
+   - ``done`` → the work came back: the original moves to ``in_progress``
+     (reason ``merge_regression``) and starts its next cycle (``release_qa``
+     in a Release that hasn't shipped, else ``production``; cycle-model §3),
+     and its assignee gets the regression notification. Support hears nothing
+     (§13). 08a Part 3 turns this into the full return.
    - ``cancelled`` → stays cancelled; the triage lead gets
      ``recurrence_on_cancelled``.
    - anything else → no status change.
@@ -36,7 +37,6 @@ from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import Issue, IssueStatus
 from app.db.models.issue_subscriber import SubscriptionReason
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
-from app.db.models.regression_history import RegressionSource
 from app.db.models.user import User
 from app.policy import is_tech
 
@@ -76,8 +76,8 @@ class MergeService:
         content_md: str,
         reporter_id: int | None,
         attachments: Sequence = (),
-        source_release_id: int | None,
         actor: User,
+        merged_issue_id: int | None = None,
         reason: SubscriptionReason,
         comment_meta: dict | None = None,
         event_type: TimelineEventType = TimelineEventType.comment,
@@ -93,7 +93,7 @@ class MergeService:
         from app.db.models.release import Release
         from app.services.inbox_service import InboxFanOutService
         from app.services.issue_service import issue_service
-        from app.services.regression_service import regression_service
+        from app.services.cycle_service import cycle_service, return_reason_for_done
         from app.services.subscriber_service import subscribe
         from app.services.timeline_service import TimelineService
 
@@ -145,14 +145,16 @@ class MergeService:
 
         status = getattr(original.status, "value", original.status)
         if status == IssueStatus.done.value:
-            release = await db.get(Release, source_release_id) if source_release_id else None
-            await regression_service.record_regression(
-                db, original, release, actor, source=RegressionSource.merge,
-            )
+            container = await db.get(Release, original.release_id) if original.release_id else None
             original = await issue_service.transition(
                 db, original, to=IssueStatus.in_progress, actor=actor,
                 reason=MERGE_REGRESSION_REASON,
             )
+            if container is not None:
+                await cycle_service.start_return(
+                    db, original, return_reason_for_done(container), actor,
+                    comment_id=comment.id, merged_issue_id=merged_issue_id,
+                )
             await InboxFanOutService().fan_out(
                 db=db, trigger=InboxEventType.regression, issue=original, actor=actor,
             )

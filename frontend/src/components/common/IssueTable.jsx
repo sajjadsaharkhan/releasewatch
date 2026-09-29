@@ -1,5 +1,4 @@
 import React from 'react'
-import { RefreshCw } from 'lucide-react'
 import { StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, PriorityBadge } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
@@ -26,7 +25,6 @@ function SkeletonRow({ index, hideAssignee, hideReporter, hideRelease, showProje
       {!hideReporter && <td className="px-2 py-2.5"><div className={`h-6 w-6 rounded-full ${pulse}`} /></td>}
       {!hideRelease && <td className="px-2 py-2.5"><div className={`h-3 w-10 ${pulse}`} /></td>}
       {showProject && <td className="px-2 py-2.5"><div className={`h-3 w-14 ${pulse}`} /></td>}
-      <td className="px-2 py-2.5"><div className={`h-3 w-4 ${pulse}`} /></td>
       <td className="px-7 py-2.5"><div className={`h-3 w-12 ${pulse} ml-auto`} /></td>
     </tr>
   )
@@ -44,7 +42,6 @@ export function IssueTableSkeleton({ rows = 10, hideAssignee = false, hideReport
           {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Reporter</th>}
           {!hideRelease && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Release</th>}
           {showProject && <th className="text-left font-medium px-2 py-2.5 w-[100px]">Project</th>}
-          <th className="text-left font-medium px-2 py-2.5 w-[64px]">Regr.</th>
           <th className="text-right font-medium px-7 py-2.5 w-[120px]">Age</th>
         </tr>
       </thead>
@@ -77,7 +74,6 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
           {!hideReporter && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Reporter</th>}
           {!hideRelease && <th className="text-left font-medium px-2 py-2.5 w-[80px]">Release</th>}
           {showProject && <th className="text-left font-medium px-2 py-2.5 w-[100px]">Project</th>}
-          <th className="text-left font-medium px-2 py-2.5 w-[64px]">Regr.</th>
           <th className="text-right font-medium px-7 py-2.5 w-[120px]">Age</th>
         </tr>
       </thead>
@@ -143,15 +139,6 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
                   {i.project_name ?? <span className="opacity-40">—</span>}
                 </td>
               )}
-              <td className="px-2 py-2">
-                {(i.regression_count ?? 0) > 0
-                  ? (
-                      <span className="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 text-[12px] font-semibold">
-                        <RefreshCw className="h-3 w-3" />{i.regression_count}
-                      </span>
-                    )
-                  : <span className="text-muted-foreground opacity-40">—</span>}
-              </td>
               <td className="px-7 py-2 text-right tabular-nums text-muted-foreground">{relTime(i.created_at)}</td>
             </tr>
           )

@@ -149,7 +149,6 @@ class Release(Base):
     creator = relationship("User", foreign_keys=[created_by_id])
     go_nogo_user = relationship("User", foreign_keys=[go_nogo_by_id])
     issues = relationship("Issue", back_populates="release")
-    regression_histories = relationship("RegressionHistory", back_populates="release")
 
     def __repr__(self) -> str:
         return (

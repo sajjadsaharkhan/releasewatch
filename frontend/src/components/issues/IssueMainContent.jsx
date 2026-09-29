@@ -6,7 +6,7 @@ import { Tabs } from '../ui/Tabs'
 import { Icon } from '../ui/Icon'
 import { DescriptionSection } from './DescriptionSection'
 import { AttachmentsSection } from './AttachmentsSection'
-import { RegressionTimelineSection } from './RegressionTimelineSection'
+import { CycleHistorySection } from './CycleHistorySection'
 import { IssueTimeline } from './IssueTimeline'
 import { NeedsInfoQuestion } from './NeedsInfoQuestion'
 import { relTime } from '../../lib/relTime'
@@ -20,7 +20,7 @@ export function IssueMainContent({
   teamUsers,
   availableLabels,
   currentUser,
-  regressions,
+  cycles,
   applyUpdate,
   addComment,
   updateComment,
@@ -95,8 +95,8 @@ export function IssueMainContent({
           options={[
             { value: 'activity', label: 'Activity', icon: 'activity', badge: events.length + comments.length },
             { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: issue.attachments?.length || null },
-            // Regressions are bug-only (BR-08) — a task has no regression history.
-            ...(bug ? [{ value: 'regression', label: 'Regression history', icon: 'refresh-ccw', badge: regressions.length || null }] : []),
+            // Cycles (08a) — bugs and tasks alike; the badge counts passes beyond the first.
+            { value: 'cycles', label: 'Cycles', icon: 'refresh-ccw', badge: cycles.length > 1 ? cycles.length : null },
           ]}
         />
       </div>
@@ -138,7 +138,7 @@ export function IssueMainContent({
             onUploadComplete={() => fetchAttachments?.(issue.id)}
           />
         )}
-        {bug && tab === 'regression' && <RegressionTimelineSection regressions={regressions} />}
+        {tab === 'cycles' && <CycleHistorySection cycles={cycles} comments={comments} />}
       </div>
     </div>
   )

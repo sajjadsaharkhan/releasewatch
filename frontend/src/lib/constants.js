@@ -76,6 +76,28 @@ export const RELEASE_STATUSES = Object.keys(RELEASE_STATUS)
 export const OPEN_RELEASE_STATUSES = ['planning', 'development', 'qa']
 export const isOpenRelease = (release) => OPEN_RELEASE_STATUSES.includes(release?.status)
 
+// Cycles (08a, docs/phase-2/cycle-model.md §3): why a pass of work started.
+// Every return sends the item to To do; the reason says where it was caught.
+// `short` is the returned marker's word; `label` the sentence form.
+export const CYCLE_REASON = {
+  planned: {
+    label: 'Planned', short: 'Planned', icon: 'play',
+    pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+  },
+  review: {
+    label: 'Rejected in review', short: 'Rejected', icon: 'undo-2',
+    pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  },
+  release_qa: {
+    label: 'Returned from release QA', short: 'Release QA', icon: 'rotate-ccw',
+    pill: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  },
+  production: {
+    label: 'Problem on production', short: 'Production', icon: 'flame',
+    pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  },
+}
+
 // docs/phase-2/02-unified-status-model.md — shared by bugs and (slice 03) tasks.
 // Board statuses: todo, in_progress, in_review, done, blocked.
 // Triage statuses (bug-only, kept off boards): new, needs_info.

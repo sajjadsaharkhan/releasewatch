@@ -41,7 +41,6 @@ export function buildIssueMarkdown(issue, comments = []) {
     `Priority: \`${issue.priority ?? 'unrated'}\``,
     issue.due_date && `Due: ${issue.due_date}`,
     !isTask && issue.is_release_blocker && '🔴 Release Blocker',
-    issue.is_regression && `⚠️ Regression (x${issue.regression_count})`,
   ].filter(Boolean).join(' · ')
   lines.push(meta)
   lines.push('')

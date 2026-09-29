@@ -164,7 +164,7 @@ async def test_regression_action_works_without_a_release(factories, client_for, 
     assert resp.status_code == 200
     assert resp.json()["status"] == "in_progress"
 
-    history = await admin.get(f"/issues/{issue.id}/regressions")
+    history = await admin.get(f"/issues/{issue.id}/cycles")
     assert history.status_code == 200
 
 
@@ -178,8 +178,9 @@ async def test_regression_action_on_shipped_release_still_succeeds(factories, cl
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "in_progress"
-    assert body["is_regression"] is True
-    assert body["regression_count"] == 1
+    # A shipped release's Done item comes back from production, not release QA.
+    reasons = [c["start_reason"] for c in await factories.cycles(issue.id)]
+    assert reasons == ["planned", "production"]
 
 
 # ── reopen keeps its own precondition (unaffected by Workflow) ──────────────

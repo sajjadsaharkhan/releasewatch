@@ -15,11 +15,19 @@ from sqlalchemy.orm import aliased, selectinload
 
 from app.db.models.issue import Issue, IssueStatus, Priority, issue_key
 from app.db.models.issue_cycle import IssueCycle
+from app.services.cycle_metrics import (
+    is_regression_expr, regression_count_expr, regression_counts, regression_cycle_clause,
+    regression_cycles,
+)
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
-from app.db.models.regression_history import RegressionHistory
 from app.db.models.release import OPEN_RELEASE_STATUSES, GoNogoStatus, Release, ReleaseKind
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User
+
+
+def _hours(end, start):
+    """``end − start`` in hours, as SQL."""
+    return func.extract("epoch", end - start) / 3600.0
 
 
 class ReportService:
@@ -67,6 +75,7 @@ class ReportService:
             select(Issue).where(Issue.release_id == release_id)
         )
         issues = issues_result.scalars().all()
+        regressed = await regression_counts(db, (i.id for i in issues))
 
         priority_breakdown = {p.value: 0 for p in Priority}
         status_breakdown = {s.value: 0 for s in IssueStatus}
@@ -106,7 +115,7 @@ class ReportService:
             "total_issues": len(issues),
             "open_issues": sum(1 for i in issues if i.status in open_statuses),
             "blocker_count": sum(1 for i in issues if i.is_release_blocker),
-            "regression_count": sum(1 for i in issues if i.is_regression),
+            "regression_count": sum(1 for i in issues if regressed.get(i.id)),
             "go_nogo_status": getattr(release.go_nogo_status, "value", release.go_nogo_status),
             "priority_breakdown": priority_breakdown,
             "status_breakdown": status_breakdown,
@@ -277,6 +286,7 @@ class ReportService:
 
         result = await db.execute(query)
         issues = result.scalars().all()
+        regressed = await regression_counts(db, (i.id for i in issues))
 
         # Pick bucket size to produce ~5-7 points
         total_days = max(1, (date_to - date_from).days)
@@ -309,7 +319,7 @@ class ReportService:
                 assigned_iss = reported_iss
 
             total = len(reported_iss)
-            regression_rate = round(sum(1 for i in reported_iss if i.is_regression) / total * 100, 1) if total else 0
+            regression_rate = round(sum(1 for i in reported_iss if regressed.get(i.id)) / total * 100, 1) if total else 0
 
             series.append({
                 "date": b_start.strftime("%Y-%m-%d"),
@@ -330,7 +340,7 @@ class ReportService:
 
         total_all = len(all_reported)
         summary = {
-            "regression_rate": round(sum(1 for i in all_reported if i.is_regression) / total_all * 100, 1) if total_all else 0,
+            "regression_rate": round(sum(1 for i in all_reported if regressed.get(i.id)) / total_all * 100, 1) if total_all else 0,
             "avg_time_to_triage": _avg([i.time_to_triage_h for i in all_reported if i.time_to_triage_h is not None]),
             "avg_time_to_verify": _avg([i.time_to_verify_h for i in all_assigned if i.time_to_verify_h is not None]),
             "avg_time_to_fix": _avg([i.time_to_fix_h for i in all_assigned if i.time_to_fix_h is not None]),
@@ -479,17 +489,15 @@ class ReportService:
                 func.count(Issue.id).filter(
                     Issue.status.in_(VERIFIED)
                 ).label("verified_count"),
-                func.count(Issue.id).filter(
-                    Issue.is_regression.is_(True)
-                ).label("reg_count"),
+                func.count(Issue.id).filter(is_regression_expr()).label("reg_count"),
                 *(
                     func.count(Issue.id).filter(
-                        Issue.is_regression.is_(True),
+                        is_regression_expr(),
                         Issue.priority == p.value,
                     ).label(f"prio_{p.value}")
                     for p in Priority
                 ),
-                func.count(Issue.id).filter(Issue.regression_count >= 3).label("chronic"),
+                func.count(Issue.id).filter(regression_count_expr() >= 3).label("chronic"),
             )
             .select_from(Release)
             .outerjoin(Issue, issue_join_cond)
@@ -499,25 +507,31 @@ class ReportService:
         per_rel_rows = {r.release_id: r for r in (await db.execute(per_rel_q)).all()}
 
         # ── Q2b: Cycle-based tax breakdown per release ─────────────────────────
-        # Cycle 1 = initial fix effort; cycle >1 = rework after regression.
-        # Uses IssueCycle.time_to_fix_h so every pass is counted correctly,
-        # including the first-time fix on issues that later regressed (which
-        # Issue.time_to_fix_h would overwrite with the most recent cycle only).
+        # Cycle 1 = the first fix; a Phase 1 regression cycle (review or
+        # release_qa, in a release — cycle_metrics) = rework. Hours run from
+        # the cycle's start (the first cycle's from triage, as in Phase 1) to
+        # its first In review.
+        first_start = func.greatest(
+            IssueCycle.started_at, func.coalesce(Issue.triaged_at, IssueCycle.started_at),
+        )
+        first_fix_h = _hours(IssueCycle.submitted_at, first_start)
+        rework_h = _hours(IssueCycle.submitted_at, IssueCycle.started_at)
         cycle_tax_q = (
             select(
                 Issue.release_id,
                 func.coalesce(
-                    func.sum(IssueCycle.time_to_fix_h).filter(IssueCycle.cycle_number == 1),
+                    func.sum(first_fix_h).filter(IssueCycle.cycle_number == 1),
                     0.0,
                 ).label("first_time_fix_h"),
                 func.coalesce(
-                    func.sum(IssueCycle.time_to_fix_h).filter(IssueCycle.cycle_number > 1),
+                    func.sum(rework_h).filter(regression_cycle_clause()),
                     0.0,
                 ).label("rework_h"),
             )
             .join(Issue, Issue.id == IssueCycle.issue_id)
             .where(
                 Issue.release_id.in_(release_ids),
+                IssueCycle.submitted_at.isnot(None),
                 *([Issue.labels.contains([label])] if label else []),
             )
             .group_by(Issue.release_id)
@@ -545,7 +559,7 @@ class ReportService:
             )
             .where(
                 Issue.release_id.in_(release_ids),
-                Issue.is_regression.is_(True),
+                is_regression_expr(),
                 *([Issue.labels.contains([label])] if label else []),
             )
             .group_by(func.unnest(Issue.labels))
@@ -565,7 +579,7 @@ class ReportService:
             )
             .where(
                 Issue.release_id.in_(release_ids),
-                Issue.is_regression.is_(True),
+                is_regression_expr(),
                 *([Issue.labels.contains([label])] if label else []),
             )
             .group_by(Issue.release_id, func.unnest(Issue.labels))
@@ -615,11 +629,12 @@ class ReportService:
                 },
             })
 
-        # ── Q5: Top regression detectors ───────────────────────────────────────
+        # ── Q5: Top regression detectors — who started each regression cycle ──
         det_q = (
-            select(
-                RegressionHistory.detected_by_id,
-                func.count(RegressionHistory.id).label("detected"),
+            regression_cycles()
+            .with_only_columns(
+                IssueCycle.start_by_id.label("detected_by_id"),
+                func.count(IssueCycle.id).label("detected"),
                 User.name,
                 User.username,
                 User.role,
@@ -630,15 +645,14 @@ class ReportService:
                 TelegramIntegration.telegram_user_id.label("tg_user_id"),
                 TelegramIntegration.telegram_username.label("tg_username"),
             )
-            .join(User, User.id == RegressionHistory.detected_by_id)
-            .join(Issue, Issue.id == RegressionHistory.issue_id)
+            .join(User, User.id == IssueCycle.start_by_id)
             .outerjoin(TelegramIntegration, TelegramIntegration.user_id == User.id)
             .where(
-                RegressionHistory.release_id.in_(release_ids),
+                IssueCycle.release_id.in_(release_ids),
                 *([Issue.labels.contains([label])] if label else []),
             )
             .group_by(
-                RegressionHistory.detected_by_id,
+                IssueCycle.start_by_id,
                 User.name,
                 User.username,
                 User.role,
@@ -649,7 +663,7 @@ class ReportService:
                 TelegramIntegration.telegram_user_id,
                 TelegramIntegration.telegram_username,
             )
-            .order_by(func.count(RegressionHistory.id).desc())
+            .order_by(func.count(IssueCycle.id).desc())
             .limit(5)
         )
         top_detectors = [
@@ -671,44 +685,46 @@ class ReportService:
             for r in (await db.execute(det_q)).all()
         ]
 
-        # ── Q6: Regression count per developer (their fixes that later broke) ──
+        # ── Q6: Regression count per developer — whose delivered work came
+        #        back: ``delivered_by_id`` of the cycle before (CY-05), never
+        #        whoever moved the status.
+        previous = aliased(IssueCycle)
         reg_count_q = (
-            select(
-                RegressionHistory.previous_fix_by_id.label("user_id"),
-                func.count(RegressionHistory.id).label("regression_count"),
+            regression_cycles()
+            .join(previous, and_(
+                previous.issue_id == IssueCycle.issue_id,
+                previous.cycle_number == IssueCycle.cycle_number - 1,
+            ))
+            .with_only_columns(
+                previous.delivered_by_id.label("user_id"),
+                func.count(IssueCycle.id).label("regression_count"),
             )
-            .join(Issue, Issue.id == RegressionHistory.issue_id)
             .where(
-                RegressionHistory.release_id.in_(release_ids),
-                RegressionHistory.previous_fix_by_id.isnot(None),
+                IssueCycle.release_id.in_(release_ids),
+                previous.delivered_by_id.isnot(None),
                 *([Issue.labels.contains([label])] if label else []),
             )
-            .group_by(RegressionHistory.previous_fix_by_id)
+            .group_by(previous.delivered_by_id)
         )
         reg_count_map = {
             r.user_id: r.regression_count
             for r in (await db.execute(reg_count_q)).all()
         }
 
-        # ── Q7: Rework hours per developer — uses cycle-level assignee so hours
-        #        are attributed to whoever actually did each re-fix, not the
-        #        current issue assignee (which may differ across cycles).
+        # ── Q7: Rework hours per developer — who delivered each re-fix.
         rework_hrs_q = (
-            select(
-                IssueCycle.assignee_id,
-                func.coalesce(
-                    func.sum(IssueCycle.time_to_fix_h),
-                    0.0,
-                ).label("rework_hours"),
+            regression_cycles()
+            .with_only_columns(
+                IssueCycle.delivered_by_id.label("assignee_id"),
+                func.coalesce(func.sum(rework_h), 0.0).label("rework_hours"),
             )
-            .join(Issue, Issue.id == IssueCycle.issue_id)
             .where(
                 Issue.release_id.in_(release_ids),
-                IssueCycle.cycle_number > 1,
-                IssueCycle.assignee_id.isnot(None),
+                IssueCycle.delivered_by_id.isnot(None),
+                IssueCycle.submitted_at.isnot(None),
                 *([Issue.labels.contains([label])] if label else []),
             )
-            .group_by(IssueCycle.assignee_id)
+            .group_by(IssueCycle.delivered_by_id)
         )
         rework_hrs_map = {
             r.assignee_id: float(r.rework_hours)
@@ -768,7 +784,7 @@ class ReportService:
                 Issue.priority,
                 Issue.status,
                 Issue.labels,
-                Issue.regression_count,
+                regression_count_expr().label("regression_count"),
                 Issue.created_at,
                 Issue.assignee_id,
                 Issue.type,
@@ -781,10 +797,10 @@ class ReportService:
             .outerjoin(AssigneeUser, AssigneeUser.id == Issue.assignee_id)
             .where(
                 Issue.release_id.in_(release_ids),
-                Issue.regression_count > 0,
+                is_regression_expr(),
                 *([Issue.labels.contains([label])] if label else []),
             )
-            .order_by(Issue.regression_count.desc())
+            .order_by(regression_count_expr().desc())
             .limit(10)
         )
         top_regression_issues = [

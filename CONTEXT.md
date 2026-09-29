@@ -40,7 +40,7 @@ The product term for a single trackable unit of work. Implemented as the existin
 _Avoid_: "issue" as the product-facing word (say "bug" or "work item"); "issue" stays correct as the implementation name in code, routes, and table names.
 
 **Flow status**:
-The unified status a work item carries through its lifecycle: `new, needs_info, todo, in_progress, in_review, done, blocked, cancelled`. Replaces Phase 1's status set (`new, triaged, in_progress, fixed, verified, closed, regression, blocked`). `is_regression` and `is_release_blocker` are flags on the work item, not statuses — a bug can be `in_progress` and `is_regression=true` at the same time.
+The unified status a work item carries through its lifecycle: `new, needs_info, todo, in_progress, in_review, done, blocked, cancelled`. Replaces Phase 1's status set (`new, triaged, in_progress, fixed, verified, closed, regression, blocked`). `is_release_blocker` is a flag on the work item, not a status; work that came back is a new **cycle**, not a status either.
 _Avoid_: `triaged`, `fixed`, `verified`, `closed`, `regression` as statuses — none of those exist anymore. "Fixed" now means `in_review` or `done`; "Verified" means `done` reached from `in_review` (`verified_at` is set).
 
 **Priority**:
@@ -52,8 +52,8 @@ The pure module (`app/workflow.py`) that is the single place status-transition l
 _Avoid_: writing transition logic in a route or another service — even permissive, Workflow is the one place that decision lives. Not to be confused with Policy (slice 04), which will own *who* may act, not *what* moves are legal.
 
 **Regression action**:
-The dedicated endpoint (`POST /issues/{id}/regression`, `IssueService.regress`) that sends a bug back to `in_progress`, incrementing `regression_count` and recording a regression cycle (`source=action`) when the bug has a release (skipped otherwise — the direct action only records release regressions). Callable from any status. The other way a bug becomes a regression is a **merge regression**.
-_Avoid_: treating "regression" as a status a bug sits in, or "regression status" — Phase 1's `regression` status was removed; a regressed bug's status is `in_progress`, distinguished by the `is_regression` flag plus this action.
+The dedicated endpoint (`POST /issues/{id}/regression`, `IssueService.regress`) that sends an item back to `in_progress` and starts its next **cycle** — `review` from In review, `release_qa` / `production` from Done — when it has a container. Callable from any status. The other way a bug becomes a regression is a **merge regression**.
+_Avoid_: treating "regression" as a status a bug sits in, or "regression status" — Phase 1's `regression` status was removed; a returned item's status is an ordinary one; its current **cycle** says why it came back.
 
 **Source**:
 Who filed a work item: `internal` (a tech user, through New issue) or `support` (a Support user, through a support template). Stored as `issues.source`, fixed at creation. Support sees `support` items plus items they're a **subscriber** of (BR-30, widened 2026-09-24 so a report merged into an internal original stays readable) — that visibility rule is `authz.support_visibility_clause` and `policy._can_view`. Support-sourced items carry a teal "Support" badge in the triage queue and issue rows.
@@ -107,11 +107,11 @@ One more occurrence of an open or Cancelled bug, recorded with `POST /issues/{id
 _Avoid_: "+1", "bump", "duplicate report".
 
 **Merge regression**:
-A merge into a Done original (BR-49): a regression cycle is recorded (`source=merge`, in the duplicate's release, or with none), the original moves to In progress with the regression flag set and count +1, and its assignee gets the regression notice. Support hears nothing until it's Done again. Merges into Cancelled originals leave them Cancelled and notify the triage lead; any other status is unchanged.
+A merge into a Done original (BR-49): the original's next **cycle** starts (`release_qa` in a Release that hasn't shipped, else `production`; none when the original has no container) with the merged report as `start_merged_issue_id`, and its assignee gets the regression notice. Support hears nothing until it's Done again. Merges into Cancelled originals leave them Cancelled and notify the triage lead; any other status is unchanged.
 
-**Regression cycle**:
-One `regression_history` row — the record that a fixed bug came back. `source` is `action` (the regression action) or `merge`. `release_id` is null only for a merge regression whose duplicate had no release; release reports and fragility analysis select by release, so those cycles stay out of them (BR-25).
-
+**Cycle**:
+One pass of work on an item until it is delivered — picked up, worked, sent to In review, verified (`issue_cycles`, docs/phase-2/cycle-model.md). A cycle belongs to one item and one container and exists only while the item has a container: cycle 1 starts when the item is placed (created in one, accepted into one, moved in from the backlog) with `start_reason = planned` — a bug filed straight into a release has it while still in triage. Every later cycle starts because the work came back: `review` (rejected in review), `release_qa` (a Done item in a Release that hasn't shipped), `production` (shipped work). Moving an item to the backlog deletes its cycles. `issues.current_cycle_id` points at the current one (null exactly when the item has no container). `delivered_by_id` is the assignee when the work went to In review — never the actor. `CycleService` is the only writer. Phase 1 reports count cycles with `start_reason in (review, release_qa)` of bugs in Releases (`cycle_metrics`), which is exactly what Phase 1 recorded as regressions, so their numbers are unchanged.
+_Avoid_: "regression cycle", `regression_history`, `is_regression`, `regression_count` (all removed); summing reasons into one "regressions" number in new reports (CY-09).
 
 ### Backlog (slice 08)
 

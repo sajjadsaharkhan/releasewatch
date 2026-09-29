@@ -87,8 +87,7 @@ async def test_verify_fail_then_reopen(factories, client_for):
     reopened = reopen_resp.json()
     assert reopened["status"] == "in_progress"
     assert reopened["verified_at"] is None
-    assert reopened["is_regression"] is True
-    assert reopened["regression_count"] == 1
+    assert await factories.regression_count(issue.id) == 1
 
 
 @pytest.mark.asyncio

@@ -49,7 +49,6 @@ from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseKind
-from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.policy import Action, Target, item_actions, transition
@@ -67,7 +66,7 @@ from app.schemas.issue import (
     LabelDetail,
     MoveRequest,
     RecurrenceCreate,
-    RegressionHistoryResponse,
+    ReturnedMarker,
     TransitionRequest,
     TrashIssueResponse,
     TriageRequest,
@@ -83,6 +82,7 @@ from app.services.authz import (
     project_target,
     visibility_clause,
 )
+from app.services.cycle_metrics import is_regression_expr, regression_counts
 from app.services.issue_service import issue_service
 from app.workflow import Workflow
 
@@ -154,7 +154,9 @@ def _apply_filters(
     if reporter_id:
         query = query.where(Issue.reporter_id == reporter_id)
     if is_regression is not None:
-        query = query.where(Issue.is_regression == is_regression)
+        # Phase 1's flag, read from cycles (08a Part 2).
+        flag = is_regression_expr()
+        query = query.where(flag if is_regression else ~flag)
     if is_release_blocker is not None:
         query = query.where(Issue.is_release_blocker == is_release_blocker)
     if unassigned:
@@ -259,6 +261,21 @@ async def _reload_and_enrich(db: AsyncSession, issue_id: int, current_user: User
     return enriched[0]
 
 
+def _cycle_fields(cycle: IssueCycle | None) -> dict:
+    """``cycle_count`` and the returned marker (CY-11) from the current cycle.
+    Cycles are numbered 1..N with no gaps, so the count is the current number."""
+    if cycle is None:
+        return {"cycle_count": 0, "returned": None}
+    returned = None
+    if cycle.is_return and cycle.submitted_at is None:
+        returned = ReturnedMarker(
+            reason=getattr(cycle.start_reason, "value", cycle.start_reason),
+            number=cycle.cycle_number - 1,
+            comment_id=cycle.start_comment_id,
+        )
+    return {"cycle_count": cycle.cycle_number, "returned": returned}
+
+
 async def _build_enriched_responses(
     issues: list[Issue], db: AsyncSession, current_user: User
 ) -> list[IssueResponse]:
@@ -269,6 +286,14 @@ async def _build_enriched_responses(
         result = await db.execute(select(Label).where(Label.name.in_(all_label_names)))
         for label in result.scalars().all():
             label_map[label.name] = label
+
+    # The current cycle of every placed item, by primary key (08a Part 2) —
+    # the returned marker and cycle count read it.
+    cycle_ids = [i.current_cycle_id for i in issues if i.current_cycle_id is not None]
+    cycles: dict[int, IssueCycle] = {}
+    if cycle_ids:
+        rows = await db.execute(select(IssueCycle).where(IssueCycle.id.in_(cycle_ids)))
+        cycles = {c.id: c for c in rows.scalars().all()}
 
     responses = []
     for issue in issues:
@@ -287,6 +312,7 @@ async def _build_enriched_responses(
             ],
             "release_version": issue.release.version if issue.release else None,
             "container_kind": getattr(issue.release.kind, "value", issue.release.kind) if issue.release else None,
+            **_cycle_fields(cycles.get(issue.current_cycle_id)),
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
             **_workflow_fields(issue, current_user),
@@ -412,6 +438,7 @@ async def export_issues(
 
     result = await db.execute(fetch_q)
     issues = result.scalars().all()
+    regressed = await regression_counts(db, (i.id for i in issues))
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -436,7 +463,7 @@ async def export_issues(
             issue.due_date.isoformat() if issue.due_date else "",
             ", ".join(issue.labels or []),
             "Yes" if issue.is_release_blocker else "No",
-            "Yes" if issue.is_regression else "No",
+            "Yes" if regressed.get(issue.id) else "No",
             issue.created_at.isoformat(),
             issue.updated_at.isoformat(),
         ])
@@ -946,60 +973,45 @@ async def flag_regression(
 @router.get(
     "/{issue_id}/cycles",
     response_model=list[IssueCycleResponse],
-    summary="List per-iteration cycles for an issue",
+    summary="List the item's cycles",
 )
 async def list_issue_cycles(
     issue_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[IssueCycleResponse]:
-    """Return all workflow cycles for an issue, ordered by cycle number."""
+    """The item's cycles in its current placement, oldest first (FR-66): when
+    each started and why, who delivered it, when it was verified."""
     await load_visible_issue(db, issue_id, current_user)
     result = await db.execute(
         select(IssueCycle)
+        .options(
+            selectinload(IssueCycle.release),
+            selectinload(IssueCycle.start_by),
+            selectinload(IssueCycle.delivered_by),
+        )
         .where(IssueCycle.issue_id == issue_id)
         .order_by(IssueCycle.cycle_number.asc())
     )
-    cycles = result.scalars().all()
-    return [IssueCycleResponse.from_orm_with_flag(c) for c in cycles]
-
-
-@router.get(
-    "/{issue_id}/regressions",
-    response_model=list[RegressionHistoryResponse],
-    summary="List regression history for an issue",
-)
-async def list_regression_history(
-    issue_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[RegressionHistoryResponse]:
-    """Return all regression events recorded for an issue, ordered oldest-first."""
-    await load_visible_issue(db, issue_id, current_user)
-    result = await db.execute(
-        select(RegressionHistory)
-        .options(
-            selectinload(RegressionHistory.release),
-            selectinload(RegressionHistory.detected_by),
-            selectinload(RegressionHistory.previous_fix_by),
+    return [
+        IssueCycleResponse(
+            id=c.id,
+            issue_id=c.issue_id,
+            cycle_number=c.cycle_number,
+            release_id=c.release_id,
+            release_version=c.release.version if c.release else None,
+            container_kind=getattr(c.release.kind, "value", c.release.kind) if c.release else None,
+            start_reason=getattr(c.start_reason, "value", c.start_reason),
+            start_comment_id=c.start_comment_id,
+            start_merged_issue_id=c.start_merged_issue_id,
+            start_by=UserSummary.model_validate(c.start_by) if c.start_by else None,
+            assignee_id=c.assignee_id,
+            delivered_by=UserSummary.model_validate(c.delivered_by) if c.delivered_by else None,
+            started_at=c.started_at,
+            picked_up_at=c.picked_up_at,
+            submitted_at=c.submitted_at,
+            verified_at=c.verified_at,
+            closed_at=c.closed_at,
         )
-        .where(RegressionHistory.issue_id == issue_id)
-        .order_by(RegressionHistory.detected_at.asc())
-    )
-    histories = result.scalars().all()
-
-    responses = []
-    for h in histories:
-        responses.append(RegressionHistoryResponse(
-            id=h.id,
-            regression_number=h.regression_number,
-            detected_at=h.detected_at,
-            release_id=h.release_id,
-            release_version=h.release.version if h.release else None,
-            source=getattr(h.source, "value", h.source),
-            detected_by=UserSummary.model_validate(h.detected_by) if h.detected_by else None,
-            previous_fix_by=(
-                UserSummary.model_validate(h.previous_fix_by) if h.previous_fix_by else None
-            ),
-        ))
-    return responses
+        for c in result.scalars().all()
+    ]

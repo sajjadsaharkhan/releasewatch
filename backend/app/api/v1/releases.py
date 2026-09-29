@@ -26,6 +26,10 @@ from app.schemas.release import (
 )
 from app.services.authz import authorize, project_target, require_action
 from app.services.container_service import stream_immutable
+from app.services.cycle_metrics import is_regression_expr
+
+#: Cycle reasons Phase 1 counted as regressions (08a Part 2).
+PHASE1_REASONS = ("review", "release_qa")
 
 router = APIRouter()
 
@@ -278,7 +282,7 @@ async def get_release_analytics(
     rows = await db.execute(
         select(IssueCycle, Issue)
         .join(Issue, IssueCycle.issue_id == Issue.id)
-        .where(Issue.release_id == release.id)
+        .where(IssueCycle.release_id == release.id)
         .order_by(IssueCycle.issue_id, IssueCycle.cycle_number)
     )
     pairs = rows.all()
@@ -297,26 +301,37 @@ async def get_release_analytics(
     regression_q = await db.execute(
         select(func.count(Issue.id))
         .where(Issue.release_id == release.id)
-        .where(Issue.is_regression.is_(True))
+        .where(is_regression_expr())
     )
     regression_count = regression_q.scalar_one()
 
-    cycles = [
-        AnalyticsCycleRow(
+    def hours(end, start):
+        return round((end - start).total_seconds() / 3600, 2) if end and start else None
+
+    cycles = []
+    for cycle, issue in pairs:
+        # Phase 1 measured the first fix from triage; later passes from their start.
+        first = cycle.cycle_number == 1
+        triaged_at = issue.triaged_at if first else None
+        fix_from = max(cycle.started_at, triaged_at) if triaged_at else cycle.started_at
+        cycles.append(AnalyticsCycleRow(
             issue_id=cycle.issue_id,
             issue_priority=getattr(issue.priority, "value", issue.priority),
             issue_labels=issue.labels or [],
             cycle_number=cycle.cycle_number,
-            is_regression_cycle=cycle.cycle_number > 1,
-            triaged_at=cycle.triaged_at,
-            fixed_at=cycle.fixed_at,
+            start_reason=getattr(cycle.start_reason, "value", cycle.start_reason),
+            is_regression_cycle=(
+                getattr(issue.type, "value", issue.type) == "bug"
+                and getattr(cycle.start_reason, "value", cycle.start_reason) in PHASE1_REASONS
+                and not release.is_stream
+            ),
+            triaged_at=triaged_at,
+            fixed_at=cycle.submitted_at,
             verified_at=cycle.verified_at,
-            time_to_triage_h=cycle.time_to_triage_h,
-            time_to_fix_h=cycle.time_to_fix_h,
-            time_to_verify_h=cycle.time_to_verify_h,
-        )
-        for cycle, issue in pairs
-    ]
+            time_to_triage_h=hours(triaged_at, cycle.started_at) if first else None,
+            time_to_fix_h=hours(cycle.submitted_at, fix_from),
+            time_to_verify_h=hours(cycle.verified_at, cycle.submitted_at),
+        ))
 
     return ReleaseAnalyticsResponse(
         total_issues=total_issues,

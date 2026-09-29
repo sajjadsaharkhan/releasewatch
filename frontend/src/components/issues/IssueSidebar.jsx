@@ -50,11 +50,9 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const noun = itemNoun(issue)
   const { categories } = useBacklogCategories(issue.project_id)
 
-  // Use current-cycle metrics so regression re-runs are measured from the
-  // regression event, not the original filed_at.
-  const ttTriage = currentCycle?.time_to_triage_h ?? issue.time_to_triage_h
-  const ttFix    = currentCycle?.time_to_fix_h    ?? issue.time_to_fix_h
-  const ttVerify = currentCycle?.time_to_verify_h ?? issue.time_to_verify_h
+  const ttTriage = issue.time_to_triage_h
+  const ttFix    = issue.time_to_fix_h
+  const ttVerify = issue.time_to_verify_h
   const cycleNum = currentCycle?.cycle_number ?? 1
 
   // Format hours into a human-readable string, showing minutes for sub-hour values
@@ -366,13 +364,6 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       {/* How many times it was reported — the original plus every recurrence and merge (BR-22). */}
       <MetaRow label="Times reported">
         <span className="tabular-nums text-zinc-700 dark:text-zinc-200">{issue.recurrence_count ?? 1}</span>
-      </MetaRow>
-
-      <MetaRow label="Regressions">
-        <Badge tone={issue.regression_count > 0 ? 'red' : 'default'}>
-          <RefreshCw size={10} />
-          {' '}{issue.regression_count > 0 ? issue.regression_count : 'None'}
-        </Badge>
       </MetaRow>
 
       {/* The blocker flag exists only on a bug in a Release (BR-58). */}

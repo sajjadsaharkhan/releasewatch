@@ -1,4 +1,4 @@
-"""Characterization: regression recording and regression_count.
+"""Characterization: regression recording and regression_count (read from cycles, 08a).
 
 Slice 02 (docs/phase-2/00-README.md → D8) replaces "set status: regression
 via PATCH" with the dedicated ``POST /issues/{id}/regression`` action
@@ -31,21 +31,16 @@ async def test_regression_increments_count_and_records_history(factories, client
     assert regress_resp.status_code == 200
     regressed = regress_resp.json()
     assert regressed["status"] == "in_progress"
-    assert regressed["is_regression"] is True
-    assert regressed["regression_count"] == 1
+    assert await factories.regression_count(issue.id) == 1
 
-    history_resp = await admin.get(f"/issues/{issue.id}/regressions")
-    assert history_resp.status_code == 200
-    history = history_resp.json()
+    history = [c for c in await factories.cycles(issue.id) if c["start_reason"] != "planned"]
     assert len(history) == 1
-    assert history[0]["regression_number"] == 1
+    assert history[0]["cycle_number"] == 2
     assert history[0]["release_id"] == release.id
 
     # A second regression on the same issue increments again.
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
     second = await admin.post(f"/issues/{issue.id}/regression")
-    assert second.json()["regression_count"] == 2
-
-    history_resp_2 = await admin.get(f"/issues/{issue.id}/regressions")
-    assert len(history_resp_2.json()) == 2
+    assert second.status_code == 200
+    assert await factories.regression_count(issue.id) == 2

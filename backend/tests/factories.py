@@ -64,6 +64,19 @@ class Factories:
         resp = await self.admin_client.patch(f"/releases/{release_id}", json={"status": status})
         resp.raise_for_status()
 
+    async def cycles(self, issue_id: int) -> list[dict]:
+        """The item's cycles (08a Part 2), oldest first."""
+        resp = await self.admin_client.get(f"/issues/{issue_id}/cycles")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def regression_count(self, issue_id: int) -> int:
+        """Phase 1's ``regression_count``, read from cycles: returns from review
+        or release QA (08a Part 2)."""
+        return sum(
+            1 for c in await self.cycles(issue_id) if c["start_reason"] in ("review", "release_qa")
+        )
+
     async def issue(
         self,
         *,

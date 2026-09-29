@@ -1,6 +1,5 @@
 import React from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
@@ -62,11 +61,6 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
             </UserHoverCard>
           )}
         </div>
-        {(issue.regression_count ?? 0) > 0 && (
-          <div className="mt-1.5 text-[10.5px] text-red-600 dark:text-red-400 inline-flex items-center gap-0.5">
-            <RefreshCw className="h-3 w-3" /> regressed {issue.regression_count}×
-          </div>
-        )}
       </button>
     </div>
   )

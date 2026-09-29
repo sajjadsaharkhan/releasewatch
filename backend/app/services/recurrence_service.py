@@ -46,7 +46,6 @@ class RecurrenceService:
             content_md=payload.comment,
             reporter_id=actor.id,
             attachments=payload.pending_attachments,
-            source_release_id=None,
             actor=actor,
             reason=SubscriptionReason.recurrence,
             event_type=TimelineEventType.recurrence,

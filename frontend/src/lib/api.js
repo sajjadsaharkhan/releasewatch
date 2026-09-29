@@ -262,11 +262,6 @@ export const preUploadApi = {
 }
 
 // ─── Regression history ───────────────────────────────────────────────────────
-export const regressionsApi = {
-  list: (issueId) => api.get(`/issues/${issueId}/regressions`),
-}
-
-// ─── Issue cycles (per-iteration analytics) ───────────────────────────────────
 export const cyclesApi = {
   list: (issueId) => api.get(`/issues/${issueId}/cycles`),
 }

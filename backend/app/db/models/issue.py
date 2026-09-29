@@ -227,8 +227,17 @@ class Issue(Base):
     # Taxonomy
     labels: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     is_release_blocker: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_regression: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    regression_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+
+    # The current cycle (08a Part 2) — null exactly when release_id is null.
+    # Written only by CycleService.
+    current_cycle_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey(
+            "issue_cycles.id", ondelete="SET NULL", use_alter=True,
+            name="fk_issues_current_cycle_id",
+        ),
+        nullable=True,
+    )
 
     # Duplicate linking
     parent_issue_id: Mapped[int | None] = mapped_column(
@@ -324,13 +333,13 @@ class Issue(Base):
     #: Always loaded (selectin) so Policy's snapshot of an issue can tell
     #: whether a Support viewer is subscribed (BR-30, slice 06).
     subscriptions = relationship("IssueSubscriber", lazy="selectin", viewonly=True)
-    regression_histories = relationship("RegressionHistory", back_populates="issue")
     embeddings = relationship(
         "IssueEmbedding", back_populates="issue", cascade="all, delete-orphan",
     )
     cycles = relationship(
         "IssueCycle", back_populates="issue", cascade="all, delete-orphan",
-        order_by="IssueCycle.cycle_number",
+        order_by="IssueCycle.cycle_number", foreign_keys="IssueCycle.issue_id",
+        passive_deletes=True,
     )
 
     def __repr__(self) -> str:

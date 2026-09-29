@@ -11,7 +11,6 @@ from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.comment_reaction import CommentReaction
 from app.db.models.issue_attachment import IssueAttachment
 from app.db.models.inbox_item import InboxItem
-from app.db.models.regression_history import RegressionHistory
 from app.db.models.system_setting import SystemSetting
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.issue_embedding import IssueEmbedding
@@ -38,7 +37,6 @@ __all__ = [
     "CommentReaction",
     "IssueAttachment",
     "InboxItem",
-    "RegressionHistory",
     "SystemSetting",
     "TelegramIntegration",
     "IssueEmbedding",

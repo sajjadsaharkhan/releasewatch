@@ -17,6 +17,7 @@ from app.db.models.user import User, UserRole
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseStatus, GoNogoStatus
 from app.db.models.issue import Issue, IssueStatus, IssueType, Priority
+from app.db.models.issue_cycle import CycleStartReason, IssueCycle
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 
 NOW = datetime.now(tz=timezone.utc)
@@ -151,6 +152,61 @@ async def seed(session: AsyncSession) -> None:
     for rank, issue in enumerate((i for i in issues if i.release_id is None), start=1):
         issue.backlog_rank = rank * 1024.0
     print(f"  Created {len(issues)} issues")
+
+    print("Seeding cycles...")
+    # Every placed item has cycle 1 (planned); two come back (08a Part 2).
+    progressed = {
+        IssueStatus.in_progress: ("picked_up_at",),
+        IssueStatus.in_review: ("picked_up_at", "submitted_at"),
+        IssueStatus.done: ("picked_up_at", "submitted_at", "verified_at"),
+    }
+    cycles_by_title = {}
+    for issue in issues:
+        if issue.release_id is None:
+            continue
+        cycle = IssueCycle(
+            issue_id=issue.id, cycle_number=1, release_id=issue.release_id,
+            start_reason=CycleStartReason.planned.value, start_by_id=triage_lead.id,
+            assignee_id=issue.assignee_id, started_at=issue.filed_at,
+        )
+        for i, stamp in enumerate(progressed.get(issue.status, ())):
+            setattr(cycle, stamp, issue.filed_at + timedelta(hours=2 + 4 * i))
+        if cycle.submitted_at:
+            cycle.delivered_by_id = issue.assignee_id
+        session.add(cycle)
+        cycles_by_title[issue.title] = (issue, cycle)
+    await session.flush()
+
+    returns = [
+        ("Auth token refresh causes 401 loop", CycleStartReason.review,
+         "Still loops when the refresh token is expired — see the HAR in the thread."),
+        ("Push notifications not delivered on iOS 17", CycleStartReason.release_qa,
+         "Regression in the 2.4.1 QA build: silent pushes are dropped again."),
+    ]
+    for title, reason, body in returns:
+        issue, first = cycles_by_title[title]
+        first.picked_up_at = first.picked_up_at or issue.filed_at + timedelta(hours=2)
+        first.submitted_at = issue.filed_at + timedelta(hours=6)
+        first.delivered_by_id = issue.assignee_id
+        first.closed_at = issue.filed_at + timedelta(hours=9)
+        comment = IssueTimeline(
+            issue_id=issue.id, actor_id=qa1.id, event_type=TimelineEventType.comment,
+            body=body, created_at=first.closed_at,
+        )
+        session.add(comment)
+        await session.flush()
+        second = IssueCycle(
+            issue_id=issue.id, cycle_number=2, release_id=issue.release_id,
+            start_reason=reason.value, start_comment_id=comment.id, start_by_id=qa1.id,
+            assignee_id=issue.assignee_id, started_at=first.closed_at,
+        )
+        session.add(second)
+        cycles_by_title[title] = (issue, second)
+    await session.flush()
+    for issue, cycle in cycles_by_title.values():
+        issue.current_cycle_id = cycle.id
+    await session.flush()
+    print(f"  Created cycles for {len(cycles_by_title)} placed items")
 
     print("Seeding timeline events...")
     events = []

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { issuesApi, teamApi, timelineApi, labelsApi, projectsApi, attachmentsApi, regressionsApi, cyclesApi } from '../lib/api'
+import { issuesApi, teamApi, timelineApi, labelsApi, projectsApi, attachmentsApi, cyclesApi } from '../lib/api'
 import { useApp } from './useApp'
 import { useToast } from './useToast'
 import { downloadIssueMarkdown } from '../lib/issueMarkdown'
@@ -120,24 +120,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
   const { events, comments } = normalizeTimelineItems(allRawItems)
   const timelineHasMore = timelineTotal > allRawItems.length
 
-  // ── Regression history ────────────────────────────────────────────────────
-  const [regressions, setRegressions] = useState([])
-
-  const fetchRegressions = useCallback(async (id) => {
-    if (!id) return
-    try {
-      const res = await regressionsApi.list(id)
-      setRegressions(res.data || [])
-    } catch (err) {
-      console.error('[useIssueDetail] Regressions fetch failed:', err)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchRegressions(issueId)
-  }, [issueId, fetchRegressions])
-
-  // ── Issue cycles ──────────────────────────────────────────────────────────
+  // ── Issue cycles (08a) — one pass of work each; returns start the next ─────
   const [cycles, setCycles] = useState([])
 
   const fetchCycles = useCallback(async (id) => {
@@ -217,7 +200,8 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       return
     }
     await fetchTimeline(id)
-    if (patch.status) {
+    // Status, assignee and placement all touch the cycles (08a).
+    if (patch.status || 'assignee_id' in patch || 'release_id' in patch) {
       await fetchCycles(id)
     }
   }
@@ -241,7 +225,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       return
     }
     await fetchTimeline(id)
-    await fetchRegressions(id)
     await fetchCycles(id)
   }
 
@@ -415,7 +398,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     assignableUsers,
     availableLabels,
     availableProjects,
-    regressions,
+    cycles,
     cycles,
     currentCycle,
     applyUpdate,

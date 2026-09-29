@@ -29,7 +29,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     assignableUsers,
     availableLabels,
     availableProjects,
-    regressions,
+    cycles,
     currentCycle,
     applyUpdate,
     regress,
@@ -98,7 +98,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           teamUsers={teamUsers}
           availableLabels={availableLabels}
           currentUser={currentUser}
-          regressions={regressions}
+          cycles={cycles}
           applyUpdate={applyUpdate}
           addComment={addComment}
           updateComment={updateComment}

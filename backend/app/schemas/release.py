@@ -140,6 +140,9 @@ class AnalyticsCycleRow(BaseModel):
     issue_priority: str | None = None
     issue_labels: List[str]
     cycle_number: int
+    #: Why the cycle started (08a): planned | review | release_qa | production.
+    start_reason: str = "planned"
+    #: One of the cycles Phase 1 counted as a regression (review / release_qa, bug, release).
     is_regression_cycle: bool
     triaged_at: Optional[datetime] = None
     fixed_at: Optional[datetime] = None

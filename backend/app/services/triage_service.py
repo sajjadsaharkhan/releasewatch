@@ -49,6 +49,7 @@ from app.services.inbox_service import InboxFanOutService
 from app.services.issue_service import ensure_assignable, issue_service
 from app.db.models.backlog_category import BacklogCategory
 from app.services.backlog_category_service import backlog_category_service, snapshot
+from app.services.cycle_service import cycle_service
 from app.services.merge_service import lock_original, merge_service
 from app.services.subscriber_service import subscribe
 from app.services.timeline_service import TimelineService
@@ -158,7 +159,7 @@ class TriageService:
         issue.triaged_at = now
         if issue.filed_at:
             issue.time_to_triage_h = round((now - issue.filed_at).total_seconds() / 3600, 2)
-        await self._touch_cycle(db, issue, now)
+        await cycle_service.on_assignee(db, issue)
 
         await timeline.create_event(
             db=db, issue_id=issue.id, actor_id=actor.id,
@@ -194,7 +195,10 @@ class TriageService:
                 "to_version": to_release.version if to_release else None,
             },
         )
+        old_release_id = issue.release_id
         issue.release_id = release_id
+        db.add(issue)
+        await cycle_service.after_container_change(db, issue, old_release_id, actor)
         # BR-58: leaving a Release drops the blocker flag.
         if issue.is_release_blocker and (to_release is None or to_release.is_stream):
             issue.is_release_blocker = False
@@ -203,22 +207,6 @@ class TriageService:
                 event_type=TimelineEventType.blocker_cleared, body=None,
                 meta={"reason": "left_release"},
             )
-
-    @staticmethod
-    async def _touch_cycle(db: AsyncSession, issue: Issue, now: datetime) -> None:
-        from app.db.models.issue_cycle import IssueCycle
-
-        cycle = (await db.execute(
-            select(IssueCycle).where(IssueCycle.issue_id == issue.id)
-            .order_by(IssueCycle.cycle_number.desc()).limit(1)
-        )).scalar_one_or_none()
-        if cycle is None:
-            return
-        cycle.assignee_id = issue.assignee_id
-        if not cycle.triaged_at:
-            cycle.triaged_at = now
-            cycle.time_to_triage_h = round((now - cycle.cycle_start_at).total_seconds() / 3600, 2)
-        db.add(cycle)
 
     # ── Needs info ────────────────────────────────────────────────────────────
 
@@ -320,7 +308,7 @@ class TriageService:
             db, original,
             content_md=merge_comment(issue),
             reporter_id=issue.reporter_id,
-            source_release_id=issue.release_id,
+            merged_issue_id=issue.id,
             actor=actor,
             reason=SubscriptionReason.duplicate,
             comment_meta={"merged_from_id": issue.id, "merged_from_key": _key(issue)},

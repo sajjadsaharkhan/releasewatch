@@ -52,7 +52,7 @@ ISSUES_DATA = [
             "و کاربر از سیستم خارج نمی‌شود اما هیچ درخواستی هم موفق نمی‌شود. "
             "این مشکل باعث می‌شود که کاربر در یک حالت بلاتکلیف گیر کند."
         ),
-        priority=Priority.critical, status=IssueStatus.in_progress, is_regression=True, is_release_blocker=True,
+        priority=Priority.critical, status=IssueStatus.in_progress, is_release_blocker=True,
         labels=["احراز هویت", "توکن", "regression"],
         environment_name="staging", environment_os="iOS 17", environment_browser=None,
         reproduction_steps=[

@@ -281,8 +281,10 @@ class IssueResponse(IssueBase):
     assignee_user: UserSummary | None = None
     reporter_user: UserSummary | None = None
     labels_detail: list[LabelDetail] = Field(default_factory=list)
-    is_regression: bool
-    regression_count: int
+    #: How many cycles the item has had in its current placement (0 in the backlog).
+    cycle_count: int = 0
+    #: Set while the current cycle is a return nobody has sent to review yet (CY-11).
+    returned: "ReturnedMarker | None" = None
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int
@@ -343,28 +345,38 @@ class BulkMoveResponse(BaseModel):
     items: list[IssueResponse]
 
 
+class ReturnedMarker(BaseModel):
+    """The returned marker (FR-63, CY-11): why the work came back and how many
+    times. Computed from the current cycle — ``start_reason <> planned`` and
+    ``submitted_at is null``; ``number`` = cycle number − 1."""
+
+    reason: str
+    number: int
+    comment_id: int | None = None
+
+
 class IssueCycleResponse(BaseModel):
-    """Per-iteration timing metrics for one issue workflow pass."""
+    """One cycle of an item (docs/phase-2/cycle-model.md) — GET /issues/{id}/cycles."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     issue_id: int
     cycle_number: int
-    is_regression_cycle: bool = False
-    cycle_start_at: datetime
-    triaged_at: datetime | None = None
-    fixed_at: datetime | None = None
+    release_id: int
+    release_version: str | None = None
+    container_kind: str | None = None
+    start_reason: str
+    start_comment_id: int | None = None
+    start_merged_issue_id: int | None = None
+    start_by: UserSummary | None = None
+    assignee_id: int | None = None
+    delivered_by: UserSummary | None = None
+    started_at: datetime
+    picked_up_at: datetime | None = None
+    submitted_at: datetime | None = None
     verified_at: datetime | None = None
-    time_to_triage_h: float | None = None
-    time_to_fix_h: float | None = None
-    time_to_verify_h: float | None = None
-
-    @classmethod
-    def from_orm_with_flag(cls, cycle) -> "IssueCycleResponse":
-        obj = cls.model_validate(cycle)
-        obj.is_regression_cycle = cycle.cycle_number > 1
-        return obj
+    closed_at: datetime | None = None
 
 
 class TrashIssueResponse(BaseModel):
@@ -396,18 +408,4 @@ class TrashIssueResponse(BaseModel):
     deleted_by_avatar_url: str | None = None
 
 
-class RegressionHistoryResponse(BaseModel):
-    """A single regression event for an issue."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    regression_number: int
-    detected_at: datetime
-    #: Null for a merge regression whose merged report had no release (BR-49).
-    release_id: int | None = None
-    release_version: str | None = None
-    #: ``action`` (the direct regression action) or ``merge`` (slice 06).
-    source: str = "action"
-    detected_by: UserSummary | None = None
-    previous_fix_by: UserSummary | None = None
+IssueResponse.model_rebuild()

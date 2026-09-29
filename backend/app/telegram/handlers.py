@@ -233,9 +233,10 @@ async def _handle_status(
     project_name = html_escape(issue.project.name) if issue.project else "—"
     release_version = html_escape(issue.release.version) if issue.release else "—"
     blocker_line = "\n🚨 <b>Release blocker</b>" if issue.is_release_blocker else ""
-    regression_line = (
-        f"\n🔁 Regression · appeared {issue.regression_count}×" if issue.is_regression else ""
-    )
+    from app.services.cycle_metrics import regression_counts
+
+    regressions = (await regression_counts(db, [issue.id])).get(issue.id, 0)
+    regression_line = f"\n🔁 Regression · appeared {regressions}×" if regressions else ""
 
     priority = str(getattr(issue.priority, "value", issue.priority) or "unrated")
     await client.send_message(

@@ -33,6 +33,7 @@ from app.schemas.issue import IssueCreate
 from app.services import backlog_service as backlog
 from app.services import container_service as containers
 from app.services.backlog_category_service import backlog_category_service
+from app.services.cycle_service import cycle_service
 from app.workflow import Workflow
 
 
@@ -137,9 +138,9 @@ class IssueService:
         await db.flush()
         await backlog.backlog_service.place(db, issue)
 
-        from app.db.models.issue_cycle import IssueCycle
         from app.services.subscriber_service import subscribe
-        db.add(IssueCycle(issue_id=issue.id, cycle_number=1, cycle_start_at=now))
+        # Filed into a container → cycle 1 (planned), even while still in triage (AC-78).
+        await cycle_service.on_placed(db, issue, current_user, now=now)
         await subscribe(db, issue.id, current_user.id, SubscriptionReason.reporter)
         await db.flush()
 
@@ -212,8 +213,7 @@ class IssueService:
         Asks ``Workflow`` first. On success: sets the status-support columns
         (``started_at``, ``completed_at``, ``cancelled_at``,
         ``blocked_from_status``, ``review_requested_by_id``), keeps
-        ``IssueCycle`` bookkeeping (``fixed_at`` on entering ``in_review``,
-        ``verified_at`` on reaching ``done`` from ``in_review``), writes one
+        the current cycle's stamps (``CycleService.on_status``), writes one
         ``status_changed`` timeline event, and fans out ``status_changed``.
         """
         from app.db.models.release import Release
@@ -249,15 +249,6 @@ class IssueService:
 
         now = datetime.now(tz=UTC)
 
-        from app.db.models.issue_cycle import IssueCycle
-        active_cycle_result = await db.execute(
-            select(IssueCycle)
-            .where(IssueCycle.issue_id == issue.id)
-            .order_by(IssueCycle.cycle_number.desc())
-            .limit(1)
-        )
-        active_cycle = active_cycle_result.scalar_one_or_none()
-
         issue.status = to_status
 
         if to_status == IssueStatus.in_progress:
@@ -275,11 +266,6 @@ class IssueService:
             ref = issue.triaged_at or issue.filed_at
             if ref:
                 issue.time_to_fix_h = round((now - ref).total_seconds() / 3600, 2)
-            if active_cycle and not active_cycle.fixed_at:
-                active_cycle.fixed_at = now
-                cycle_ref = active_cycle.triaged_at or active_cycle.cycle_start_at
-                active_cycle.time_to_fix_h = round((now - cycle_ref).total_seconds() / 3600, 2)
-                db.add(active_cycle)
 
         elif to_status == IssueStatus.done:
             issue.completed_at = now
@@ -287,13 +273,6 @@ class IssueService:
                 issue.verified_at = now
                 if issue.fixed_at:
                     issue.time_to_verify_h = round((now - issue.fixed_at).total_seconds() / 3600, 2)
-                if active_cycle and not active_cycle.verified_at:
-                    active_cycle.verified_at = now
-                    if active_cycle.fixed_at:
-                        active_cycle.time_to_verify_h = round(
-                            (now - active_cycle.fixed_at).total_seconds() / 3600, 2
-                        )
-                    db.add(active_cycle)
 
         elif to_status == IssueStatus.blocked:
             issue.blocked_from_status = from_status.value
@@ -312,6 +291,8 @@ class IssueService:
             issue.verified_at = None
         if from_status == IssueStatus.cancelled and to_status != IssueStatus.cancelled:
             issue.cancel_reason = None
+
+        await cycle_service.on_status(db, issue, from_status, to_status, actor, now)
 
         # An item that becomes a backlog member gets a rank (never a category
         # check here — status movement is unrestricted, 2026-09-22).
@@ -385,7 +366,7 @@ class IssueService:
             db=db, trigger=trigger, issue=issue, actor=actor, meta=meta,
         )
 
-    # ── Regression action ─────────────────────────────────────────────────────
+    # ── Regression action (until 08a Part 3 replaces it with returns) ────────
 
     async def regress(
         self,
@@ -393,29 +374,30 @@ class IssueService:
         issue_id: int,
         current_user: User,
     ) -> Issue:
-        """Flag a regression: transitions the bug back to ``in_progress``.
-
-        Records a ``RegressionHistory`` row when the bug has a release
-        (``regression_history.release_id`` is NOT NULL until slice 06) —
-        skipped silently otherwise so this stays callable from any status.
+        """Send the work back: transitions the item to ``in_progress`` and starts
+        the next cycle — ``review`` from In review; from Done, ``release_qa`` in
+        a Release that hasn't shipped, else ``production`` (cycle-model §3).
+        Any other status, or an item with no container, starts no cycle.
         """
+        from app.db.models.issue_cycle import CycleStartReason
         from app.db.models.release import Release
-        from app.services.regression_service import regression_service
+        from app.services.cycle_service import return_reason_for_done
 
         issue = await self._get_issue_or_404(db, issue_id)
+        from_status = getattr(issue.status, "value", issue.status)
+        reason = None
+        if from_status == IssueStatus.in_review.value:
+            reason = CycleStartReason.review
+        elif from_status == IssueStatus.done.value and issue.release_id is not None:
+            reason = return_reason_for_done(await db.get(Release, issue.release_id))
 
-        release = None
-        if issue.release_id is not None:
-            release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
-            release = release_result.scalar_one_or_none()
-
-        if release is not None:
-            await regression_service.record_regression(db, issue, release, current_user)
-
-        return await self.transition(
+        issue = await self.transition(
             db, issue, to=IssueStatus.in_progress, actor=current_user,
             _internal_context={"via_regression": True},
         )
+        if reason is not None:
+            await cycle_service.start_return(db, issue, reason, current_user)
+        return issue
 
     # ── Reopen — maps to the regression action ────────────────────────────────
 
@@ -552,6 +534,7 @@ class IssueService:
             )
 
         category_after = await self._check_placement(db, issue, payload)
+        old_release_id = issue.release_id
 
         timeline_svc = TimelineService()
         inbox_svc = InboxFanOutService()
@@ -648,17 +631,7 @@ class IssueService:
                 inbox_triggers.append((InboxEventType.assigned, None))
                 issue.assignee_id = new_assignee
 
-                from app.db.models.issue_cycle import IssueCycle as _IssueCycle
-                _cycle_result = await db.execute(
-                    select(_IssueCycle)
-                    .where(_IssueCycle.issue_id == issue_id)
-                    .order_by(_IssueCycle.cycle_number.desc())
-                    .limit(1)
-                )
-                _active_cycle = _cycle_result.scalar_one_or_none()
-                if _active_cycle:
-                    _active_cycle.assignee_id = new_assignee
-                    db.add(_active_cycle)
+                await cycle_service.on_assignee(db, issue)
 
         # ── Labels ────────────────────────────────────────────────────────────
         if "labels" in payload:
@@ -756,6 +729,7 @@ class IssueService:
         await backlog.backlog_service.place(db, issue)
         db.add(issue)
         await db.flush()
+        await cycle_service.after_container_change(db, issue, old_release_id, actor)
 
         # Emit timeline events
         for event_type, meta in events_to_emit:
