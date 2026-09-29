@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '../../lib/cn'
 
@@ -20,11 +20,19 @@ function TabIcon({ name, size = 14 }) {
   return <Component size={size} />
 }
 
+// Labels never wrap: a tab row that doesn't fit scrolls sideways instead, and
+// the active tab keeps itself in view.
 export function Tabs({ value, onValueChange, options = [], className }) {
+  const activeRef = useRef(null)
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [value])
+
   return (
     <div
+      role="tablist"
       className={cn(
-        'flex items-center gap-1 border-b border-border',
+        'flex items-center gap-1 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-thin',
         className
       )}
     >
@@ -33,10 +41,13 @@ export function Tabs({ value, onValueChange, options = [], className }) {
         return (
           <button
             key={opt.value}
+            ref={isActive ? activeRef : undefined}
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onValueChange?.(opt.value)}
             className={cn(
-              'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
-              'focus-visible:outline-none',
+              'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring rounded-t-md',
               isActive
                 ? 'text-foreground'
                 : 'text-muted-foreground hover:text-foreground'

@@ -31,6 +31,8 @@ from app.db.models.user import User
 from app.policy import is_assignable
 from app.db.models.issue_subscriber import SubscriptionReason
 from app.schemas.issue import IssueCreate
+from app.services import backlog_service as backlog
+from app.services.backlog_category_service import backlog_category_service
 from app.workflow import Workflow
 
 
@@ -107,6 +109,11 @@ class IssueService:
         now = datetime.now(tz=UTC)
         initial_status = IssueStatus.todo if data.type == IssueType.task else IssueStatus.new
 
+        # Every item has a category of its own project — Default unless one is chosen.
+        category = await backlog_category_service.resolve(
+            db, data.project_id, data.backlog_category_id,
+        )
+
         reproduction_steps_json = [
             {
                 "step_order": step.step_order,
@@ -140,9 +147,12 @@ class IssueService:
             created_at=now,
             filed_at=now,
             reproduction_steps=reproduction_steps_json or [],
+            backlog_category_id=category.id,
+            is_tech_debt=data.is_tech_debt,
         )
         db.add(issue)
         await db.flush()
+        await backlog.backlog_service.place(db, issue)
 
         from app.db.models.issue_cycle import IssueCycle
         from app.services.subscriber_service import subscribe
@@ -319,6 +329,10 @@ class IssueService:
             issue.verified_at = None
         if from_status == IssueStatus.cancelled and to_status != IssueStatus.cancelled:
             issue.cancel_reason = None
+
+        # An item that becomes a backlog member gets a rank (never a category
+        # check here — status movement is unrestricted, 2026-09-22).
+        await backlog.backlog_service.place(db, issue)
 
         db.add(issue)
         await db.flush()
@@ -554,10 +568,34 @@ class IssueService:
                 "type_immutable",
             )
 
+        category_after = await self._check_placement(db, issue, payload)
+
         timeline_svc = TimelineService()
         inbox_svc = InboxFanOutService()
         events_to_emit: list[tuple[TimelineEventType, dict]] = []
         inbox_triggers: list[tuple[InboxEventType, dict | None]] = []
+
+        # ── Backlog category / technical debt (slice 08) ──────────────────────
+        if category_after is not None and category_after.id != issue.backlog_category_id:
+            from app.db.models.backlog_category import BacklogCategory
+            from app.services.backlog_category_service import snapshot
+
+            previous = await db.get(BacklogCategory, issue.backlog_category_id)
+            events_to_emit.append((
+                TimelineEventType.backlog_category_changed,
+                {"from": snapshot(previous) if previous else None, "to": snapshot(category_after)},
+            ))
+            if category_after.project_id == issue.project_id:
+                issue.backlog_category_id = category_after.id
+            # Otherwise it's set together with project_id below — the composite
+            # FK would reject a flush in between (queries here autoflush).
+        if payload.get("is_tech_debt") is not None and payload["is_tech_debt"] != issue.is_tech_debt:
+            events_to_emit.append((
+                TimelineEventType.tech_debt_flagged if payload["is_tech_debt"]
+                else TimelineEventType.tech_debt_cleared,
+                {},
+            ))
+            issue.is_tech_debt = payload["is_tech_debt"]
 
         # ── Title ─────────────────────────────────────────────────────────────
         if "title" in payload and payload["title"] != issue.title:
@@ -714,6 +752,9 @@ class IssueService:
                     {"from": from_name or "—", "to": to_name or "—"},
                 ))
                 issue.project_id = new_project_id
+                issue.backlog_category_id = category_after.id
+                # Its rank belongs to the old project's backlog — re-place it.
+                issue.backlog_rank = None
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
@@ -721,6 +762,7 @@ class IssueService:
             if field in payload:
                 setattr(issue, field, payload[field])
 
+        await backlog.backlog_service.place(db, issue)
         db.add(issue)
         await db.flush()
 
@@ -754,6 +796,69 @@ class IssueService:
                 )
 
         return issue
+
+    # ── Placement rules for PATCH (BR-05, 2026-09-28 categories) ───────────────
+
+    @staticmethod
+    async def _check_placement(db: AsyncSession, issue: Issue, payload: dict):
+        """Refuse an edit that breaks placement, before anything is written, and
+        return the category the item should end up in (``None`` = unchanged).
+
+        - BR-05: the project can't change while the item has a release.
+        - A release must be in the item's (new) project, and that project a Product.
+        - The category must be one of the item's (new) project's. Moving to
+          another project lands the item in that project's Default unless a
+          category of the new project is given (2026-09-28).
+        """
+        from app.db.models.project import Project
+        from app.db.models.release import Release
+
+        def _set(field: str) -> bool:
+            return field in payload and payload[field] is not None
+
+        release_after = payload["release_id"] if "release_id" in payload else issue.release_id
+        project_after = int(payload["project_id"]) if _set("project_id") else issue.project_id
+
+        if project_after != issue.project_id and release_after is not None:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "An item in a release can't change project. Remove it from the release first.",
+                "move_has_release",
+            )
+
+        release_changed = release_after is not None and (
+            release_after != issue.release_id or project_after != issue.project_id
+        )
+        if release_changed:
+            release = await db.get(Release, int(release_after))
+            if release is None or release.deleted_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Release not found",
+                )
+            project = await db.get(Project, project_after)
+            kind = getattr(project.kind, "value", project.kind) if project is not None else None
+            if kind is not None and kind != ProjectKind.product.value:
+                raise DomainError(
+                    status.HTTP_409_CONFLICT,
+                    "Only Product projects accept a release.",
+                    "releases_not_allowed",
+                )
+            if release.project_id != project_after:
+                raise DomainError(
+                    status.HTTP_409_CONFLICT,
+                    "That release belongs to a different project.",
+                    "release_project_mismatch",
+                )
+
+        if project_after != issue.project_id:
+            return await backlog_category_service.resolve(
+                db, project_after, payload.get("backlog_category_id"),
+            )
+        if _set("backlog_category_id"):
+            return await backlog_category_service.resolve(
+                db, project_after, payload["backlog_category_id"],
+            )
+        return None
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 

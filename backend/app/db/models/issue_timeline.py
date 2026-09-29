@@ -39,6 +39,11 @@ class TimelineEventType(str, enum.Enum):
     #: A Report recurrence (slice 07) — a public comment carrying the new
     #: occurrence's details; ``meta.recurrence_count`` is the count after it.
     recurrence = "recurrence"
+    #: Backlog category set or changed (slice 08) — ``meta.from`` / ``meta.to``.
+    backlog_category_changed = "backlog_category_changed"
+    #: The technical-debt flag set / cleared (slice 08).
+    tech_debt_flagged = "tech_debt_flagged"
+    tech_debt_cleared = "tech_debt_cleared"
 
 
 class IssueTimeline(Base):

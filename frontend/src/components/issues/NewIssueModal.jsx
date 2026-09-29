@@ -11,10 +11,11 @@ import { DatePicker } from '../ui/DatePicker'
 import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
-import { ProjectSwitcher, ReleaseSwitcher } from '../common'
-import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TYPE } from '../../lib/constants'
+import { BacklogCategoryPicker, ProjectSwitcher, ReleaseSwitcher } from '../common'
+import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TECH_DEBT, TYPE } from '../../lib/constants'
 import { ENVIRONMENT } from './DescriptionSection'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
+import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { useApp } from '../../hooks/useApp'
 
 const INITIAL_FORM = {
@@ -31,6 +32,8 @@ const INITIAL_FORM = {
   assigneeId: '',
   dueDate: null,
   isReleaseBlocker: false,
+  backlogCategoryId: null,
+  isTechDebt: false,
 }
 
 export function NewIssueModal({ open, onClose, onCreated }) {
@@ -128,17 +131,26 @@ export function NewIssueModal({ open, onClose, onCreated }) {
     setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
+  // A bug starts in the active release (it was found there); a task starts in
+  // no release — the backlog — unless one is picked (slice 08).
   function setType(type) {
-    setForm((f) => ({ ...f, type }))
+    setForm((f) => ({
+      ...f,
+      type,
+      releaseId: type === 'task'
+        ? ''
+        : (f.releaseId || (activeReleaseId && allReleases.some((r) => r.id === activeReleaseId && r.projectId === f.projectId) ? activeReleaseId : '')),
+    }))
     setErrors({})
   }
 
   function setProject(id) {
     const project = projects.find((p) => p.id === id)
-    const firstRelease = project?.kind === 'product'
+    const firstRelease = project?.kind === 'product' && form.type !== 'task'
       ? allReleases.find((r) => r.projectId === id && (r.status === 'active' || r.status === 'blocked'))
       : null
-    setForm((f) => ({ ...f, projectId: id, releaseId: firstRelease?.id || '' }))
+    // A category belongs to one project — the new project starts at its Default.
+    setForm((f) => ({ ...f, projectId: id, releaseId: firstRelease?.id || '', backlogCategoryId: null }))
   }
 
   function addStep() {
@@ -163,6 +175,9 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       labels: f.labels.includes(labelName) ? f.labels.filter((l) => l !== labelName) : [...f.labels, labelName],
     }))
   }
+
+  // The project's backlog categories — a task lands in Default unless another is picked.
+  const { categories } = useBacklogCategories(form.projectId || null)
 
   function validate() {
     const errs = {}
@@ -192,7 +207,12 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       }
 
       const payload = form.type === 'task'
-        ? shared
+        ? {
+          ...shared,
+          release_id: releasesAllowed ? (form.releaseId || null) : null,
+          backlog_category_id: form.backlogCategoryId,
+          is_tech_debt: form.isTechDebt,
+        }
         : {
           ...shared,
           release_id: releasesAllowed ? (form.releaseId || null) : null,
@@ -224,7 +244,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
       setErrors({})
     } catch (err) {
       console.error('Failed to save issue:', err)
-      setErrors((e) => ({ ...e, submit: err.response?.data?.detail || err.normalizedMessage || 'Failed to save issue' }))
+      const body = err.response?.data
+      setErrors((e) => ({ ...e, submit: body?.detail || err.normalizedMessage || 'Failed to save issue' }))
     } finally {
       setLoading(false)
     }
@@ -273,8 +294,8 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                   {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
                 </div>
 
-                {/* Project + Release (bugs) + Priority in one row */}
-                <div className={cn('grid gap-3', isTask ? 'grid-cols-[200px_1fr]' : 'grid-cols-[200px_180px_1fr]')}>
+                {/* Project + Release + Priority in one row */}
+                <div className={cn('grid gap-3', releasesAllowed ? 'grid-cols-[200px_180px_1fr]' : 'grid-cols-[200px_1fr]')}>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Project</label>
                     <ProjectSwitcher
@@ -283,7 +304,7 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                       onChange={setProject}
                     />
                   </div>
-                  {!isTask && releasesAllowed && (
+                  {releasesAllowed && (
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                         Release <span className="text-muted-foreground/70 font-normal">(optional)</span>
@@ -318,6 +339,42 @@ export function NewIssueModal({ open, onClose, onCreated }) {
                     </div>
                   </div>
                 </div>
+
+                {isTask && (
+                  <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-start gap-3">
+                      <Switch
+                        checked={form.isTechDebt}
+                        onCheckedChange={(v) => set('isTechDebt', v)}
+                        aria-labelledby="new-task-debt-label"
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <span id="new-task-debt-label" className="flex items-center gap-1.5 text-sm font-medium">
+                          <Icon name={TECH_DEBT.icon} size={14} className={TECH_DEBT.iconClass} aria-hidden="true" />
+                          Technical debt
+                        </span>
+                        <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                          Kept off the backlog and listed under Technical debt. Put the components, risk, and approach in the description.
+                        </p>
+                      </div>
+                    </div>
+                    {/* Only worth asking when the project has more than Default. */}
+                    {categories.length > 1 && (
+                      <div>
+                        <label id="new-task-category-label" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                          Backlog category
+                        </label>
+                        <BacklogCategoryPicker
+                          aria-labelledby="new-task-category-label"
+                          categories={categories}
+                          value={form.backlogCategoryId}
+                          onChange={(v) => set('backlogCategoryId', v)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Assignee + Due date */}
                 <div className="grid grid-cols-[1fr_180px] gap-3 items-end">

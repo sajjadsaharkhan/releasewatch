@@ -55,6 +55,8 @@ class Action(str, Enum):
     report_recurrence = "report_recurrence"
     submit_support_report = "submit_support_report"
     manage_templates = "manage_templates"
+    manage_backlog_categories = "manage_backlog_categories"
+    view_backlog = "view_backlog"
     manage_backlog = "manage_backlog"
     manage_releases = "manage_releases"
     manage_milestones = "manage_milestones"
@@ -154,6 +156,7 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.triage: _T,
     TRANSITION_PREFIX: _T,  # every transition:<to>, verification included
     Action.flag_tech_debt: _T,
+    Action.view_backlog: _T,  # the backlog and Technical debt pages (slice 08)
     Action.manage_backlog: _MANAGE,
     Action.manage_releases: _MANAGE,
     Action.manage_milestones: _MANAGE,
@@ -163,6 +166,7 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_team_overview: _CTO_ADMIN,
     Action.go_nogo: _CTO_ADMIN,
     Action.manage_templates: _CTO_ADMIN,
+    Action.manage_backlog_categories: _CTO_ADMIN,  # Settings → Backlog categories (2026-09-28)
     Action.manage_users: frozenset({"admin"}),
     Action.manage_projects: frozenset({"admin"}),
     Action.manage_search: frozenset({"admin"}),
@@ -194,12 +198,14 @@ _LABELS: dict[str, str] = {
     Action.comment_internal: "post internal notes",
     Action.triage: "triage",
     Action.flag_tech_debt: "flag technical debt",
+    Action.view_backlog: "view the backlog",
     Action.manage_backlog: "manage the backlog",
     Action.manage_releases: "manage releases",
     Action.manage_milestones: "manage milestones",
     Action.view_team_overview: "view the team overview",
     Action.go_nogo: "make the release go/no-go call",
     Action.manage_templates: "manage templates",
+    Action.manage_backlog_categories: "manage backlog categories",
     Action.manage_users: "manage users",
     Action.manage_projects: "manage projects",
     Action.manage_search: "manage search settings",
@@ -299,6 +305,16 @@ def _recurrence_denial(target: Target) -> Denied | None:
     return None
 
 
+def _tech_debt_denial(target: Target) -> Denied | None:
+    """BR-36 — technical debt is always a task; the flag doesn't exist on bugs (AC-31)."""
+    if target.item_type is not None and target.item_type != "task":
+        return Denied(
+            "tech_debt_task_only", "Only tasks can be flagged as technical debt.",
+            hidden=True, conflict=True,
+        )
+    return None
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 
@@ -334,6 +350,11 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
 
     if key == Action.report_recurrence:
         denial = _recurrence_denial(target)
+        if denial is not None:
+            return denial
+
+    if key == Action.flag_tech_debt:
+        denial = _tech_debt_denial(target)
         if denial is not None:
             return denial
 

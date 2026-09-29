@@ -155,6 +155,29 @@ export const issuesApi = {
   // One more occurrence of an open or Cancelled bug (slice 07). `data` is
   // {comment, pending_attachments?}; 409 recurrence_on_done / recurrence_bug_only.
   reportRecurrence: (id, data) => api.post(`/issues/${id}/recurrences`, data),
+  // Move several items to one release, all or nothing (slice 08). 409
+  // bulk_move_failed carries per-item `errors: {id: message}`.
+  bulkMove: (issueIds, releaseId) =>
+    api.post('/issues/bulk-move', { issue_ids: issueIds, release_id: releaseId }),
+}
+
+// ─── Backlog & technical debt (slice 08) ─────────────────────────────────────
+export const backlogApi = {
+  // params: { include_tech_debt, group_by: 'category' }
+  get: (projectId, params) => api.get(`/projects/${projectId}/backlog`, { params }),
+  // Place `issueId` after `afterId` (the row above) and/or before `beforeId` (the row below).
+  reorder: (projectId, { issueId, beforeId = null, afterId = null }) =>
+    api.put(`/projects/${projectId}/backlog/order`, {
+      issue_id: issueId, before_id: beforeId, after_id: afterId,
+    }),
+  // Give several items one category, all or nothing (409 bulk_category_failed
+  // carries per-item `errors`). Rank is kept — only the group changes.
+  setCategory: (projectId, issueIds, categoryId) =>
+    api.post(`/projects/${projectId}/backlog/category`, {
+      issue_ids: issueIds, backlog_category_id: categoryId,
+    }),
+  // params: { project_id: '1,2', status: 'todo,in_progress', assignee_id, unassigned }
+  techDebt: (params) => api.get('/tech-debt', { params }),
 }
 
 // ─── Inbox ───────────────────────────────────────────────────────────────────
@@ -304,6 +327,18 @@ export const supportApi = {
   // params: { q, project_id, status: [..], page, size }
   reports: (params) =>
     api.get('/support/reports', { params, paramsSerializer: { indexes: null } }),
+}
+
+// ─── Backlog categories (per project; CTO + Admin manage, tech roles read) ───
+export const backlogCategoriesApi = {
+  // → { project_id, categories: [{id, name, icon, color, position, is_default, item_count}], can_manage }
+  list: (projectId) => api.get(`/projects/${projectId}/backlog-categories`),
+  create: (projectId, data) => api.post(`/projects/${projectId}/backlog-categories`, data),
+  update: (projectId, id, data) => api.patch(`/projects/${projectId}/backlog-categories/${id}`, data),
+  // `ids`: every non-Default category in the new order — Default always stays first.
+  reorder: (projectId, ids) => api.put(`/projects/${projectId}/backlog-categories/order`, { ids }),
+  // → { moved_count, default_category }
+  remove: (projectId, id) => api.delete(`/projects/${projectId}/backlog-categories/${id}`),
 }
 
 // ─── Support templates admin (slice 05, CTO + Admin) ─────────────────────────

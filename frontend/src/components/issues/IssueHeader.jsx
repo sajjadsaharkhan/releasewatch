@@ -4,6 +4,7 @@ import { Button } from '../ui/Button'
 import { StatusBadge, Badge, TypeIcon, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { issueKey } from '../../lib/issueSlug'
+import { TechDebtMarker } from '../common/TechDebtMarker'
 import { itemNoun } from '../../lib/constants'
 
 export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
@@ -38,6 +39,7 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
             {' '}Regression
           </Badge>
         )}
+        <TechDebtMarker item={issue} />
       </div>
       <div className="ml-auto flex items-center gap-1.5">
         <Button variant="outline" size="sm" onClick={copyLink}>

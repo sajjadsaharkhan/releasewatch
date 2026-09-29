@@ -163,6 +163,50 @@ holds the optional `cancel_reason` values: a bug may give any value except `no_l
 task only `no_longer_needed` — `BUG_CANCEL_REASONS` / `TASK_CANCEL_REASONS` give the filtered
 lists.
 
+### Backlog categories and technical debt — `CATEGORY_COLOR`, `CATEGORY_ICONS`, `TECH_DEBT` in `lib/constants.js`
+
+Backlog categories are per project (2026-09-28): each has a name, an icon from `CATEGORY_ICONS` (30
+lucide names) and a hue from `CATEGORY_COLOR` (12: zinc, slate, stone, emerald, teal, cyan, sky,
+indigo, violet, fuchsia, pink, lime — mirrored in `backend/app/db/models/backlog_category.py`). The
+set is curated on purpose: free colours break dark mode and collide with the priority/status hues
+(no red, orange, amber or blue). Each hue carries `swatch` (the picker dot), `icon` (icon text
+colour, light/dark) and `soft` (the icon chip fill). Every project has a fixed **Default** — `inbox`,
+zinc, always first.
+
+A category renders as `<BacklogCategoryBadge category>`: a quiet pill, neutral `bg-muted` fill, the
+hue only in its icon, so it never competes with the priority and status pills on the same row.
+Backlog rows hide the Default badge (most items sit there; the group header already says it). The
+category's full colour shows in group headers, pickers and Settings chips. `<BacklogCategoryPicker
+categories value onChange>` is a radio group of chips with Default preselected — it's shown only when
+the project has more than Default, and never required. `useBacklogCategories(projectId)` (react-query)
+feeds every picker; Settings invalidates it after an edit.
+
+The grouped backlog has one group per project category in the project's order (empty ones
+included), then `TECH_DEBT_GROUP` — **every** debt task, whatever its category, present only while
+"Show technical debt" is on, so it always matches the Technical debt page for that project.
+
+**Settings → Backlog categories** (`components/backlog/BacklogCategoriesTab`, CTO/Admin,
+`?tab=backlog&project=`): projects with their category counts → one project's list. The Default row
+is locked (lock icon, "Fixed" chip). Other rows have a drag handle (pointer or keyboard), an icon chip
+on its soft hue, the name and item count, and Edit/Delete icon buttons. Edit opens the row **in place**
+(one at a time): Name with a 40-character counter (validated on blur, duplicates caught
+case-insensitively), a Colour radio group of swatches (each named, the selected one ringed and
+checked — colour is never the only cue), an Icon grid, and a live preview of the group header and the
+badge. Delete asks first — "N items move to Default. Each item's timeline records the move; nobody is
+notified." — with a destructive "Delete and move N".
+
+**Technical debt** (`<TechDebtMarker item compact?>`) is stone with a **dashed** border and the
+`construction` icon — "recorded, not committed". Stone sits outside every priority, status, type and
+role hue. It renders nothing unless `item.is_tech_debt`. Full form ("Debt" + icon) on list rows and
+the item header; `compact` (icon only, tooltip) on board cards.
+
+On the timeline both follow the badge rule the status and priority entries use: a category change
+reads "changed category [old] → [new]" (or "set category to [badge]") with `<BacklogCategoryBadge>`
+built from the snapshot the entry recorded (so a rename or delete never rewrites history); a delete
+reads "moved category [old] → [Default] — old was deleted";
+and the flag reads "flagged as [Technical debt chip]" / "cleared the [chip]" — the cleared chip
+dimmed and struck through, the way the release-blocker entries pair a phrase with their badge.
+
 ### Role — `ROLE` in `lib/constants.js`
 
 `support` teal · `qa` blue · `developer` violet · `pm` amber · `cto` rose · `admin` zinc.
@@ -226,7 +270,31 @@ a reject-reason `Select`). A `duplicate_of_duplicate` refusal shows an amber inl
 with "Use BUG-n instead". While an item is in Needs info, the item page pins the triager's
 question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
 
-`Select` opens upward when there's no room below. `Select` and `Dropdown` are
+**Backlog** (`pages/BacklogPage.jsx`, `/projects/:slug/backlog`, slice 08): a ranked list in one
+card — never a board. Header: "N items · M untouched for over 6 months" (the stale part amber with a
+`clock`), and a "Technical debt in this project" button. Toolbar: a `Segmented` Grouped / Ranked
+(`?view=ranked`) and a "Show technical debt" `Switch` (`?debt=1`) with an "N hidden" count.
+`components/backlog/`: `BacklogGroupHeader` (collapsible, icon + label + count, a tri-state
+`Checkbox` selecting the group), `BacklogRow` (grip handle that appears on hover/focus, checkbox,
+rank number in Ranked view, key, title with markers, category, priority, age with a `clock` when
+stale, assignee — a dashed circle when unassigned), and `BulkMoveBar` (a floating toolbar that slides
+up from the bottom of the scroller while anything is selected: "N selected", release `Select`,
+"Move to release", a **Category** menu that moves the whole selection to another category group —
+rank kept, the selection's shared category checked, `POST /projects/{id}/backlog/category`, all or
+nothing — and "Clear Esc"). Ranking uses `@dnd-kit/sortable` with the pointer and the keyboard
+(Space, arrows, Space; announcements name item keys); in Grouped view a drag stays within its group.
+The move is optimistic and rolls back with `toast.error` on failure. Shift-click selects a range. A
+failed bulk move (`bulk_move_failed`) marks the failing rows with a red left bar and an alert icon
+whose tooltip gives the reason. Without `manage_backlog` the handles and checkboxes are disabled
+with Policy's reason as the tooltip. The page follows the topbar project switcher. **Technical
+debt** (`pages/TechDebtPage.jsx`, `/tech-debt`) is a full-bleed table with `MultiSelectFilterDropdown`
+projects, Status (Open / Done / Cancelled / All) and Assignee filters in the URL, and a Placement
+column (release version or a "Backlog" chip). New Task has a Technical debt `Switch` and, when the
+project has more than Default, an optional `BacklogCategoryPicker`, and starts with no release;
+Triage's Accept shows the same optional picker; the item sidebar has Category (the project's
+categories) and (tasks) Tech debt rows and "Remove from release".
+
+`Select` and `Dropdown` open upward when there's no room below. `Select` and `Dropdown` are
 `position: fixed` portals, so both follow their trigger when the page scrolls or resizes
 and close once the trigger leaves the viewport.
 
@@ -374,7 +442,7 @@ dialog headers/footers) uses `sticky` or `shrink-0` inside that scroller, not `p
 ```
 
 Width is chosen by content type: `max-w-7xl` dashboards and analytics · `max-w-6xl`
-releases, contributions · `max-w-5xl` team · `max-w-4xl` settings. Full-bleed (no
+releases, contributions · `max-w-5xl` team and settings (ten tabs need the width). Full-bleed (no
 `max-w`) for the dense list pages — Issues, Triage, My Issues, Deleted — where table width
 is the point.
 
@@ -437,7 +505,7 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Dropdown` | `DropdownItem` (`icon`, `destructive`) · `DropdownSep` · `DropdownLabel`; `align`, `width` |
 | `Dialog` | `size`: `sm` · `md` · `lg` · `xl` · `full` |
 | `Sheet` | Right-side drawer |
-| `Tabs` | Underline style, optional `icon` and `badge` per option |
+| `Tabs` | Underline style, optional `icon` and `badge` per option; `role="tablist"`/`tab`. Labels never wrap — a row that doesn't fit scrolls sideways and keeps the active tab in view |
 | `Segmented` | Pill toggle group inside a `bg-muted` track |
 | `Tooltip` | 300ms open delay (also opens on focus), `side`: top · bottom · left · right; `wrapperClassName` sizes the hover wrapper (e.g. `flex w-full`) |
 | `Toast` | `ToastProvider` + `useToast()`; max 3 stacked, 4000ms default |
@@ -448,6 +516,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `UserPicker` (`components/common`) | Single-select person picker with search by full name or username (`@username` shown per row); `users`, `value` (id or null), `onChange`, `emptyLabel` (default "Unassigned"; falsy makes a choice required). Arrow keys + Enter, Escape closes. Use it wherever a list of people is long enough to scan |
 | `ActionButton` / `GatedButton` (`components/common`) | `ActionButton`: `action` + `item`, see §3 Role. `GatedButton`: `allowed` + `reason`, for role-level gates. Both render a disabled `Button` inside a focusable wrapper so the tooltip still opens |
 
+| `Checkbox` (`components/ui`) | `checked`, `indeterminate` ("mixed"), `onCheckedChange(next, event)` — the event carries `shiftKey` for ranges; clicks don't bubble, so it sits inside clickable rows |
+| `TechDebtMarker` / `BacklogCategoryBadge` / `BacklogCategoryPicker` (`components/common`) | See §3 Backlog category and technical debt. The picker is a `radiogroup` of chips (arrow keys move), `required` stops a second click from clearing it |
 | `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the red regression marker and the priority pills |
 | `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state

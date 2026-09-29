@@ -26,6 +26,8 @@ from app.api.v1 import (
     search,
     support,
     support_templates,
+    backlog,
+    backlog_categories,
 )
 
 api_router = APIRouter()
@@ -33,6 +35,9 @@ api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(support_templates.router, prefix="/projects", tags=["support"])
+# /projects/{id}/backlog(/order) and /tech-debt (slice 08).
+api_router.include_router(backlog.router, tags=["backlog"])
+api_router.include_router(backlog_categories.router, prefix="/projects", tags=["backlog"])
 # Releases are nested under projects — the projects router handles /projects/{slug}/releases/*
 # but a dedicated releases router handles actions that don't need the slug context
 api_router.include_router(releases.router, prefix="/releases", tags=["releases"])

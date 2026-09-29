@@ -5,6 +5,7 @@ GET    /issues/export                       — export issues as CSV
 GET    /issues/trash                        — list soft-deleted issues (CTO/admin only)
 DELETE /issues/trash/clear                  — permanently delete all trashed issues (CTO/admin only)
 POST   /issues                             — file a new issue
+POST   /issues/bulk-move                    — move backlog items to a release, all or nothing
 GET    /issues/{id}                         — get issue detail
 PATCH  /issues/{id}                         — update issue fields
 DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or triage lead)
@@ -50,10 +51,12 @@ from app.db.models.project import Project, ProjectKind
 from app.db.models.regression_history import RegressionHistory
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.policy import Action, item_actions, transition
+from app.policy import Action, Target, item_actions, transition
 from app.schemas.issue import (
     BlockedAction,
     BlockedTransition,
+    BulkMoveRequest,
+    BulkMoveResponse,
     FixRequest,
     IssueCreate,
     IssueCycleResponse,
@@ -133,6 +136,7 @@ def _apply_filters(
     type=None,
     has_release=None,
     project_kind=None,
+    is_tech_debt=None,
 ):
     query = query.where(Issue.deleted_at.is_(None), visibility_clause(actor))
     if project_id:
@@ -161,6 +165,8 @@ def _apply_filters(
         query = query.where(Issue.type == type)
     if has_release is not None:
         query = query.where(Issue.release_id.isnot(None) if has_release else Issue.release_id.is_(None))
+    if is_tech_debt is not None:
+        query = query.where(Issue.is_tech_debt == is_tech_debt)
     if project_kind:
         query = query.where(
             Issue.project_id.in_(select(Project.id).where(Project.kind == project_kind))
@@ -306,6 +312,7 @@ async def list_issues(
     type: IssueType | None = Query(None),
     has_release: bool | None = Query(None, description="True: has a release. False: hotfix/task with no release."),
     project_kind: ProjectKind | None = Query(None),
+    is_tech_debt: bool | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -329,6 +336,7 @@ async def list_issues(
         type=type,
         has_release=has_release,
         project_kind=project_kind,
+        is_tech_debt=is_tech_debt,
     )
 
     count_q = _apply_filters(select(func.count(Issue.id)), **filter_kwargs)
@@ -514,6 +522,9 @@ async def create_issue(
     authorize(current_user, Action.create_item)
     if payload.assignee_id is not None:
         authorize(current_user, Action.assign)
+    if payload.is_tech_debt:
+        # 409 tech_debt_task_only on a bug (BR-36, AC-31).
+        authorize(current_user, Action.flag_tech_debt, Target(item_type=payload.type.value))
     if payload.is_release_blocker:
         project = await db.get(Project, payload.project_id)
         if project is not None:
@@ -535,6 +546,49 @@ async def create_issue(
     embed_issue.apply_async((issue.id,), countdown=0)
     enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
+
+
+@router.post("/bulk-move", response_model=BulkMoveResponse, summary="Move items to a release")
+async def bulk_move(
+    payload: BulkMoveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BulkMoveResponse:
+    """Move several items to one release in one action (FR-25, slice 08).
+
+    All or nothing: if any item can't move, nothing moves and the 409
+    ``bulk_move_failed`` lists each failing id under ``errors``. Guarded by
+    ``manage_backlog`` on the release's project.
+    """
+    from app.services.backlog_service import backlog_service, get_release_or_404
+
+    release = await get_release_or_404(db, payload.release_id)
+    project = await db.get(Project, release.project_id)
+    authorize(current_user, Action.manage_backlog, project_target(project))
+
+    ids = list(dict.fromkeys(payload.issue_ids))
+    rows = (await db.execute(
+        select(Issue).where(
+            Issue.id.in_(ids), Issue.deleted_at.is_(None), visibility_clause(current_user),
+        ).with_for_update()
+    )).scalars().all()
+    found = {i.id: i for i in rows}
+    moved = await backlog_service.bulk_move(
+        db, {i: found.get(i) for i in ids}, release, current_user,
+    )
+    await db.commit()
+
+    result = await db.execute(
+        select(Issue).options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        ).where(Issue.id.in_(ids))
+    )
+    by_id = {i.id: i for i in result.scalars().all()}
+    items = await _build_enriched_responses([by_id[i] for i in ids], db, current_user)
+    return BulkMoveResponse(moved_ids=moved, items=items)
 
 
 @router.get("/trash", response_model=list[TrashIssueResponse], summary="List soft-deleted issues")
@@ -632,6 +686,8 @@ async def update_issue(
             authorize(current_user, action, target)
     if "is_release_blocker" in data and data["is_release_blocker"] != issue.is_release_blocker:
         authorize(current_user, Action.flag_release_blocker, target)
+    if data.get("is_tech_debt") is not None and data["is_tech_debt"] != issue.is_tech_debt:
+        authorize(current_user, Action.flag_tech_debt, target)
     if data.get("status") is not None:
         authorize(current_user, transition(data["status"]), target)
     issue = await issue_service.update(

@@ -78,7 +78,7 @@ A project's New and Needs info bugs, oldest first, with source, reporter, recurr
 _Avoid_: "unassigned issues" — the queue is about the decision, not the assignee.
 
 **Triage outcome**:
-The one decision a triager (any tech role) applies to a queued bug through `POST /issues/{id}/triage` (`TriageService`): **Accept** (priority required; assignee and release optional — no release is the hotfix path) → To do; **Needs info** (a public comment saying what's missing) → Needs info; **Duplicate** (a merge) → Cancelled, reason Duplicate; **Reject** (user error, expected behavior, or cannot reproduce) → Cancelled. Each writes one `triaged` timeline event with its inputs. Only New and Needs info bugs can be triaged (`not_in_triage`). A public reply by the reporter or any Support user sends a Needs info bug back to New and tells the triage lead (FR-19).
+The one decision a triager (any tech role) applies to a queued bug through `POST /issues/{id}/triage` (`TriageService`): **Accept** (priority required; assignee, release and backlog category optional — with no release the bug lands in the backlog, in Default unless another category is picked; that is also the hotfix path) → To do; **Needs info** (a public comment saying what's missing) → Needs info; **Duplicate** (a merge) → Cancelled, reason Duplicate; **Reject** (user error, expected behavior, or cannot reproduce) → Cancelled. Each writes one `triaged` timeline event with its inputs. Only New and Needs info bugs can be triaged (`not_in_triage`). A public reply by the reporter or any Support user sends a Needs info bug back to New and tells the triage lead (FR-19).
 _Avoid_: "triaged" as a status (gone since slice 02), "needs clarification" (the Phase 1 name).
 
 **Subscriber**:
@@ -98,3 +98,21 @@ A merge into a Done original (BR-49): a regression cycle is recorded (`source=me
 
 **Regression cycle**:
 One `regression_history` row — the record that a fixed bug came back. `source` is `action` (the regression action) or `merge`. `release_id` is null only for a merge regression whose duplicate had no release; release reports and fragility analysis select by release, so those cycles stay out of them (BR-25).
+
+
+### Backlog (slice 08)
+
+**Backlog**:
+A project's open work that isn't committed to a release: items with no release whose status is a board status other than Done (To do, In progress, In review, Blocked) — never New/Needs info (triage) or Done/Cancelled (BR-04). Membership is derived by `backlog_clause` / `backlog_items()` in `BacklogService`, never stored; from slice 09 it also needs no milestone. Shown as a ranked list, not a board: grouped by the project's backlog categories in their order (collapsible, with counts; every technical-debt task groups under Technical debt, last, whatever its category) or flat in rank order, drag to rank, multi-select and bulk move to a release (`POST /issues/bulk-move`, all or nothing). Ranking and bulk move need `manage_backlog` (PM, CTO, Admin, and a developer who is the project's triage lead). The header's "untouched for over 6 months" count is display only (`updated_at`; re-ranking doesn't count as touching).
+_Avoid_: "icebox", "parking lot", an "add to backlog" action — placement decides membership.
+
+**Backlog category**:
+One of a project's own categories (`backlog_categories`, 2026-09-28) — a name, an icon and a colour from curated sets. Every project has a fixed **Default** (created with the project; never renamed, restyled, moved or deleted; always first). Every item — bug or task — always has exactly one category of its own project (`issues.backlog_category_id`, NOT NULL, composite FK with `project_id`); nothing chosen means Default, so the UI never requires a pick. CTO and Admin manage the rest in Settings → Backlog categories: names unique per project ignoring case (≤ 40 chars), at most 20 per project, ordered by drag — the grouped backlog follows that order. Deleting a category moves all its items to Default (a timeline entry each, no notification). An item moved to another project lands in that project's Default. Technical debt is not a category.
+_Avoid_: "tag" or "label" (labels are a separate, cross-project thing); "uncategorized" (there is no such state).
+
+**Backlog rank**:
+An item's position in its project's backlog (`issues.backlog_rank`, a float). A new member goes to the bottom (max + 1024); a drag places it midway between its new neighbours; when a gap would fall below 1e-6 the project is renumbered in one statement. Kept when the item leaves, so it returns to where it was.
+
+**Technical debt**:
+A flag on a task (`issues.is_tech_debt`, BR-36) — never on a bug (409 `tech_debt_task_only`). Any tech role sets it at creation or later; it adds no fields (components, risk and approach go in the description). Debt tasks are hidden from the backlog unless "Show technical debt" is on, and are listed on the Technical debt page (`GET /tech-debt`, filterable by several projects, status and assignee). Once assigned or placed in a release a debt task shows on boards and in queues like any task, with its marker (BR-37).
+_Avoid_: "debt" as a backlog category (it was one before PRD v2.1).

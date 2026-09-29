@@ -64,6 +64,8 @@ class ProjectResponse(ProjectBase):
     #: accepts support reports while ``active_support_template_count > 0``.
     support_template_count: int = 0
     active_support_template_count: int = 0
+    #: Backlog categories, Default included (Settings → Backlog categories).
+    backlog_category_count: int = 0
     archived_at: Optional[datetime] = None
     created_at: datetime
 

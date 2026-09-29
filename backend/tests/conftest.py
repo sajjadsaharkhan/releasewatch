@@ -16,6 +16,10 @@ if not _base_db.endswith("_test"):
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production-use-only")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("ADMIN_PASSWORD", "")
+# bcrypt at the production cost (12) is ~0.2s per hash, and every test hashes
+# one password per user it creates — the permission matrix alone spent ~160s
+# on it. The cost is stored in each hash, so verification is unaffected.
+os.environ.setdefault("BCRYPT_ROUNDS", "4")
 
 # Report caching (app/services/report_service.py) keys Redis by numeric id,
 # and TRUNCATE ... RESTART IDENTITY makes those ids restart at 1 every test —

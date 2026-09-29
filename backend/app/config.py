@@ -101,6 +101,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = Field("HS256", description="JWT signing algorithm")
     JWT_ACCESS_EXPIRE_MINUTES: int = Field(60, description="Access token lifetime in minutes")
     JWT_REFRESH_EXPIRE_DAYS: int = Field(30, description="Refresh token lifetime in days")
+    BCRYPT_ROUNDS: int = Field(
+        12, ge=4, le=31,
+        description="bcrypt cost factor for new password hashes. Tests lower it to 4 for speed.",
+    )
 
     # ── Federated auth (optional) ───────────────────────────────────────────────
     # External identity providers are OPTIONAL and ADDITIVE. Each is enabled only

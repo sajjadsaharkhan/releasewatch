@@ -3,7 +3,7 @@
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Computed, Date, DateTime, Float, ForeignKey, func, Integer, JSON, SmallInteger, String, Text, text
+from sqlalchemy import Boolean, Computed, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint, func, Integer, JSON, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +84,10 @@ BOARD_STATUSES = (
 #: never looks committed.
 TRIAGE_STATUSES = (IssueStatus.new, IssueStatus.needs_info)
 
+#: Statuses a backlog member can hold (BR-04): a board status that isn't Done.
+#: New/Needs info are triage, not backlog; Cancelled is never on a board.
+BACKLOG_STATUSES = tuple(s for s in BOARD_STATUSES if s != IssueStatus.done)
+
 #: Statuses nothing leaves on its own — ``done`` is the one exception, via
 #: the regression action (and, from slice 06, the merge regression).
 TERMINAL_STATUSES = (IssueStatus.cancelled,)
@@ -142,6 +146,14 @@ class Issue(Base):
     """
 
     __tablename__ = "issues"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "backlog_category_id"],
+            ["backlog_categories.project_id", "backlog_categories.id"],
+            name="fk_issues_backlog_category_same_project",
+            onupdate="CASCADE",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     issue_number: Mapped[int] = mapped_column(
@@ -167,6 +179,19 @@ class Issue(Base):
     recurrence_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1,
         doc="How many times this problem has been reported. Incremented from 06/07."
+    )
+    backlog_category_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, index=True,
+        doc="The item's category in its own project (never null — Default when none is "
+            "chosen). Composite FK with project_id, so it can't point at another project's.",
+    )
+    backlog_rank: Mapped[float | None] = mapped_column(
+        Float(precision=53), nullable=True,
+        doc="Position in the project's backlog (midpoint ranking). Kept on leaving it."
+    )
+    is_tech_debt: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        doc="Technical-debt flag — tasks only (BR-36). Hidden from the backlog by default."
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -272,6 +297,15 @@ class Issue(Base):
 
     # ── Relationships ─────────────────────────────────────────────────────────
     project = relationship("Project", back_populates="issues")
+    backlog_category = relationship(
+        "BacklogCategory",
+        primaryjoin="Issue.backlog_category_id == BacklogCategory.id",
+        foreign_keys="Issue.backlog_category_id",
+        viewonly=True,
+        # selectin, not joined: several paths lock issues with FOR UPDATE, which
+        # Postgres refuses on the nullable side of an outer join.
+        lazy="selectin",
+    )
     release = relationship("Release", back_populates="issues")
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_issues")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_issues")

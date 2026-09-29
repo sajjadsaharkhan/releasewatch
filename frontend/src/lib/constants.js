@@ -132,6 +132,52 @@ export const TASK_CANCEL_REASONS = ['no_longer_needed']
 // Statuses that still need work — not done and not cancelled.
 export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'in_progress', 'in_review', 'blocked']
 
+// Backlog categories (2026-09-28) are per project, managed in Settings → Backlog
+// categories (CTO/Admin). Each has a name, an icon from CATEGORY_ICONS and a hue
+// from CATEGORY_COLOR — both curated and mirrored in
+// backend/app/db/models/backlog_category.py. Every project has a fixed Default
+// (inbox, zinc), always first. Class strings are written out in full so
+// Tailwind keeps them.
+export const CATEGORY_ICONS = [
+  'inbox', 'sparkles', 'trending-up', 'telescope', 'rocket', 'lightbulb',
+  'wrench', 'gauge', 'shield-check', 'lock', 'palette', 'layout-grid',
+  'smartphone', 'globe', 'database', 'server', 'zap', 'heart',
+  'star', 'flag', 'target', 'puzzle', 'book-open', 'users',
+  'message-square', 'bell', 'bar-chart-3', 'bug-off', 'accessibility', 'search',
+]
+
+export const CATEGORY_COLOR = {
+  zinc:    { label: 'Grey',    swatch: 'bg-zinc-500',    icon: 'text-zinc-500 dark:text-zinc-400',       soft: 'bg-zinc-100 dark:bg-zinc-800' },
+  slate:   { label: 'Slate',   swatch: 'bg-slate-500',   icon: 'text-slate-600 dark:text-slate-400',     soft: 'bg-slate-100 dark:bg-slate-900/40' },
+  stone:   { label: 'Stone',   swatch: 'bg-stone-500',   icon: 'text-stone-600 dark:text-stone-400',     soft: 'bg-stone-100 dark:bg-stone-900/40' },
+  emerald: { label: 'Emerald', swatch: 'bg-emerald-500', icon: 'text-emerald-600 dark:text-emerald-400', soft: 'bg-emerald-100 dark:bg-emerald-900/40' },
+  teal:    { label: 'Teal',    swatch: 'bg-teal-500',    icon: 'text-teal-600 dark:text-teal-400',       soft: 'bg-teal-100 dark:bg-teal-900/40' },
+  cyan:    { label: 'Cyan',    swatch: 'bg-cyan-500',    icon: 'text-cyan-600 dark:text-cyan-400',       soft: 'bg-cyan-100 dark:bg-cyan-900/40' },
+  sky:     { label: 'Sky',     swatch: 'bg-sky-500',     icon: 'text-sky-600 dark:text-sky-400',         soft: 'bg-sky-100 dark:bg-sky-900/40' },
+  indigo:  { label: 'Indigo',  swatch: 'bg-indigo-500',  icon: 'text-indigo-600 dark:text-indigo-400',   soft: 'bg-indigo-100 dark:bg-indigo-900/40' },
+  violet:  { label: 'Violet',  swatch: 'bg-violet-500',  icon: 'text-violet-600 dark:text-violet-400',   soft: 'bg-violet-100 dark:bg-violet-900/40' },
+  fuchsia: { label: 'Fuchsia', swatch: 'bg-fuchsia-500', icon: 'text-fuchsia-600 dark:text-fuchsia-400', soft: 'bg-fuchsia-100 dark:bg-fuchsia-900/40' },
+  pink:    { label: 'Pink',    swatch: 'bg-pink-500',    icon: 'text-pink-600 dark:text-pink-400',       soft: 'bg-pink-100 dark:bg-pink-900/40' },
+  lime:    { label: 'Lime',    swatch: 'bg-lime-500',    icon: 'text-lime-600 dark:text-lime-400',       soft: 'bg-lime-100 dark:bg-lime-900/40' },
+}
+export const CATEGORY_COLORS = Object.keys(CATEGORY_COLOR)
+export const categoryColor = (hue) => CATEGORY_COLOR[hue] ?? CATEGORY_COLOR.zinc
+export const CATEGORY_NAME_MAX = 40
+export const CATEGORY_LIMIT = 20
+
+// The grouped backlog's last group — every technical-debt task, whatever its category.
+export const TECH_DEBT_GROUP = 'tech_debt'
+
+// Technical debt marker (slice 08, BR-36/37) — stone with a dashed border:
+// "recorded, not committed". Stays clear of every priority/status/type hue.
+export const TECH_DEBT = {
+  label: 'Technical debt',
+  short: 'Debt',
+  icon: 'construction',
+  chip: 'border border-dashed border-stone-400/70 text-stone-600 bg-stone-50 dark:border-stone-500/60 dark:text-stone-300 dark:bg-stone-900/40',
+  iconClass: 'text-stone-500 dark:text-stone-400',
+}
+
 // Mirrors UserRole (backend/app/db/models/user.py). Tech roles = everyone but support
 // (lib/roles.js); per-item permissions come from the API's allowed_actions, not from here.
 export const ROLE = {

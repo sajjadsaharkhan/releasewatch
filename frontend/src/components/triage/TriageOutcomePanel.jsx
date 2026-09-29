@@ -8,7 +8,8 @@ import { Icon } from '../ui/Icon'
 import { Select, SelectItem } from '../ui/Select'
 import { Textarea } from '../ui/Textarea'
 import { DuplicatePicker } from './DuplicatePicker'
-import { UserPicker } from '../common'
+import { BacklogCategoryPicker, UserPicker } from '../common'
+import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 
 const OUTCOMES = [
   { value: 'accept', label: 'Accept', icon: 'check' },
@@ -45,6 +46,8 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
   const [priority, setPriority] = useState(null)
   const [assigneeId, setAssigneeId] = useState(null)
   const [releaseId, setReleaseId] = useState(NO_RELEASE)
+  const [category, setCategory] = useState(null)
+  const { categories } = useBacklogCategories(issue.project_id)
   const [comment, setComment] = useState('')
   const [reason, setReason] = useState(null)
   const [original, setOriginal] = useState(null)
@@ -55,6 +58,7 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
     setPriority(issue.priority ?? null)
     setAssigneeId(issue.assignee_id ?? null)
     setReleaseId(issue.release_id ? String(issue.release_id) : NO_RELEASE)
+    setCategory(issue.backlog_category_id ?? null)
     setComment('')
     setReason(null)
     setOriginal(null)
@@ -76,6 +80,9 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
         // Always sent: the picker is prefilled with the bug's release, so
         // "No release" is an explicit choice of the hotfix path.
         release_id: releaseId === NO_RELEASE ? null : Number(releaseId),
+        // Only when changed — otherwise the bug keeps its category (Default).
+        ...(category != null && category !== issue.backlog_category_id
+          ? { backlog_category_id: category } : {}),
       }
     }
     if (outcome === 'needs_info') return { outcome, comment: comment.trim() }
@@ -83,6 +90,7 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
     return { outcome, reason, comment: comment.trim() || null }
   }
 
+  const intoBacklog = releaseId === NO_RELEASE
   const canSubmit = {
     accept: !!priority,
     needs_info: comment.trim().length > 0,
@@ -97,7 +105,10 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
       const res = await issuesApi.triage(issue.id, payload())
       const key = issueKey(issue)
       const messages = {
-        accept: { title: `${key} accepted`, body: 'It moved to To do.' },
+        accept: {
+          title: `${key} accepted`,
+          body: intoBacklog ? 'It moved to To do, in the backlog.' : 'It moved to To do.',
+        },
         needs_info: { title: 'Question sent', body: 'The reporter was asked for more information.' },
         duplicate: { title: `${key} merged into ${issueKey(original)}` },
         reject: { title: `${key} rejected` },
@@ -192,11 +203,30 @@ export function TriageOutcomePanel({ issue, assignable, releases, acceptsRelease
                 <div>
                   <FieldLabel>Release</FieldLabel>
                   <Select value={releaseId} onChange={setReleaseId}>
-                    <SelectItem value={NO_RELEASE}>No release (hotfix)</SelectItem>
+                    <SelectItem value={NO_RELEASE}>No release — backlog or hotfix</SelectItem>
                     {releases.map(r => (
                       <SelectItem key={r.id} value={String(r.id)}>{r.version}</SelectItem>
                     ))}
                   </Select>
+                </div>
+              )}
+              {/* Only worth asking when the project has more than Default. */}
+              {categories.length > 1 && (
+                <div>
+                  <FieldLabel>
+                    <span id="triage-category-label">Backlog category</span>
+                  </FieldLabel>
+                  <BacklogCategoryPicker
+                    aria-labelledby="triage-category-label"
+                    categories={categories}
+                    value={category}
+                    onChange={setCategory}
+                  />
+                  {intoBacklog && (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      With no release, the bug goes to the project's backlog under this category.
+                    </p>
+                  )}
                 </div>
               )}
             </>

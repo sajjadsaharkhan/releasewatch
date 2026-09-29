@@ -68,6 +68,17 @@ async def seed(session: AsyncSession) -> None:
     await session.flush()
     print(f"  Created {len(projects)} projects")
 
+    # Every project already has its Default (ORM hook); add a few examples.
+    from app.db.models.backlog_category import BacklogCategory
+    for project in projects:
+        session.add_all([
+            BacklogCategory(project_id=project.id, name="Feature requests", icon="sparkles", color="emerald", position=1),
+            BacklogCategory(project_id=project.id, name="Improvements", icon="trending-up", color="cyan", position=2),
+            BacklogCategory(project_id=project.id, name="Ideas", icon="lightbulb", color="violet", position=3),
+        ])
+    await session.flush()
+    print("  Created backlog categories")
+
     print("Seeding releases...")
     releases = [
         Release(project_id=projects[0].id, version="v2.4.1", status=ReleaseStatus.active,   go_nogo_status=GoNogoStatus.pending,  created_by_id=creator.id),

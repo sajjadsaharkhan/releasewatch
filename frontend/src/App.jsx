@@ -26,6 +26,8 @@ const SearchPage = lazy(() => import('./pages/SearchPage'))
 const DeletedIssuesPage = lazy(() => import('./pages/DeletedIssuesPage'))
 const MyIssuesPage = lazy(() => import('./pages/MyIssuesPage'))
 const SupportReportsPage = lazy(() => import('./pages/SupportReportsPage'))
+const BacklogPage = lazy(() => import('./pages/BacklogPage'))
+const TechDebtPage = lazy(() => import('./pages/TechDebtPage'))
 
 // Lazy import issue detail page
 const IssuePage = lazy(() => import('./pages/IssuePage'))
@@ -183,6 +185,9 @@ function AppInner() {
             <Route path="triage" element={<TechRoute><TriagePage /></TechRoute>} />
             <Route path="my-issues" element={<TechRoute><MyIssuesPage /></TechRoute>} />
             <Route path="releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
+            <Route path="backlog" element={<TechRoute><BacklogPage /></TechRoute>} />
+            <Route path="projects/:slug/backlog" element={<TechRoute><BacklogPage /></TechRoute>} />
+            <Route path="tech-debt" element={<TechRoute><TechDebtPage /></TechRoute>} />
             <Route path="releases/:id" element={<TechRoute><ReleaseDetailPage /></TechRoute>} />
             <Route path="regressions" element={<AdminRoute><RegressionsPage /></AdminRoute>} />
             <Route path="contributions" element={<AdminRoute><ContributionsPage /></AdminRoute>} />

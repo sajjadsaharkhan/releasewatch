@@ -37,6 +37,16 @@ from app.services.support_service import support_service
 
 router = APIRouter()
 
+async def _backlog_category_count(db: AsyncSession, project_id: int) -> int:
+    from sqlalchemy import func
+
+    from app.db.models.backlog_category import BacklogCategory
+
+    return (await db.execute(
+        select(func.count(BacklogCategory.id)).where(BacklogCategory.project_id == project_id)
+    )).scalar_one()
+
+
 async def _project_to_response(db: AsyncSession, project: Project) -> ProjectResponse:
     """Build a ProjectResponse, resolving triage_lead_name and needs_triage_lead from the DB."""
     triage_lead_name: str | None = None
@@ -49,7 +59,7 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
     data = ProjectResponse.model_validate(project).model_dump(
         exclude={
             "triage_lead_name", "needs_triage_lead",
-            "support_template_count", "active_support_template_count",
+            "support_template_count", "active_support_template_count", "backlog_category_count",
         }
     )
     return ProjectResponse(
@@ -58,6 +68,7 @@ async def _project_to_response(db: AsyncSession, project: Project) -> ProjectRes
         needs_triage_lead=await project_needs_triage_lead(db, project),
         support_template_count=total,
         active_support_template_count=active,
+        backlog_category_count=await _backlog_category_count(db, project.id),
     )
 
 

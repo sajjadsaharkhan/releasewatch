@@ -12,7 +12,7 @@ import logoUrl from '../../assets/logo.svg'
 const ADMIN_ROLES = ['admin', 'cto']
 
 export function Sidebar() {
-  const { activeProjectId, switchProject, inboxUnreadCount, user } = useApp()
+  const { activeProjectId, projects, switchProject, inboxUnreadCount, user } = useApp()
   const [issuesOpen, setIssuesOpen] = useState(true)
   const [reportsOpen, setReportsOpen] = useState(true)
 
@@ -20,6 +20,9 @@ export function Sidebar() {
   // Support gets a minimal nav — no tech screens at all (§7.3): its inbox and its
   // Support reports list, where New report lives (slice 05).
   const support = isSupport(user?.role)
+  // The backlog is per project (slice 08) — link to the active project's.
+  const activeProject = projects?.find((p) => p.id === activeProjectId)
+  const backlogPath = activeProject ? `/projects/${activeProject.slug}/backlog` : '/backlog'
 
   return (
     <aside className="hidden lg:flex h-full w-56 shrink-0 flex-col border-r border-border bg-card">
@@ -57,14 +60,16 @@ export function Sidebar() {
               <div className="mt-0.5 space-y-0.5">
                 <NavItem to="/issues" icon="list" label="All Issues" />
                 <NavItem to="/triage" icon="filter" label="Triage" />
+                <NavItem to={backlogPath} icon="list-ordered" label="Backlog" />
                 <NavItem to="/my-issues" icon="circle-user-round" label="My Issues" />
               </div>
             )}
           </div>
 
           {/* Releases */}
-          <div className="pt-1">
+          <div className="pt-1 space-y-0.5">
             <NavItem to="/releases" icon="tag" label="Releases" />
+            <NavItem to="/tech-debt" icon="construction" label="Technical debt" />
           </div>
 
           {/* Reports section — admin/cto only */}

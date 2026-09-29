@@ -7,13 +7,15 @@ import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { Switch } from '../ui/Switch'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
+import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { PRIORITIES, STATUS, isBug, itemNoun } from '../../lib/constants'
+import { PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime } from '../../lib/relTime'
 
 // Status movement is unrestricted — any status can move to any other status,
@@ -45,6 +47,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const allowedTransitions = issue.allowed_transitions || []
   const bug = isBug(issue)
   const noun = itemNoun(issue)
+  const { categories } = useBacklogCategories(issue.project_id)
 
   // Use current-cycle metrics so regression re-runs are measured from the
   // regression event, not the original filed_at.
@@ -206,10 +209,83 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
               {availableReleases.length === 0 && (
                 <DropdownItem>No releases found</DropdownItem>
               )}
+              {issue.release_id && (
+                <DropdownItem onClick={() => {
+                  close()
+                  onConfirm({
+                    title: 'Remove from release?',
+                    body: <span>Take this {noun} out of <strong className="font-mono">{issue.release_version}</strong>? If it's still open it goes back to the backlog, keeping its category and rank.</span>,
+                    confirmLabel: 'Remove from release',
+                    onConfirm: () => applyUpdate({ release_id: null }, 'Removed from release'),
+                  })
+                }}>
+                  <Icon name="undo-2" size={14} className="text-zinc-400" />
+                  <span className="text-sm">Remove from release</span>
+                </DropdownItem>
+              )}
             </>
           )}
         </Dropdown>
       </MetaRow>
+
+      {/* Backlog placement (slice 08): category, and the tech-debt flag on tasks. */}
+      <MetaRow label="Category">
+        <Editable
+          issue={issue}
+          action="edit_item"
+          readOnly={<BacklogCategoryBadge category={issue.backlog_category} />}
+        >
+          <Dropdown
+            width={210}
+            trigger={
+              <button className="w-full text-left" aria-label="Change backlog category">
+                <BacklogCategoryBadge category={issue.backlog_category} />
+              </button>
+            }
+          >
+            {({ close }) => (
+              <>
+                <DropdownLabel>Backlog category</DropdownLabel>
+                {categories.map((c) => (
+                  <DropdownItem key={c.id} onClick={() => {
+                    close()
+                    if (c.id !== issue.backlog_category_id) {
+                      applyUpdate({ backlog_category_id: c.id }, `Category set to ${c.name}`)
+                    }
+                  }}>
+                    <BacklogCategoryBadge category={c} />
+                    {c.id === issue.backlog_category_id && <span className="ml-auto text-xs text-zinc-400">Current</span>}
+                  </DropdownItem>
+                ))}
+              </>
+            )}
+          </Dropdown>
+        </Editable>
+      </MetaRow>
+
+      {!bug && actionState(issue, 'flag_tech_debt').state !== 'hidden' && (
+        <MetaRow label="Tech debt">
+          <Editable
+            issue={issue}
+            action="flag_tech_debt"
+            readOnly={<Switch checked={!!issue.is_tech_debt} disabled onCheckedChange={() => {}} />}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Switch
+                checked={!!issue.is_tech_debt}
+                aria-label={TECH_DEBT.label}
+                onCheckedChange={(v) => applyUpdate(
+                  { is_tech_debt: v },
+                  v ? 'Flagged as technical debt' : 'Technical debt flag cleared',
+                )}
+              />
+              {issue.is_tech_debt && (
+                <span className="text-[11.5px] text-muted-foreground">Hidden from the backlog</span>
+              )}
+            </span>
+          </Editable>
+        </MetaRow>
+      )}
 
       <MetaRow label="Project">
         <Dropdown

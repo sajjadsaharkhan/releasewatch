@@ -16,6 +16,7 @@ from app.db.models.issue import (
 )
 from app.db.models.user import UserRole
 from app.schemas.attachment import PendingAttachment
+from app.schemas.backlog_category import BacklogCategoryOut
 
 
 class UserSummary(BaseModel):
@@ -83,6 +84,10 @@ class IssueCreate(IssueBase):
     assignee_id: int | None = None
     reproduction_steps: list[ReproductionStep] = Field(default_factory=list)
     pending_attachments: list[PendingAttachment] = Field(default_factory=list)
+    #: One of the project's backlog categories; omitted → the project's Default.
+    backlog_category_id: int | None = None
+    #: Tasks only — a bug is refused with 409 ``tech_debt_task_only`` (BR-36).
+    is_tech_debt: bool = False
 
     @model_validator(mode="after")
     def _type_specific_fields(self) -> "IssueCreate":
@@ -137,6 +142,9 @@ class IssueUpdate(BaseModel):
         None, description="Required when status is set to cancelled."
     )
     due_date: date | None = None
+    #: One of the item's project's categories. Never null — clearing isn't a thing.
+    backlog_category_id: int | None = None
+    is_tech_debt: bool | None = None
     type: Any | None = Field(
         None, description="Rejected — type is immutable once created (BR-07, 409 type_immutable)."
     )
@@ -178,6 +186,8 @@ class AcceptOutcome(BaseModel):
     priority: Priority = Field(description="Required to accept a bug (BR-16, AC-16).")
     assignee_id: int | None = None
     release_id: int | None = None
+    #: Optional — the bug keeps its category (Default unless someone set one).
+    backlog_category_id: int | None = None
 
 
 class NeedsInfoOutcome(BaseModel):
@@ -272,6 +282,10 @@ class IssueResponse(IssueBase):
     regression_count: int
     environment_name: str | None = None
     parent_issue_id: int | None = None
+    backlog_category_id: int
+    backlog_category: BacklogCategoryOut | None = None
+    backlog_rank: float | None = None
+    is_tech_debt: bool = False
     cancel_reason: IssueCancelReason | None = None
     blocked_from_status: str | None = None
     review_requested_by_id: int | None = None
@@ -311,6 +325,18 @@ class IssueListResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class BulkMoveRequest(BaseModel):
+    """Payload for POST /issues/bulk-move (FR-25) — all or nothing."""
+
+    issue_ids: list[int] = Field(min_length=1, max_length=500)
+    release_id: int
+
+
+class BulkMoveResponse(BaseModel):
+    moved_ids: list[int]
+    items: list[IssueResponse]
 
 
 class IssueCycleResponse(BaseModel):

@@ -45,6 +45,8 @@ from app.schemas.issue import (
 )
 from app.services.inbox_service import InboxFanOutService
 from app.services.issue_service import ensure_assignable, issue_service
+from app.db.models.backlog_category import BacklogCategory
+from app.services.backlog_category_service import backlog_category_service, snapshot
 from app.services.merge_service import lock_original, merge_service
 from app.services.subscriber_service import subscribe
 from app.services.timeline_service import TimelineService
@@ -106,6 +108,13 @@ class TriageService:
         timeline = TimelineService()
         now = datetime.now(tz=UTC)
 
+        # An optional category — checked before anything is written.
+        category = None
+        if outcome.backlog_category_id is not None:
+            category = await backlog_category_service.resolve(
+                db, issue.project_id, outcome.backlog_category_id,
+            )
+
         await ensure_assignable(db, outcome.assignee_id)
         if "release_id" in outcome.model_fields_set and outcome.release_id != issue.release_id:
             await self._set_release(db, issue, outcome.release_id, actor)
@@ -133,6 +142,17 @@ class TriageService:
             )
             issue.assignee_id = outcome.assignee_id
 
+        if category is not None and category.id != issue.backlog_category_id:
+            previous = await db.get(BacklogCategory, issue.backlog_category_id)
+            await timeline.create_event(
+                db=db, issue_id=issue.id, actor_id=actor.id,
+                event_type=TimelineEventType.backlog_category_changed, body=None,
+                meta={
+                    "from": snapshot(previous) if previous else None, "to": snapshot(category),
+                },
+            )
+            issue.backlog_category_id = category.id
+
         issue.triaged_at = now
         if issue.filed_at:
             issue.time_to_triage_h = round((now - issue.filed_at).total_seconds() / 3600, 2)
@@ -146,6 +166,7 @@ class TriageService:
                 "priority": outcome.priority.value,
                 "assignee_id": issue.assignee_id,
                 "release_id": issue.release_id,
+                **({"backlog_category_id": category.id} if category is not None else {}),
             },
         )
         db.add(issue)
@@ -359,7 +380,11 @@ class TriageService:
             )
 
         source = await db.get(Project, issue.project_id)
+        # The item lands in the target project's Default (2026-09-28); set both
+        # together — the composite FK checks them as a pair.
+        default = await backlog_category_service.default_for(db, target.id)
         issue.project_id = target.id
+        issue.backlog_category_id = default.id
         db.add(issue)
         await db.flush()
         await TimelineService().create_event(

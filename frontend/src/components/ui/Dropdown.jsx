@@ -12,7 +12,9 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
 
   const close = useCallback(() => setOpen(false), [])
 
-  // Place the fixed menu under the trigger, clamped to the viewport's sides.
+  // Place the fixed menu under the trigger — or above it when it wouldn't fit
+  // below (like Select), e.g. from a bar pinned to the bottom of the screen.
+  // Clamped to the viewport's sides.
   const place = useCallback(() => {
     if (!triggerRef.current) return false
     const rect = triggerRef.current.getBoundingClientRect()
@@ -21,7 +23,10 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
     const padding = 12
     let left = align === 'right' ? rect.right - dropdownWidth : rect.left
     left = Math.max(padding, Math.min(left, window.innerWidth - dropdownWidth - padding))
-    setPosition({ top: rect.bottom + 4, left })
+    const menuHeight = dropdownRef.current?.offsetHeight ?? 240
+    const spaceBelow = window.innerHeight - rect.bottom
+    const flip = spaceBelow < menuHeight + 8 && rect.top > spaceBelow
+    setPosition(flip ? { bottom: window.innerHeight - rect.top + 4, left } : { top: rect.bottom + 4, left })
     return true
   }, [align, width])
 
@@ -67,8 +72,12 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
     <DropdownContext.Provider value={close}>
       <div
         ref={dropdownRef}
-        className={cn('fixed z-[100] mt-1 rounded-lg border border-border bg-card shadow-lg', 'py-1 text-sm', className)}
-        style={{ top: position.top, left: position.left, width: width || undefined }}
+        className={cn(
+          'fixed z-[100] rounded-lg border border-border bg-card shadow-lg py-1 text-sm',
+          position.bottom == null && 'mt-1',
+          className,
+        )}
+        style={{ top: position.top, bottom: position.bottom, left: position.left, width: width || undefined }}
         onClick={(e) => e.stopPropagation()}
       >
         {typeof children === 'function' ? children({ close }) : children}

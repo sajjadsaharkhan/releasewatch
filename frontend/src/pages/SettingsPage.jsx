@@ -16,6 +16,7 @@ import { ROLE } from '../lib/constants'
 import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, InviteUserModal, EditUserModal, DeactivateUserModal, ActivateUserModal } from '../components/team'
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
 import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
+import { BacklogCategoriesTab } from '../components/backlog/BacklogCategoriesTab'
 import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
 import { GatedButton } from '../components/common'
 import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
@@ -25,6 +26,7 @@ const TAB_OPTIONS = [
   { value: 'team', label: 'Team' },
   { value: 'projects', label: 'Projects' },
   { value: 'support', label: 'Support intake' },
+  { value: 'backlog', label: 'Backlog categories' },
   { value: 'labels', label: 'Labels' },
   { value: 'integrations', label: 'Integrations' },
   { value: 'configuration', label: 'Configuration' },
@@ -596,7 +598,7 @@ export default function SettingsPage() {
   const selectedTimezone = TIMEZONES.find(tz => tz.value === general.timezone) || TIMEZONES[0]
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-5">
+    <div className="p-6 max-w-5xl mx-auto space-y-5">
       <h1 className="text-xl font-bold">Settings</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} />
@@ -857,6 +859,7 @@ export default function SettingsPage() {
 
       {/* Support intake (slice 05) */}
       {activeTab === 'support' && <SupportIntakeTab />}
+      {activeTab === 'backlog' && <BacklogCategoriesTab />}
 
       {/* Labels */}
       {activeTab === 'labels' && (

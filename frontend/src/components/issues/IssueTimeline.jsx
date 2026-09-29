@@ -11,7 +11,8 @@ import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
 import { ReactionBar } from './ReactionBar'
-import { isBug, itemNoun } from '../../lib/constants'
+import { TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { IssueHoverCard } from '../common/IssueHoverCard'
 
 const EVENT_STYLES = {
@@ -37,6 +38,24 @@ const EVENT_STYLES = {
   environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
   needs_clarification: { dot: 'bg-orange-500', label: 'requested clarification from reporter' },
   triaged:             { dot: 'bg-indigo-500', label: (e) => TRIAGE_LABELS[e.meta?.outcome]?.(e.meta) ?? 'triaged this bug' },
+  // Slice 08 — backlog category and the technical-debt flag.
+  backlog_category_changed: {
+    dot: 'bg-zinc-400',
+    label: (e) => (e.meta?.to
+      ? `set category to ${categorySnapshot(e.meta.to)?.name ?? ''}`
+      : 'cleared category'),
+  },
+  tech_debt_flagged:   { dot: 'bg-stone-500',  label: 'flagged as technical debt' },
+  tech_debt_cleared:   { dot: 'bg-stone-400',  label: 'cleared the technical debt flag' },
+}
+
+// A category as a timeline entry recorded it: `{id, name, icon, color}` since
+// 2026-09-28 (kept as it was, so a rename or delete doesn't rewrite history);
+// earlier dev entries stored a bare key string.
+function categorySnapshot(value) {
+  if (!value) return null
+  if (typeof value === 'object') return value
+  return { name: value.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), icon: 'tag', color: 'zinc' }
 }
 
 const REJECT_REASON_LABELS = {
@@ -76,6 +95,9 @@ const EVENT_ICONS = {
   comment:             'message-square',
   needs_clarification: 'help-circle',
   triaged:             'inbox',
+  backlog_category_changed: 'list-ordered',
+  tech_debt_flagged:   'construction',
+  tech_debt_cleared:   'construction',
 }
 
 function EventDot({ type }) {
@@ -195,6 +217,47 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
         : <>{' removed label '}{chip}</>
     }
 
+    // Backlog category (slice 08) — the category badge, like status and priority.
+    if (event.type === 'backlog_category_changed' && (from || to)) {
+      const badge = (c) => <BacklogCategoryBadge category={categorySnapshot(c)} className="align-middle" />
+      if (from && to) {
+        return (
+          <>
+            {event.meta?.reason === 'category_deleted' ? 'moved category ' : 'changed category '}
+            {badge(from)}
+            <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+            {badge(to)}
+            {event.meta?.reason === 'category_deleted' && (
+              <span className="text-zinc-500"> — {categorySnapshot(from)?.name} was deleted</span>
+            )}
+          </>
+        )
+      }
+      return to
+        ? <>set category to {badge(to)}</>
+        : <>cleared category {badge(from)}</>
+    }
+
+    // The technical-debt flag (slice 08) — its marker chip, like the release blocker.
+    if (event.type === 'tech_debt_flagged' || event.type === 'tech_debt_cleared') {
+      const cleared = event.type === 'tech_debt_cleared'
+      return (
+        <>
+          {cleared ? 'cleared the ' : 'flagged as '}
+          <span
+            className={cn(
+              'inline-flex h-5 items-center gap-1 rounded-full px-2 align-middle text-[11px] font-medium',
+              TECH_DEBT.chip,
+              cleared && 'opacity-60 line-through decoration-stone-400',
+            )}
+          >
+            <Icon name={TECH_DEBT.icon} size={10} strokeWidth={2.5} className={TECH_DEBT.iconClass} />
+            {TECH_DEBT.label}
+          </span>
+        </>
+      )
+    }
+
     if (event.type === 'blocker_flagged') {
       return (
         <>
@@ -276,7 +339,12 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       const fromVersion = event.meta?.from_version
       return (
         <>
-          {fromVersion ? (
+          {!toVersion && fromVersion ? (
+            <>
+              removed this from release{' '}
+              <Badge tone="blue" className="align-middle font-mono">{fromVersion}</Badge>
+            </>
+          ) : fromVersion ? (
             <>
               moved release{' '}
               <Badge tone="blue" className="align-middle font-mono">{fromVersion}</Badge>

@@ -82,6 +82,23 @@ class Factories:
         resp.raise_for_status()
         return SimpleNamespace(**resp.json())
 
+    async def backlog_category(
+        self, *, project_id: int, name: str | None = None,
+        icon: str = "sparkles", color: str = "emerald",
+    ) -> SimpleNamespace:
+        """Add a backlog category to a project (every project already has Default)."""
+        payload = {"name": name or f"Category {secrets.token_hex(3)}", "icon": icon, "color": color}
+        resp = await self.admin_client.post(
+            f"/projects/{project_id}/backlog-categories", json=payload,
+        )
+        resp.raise_for_status()
+        return SimpleNamespace(**resp.json())
+
+    async def default_category(self, *, project_id: int) -> SimpleNamespace:
+        resp = await self.admin_client.get(f"/projects/{project_id}/backlog-categories")
+        resp.raise_for_status()
+        return SimpleNamespace(**resp.json()["categories"][0])
+
     async def support_template(
         self,
         *,

@@ -31,7 +31,7 @@ from app.db.session import get_db
 
 def get_password_hash(password: str) -> str:
     """Return a bcrypt hash of the plain-text password."""
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(settings.BCRYPT_ROUNDS)
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 

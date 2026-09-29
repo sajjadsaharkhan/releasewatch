@@ -18,6 +18,11 @@ from app.db.models.issue_embedding import IssueEmbedding
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.issue_subscriber import IssueSubscriber
 from app.db.models.issue_recurrence import IssueRecurrence
+from app.db.models.backlog_category import BacklogCategory, register_default_category_hook
+
+# Every project gets its fixed Default backlog category on insert, and every
+# issue inserted without a category gets that Default — whatever creates them.
+register_default_category_hook(Project, Issue)
 
 __all__ = [
     "User",
@@ -39,4 +44,5 @@ __all__ = [
     "SupportTemplateField",
     "IssueSubscriber",
     "IssueRecurrence",
+    "BacklogCategory",
 ]
