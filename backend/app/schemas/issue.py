@@ -251,6 +251,13 @@ class FixRequest(BaseModel):
     note: str | None = None
 
 
+class ReturnRequest(BaseModel):
+    """Payload for POST /issues/{id}/returns (08a). The reason is decided by the
+    server; the comment says what's wrong (422 ``reason_required`` when blank)."""
+
+    comment: str | None = None
+
+
 class VerifyRequest(BaseModel):
     """Payload for POST /issues/{id}/verify."""
 
@@ -285,6 +292,8 @@ class IssueResponse(IssueBase):
     cycle_count: int = 0
     #: Set while the current cycle is a return nobody has sent to review yet (CY-11).
     returned: "ReturnedMarker | None" = None
+    #: On a Done item: what sending it back would be — ``release_qa`` or ``production`` (08a).
+    return_reason: str | None = None
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int

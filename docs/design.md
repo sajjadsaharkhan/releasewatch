@@ -207,6 +207,40 @@ reads "moved category [old] → [Default] — old was deleted";
 and the flag reads "flagged as [Technical debt chip]" / "cleared the [chip]" — the cleared chip
 dimmed and struck through, the way the release-blocker entries pair a phrase with their badge.
 
+### Cycles and the returned marker — `CYCLE_REASON` in `lib/constants.js` (08a)
+
+A **cycle** is one pass of work on an item; every return starts the next one with a reason. There is
+no Returned status and no extra board column — work that came back is marked on its row or card.
+
+| Reason | Label (sentence / marker) | Icon | Hue |
+|---|---|---|---|
+| `planned` | Planned | `play` | zinc |
+| `review` | Rejected in review / Rejected | `undo-2` | amber |
+| `release_qa` | Returned from release QA / Release QA | `rotate-ccw` | orange |
+| `production` | Problem on production / Production | `flame` | red |
+
+Amber → orange → red climbs with how far the problem got (item QA, release QA, production). Red is
+shared with the release-blocker marker on purpose: both mean "this hurts users now".
+
+`<ReturnedMarker item compact?>` (`components/common`) renders only while `item.returned` is set —
+the current cycle is a return nobody has sent to In review yet (CY-11). A rounded pill in the
+reason's hue: icon + "Rejected · returned 2" on `IssueTable` rows (after the title, next to
+`TechDebtMarker`), icon + number on board cards (`compact`). It's focusable; hover or focus opens a
+popover card after 250 ms with the full label and the reason comment, fetched once on demand
+(`GET /issues/{id}/timeline/{comment_id}`, react-query). Screen readers get the full label.
+
+The item page's **Cycles** tab (`CycleHistorySection`, bugs and tasks) lists every cycle oldest
+first on a rail — a reason dot, "Cycle N", the reason pill, the container (Stream `waves` or release
+`package` + version), the reason comment as a quote, and relative stamps: Started (and by whom, for
+returns), Picked up, In review (delivered by — the assignee at that moment), Verified, Closed. Empty
+state: "No cycles yet" — backlog items have none.
+
+Sending work back always takes a comment (`SendBackDialog`): **Reject** replaces "Send back to In
+progress" on In review items; **Return from release QA** or **Problem on production** (named by the
+item's `return_reason`, decided by the server) on Done items, driven by `return_item` in
+`allowed_actions` — Support never sees it. The confirm button is destructive and disabled until the
+comment has text.
+
 ### Role — `ROLE` in `lib/constants.js`
 
 `support` teal · `qa` blue · `developer` violet · `pm` amber · `cto` rose · `admin` zinc.
@@ -520,7 +554,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Checkbox` (`components/ui`) | `checked`, `indeterminate` ("mixed"), `onCheckedChange(next, event)` — the event carries `shiftKey` for ranges; clicks don't bubble, so it sits inside clickable rows |
 | `TechDebtMarker` / `BacklogCategoryBadge` / `BacklogCategoryPicker` (`components/common`) | See §3 Backlog category and technical debt. The picker is a `radiogroup` of chips (arrow keys move), `required` stops a second click from clearing it |
 | `ContainerPicker` (`components/common`) | Where an item lives (08a): Backlog (`inbox`), Stream (`waves`, "ships when Done"), then the project's open releases (`package`, lifecycle status as a muted hint). `projectId`, `value` (container id or null = backlog), `onChange`, `allowBacklog` (false in the bulk bar). Data from `useContainers(projectId)` (react-query, shared). A released or cancelled current container is still listed so the trigger can name it. On a Done item the sidebar shows the container as text instead — Done items never move |
-| `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the red regression marker and the priority pills |
+| `ReturnedMarker` / `SendBackDialog` / `CycleHistorySection` | See §3 Cycles and the returned marker |
+| `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the returned marker's amber→red scale and the priority pills |
 | `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
 should use the primitive rather than re-declaring the classes.

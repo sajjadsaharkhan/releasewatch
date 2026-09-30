@@ -144,11 +144,13 @@ async def test_flag_release_blocker(world, role):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ROLES + ["triage_lead"])
-async def test_regression_action(world, role):
+async def test_return_done_item(world, role):
+    """08a: sending Done work back is every tech role's, never Support's."""
+    await world.admin.post(f"/issues/{world.bug.id}/transition", json={"to": "done"})
     user = world.lead if role == "triage_lead" else world.users[role]
     c = await world.client(user)
-    resp = await c.post(f"/issues/{world.bug.id}/regression")
-    allowed = {"qa", "pm", "admin", "triage_lead"}
+    resp = await c.post(f"/issues/{world.bug.id}/returns", json={"comment": "Broken again"})
+    allowed = TECH | {"triage_lead"}
     assert resp.status_code == _expect(role, allowed, 200), resp.text
 
 

@@ -406,12 +406,10 @@ async def test_ac_21_duplicate_of_duplicate_blocked_with_suggestion(factories, r
 async def test_duplicate_refusals(factories, rig):
     bug = await factories.issue(project_id=rig["project"].id)
     elsewhere = await factories.issue(project_id=(await factories.project()).id)
-    task = await factories.issue(project_id=rig["project"].id, type="task")
 
     cases = [
         (bug.id, "duplicate_of_self"),
         (elsewhere.id, "duplicate_cross_project"),
-        (task.id, "duplicate_not_bug"),
     ]
     for target, code in cases:
         resp = await triage(rig["lead_client"], bug.id, outcome="duplicate", duplicate_of_id=target)
@@ -450,72 +448,90 @@ async def test_ac_49_merge_into_open_copies_content_keeps_status(factories, rig)
 
 
 @pytest.mark.asyncio
-async def test_ac_50_merge_into_done_backlog_item_starts_no_cycle(factories, rig, client_for):
-    # A release with real regression data, so the reports have numbers to keep.
-    release = await factories.release(project_id=rig["project"].id)
-    in_release = await factories.issue(
-        project_id=rig["project"].id, release_id=release.id, labels=[],
-    )
-    await triage(rig["lead_client"], in_release.id, outcome="accept", priority="high")
-    await to_status(rig["admin"], in_release.id, "done")
-    assert (await rig["admin"].post(f"/issues/{in_release.id}/regression")).status_code == 200
-
+async def test_ac_50_merge_into_done_stream_item_is_production_return(factories, rig, client_for):
+    stream_id = await factories.stream_id(project_id=rig["project"].id)
     b = await factories.issue(project_id=rig["project"].id)
-    await triage(rig["lead_client"], b.id, outcome="accept", priority="high", assignee_id=rig["developer"].id)
+    await triage(
+        rig["lead_client"], b.id, outcome="accept", priority="high",
+        assignee_id=rig["developer"].id, release_id=stream_id,
+    )
     await to_status(rig["admin"], b.id, "done")
-
-    async def reports():
-        return (
-            (await rig["admin"].get(f"/reports/releases/{release.id}")).json(),
-            (await rig["admin"].get("/reports/regressions", params={"project_id": rig["project"].id})).json(),
-        )
-
-    before = await reports()
 
     a = await factories.issue(project_id=rig["project"].id)
     resp = await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)
     assert resp.status_code == 200, resp.text
 
     after_b = await get(rig["admin"], b.id)
-    assert after_b["status"] == "in_progress"
+    assert after_b["status"] == "todo"
+    assert after_b["release_id"] == stream_id
     assert after_b["recurrence_count"] == 2
-    # No container, so no cycle to return from (cycle-model §2).
-    assert after_b["cycle_count"] == 0
-    assert await factories.cycles(b.id) == []
+    assert after_b["returned"]["reason"] == "production"
+    cycles = await factories.cycles(b.id)
+    assert [c["start_reason"] for c in cycles] == ["planned", "production"]
+    assert cycles[1]["start_merged_issue_id"] == a.id
+    # The merge comment is the reason the work came back.
+    merged = [
+        e for e in await timeline(rig["admin"], b.id)
+        if e["event_type"] == "comment" and (e["meta"] or {}).get("merged_from_id") == a.id
+    ]
+    assert cycles[1]["start_comment_id"] == merged[0]["id"]
 
-    # The assignee gets the Phase 1 regression notification.
-    assert "regression" in await inbox_types(rig["dev_client"])
-
-    # Release reports and fragility analysis are unchanged (BR-25).
-    assert await reports() == before
+    # The assignee hears it came back — not the Phase 1 regression notice.
+    types = await inbox_types(rig["dev_client"])
+    assert "item_returned" in types and "regression" not in types
 
 
 @pytest.mark.asyncio
-async def test_ac_51_merge_into_done_in_unshipped_release_is_release_qa(factories, rig):
+async def test_ac_51_merge_into_done_in_release_in_qa_is_release_qa(factories, rig):
     release = await factories.release(project_id=rig["project"].id)
+    await factories.set_release_status(release.id, "qa")
     b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
     await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
     await to_status(rig["admin"], b.id, "done")
 
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
+    after = await get(rig["admin"], b.id)
+    assert after["status"] == "todo" and after["release_id"] == release.id
     cycles = await factories.cycles(b.id)
     assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
         ("planned", release.id), ("release_qa", release.id),
     ]
     assert cycles[1]["start_merged_issue_id"] == a.id
-    assert (await get(rig["admin"], b.id))["status"] == "in_progress"
 
 
 @pytest.mark.asyncio
-async def test_ac_52_merge_into_in_review_keeps_status(factories, rig):
-    b = await factories.issue(project_id=rig["project"].id)
+async def test_merge_into_done_item_of_released_release_moves_to_stream(factories, rig):
+    stream_id = await factories.stream_id(project_id=rig["project"].id)
+    release = await factories.release(project_id=rig["project"].id)
+    b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
     await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
-    await to_status(rig["admin"], b.id, "in_review")
+    await to_status(rig["admin"], b.id, "done")
+    await factories.set_release_status(release.id, "released")
+
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == "in_review" and after["returned"] is None
+    assert after["status"] == "todo" and after["release_id"] == stream_id
+    cycles = await factories.cycles(b.id)
+    assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
+        ("planned", release.id), ("production", stream_id),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["todo", "in_progress", "in_review", "blocked"])
+async def test_ac_52_merge_into_open_item_starts_no_cycle(factories, rig, status):
+    release = await factories.release(project_id=rig["project"].id)
+    b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
+    await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
+    if status != "todo":
+        await to_status(rig["admin"], b.id, status)
+    a = await factories.issue(project_id=rig["project"].id)
+    assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
+    after = await get(rig["admin"], b.id)
+    assert after["status"] == status and after["returned"] is None
+    assert after["cycle_count"] == 1
     assert after["recurrence_count"] == 2
 
 
@@ -536,21 +552,43 @@ async def test_ac_53_merge_into_cancelled_stays_cancelled_notifies_lead(factorie
 
 
 @pytest.mark.asyncio
-async def test_ac_54_merged_support_reporter_gets_done_after_regression_cycle(factories, rig, telegram):
+async def test_ac_54_merged_support_reporter_gets_done_after_return(factories, rig, telegram):
+    stream_id = await factories.stream_id(project_id=rig["project"].id)
     b = await factories.issue(project_id=rig["project"].id)
-    await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
+    await triage(rig["lead_client"], b.id, outcome="accept", priority="high", release_id=stream_id)
     await to_status(rig["admin"], b.id, "done")
 
     a = await support_report(factories, rig)
     await telegram.link_telegram(rig["support"])
     await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)
-    # The merge regression itself sends Support nothing (§13) — only A's cancellation.
+    # The return itself sends Support nothing (§13) — only A's cancellation.
     assert await inbox_types(rig["support_client"]) == ["support_cancelled"]
+    assert (await get(rig["admin"], b.id))["status"] == "todo"
 
     await to_status(rig["admin"], b.id, "in_review")
     await to_status(rig["admin"], b.id, "done")
     assert await inbox_types(rig["support_client"]) == ["support_done", "support_cancelled"]
     assert [t for t, _ in telegram.sent_to(rig["support"])] == ["support_merged", "support_done"]
+
+
+@pytest.mark.asyncio
+async def test_ac_77_merge_into_done_task_in_stream(factories, rig, client_for):
+    stream_id = await factories.stream_id(project_id=rig["project"].id)
+    task = await factories.issue(project_id=rig["project"].id, type="task", release_id=stream_id)
+    await to_status(rig["admin"], task.id, "done")
+
+    a = await support_report(factories, rig)
+    resp = await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=task.id)
+    assert resp.status_code == 200, resp.text
+
+    after = await get(rig["admin"], task.id)
+    assert after["status"] == "todo" and after["release_id"] == stream_id
+    assert after["returned"]["reason"] == "production"
+    # A task has no recurrence count (BR-22 is bug-only).
+    assert after["recurrence_count"] == 1
+    # A's reporter is subscribed to T — Support can now see it.
+    support_view = await rig["support_client"].get(f"/issues/{task.id}")
+    assert support_view.status_code == 200
 
 
 @pytest.mark.asyncio

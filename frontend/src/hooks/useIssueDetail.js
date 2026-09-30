@@ -206,24 +206,15 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
-  // Flags a regression on a Done or In review bug (BR-24) — a dedicated
-  // action endpoint, not a generic status PATCH (it also records regression
-  // history). 409s (no_release / release_shipped) surface via toast.
-  const regress = async () => {
+  // After a Reject or a return (08a): the item is back in To do with a new
+  // cycle and a reason comment on the timeline.
+  const sentBack = async (updatedIssue) => {
     const id = issueIdRef.current
-    try {
-      const res = await issuesApi.regress(id)
-      const updatedIssue = res.data
-      setLocalIssue(prev => ({
-        ...updatedIssue,
-        attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
-      }))
-      onUpdate?.(updatedIssue)
-      toast({ title: 'Regression recorded' })
-    } catch (err) {
-      toast({ title: err.response?.data?.detail || 'Could not record a regression' })
-      return
-    }
+    setLocalIssue(prev => ({
+      ...updatedIssue,
+      attachments: updatedIssue.attachments ?? prev?.attachments ?? [],
+    }))
+    onUpdate?.(updatedIssue)
     await fetchTimeline(id)
     await fetchCycles(id)
   }
@@ -402,7 +393,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     cycles,
     currentCycle,
     applyUpdate,
-    regress,
+    sentBack,
     recurrenceReported,
     addComment,
     updateComment,

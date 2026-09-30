@@ -5,7 +5,7 @@ Workflow gating): a bug can move from any status to any other status via
 POST /issues/{id}/transition (and PATCH), with no reason required, no
 self-verification block, and no release gate on the regression action. See
 ``app/workflow.py``. The dedicated action endpoints (/triage, /fix,
-/verify, /reopen) keep their own specific
+/verify, /reopen → /returns) keep their own specific
 preconditions — those aren't part of Workflow and weren't loosened.
 """
 
@@ -151,48 +151,29 @@ async def test_reviewer_can_verify_own_fix(factories, client_for, rig):
     assert resp.json()["status"] == "done"
 
 
-# ── BR-24 (regression release gate) is no longer enforced ───────────────────
+# ── 08a: the regression action is gone; returns replace it ─────────────────
 
 
 @pytest.mark.asyncio
-async def test_regression_action_works_without_a_release(factories, client_for, rig):
-    """The regression action is callable from any status, release or not."""
+async def test_regression_endpoint_is_removed(factories, client_for, rig):
     issue = await _in_progress_bug(factories, client_for, rig["release"].id, rig["developer"])
-    admin = factories.admin_client
-
-    resp = await admin.post(f"/issues/{issue.id}/regression")
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "in_progress"
-
-    history = await admin.get(f"/issues/{issue.id}/cycles")
-    assert history.status_code == 200
+    resp = await factories.admin_client.post(f"/issues/{issue.id}/regression")
+    assert resp.status_code in (404, 405)
 
 
 @pytest.mark.asyncio
-async def test_regression_action_on_shipped_release_still_succeeds(factories, client_for, rig):
+async def test_reopen_maps_to_returns_and_still_requires_done(factories, client_for, rig):
     admin = factories.admin_client
-    issue = await _done_bug(factories, client_for, rig["release"].id, rig["developer"], admin)
-    await admin.patch(f"/releases/{rig['release'].id}", json={"status": "released"})
-
-    resp = await admin.post(f"/issues/{issue.id}/regression")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "in_progress"
-    # A shipped release's Done item comes back from production, not release QA.
-    reasons = [c["start_reason"] for c in await factories.cycles(issue.id)]
-    assert reasons == ["planned", "production"]
-
-
-# ── reopen keeps its own precondition (unaffected by Workflow) ──────────────
-
-
-@pytest.mark.asyncio
-async def test_reopen_still_requires_done(factories, client_for, rig):
     issue = await _in_progress_bug(factories, client_for, rig["release"].id, rig["developer"])
-    admin = factories.admin_client
-    resp = await admin.post(f"/issues/{issue.id}/reopen")
+    resp = await admin.post(f"/issues/{issue.id}/reopen", json={"comment": "Back"})
     assert resp.status_code == 409
-    assert resp.json()["code"] == "done_is_final"
+    assert resp.json()["code"] == "not_done"
+
+    done = await _done_bug(factories, client_for, rig["release"].id, rig["developer"], admin)
+    resp = await admin.post(f"/issues/{done.id}/reopen", json={"comment": "Back"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "todo"
+    assert resp.json()["returned"]["reason"] == "release_qa"
 
 
 # ── PATCH obeys the same (unrestricted) rules ────────────────────────────────

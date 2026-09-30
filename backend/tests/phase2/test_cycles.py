@@ -160,11 +160,15 @@ async def test_return_starts_next_cycle_and_marks_item_returned(factories, rig):
     await _move(rig["dev_client"], task.id, "in_progress")
     await _move(rig["dev_client"], task.id, "in_review")
 
-    resp = await admin.post(f"/issues/{task.id}/regression")
+    resp = await admin.post(
+        f"/issues/{task.id}/transition", json={"to": "todo", "comment": "Fails on Safari"},
+    )
     assert resp.status_code == 200
     body = resp.json()
+    assert body["status"] == "todo"
     assert body["cycle_count"] == 2
-    assert body["returned"] == {"reason": "review", "number": 1, "comment_id": None}
+    assert body["returned"]["reason"] == "review" and body["returned"]["number"] == 1
+    assert body["returned"]["comment_id"] is not None
 
     first, second = await factories.cycles(task.id)
     assert first["closed_at"] is not None
@@ -173,6 +177,7 @@ async def test_return_starts_next_cycle_and_marks_item_returned(factories, rig):
     assert second["release_id"] == rig["release"].id
 
     # The marker lasts until the item is sent to review again.
+    await _move(rig["dev_client"], task.id, "in_progress")
     await _move(rig["dev_client"], task.id, "in_review")
     assert (await _item(admin, task.id))["returned"] is None
 
@@ -186,7 +191,7 @@ async def test_ac_73_backlog_move_deletes_cycles_and_replacement_restarts_at_one
     task = await _task(factories, rig, release_id=rig["release"].id)
     await _move(admin, task.id, "in_progress")
     await _move(admin, task.id, "in_review")
-    await admin.post(f"/issues/{task.id}/regression")
+    await admin.post(f"/issues/{task.id}/transition", json={"to": "todo", "comment": "No"})
     assert len(await factories.cycles(task.id)) == 2
 
     resp = await admin.patch(f"/issues/{task.id}", json={"release_id": None})
@@ -248,7 +253,7 @@ async def test_current_cycle_iff_container_over_every_mutation_path(factories, r
     for to in ("in_progress", "in_review"):
         await _move(admin, streamed.id, to)
         await check(streamed.id)
-    await admin.post(f"/issues/{streamed.id}/regression")
+    await admin.post(f"/issues/{streamed.id}/transition", json={"to": "todo", "comment": "No"})
     await check(streamed.id)
     await _move(admin, streamed.id, "cancelled")
     await check(streamed.id)
@@ -260,3 +265,17 @@ async def test_current_cycle_iff_container_over_every_mutation_path(factories, r
     for to in ("in_progress", "in_review", "done"):
         await _move(admin, original.id, to)
     await check(original.id)
+    report = await factories.issue(project_id=rig["project"].id)
+    await admin.post(f"/issues/{report.id}/triage", json={
+        "outcome": "duplicate", "duplicate_of_id": original.id,
+    })
+    await check(original.id)
+
+    # a production return out of a Released release (moves to the Stream)
+    shipped = await factories.release(project_id=rig["project"].id)
+    item = await _task(factories, rig, release_id=shipped.id)
+    for to in ("in_progress", "in_review", "done"):
+        await _move(admin, item.id, to)
+    await factories.set_release_status(shipped.id, "released")
+    await admin.post(f"/issues/{item.id}/returns", json={"comment": "Crashes on prod"})
+    await check(item.id)

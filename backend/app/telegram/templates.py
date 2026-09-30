@@ -120,6 +120,16 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "🧑‍💻 Moved by <a href=\"{actor_url}\">{actor}</a>"
     ),
+    "item_returned": (
+        "↩️ <b>Back to you: {return_reason}</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b> · <code>{release_name}</code>\n"
+        "\n"
+        "<blockquote>{excerpt}</blockquote>\n"
+        "\n"
+        "<i>Sent back by <a href=\"{actor_url}\">{actor}</a> — it's in To do.</i> "
+        "<a href=\"{comment_url}\">Read the comment →</a>"
+    ),
     "regression": (
         "🔁 <b>Regression detected!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"

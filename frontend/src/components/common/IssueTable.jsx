@@ -6,6 +6,7 @@ import { issueKey } from '../../lib/issueSlug'
 import { SourceBadge } from './SourceBadge'
 import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
+import { ReturnedMarker } from './ReturnedMarker'
 
 const TITLE_WIDTHS = ['w-48', 'w-64', 'w-56', 'w-40', 'w-72', 'w-52', 'w-60', 'w-44']
 
@@ -105,6 +106,7 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
                   <SourceBadge source={i.source} />
                   <ReportedCount count={i.recurrence_count} />
                   <TechDebtMarker item={i} />
+                  <ReturnedMarker item={i} />
                   {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
                 </div>
               </td>

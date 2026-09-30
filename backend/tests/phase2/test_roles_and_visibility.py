@@ -216,8 +216,8 @@ async def test_developer_sees_flags_disabled_with_reason(factories, client_for, 
     assert "comment_internal" in item["allowed_actions"]
     assert "transition:in_progress" in item["allowed_actions"]
     blocked = {b["action"]: b for b in item["blocked_actions"]}
-    assert blocked["flag_regression"]["code"] == "not_triage_lead"
-    assert blocked["flag_regression"]["detail"]
+    assert blocked["flag_release_blocker"]["code"] == "not_triage_lead"
+    assert blocked["flag_release_blocker"]["detail"]
     assert "in_progress" in item["allowed_transitions"]
 
 

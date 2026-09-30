@@ -59,7 +59,7 @@ const NOTIFICATION_EVENTS = [
   { key: 'mention',             label: 'Mentioned in comment' },
   { key: 'comment',             label: 'New comment' },
   { key: 'status_changed',      label: 'Status changed' },
-  { key: 'regression',          label: 'Regression marked' },
+  { key: 'item_returned',       label: 'Work returned to assignee' },
   { key: 'fixed',               label: 'Fix marked' },
   { key: 'verified',            label: 'Fix verified' },
   { key: 'blocker_filed',       label: 'Blocker added' },

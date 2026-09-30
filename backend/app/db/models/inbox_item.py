@@ -18,7 +18,10 @@ class InboxEventType(str, enum.Enum):
     comment = "comment"
     mention = "mention"
     reaction = "reaction"
+    #: Phase 1's regression notice — no longer sent (08a); kept so old rows render.
     regression = "regression"
+    #: Work came back to its assignee (08a Part 3, FR-65): meta ``{reason, cycle_no, comment_id}``.
+    item_returned = "item_returned"
     blocker_filed = "blocker_filed"
     blocker_cleared = "blocker_cleared"
     status_changed = "status_changed"

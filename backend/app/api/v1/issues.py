@@ -16,9 +16,9 @@ POST   /issues/{id}/move                    — move a New/Needs info bug to ano
 POST   /issues/{id}/recurrences             — report a recurrence on an open or Cancelled bug
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
 POST   /issues/{id}/verify                  — verify the fix (in_review -> done | in_progress)
-POST   /issues/{id}/reopen                  — reopen a Done bug (maps to the regression action)
+POST   /issues/{id}/returns                 — send Done work back (release QA / production, 08a)
+POST   /issues/{id}/reopen                  — Phase 1 wrapper for /returns
 POST   /issues/{id}/transition              — generic status change; used by board drags and menus
-POST   /issues/{id}/regression              — flag a regression on a Done/In review bug (BR-24)
 GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numbers
 
 Every status change goes through ``IssueService.transition()``
@@ -66,6 +66,7 @@ from app.schemas.issue import (
     LabelDetail,
     MoveRequest,
     RecurrenceCreate,
+    ReturnRequest,
     ReturnedMarker,
     TransitionRequest,
     TrashIssueResponse,
@@ -83,6 +84,7 @@ from app.services.authz import (
     visibility_clause,
 )
 from app.services.cycle_metrics import is_regression_expr, regression_counts
+from app.services.cycle_service import return_reason_for_done
 from app.services.issue_service import issue_service
 from app.workflow import Workflow
 
@@ -234,7 +236,15 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
         b = blocked_by_policy.get(transition(to))
         if b is not None:
             blocked_transitions.append(BlockedTransition(to=to, code=b["code"], detail=b["detail"]))
+    # What sending this Done item back would be called (08a) — the server still
+    # decides on submit; the UI only needs the label.
+    return_reason = None
+    if getattr(issue.status, "value", issue.status) == IssueStatus.done.value:
+        return_reason = (
+            return_reason_for_done(release).value if release is not None else "production"
+        )
     return {
+        "return_reason": return_reason,
         "allowed_transitions": [to for to in targets.allowed if transition(to) in allowed_set],
         "blocked_transitions": blocked_transitions,
         "allowed_actions": allowed_actions,
@@ -837,7 +847,7 @@ async def triage_issue(
     """Accept, Needs info, Duplicate, or Reject a New or Needs info bug (slice 06).
 
     409 ``not_in_triage`` outside New/Needs info; the Duplicate outcome adds
-    ``duplicate_of_self``, ``duplicate_cross_project``, ``duplicate_not_bug``
+    ``duplicate_of_self``, ``duplicate_cross_project``
     and ``duplicate_of_duplicate`` (with ``suggested_id``).
     """
     from app.services.triage_service import triage_service
@@ -919,7 +929,27 @@ async def verify_fix(
         payload.outcome, IssueStatus.in_review,
     )
     await authorize_issue(db, issue_id, current_user, transition(to))
-    await issue_service.verify_fix(db, issue_id, payload.outcome, current_user)
+    await issue_service.verify_fix(db, issue_id, payload.outcome, current_user, payload.note)
+    await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.post("/{issue_id}/returns", response_model=IssueResponse, summary="Send Done work back")
+async def return_issue(
+    issue_id: int,
+    payload: ReturnRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """Return from release QA / Problem on production (FR-59, FR-60, 08a).
+
+    The server decides the reason: a Done item in a Release that hasn't
+    shipped comes back from ``release_qa``; anything else from ``production``,
+    moving to the Stream if its release is Released. The item goes to To do and
+    starts its next cycle. 409 ``not_done`` unless Done; 422 without a comment.
+    """
+    issue = await authorize_issue(db, issue_id, current_user, Action.return_item)
+    await issue_service.return_done(db, issue, payload.comment, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
@@ -927,12 +957,15 @@ async def verify_fix(
 @router.post("/{issue_id}/reopen", response_model=IssueResponse, summary="Reopen issue")
 async def reopen_issue(
     issue_id: int,
+    payload: ReturnRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Reopen a Done bug. Maps to the regression action; 409 done_is_final otherwise."""
-    await authorize_issue(db, issue_id, current_user, Action.flag_regression)
-    await issue_service.reopen(db, issue_id, current_user)
+    """Phase 1's reopen — now ``POST /issues/{id}/returns`` (08a)."""
+    await authorize_issue(db, issue_id, current_user, Action.return_item)
+    await issue_service.reopen(
+        db, issue_id, current_user, payload.comment if payload is not None else None,
+    )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
@@ -949,23 +982,19 @@ async def transition_issue(
     409 with ``{detail, code, allowed}`` when Workflow refuses the move.
     """
     issue = await authorize_issue(db, issue_id, current_user, transition(payload.to))
-    await issue_service.transition(
-        db, issue, to=payload.to, actor=current_user,
-        reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
+    is_reject = (
+        getattr(issue.status, "value", issue.status) == IssueStatus.in_review.value
+        and payload.to == IssueStatus.todo
+        and (payload.comment or "").strip()
     )
-    await db.commit()
-    return await _reload_and_enrich(db, issue_id, current_user)
-
-
-@router.post("/{issue_id}/regression", response_model=IssueResponse, summary="Flag a regression")
-async def flag_regression(
-    issue_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> IssueResponse:
-    """Flag a regression (QA, the project's triage lead, PM, Admin — §9.2)."""
-    await authorize_issue(db, issue_id, current_user, Action.flag_regression)
-    await issue_service.regress(db, issue_id, current_user)
+    if is_reject:
+        # In review → To do with a comment is a Reject: a new ``review`` cycle (08a).
+        await issue_service.reject(db, issue, payload.comment, current_user)
+    else:
+        await issue_service.transition(
+            db, issue, to=payload.to, actor=current_user,
+            reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
+        )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 

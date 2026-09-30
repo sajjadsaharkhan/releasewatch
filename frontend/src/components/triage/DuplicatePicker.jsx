@@ -7,8 +7,8 @@ import { StatusBadge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
 
 /**
- * Search-picker for the Duplicate outcome's original — bugs in the same
- * project only (BR-20), never the item itself.
+ * Search-picker for the Duplicate outcome's original — a bug or a task in
+ * the same project (BR-20, 08a), never the item itself.
  */
 export function DuplicatePicker({ issue, value, onChange }) {
   const [query, setQuery] = useState('')
@@ -21,7 +21,6 @@ export function DuplicatePicker({ issue, value, onChange }) {
     const timer = setTimeout(() => {
       issuesApi.list({
         project_id: issue.project_id,
-        type: 'bug',
         search: query.trim() || undefined,
         sort: 'updated',
         size: 8,
@@ -40,16 +39,16 @@ export function DuplicatePicker({ issue, value, onChange }) {
       <Input
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Search bugs in this project…"
-        aria-label="Search for the original bug"
+        placeholder="Search bugs and tasks in this project…"
+        aria-label="Search for the original item"
         className="h-8 text-[12.5px]"
       />
-      <ul className="mt-1.5 max-h-56 overflow-y-auto rounded-md border border-border bg-background" role="listbox" aria-label="Original bug">
+      <ul className="mt-1.5 max-h-56 overflow-y-auto rounded-md border border-border bg-background" role="listbox" aria-label="Original item">
         {loading && results.length === 0 && (
           <li className="px-3 py-3 text-[12px] text-muted-foreground">Searching…</li>
         )}
         {!loading && results.length === 0 && (
-          <li className="px-3 py-3 text-[12px] text-muted-foreground">No bugs match.</li>
+          <li className="px-3 py-3 text-[12px] text-muted-foreground">Nothing matches.</li>
         )}
         {results.map(r => {
           const selected = value?.id === r.id

@@ -7,7 +7,8 @@ cancellation and the merge commit or fail together.
 
 Effects, in order:
 
-1. ``recurrence_count += 1`` — an atomic ``UPDATE``, never read-modify-write.
+1. ``recurrence_count += 1`` when the original is a bug — an atomic
+   ``UPDATE``, never read-modify-write. Tasks don't count reports (08a).
 2. A public comment on the original carrying the merged content, crediting
    the merged report's reporter with an @mention. A tech reporter gets the
    mention notice (it tells them where their report went); a Support reporter
@@ -17,11 +18,11 @@ Effects, in order:
 3. The merged report's reporter is subscribed to the original.
 4. A status effect by the original's status:
 
-   - ``done`` → the work came back: the original moves to ``in_progress``
-     (reason ``merge_regression``) and starts its next cycle (``release_qa``
-     in a Release that hasn't shipped, else ``production``; cycle-model §3),
-     and its assignee gets the regression notification. Support hears nothing
-     (§13). 08a Part 3 turns this into the full return.
+   - ``done`` → the work came back (BR-49, 08a): ``done → todo`` and the
+     next cycle starts with the merge comment as its reason — ``release_qa``
+     in a Release that hasn't shipped, else ``production`` (and a Released
+     release's item moves to the Stream). The assignee gets ``item_returned``;
+     Support hears nothing (§13). Same path as ``POST /issues/{id}/returns``.
    - ``cancelled`` → stays cancelled; the triage lead gets
      ``recurrence_on_cancelled``.
    - anything else → no status change.
@@ -34,14 +35,14 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue import Issue, IssueStatus, IssueType
 from app.db.models.issue_subscriber import SubscriptionReason
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.user import User
 from app.policy import is_tech
 
-#: The Workflow reason for the Done → In progress move a merge makes.
-MERGE_REGRESSION_REASON = "merge_regression"
+#: The status_changed reason for the Done → To do move a merge makes.
+MERGE_RETURN_REASON = "merge"
 
 
 async def lock_original(db: AsyncSession, issue_id: int) -> Issue | None:
@@ -90,10 +91,8 @@ class MergeService:
         outcome leaves the duplicate's own attachments where they are.
         """
         from app.db.models.issue_attachment import IssueAttachment
-        from app.db.models.release import Release
         from app.services.inbox_service import InboxFanOutService
         from app.services.issue_service import issue_service
-        from app.services.cycle_service import cycle_service, return_reason_for_done
         from app.services.subscriber_service import subscribe
         from app.services.timeline_service import TimelineService
 
@@ -101,12 +100,13 @@ class MergeService:
         # reads the original's status and must not act on a stale one.
         original = await lock_original(db, original.id)
 
-        await db.execute(
-            update(Issue)
-            .where(Issue.id == original.id)
-            .values(recurrence_count=Issue.recurrence_count + 1)
-        )
-        await db.refresh(original, ["recurrence_count"])
+        if getattr(original.type, "value", original.type) == IssueType.bug.value:
+            await db.execute(
+                update(Issue)
+                .where(Issue.id == original.id)
+                .values(recurrence_count=Issue.recurrence_count + 1)
+            )
+            await db.refresh(original, ["recurrence_count"])
 
         reporter = await db.get(User, reporter_id) if reporter_id and credit_reporter else None
         if reporter is not None:
@@ -145,18 +145,9 @@ class MergeService:
 
         status = getattr(original.status, "value", original.status)
         if status == IssueStatus.done.value:
-            container = await db.get(Release, original.release_id) if original.release_id else None
-            original = await issue_service.transition(
-                db, original, to=IssueStatus.in_progress, actor=actor,
-                reason=MERGE_REGRESSION_REASON,
-            )
-            if container is not None:
-                await cycle_service.start_return(
-                    db, original, return_reason_for_done(container), actor,
-                    comment_id=comment.id, merged_issue_id=merged_issue_id,
-                )
-            await InboxFanOutService().fan_out(
-                db=db, trigger=InboxEventType.regression, issue=original, actor=actor,
+            original = await issue_service.send_back_done(
+                db, original, actor, comment,
+                merged_issue_id=merged_issue_id, reason_label=MERGE_RETURN_REASON,
             )
         elif status == IssueStatus.cancelled.value:
             await InboxFanOutService().fan_out(

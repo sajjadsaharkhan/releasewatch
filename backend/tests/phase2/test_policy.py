@@ -35,7 +35,7 @@ EXPECTED = {
     Action.manage_projects: {"admin"},
     Action.manage_search: {"admin"},
     Action.flag_release_blocker: {"qa", "pm", "cto", "admin"},
-    Action.flag_regression: {"qa", "pm", "admin"},
+    Action.return_item: {"qa", "developer", "pm", "cto", "admin"},
     Action.view_reports: {"qa", "developer", "pm", "cto", "admin"},
 }
 
@@ -69,7 +69,6 @@ def test_developer_manages_releases_only_as_that_projects_triage_lead():
 @pytest.mark.parametrize("role", ["developer", "cto"])
 def test_flags_include_the_projects_triage_lead(role):
     lead_target = Target(item_id=1, project_id=1, triage_lead_id=ME)
-    assert decide(Actor(ME, role), Action.flag_regression, lead_target).ok
     assert decide(Actor(ME, role), Action.flag_release_blocker, lead_target).ok
 
 
@@ -106,13 +105,29 @@ def test_verifying_your_own_fix_is_not_refused():
 
 def test_item_actions_builds_allowed_and_blocked_lists():
     dev = Actor(ME, "developer")
-    target = Target(item_id=1, item_type="bug", project_id=1, triage_lead_id=OTHER)
+    target = Target(
+        item_id=1, item_type="bug", status="todo", project_id=1, triage_lead_id=OTHER,
+    )
     allowed, blocked = item_actions(dev, target, ["in_progress", "done"])
     assert "comment_internal" in allowed
     assert "transition:done" in allowed
     blocked_by_action = {b["action"]: b for b in blocked}
-    assert blocked_by_action["flag_regression"]["code"] == "not_triage_lead"
+    assert blocked_by_action["flag_release_blocker"]["code"] == "not_triage_lead"
     assert blocked_by_action["flag_release_blocker"]["detail"]
+    # return_item exists only on a Done item — hidden, not blocked, elsewhere.
+    assert "return_item" not in allowed and "return_item" not in blocked_by_action
+
+
+def test_return_item_on_a_done_item():
+    done = Target(item_id=1, item_type="task", status="done")
+    for role in ("qa", "developer", "pm", "cto", "admin"):
+        assert decide(Actor(ME, role), Action.return_item, done).ok
+    support = decide(Actor(ME, "support"), Action.return_item, Target(
+        item_id=1, item_type="bug", status="done", source="support",
+    ))
+    assert not support.ok and support.hidden
+    open_item = decide(Actor(ME, "qa"), Action.return_item, Target(item_id=1, status="todo"))
+    assert not open_item.ok and open_item.code == "not_done" and open_item.hidden
 
 
 def test_item_actions_hide_tech_controls_from_support():

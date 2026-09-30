@@ -151,7 +151,8 @@ export const issuesApi = {
   // `to` is required; `reason`/`comment`/`cancel_reason` are optional.
   transition: (id, data) => api.post(`/issues/${id}/transition`, data),
   // Flags a regression on a Done or In review bug (BR-24). No body.
-  regress: (id) => api.post(`/issues/${id}/regression`),
+  // 08a: send Done work back — the server decides release QA vs production.
+  returnItem: (id, data) => api.post(`/issues/${id}/returns`, data),
   // One more occurrence of an open or Cancelled bug (slice 07). `data` is
   // {comment, pending_attachments?}; 409 recurrence_on_done / recurrence_bug_only.
   reportRecurrence: (id, data) => api.post(`/issues/${id}/recurrences`, data),
@@ -269,6 +270,7 @@ export const cyclesApi = {
 // ─── Timeline ────────────────────────────────────────────────────────────────
 export const timelineApi = {
   list: (issueId, params) => api.get(`/issues/${issueId}/timeline`, { params }),
+  get: (issueId, eventId) => api.get(`/issues/${issueId}/timeline/${eventId}`),
   addComment: (issueId, data) => api.post(`/issues/${issueId}/timeline`, data),
   updateComment: (issueId, eventId, data) => api.patch(`/issues/${issueId}/timeline/${eventId}`, data),
   deleteComment: (issueId, eventId) => api.delete(`/issues/${issueId}/timeline/${eventId}`),

@@ -9,7 +9,7 @@ Needs info bug:
   sending ``null`` puts it in the backlog, the Stream's id in the Stream
   (08a). → ``todo``.
 - **Needs info** — a public comment saying what's missing. → ``needs_info``.
-- **Duplicate** — a merge into an original in the same project
+- **Duplicate** — a merge into an original (bug or task) in the same project
   (``MergeService.merge_into``). → ``cancelled`` (reason ``duplicate``).
 - **Reject** — user error, expected behavior, or cannot reproduce. → ``cancelled``.
 
@@ -29,7 +29,6 @@ from app.db.models.issue import (
     Issue,
     IssueCancelReason,
     IssueStatus,
-    IssueType,
     issue_key,
 )
 from app.db.models.issue_subscriber import IssueSubscriber, SubscriptionReason
@@ -259,10 +258,7 @@ class TriageService:
                 "The original must be in the same project.",
                 "duplicate_cross_project",
             )
-        if getattr(original.type, "value", original.type) != IssueType.bug.value:
-            raise DomainError(
-                status.HTTP_409_CONFLICT, "The original must be a bug.", "duplicate_not_bug",
-            )
+        # The original may be a bug or a task (BR-20, 08a).
         if getattr(original.cancel_reason, "value", original.cancel_reason) == IssueCancelReason.duplicate.value:
             extra = {"suggested_id": original.parent_issue_id}
             parent = await db.get(Issue, original.parent_issue_id) if original.parent_issue_id else None

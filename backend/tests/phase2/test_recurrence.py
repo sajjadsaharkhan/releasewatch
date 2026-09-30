@@ -12,7 +12,7 @@ import pytest_asyncio
 
 FR_16 = (
     "Fixed items can't take a recurrence. File a new report; "
-    "triage will merge it into this item as a regression."
+    "triage will merge it into this item and send it back for a fix."
 )
 
 

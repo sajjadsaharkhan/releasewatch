@@ -61,7 +61,7 @@ test('needs info round-trip, then accept onto the board', async ({ browser }) =>
   await detail.getByLabel(/What's missing/).fill(question)
   await ask.click()
   await expect(queue.getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
-  await lead.getByRole('button', { name: /^Needs info/ }).first().click()
+  await lead.getByRole('tab', { name: /^Needs info/ }).click()
   await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toBeVisible()
 
   // ── 3. Support sees the question on the report and replies ─────────────

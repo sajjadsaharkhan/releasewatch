@@ -32,7 +32,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     cycles,
     currentCycle,
     applyUpdate,
-    regress,
+    sentBack,
     recurrenceReported,
     addComment,
     updateComment,
@@ -117,7 +117,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           availableLabels={availableLabels}
           availableProjects={availableProjects}
           applyUpdate={applyUpdate}
-          regress={regress}
+          onSentBack={sentBack}
           onRecurrenceReported={recurrenceReported}
           onConfirm={confirm}
           onOpenLabelPicker={() => setLabelPickerOpen(true)}

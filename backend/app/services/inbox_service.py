@@ -8,7 +8,7 @@ assigned             → assignee
 fixed                → reporter + triage_lead users
 comment              → reporter + assignee (if different from actor)
 mention              → mentioned users (parsed from body)
-regression           → reporter + assignee + triage leads
+item_returned        → assignee (08a: work came back — reason + comment)
 blocker_filed        → all triage leads + CTOs
 blocker_cleared      → all triage leads + CTOs + assignee + reporter
 status_changed       → assignee + reporter
@@ -165,13 +165,11 @@ class InboxFanOutService:
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
 
-        elif trigger == InboxEventType.regression:
-            if issue.reporter_id:
-                recipients.add(str(issue.reporter_id))
+        elif trigger == InboxEventType.item_returned:
+            # The person whose queue it lands back in (FR-65). Support never
+            # gets it — fan_out drops Support from every non-Support event.
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
-            leads = await self._triage_recipients(db, issue)
-            recipients.update(str(u.id) for u in leads)
 
         elif trigger == InboxEventType.status_changed:
             if issue.assignee_id:
@@ -481,6 +479,8 @@ class InboxFanOutService:
                 # support_cancelled (slice 06): the human-readable reason, or
                 # where a merged report went.
                 "cancel_reason": _esc(_meta.get("reason_label", "")),
+                # item_returned (08a): where the problem was caught.
+                "return_reason": _esc(_meta.get("reason_label", "")),
                 "merged_into_key": _esc(_meta.get("merged_into_key", "")),
                 "merged_into_url": (
                     f"{frontend_base}/issue/issue-{_meta['merged_into_number']}"

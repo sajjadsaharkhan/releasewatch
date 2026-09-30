@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, CheckCheck, Eye, RefreshCw, Undo2, Play, Unlock } from 'lucide-react'
+import { ChevronDown, CheckCheck, Eye, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -11,11 +11,12 @@ import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { ContainerPicker } from '../common/ContainerPicker'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
+import { SendBackDialog } from './SendBackDialog'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { CONTAINER_KIND, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { CONTAINER_KIND, CYCLE_REASON, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime } from '../../lib/relTime'
 
@@ -41,13 +42,15 @@ function Editable({ issue, action, readOnly, children }) {
   return readOnly
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableProjects, applyUpdate, regress, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableProjects, applyUpdate, onSentBack, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
   const allowedTransitions = issue.allowed_transitions || []
   const bug = isBug(issue)
   const noun = itemNoun(issue)
+  // Which send-back dialog is open (08a): 'review' | 'release_qa' | 'production' | null.
+  const [sendBack, setSendBack] = React.useState(null)
   const { categories } = useBacklogCategories(issue.project_id)
 
   const ttTriage = issue.time_to_triage_h
@@ -402,7 +405,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cycle {cycleNum} metrics</span>
           {cycleNum > 1 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-medium">regression</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium">returned {cycleNum - 1}×</span>
           )}
         </div>
         <TimeMetric label="Time in triage" value={fmtH(ttTriage) ?? '0m'} tone="green" />
@@ -444,9 +447,10 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <CheckCheck size={14} className="mr-1" /> Mark as done
           </ActionButton>
         )}
-        {issue.status === 'in_review' && offers('in_progress') && (
-          <ActionButton action="transition:in_progress" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('in_progress')}>
-            <Undo2 size={14} className="mr-1" /> Send back to In progress
+        {/* Reject (08a, FR-57): back to To do with a required reason. */}
+        {issue.status === 'in_review' && offers('todo') && (
+          <ActionButton action="transition:todo" item={issue} variant="outline" className="w-full" onClick={() => setSendBack('review')}>
+            <Undo2 size={14} className="mr-1" /> Reject
           </ActionButton>
         )}
         {issue.status === 'blocked' && offers(unblockTo) && (
@@ -454,23 +458,24 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
           </ActionButton>
         )}
-        {/* The regression action (bug-only, BR-08): a Done bug came back. */}
-        {bug && issue.status === 'done' && (
-          <ActionButton action="flag_regression" item={issue} variant="outline" className="w-full" onClick={() => {
-            onConfirm({
-              title: 'Mark as regression?',
-              body: 'This moves the bug back to In progress, logs a regression, and notifies the reporter, assignee, and project triage lead.',
-              confirmLabel: 'Mark as regression',
-              tone: 'destructive',
-              onConfirm: () => regress(),
-            })
-          }}>
-            <RefreshCw size={14} className="mr-1" /> Mark as regression
+        {/* Return from release QA / Problem on production (08a, FR-59/60) —
+            bugs and tasks; the server names the reason, Support never sees it. */}
+        {issue.status === 'done' && (
+          <ActionButton action="return_item" item={issue} variant="outline" className="w-full" onClick={() => setSendBack(issue.return_reason ?? 'production')}>
+            <Icon name={CYCLE_REASON[issue.return_reason ?? 'production'].icon} size={14} className="mr-1" />
+            {issue.return_reason === 'release_qa' ? 'Return from release QA' : 'Problem on production'}
           </ActionButton>
         )}
         {/* Bug-only; disabled with guidance on Done (FR-16), absent on tasks. */}
         <ReportRecurrenceButton item={issue} className="w-full" onReported={onRecurrenceReported} />
       </div>
+      <SendBackDialog
+        item={issue}
+        reason={sendBack}
+        open={sendBack != null}
+        onClose={() => setSendBack(null)}
+        onDone={onSentBack}
+      />
     </aside>
   )
 }

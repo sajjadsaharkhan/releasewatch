@@ -40,6 +40,7 @@ const TYPE_DESCRIPTIONS = {
   verified:            'verified the fix on',
   filed:               'filed a new issue',
   regression:          'marked regression on',
+  item_returned:       'sent back to you',
   blocker_filed:       'filed a blocker on',
   blocker_cleared:     'cleared the blocker on',
   environment_changed: 'changed environment on',

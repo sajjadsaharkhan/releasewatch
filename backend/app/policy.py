@@ -49,7 +49,7 @@ class Action(str, Enum):
     set_priority = "set_priority"
     set_due_date = "set_due_date"
     flag_release_blocker = "flag_release_blocker"
-    flag_regression = "flag_regression"
+    return_item = "return_item"
     flag_tech_debt = "flag_tech_debt"
     triage = "triage"
     report_recurrence = "report_recurrence"
@@ -176,14 +176,15 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_releases: _T,
     # §9.2 flags
     Action.flag_release_blocker: frozenset({"qa", "pm", "cto", "admin", TRIAGE_LEAD}),
-    Action.flag_regression: frozenset({"qa", "pm", "admin", TRIAGE_LEAD}),
+    # 08a: send Done work back (release QA or production) — every tech role, never Support.
+    Action.return_item: _T,
 }
 
 #: Actions about a specific item — visibility is checked before the matrix.
 _ITEM_ACTIONS = frozenset({
     Action.view_item, Action.comment_public, Action.comment_internal, Action.edit_item,
     Action.assign, Action.set_priority, Action.set_due_date, Action.flag_release_blocker,
-    Action.flag_regression, Action.flag_tech_debt, Action.triage, Action.report_recurrence,
+    Action.return_item, Action.flag_tech_debt, Action.triage, Action.report_recurrence,
 })
 
 _QUEUE_ACTIONS = frozenset({Action.view_queue, Action.reorder_queue, Action.pin})
@@ -212,7 +213,7 @@ _LABELS: dict[str, str] = {
     Action.view_reports: "view reports",
     Action.view_releases: "view releases",
     Action.flag_release_blocker: "flag release blockers",
-    Action.flag_regression: "flag regressions",
+    Action.return_item: "send work back",
 }
 
 _ROLE_LABELS = {
@@ -285,7 +286,7 @@ def _deny_role(actor: Actor, action: str, roles: frozenset[str]) -> Denied:
 #: FR-16 / BR-23 — shown on the disabled Report recurrence button of a Done bug.
 RECURRENCE_ON_DONE_DETAIL = (
     "Fixed items can't take a recurrence. File a new report; "
-    "triage will merge it into this item as a regression."
+    "triage will merge it into this item and send it back for a fix."
 )
 
 
@@ -298,6 +299,15 @@ def _recurrence_denial(target: Target) -> Denied | None:
         )
     if target.status == "done":
         return Denied("recurrence_on_done", RECURRENCE_ON_DONE_DETAIL, conflict=True)
+    return None
+
+
+def _return_denial(target: Target) -> Denied | None:
+    """08a — only a Done item can be sent back; elsewhere the control doesn't exist."""
+    if target.status is not None and target.status != "done":
+        return Denied(
+            "not_done", "Only a Done item can be sent back.", hidden=True, conflict=True,
+        )
     return None
 
 
@@ -349,6 +359,11 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
         if denial is not None:
             return denial
 
+    if key == Action.return_item:
+        denial = _return_denial(target)
+        if denial is not None:
+            return denial
+
     if key == Action.flag_tech_debt:
         denial = _tech_debt_denial(target)
         if denial is not None:
@@ -371,7 +386,7 @@ RESPONSE_ITEM_ACTIONS: tuple[str, ...] = (
     Action.set_due_date.value,
     Action.triage.value,
     Action.flag_release_blocker.value,
-    Action.flag_regression.value,
+    Action.return_item.value,
     Action.report_recurrence.value,
 )
 

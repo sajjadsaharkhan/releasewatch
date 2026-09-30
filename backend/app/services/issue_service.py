@@ -4,8 +4,8 @@ All public methods are ``async`` and accept an ``AsyncSession`` as their first
 argument so they can be composed inside a single DB transaction when needed.
 
 ``transition()`` is the only method that writes ``issue.status`` — every
-other status-changing method (``mark_fixed``, ``verify_fix``, ``reopen``,
-``regress``, and the triage outcomes in ``TriageService``) ends by calling it.
+other status-changing method (``mark_fixed``, ``verify_fix``, ``reject``,
+``return_done``, and the triage outcomes in ``TriageService``) ends by calling it.
 See docs/phase-2/02-unified-status-model.md and ``app/workflow.py``.
 
 ``transition()`` also sends the three Support notices (slice 06, §13) —
@@ -48,6 +48,26 @@ async def ensure_assignable(db: AsyncSession, assignee_id: int | None) -> None:
             "That user can't be assigned work.",
             "not_assignable",
         )
+
+
+#: How the returned marker and the notification name each reason (cycle-model §3).
+RETURN_REASON_LABELS = {
+    "review": "Rejected in review",
+    "release_qa": "Returned from release QA",
+    "production": "Problem on production",
+}
+
+
+def _required_comment(comment: str | None) -> str:
+    """Every return carries a reason (FR-57, FR-59, FR-60) — 422 ``reason_required``."""
+    text = (comment or "").strip()
+    if not text:
+        raise DomainError(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Say why the work is coming back.",
+            "reason_required",
+        )
+    return text
 
 
 class IssueService:
@@ -366,65 +386,150 @@ class IssueService:
             db=db, trigger=trigger, issue=issue, actor=actor, meta=meta,
         )
 
-    # ── Regression action (until 08a Part 3 replaces it with returns) ────────
+    # ── Returns (08a Part 3) — work comes back and starts the next cycle ──────
 
-    async def regress(
+    async def reject(
+        self, db: AsyncSession, issue: Issue, comment: str | None, actor: User,
+    ) -> Issue:
+        """**Reject** delivered work (FR-57): In review → To do with a required
+        comment, written as a public timeline comment, starting cycle ``review``."""
+        from app.db.models.issue_cycle import CycleStartReason
+        from app.services.timeline_service import TimelineService
+
+        if getattr(issue.status, "value", issue.status) != IssueStatus.in_review.value:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "Only an item in review can be rejected.",
+                "not_in_review",
+            )
+        comment = _required_comment(comment)
+        event = await TimelineService().create_event(
+            db=db, issue_id=issue.id, actor_id=actor.id,
+            event_type=TimelineEventType.comment, body=comment,
+            meta={"return_reason": CycleStartReason.review.value}, is_internal=False,
+        )
+        issue = await self.transition(
+            db, issue, to=IssueStatus.todo, actor=actor, reason="reject",
+        )
+        await self._start_return(db, issue, CycleStartReason.review, actor, event)
+        return issue
+
+    async def send_back_done(
         self,
         db: AsyncSession,
-        issue_id: int,
-        current_user: User,
+        issue: Issue,
+        actor: User,
+        comment_event,
+        *,
+        merged_issue_id: int | None = None,
+        reason_label: str = "return",
     ) -> Issue:
-        """Send the work back: transitions the item to ``in_progress`` and starts
-        the next cycle — ``review`` from In review; from Done, ``release_qa`` in
-        a Release that hasn't shipped, else ``production`` (cycle-model §3).
-        Any other status, or an item with no container, starts no cycle.
-        """
+        """Send a Done item back to To do and start its next cycle. The reason
+        is decided here, never by the client (cycle-model §3): ``release_qa`` in
+        a Release that hasn't shipped; otherwise ``production`` — and an item in
+        a Released release moves to the Stream (CY-03). Shared by
+        ``POST /issues/{id}/returns`` and a merge into a Done item (BR-49)."""
         from app.db.models.issue_cycle import CycleStartReason
         from app.db.models.release import Release
         from app.services.cycle_service import return_reason_for_done
+        from app.services.timeline_service import TimelineService
 
-        issue = await self._get_issue_or_404(db, issue_id)
-        from_status = getattr(issue.status, "value", issue.status)
-        reason = None
-        if from_status == IssueStatus.in_review.value:
-            reason = CycleStartReason.review
-        elif from_status == IssueStatus.done.value and issue.release_id is not None:
-            reason = return_reason_for_done(await db.get(Release, issue.release_id))
-
-        issue = await self.transition(
-            db, issue, to=IssueStatus.in_progress, actor=current_user,
-            _internal_context={"via_regression": True},
+        container = await db.get(Release, issue.release_id) if issue.release_id else None
+        reason = (
+            return_reason_for_done(container) if container is not None
+            else CycleStartReason.production
         )
-        if reason is not None:
-            await cycle_service.start_return(db, issue, reason, current_user)
+        issue = await self.transition(
+            db, issue, to=IssueStatus.todo, actor=actor, reason=reason_label,
+        )
+
+        if container is not None and not container.is_stream and container.is_shipped:
+            # A Released release never holds an open item — the new cycle is in the Stream.
+            stream = await containers.stream_of(db, issue.project_id)
+            issue.release_id = stream.id
+            timeline = TimelineService()
+            await timeline.create_event(
+                db=db, issue_id=issue.id, actor_id=actor.id,
+                event_type=TimelineEventType.release_changed, body=None,
+                meta={"from_version": container.version, "to_version": stream.version,
+                      "reason": "production_return"},
+            )
+            if issue.is_release_blocker:
+                issue.is_release_blocker = False
+                await timeline.create_event(
+                    db=db, issue_id=issue.id, actor_id=actor.id,
+                    event_type=TimelineEventType.blocker_cleared, body=None,
+                    meta={"reason": "left_release"},
+                )
+            db.add(issue)
+            await db.flush()
+
+        await self._start_return(
+            db, issue, reason, actor, comment_event, merged_issue_id=merged_issue_id,
+        )
         return issue
 
-    # ── Reopen — maps to the regression action ────────────────────────────────
+    async def return_done(
+        self, db: AsyncSession, issue: Issue, comment: str | None, actor: User,
+    ) -> Issue:
+        """``POST /issues/{id}/returns`` — Return from release QA or Problem on
+        production (FR-59, FR-60). Only from Done (409 ``not_done``); a comment
+        is required (422 ``reason_required``)."""
+        from app.services.timeline_service import TimelineService
+
+        if getattr(issue.status, "value", issue.status) != IssueStatus.done.value:
+            raise DomainError(
+                status.HTTP_409_CONFLICT, "Only a Done item can be sent back.", "not_done",
+            )
+        comment = _required_comment(comment)
+        event = await TimelineService().create_event(
+            db=db, issue_id=issue.id, actor_id=actor.id,
+            event_type=TimelineEventType.comment, body=comment,
+            meta={"return": True}, is_internal=False,
+        )
+        return await self.send_back_done(db, issue, actor, event)
+
+    async def _start_return(
+        self, db: AsyncSession, issue: Issue, reason, actor: User, comment_event,
+        *, merged_issue_id: int | None = None,
+    ) -> None:
+        """Start the next cycle and tell the assignee (FR-65, CY-12)."""
+        from app.services.inbox_service import InboxFanOutService
+
+        cycle = await cycle_service.start_return(
+            db, issue, reason, actor,
+            comment_id=comment_event.id if comment_event is not None else None,
+            merged_issue_id=merged_issue_id,
+        )
+        reason_value = getattr(reason, "value", reason)
+        if comment_event is not None and comment_event.meta is not None:
+            comment_event.meta = {**comment_event.meta, "return_reason": reason_value}
+            db.add(comment_event)
+        body = comment_event.body if comment_event is not None else None
+        await InboxFanOutService().fan_out(
+            db=db, trigger=InboxEventType.item_returned, issue=issue, actor=actor,
+            timeline_event=comment_event,
+            meta={
+                "reason": reason_value,
+                "reason_label": RETURN_REASON_LABELS.get(reason_value, reason_value),
+                "cycle_no": cycle.cycle_number if cycle is not None else None,
+                "comment_id": comment_event.id if comment_event is not None else None,
+                "body_snippet": (body[:200] + "…") if body and len(body) > 200 else body,
+            },
+        )
+
+    # ── Reopen — Phase 1's wrapper, now a return (08a) ────────────────────────
 
     async def reopen(
         self,
         db: AsyncSession,
         issue_id: int,
         current_user: User,
+        comment: str | None = None,
     ) -> Issue:
-        """Reopen a Done bug. Maps to the regression action; Done is otherwise final."""
+        """Reopen a Done item. Maps to ``POST /issues/{id}/returns`` (08a)."""
         issue = await self._get_issue_or_404(db, issue_id)
-        if getattr(issue.status, "value", issue.status) != IssueStatus.done.value:
-            raise DomainError(
-                status.HTTP_409_CONFLICT,
-                "Only a Done bug can be reopened.",
-                "done_is_final",
-            )
-        try:
-            return await self.regress(db, issue_id, current_user)
-        except DomainError as exc:
-            if exc.code in ("no_release", "release_shipped"):
-                raise DomainError(
-                    status.HTTP_409_CONFLICT,
-                    "Only a Done bug in an unshipped release can be reopened.",
-                    "done_is_final",
-                ) from exc
-            raise
+        return await self.return_done(db, issue, comment, current_user)
 
     # ── Fix ───────────────────────────────────────────────────────────────────
 
@@ -449,12 +554,13 @@ class IssueService:
         issue_id: int,
         outcome: str,  # "pass" | "fail" | "partial"
         current_user: User,
+        note: str | None = None,
     ) -> Issue:
         """QA verifies a developer's fix.
 
         - ``pass`` -> transitions to ``done`` (blocked with ``self_verification``
           if the caller moved it to review themselves — AC-27)
-        - ``fail`` -> transitions back to ``in_progress``
+        - ``fail`` -> a Reject: back to ``todo``, ``note`` required (08a)
         - ``partial`` -> stays ``in_review``, just logs a comment
         """
         issue = await self._get_issue_or_404(db, issue_id)
@@ -467,7 +573,8 @@ class IssueService:
         if outcome == "pass":
             return await self.transition(db, issue, to=IssueStatus.done, actor=current_user)
         if outcome == "fail":
-            return await self.transition(db, issue, to=IssueStatus.in_progress, actor=current_user)
+            # A failed verification is a Reject (08a): comment required, back to To do.
+            return await self.reject(db, issue, note, current_user)
 
         # partial — no status change, just a note on the timeline.
         from app.services.timeline_service import TimelineService

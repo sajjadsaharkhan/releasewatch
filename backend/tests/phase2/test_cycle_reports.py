@@ -55,11 +55,15 @@ class Flow:
         assert resp.status_code == 200 and resp.json()["status"] == "done", resp.text
 
     async def back_from_review(self, item):
-        resp = await self.qa.post(f"/issues/{item.id}/regression")
+        # Phase 1: POST /regression from In review. v3: a Reject (08a Part 3).
+        resp = await self.qa.post(
+            f"/issues/{item.id}/transition", json={"to": "todo", "comment": "Still broken"},
+        )
         assert resp.status_code == 200, resp.text
 
     async def back_from_done(self, item):
-        resp = await self.qa.post(f"/issues/{item.id}/regression")
+        # Phase 1: POST /regression from Done. v3: POST /returns (08a Part 3).
+        resp = await self.qa.post(f"/issues/{item.id}/returns", json={"comment": "Broke again"})
         assert resp.status_code == 200, resp.text
 
 

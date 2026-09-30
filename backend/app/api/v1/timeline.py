@@ -1,6 +1,7 @@
 """Timeline endpoints — nested under issues.
 
 GET    /issues/{id}/timeline                    — list timeline events
+GET    /issues/{id}/timeline/{event_id}         — one event (the returned marker's reason)
 POST   /issues/{id}/timeline                    — add a comment
 PATCH  /issues/{id}/timeline/{event_id}         — edit a comment
 DELETE /issues/{id}/timeline/{event_id}         — delete a comment
@@ -114,6 +115,22 @@ async def list_timeline(
         page=page,
         size=size,
     )
+
+
+@router.get(
+    "/{issue_id}/timeline/{event_id}",
+    response_model=TimelineEventResponse,
+    summary="Get one timeline event",
+)
+async def get_timeline_event(
+    issue_id: int,
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TimelineEventResponse:
+    """One event — the returned marker loads its reason comment lazily (08a, CY-11)."""
+    event = await _visible_event(db, issue_id, event_id, current_user)
+    return _enrich_event(await _reload_event(db, event.id), current_user.id)
 
 
 @router.post(
