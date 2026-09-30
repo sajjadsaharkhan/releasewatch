@@ -25,6 +25,14 @@ export function Topbar() {
   const releasesHref = activeProject ? `/projects/${activeProject.slug}/releases` : null
   const canCreateProject = canManageUsersAndProjects(user?.role)
 
+  // Picking a project makes it the active one and opens its Stream.
+  const openProject = (projectId) => {
+    switchProject(projectId)
+    setMobileMenuOpen(false)
+    const project = projects?.find((p) => p.id === projectId)
+    if (project) navigate(`/projects/${project.slug}/stream`)
+  }
+
   // Picking a release makes it the active one and opens its page.
   const openRelease = (releaseId) => {
     setActiveReleaseId(releaseId)
@@ -62,7 +70,7 @@ export function Topbar() {
           <ProjectSwitcher
             projects={projects}
             activeProjectId={activeProjectId}
-            onChange={switchProject}
+            onChange={openProject}
             compact
             width={260}
             onCreateProject={canCreateProject ? () => setCreateProjectOpen(true) : undefined}
@@ -172,7 +180,7 @@ export function Topbar() {
                 <ProjectSwitcher
                   projects={projects}
                   activeProjectId={activeProjectId}
-                  onChange={switchProject}
+                  onChange={openProject}
                   onCreateProject={canCreateProject ? () => setCreateProjectOpen(true) : undefined}
                 />
               )}
