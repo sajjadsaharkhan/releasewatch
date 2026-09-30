@@ -8,7 +8,8 @@ import { Switch } from '../ui/Switch'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
-import { ContainerPicker } from '../common/ContainerPicker'
+import { ContainerBadge } from '../common/ContainerBadge'
+import { useContainers } from '../../hooks/useContainers'
 import { CycleBadge } from '../common/CycleBadge'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
@@ -18,7 +19,7 @@ import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { CONTAINER_KIND, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { PRIORITIES, RELEASE_STATUS, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime } from '../../lib/relTime'
 
@@ -54,6 +55,11 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   // Whether the Reject dialog is open (09a).
   const [rejecting, setRejecting] = React.useState(false)
   const place = placementOf(issue)
+  // The Release row's choices: open releases, plus the current one if it's closed.
+  const { releases: allReleases, openReleases } = useContainers(issue.project_id)
+  const currentRelease = allReleases.find((r) => r.id === issue.release_id)
+  const releaseChoices = currentRelease && !openReleases.includes(currentRelease)
+    ? [...openReleases, currentRelease] : openReleases
   const { categories } = useBacklogCategories(issue.project_id)
 
   const ttTriage = issue.time_to_triage_h
@@ -180,38 +186,48 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </div>
       </MetaRow>
 
-      {/* Placement: in a release, move it between releases here; anywhere else
-          it's read-only — Move… in the header's ⋯ menu changes it. */}
+      {/* Placement: in a release, move it between releases here (like the
+          Project row); anywhere else it's the container pill — Move… in the
+          header's ⋯ menu changes it. */}
       {place === 'release' && issue.status !== 'done' ? (
         <MetaRow label="Release">
-          <ContainerPicker
-            projectId={issue.project_id}
-            value={issue.release_id}
-            allowBacklog={false}
-            allowStream={false}
-            className="h-8 text-[13px]"
-            onChange={(id) => {
-              if (id == null || id === issue.release_id) return
-              onConfirm({
-                title: `Move this ${noun}?`,
-                body: <span>Move this {noun} to another release?</span>,
-                confirmLabel: `Move ${noun}`,
-                onConfirm: () => applyUpdate({ release_id: id }, 'Moved'),
-              })
-            }}
-          />
+          <Editable issue={issue} action="edit_item" readOnly={<ContainerBadge item={issue} />}>
+            <Dropdown
+              width={220}
+              trigger={
+                <button className="text-left font-mono text-zinc-800 dark:text-zinc-200 hover:underline" aria-label="Move to another release">
+                  {issue.release_version || '—'}
+                </button>
+              }
+            >
+              {({ close }) => (
+                <>
+                  <DropdownLabel>Move to release</DropdownLabel>
+                  {releaseChoices.map((r) => (
+                    <DropdownItem key={r.id} onClick={() => {
+                      close()
+                      if (r.id === issue.release_id) return
+                      onConfirm({
+                        title: `Move this ${noun}?`,
+                        body: <span>Move this {noun} to release <strong className="font-mono">{r.version}</strong>?</span>,
+                        confirmLabel: `Move ${noun}`,
+                        onConfirm: () => applyUpdate({ release_id: r.id }, `Moved to ${r.version}`),
+                      })
+                    }}>
+                      <span className={cn('font-mono text-sm', r.id === issue.release_id && 'text-zinc-400')}>{r.version}</span>
+                      <span className="text-[11px] text-muted-foreground">{RELEASE_STATUS[r.status]?.label}</span>
+                      {r.id === issue.release_id && <span className="ml-auto text-xs text-zinc-400">Current</span>}
+                    </DropdownItem>
+                  ))}
+                </>
+              )}
+            </Dropdown>
+          </Editable>
         </MetaRow>
       ) : (
         <MetaRow label="Placement">
-          <span
-            className="inline-flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-200"
-            title={issue.status === 'done' ? 'A Done item stays where it shipped.' : 'Use Move… in the ⋯ menu to change it.'}
-          >
-            <Icon name={CONTAINER_KIND[issue.container_kind ?? 'backlog'].icon} size={14} className="text-zinc-400" />
-            <span className={cn(place === 'release' && 'font-mono')}>
-              {place === 'stream' ? 'Stream' : place === 'backlog' ? 'Backlog' : issue.release_version}
-            </span>
-            {place === 'stream' && <span className="text-[11px] text-muted-foreground">ships when Done</span>}
+          <span title={issue.status === 'done' ? 'A Done item stays where it shipped.' : 'Use Move… in the ⋯ menu to change it.'}>
+            <ContainerBadge item={issue} />
           </span>
         </MetaRow>
       )}
