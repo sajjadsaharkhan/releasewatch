@@ -33,7 +33,7 @@ const EVENT_STYLES = {
   title_changed:       { dot: 'bg-zinc-400',   label: 'changed the title' },
   description_changed: { dot: 'bg-zinc-400',   label: 'updated the description' },
   steps_changed:       { dot: 'bg-zinc-400',   label: 'updated reproduction steps' },
-  release_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to release ${e.meta?.to_version ?? ''}` },
+  release_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to ${e.meta?.to_version ?? 'the backlog'}` },
   project_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to project ${e.meta?.to_name ?? ''}` },
   environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
   needs_clarification: { dot: 'bg-orange-500', label: 'requested clarification from reporter' },
@@ -98,6 +98,35 @@ const EVENT_ICONS = {
   backlog_category_changed: 'list-ordered',
   tech_debt_flagged:   'construction',
   tech_debt_cleared:   'construction',
+}
+
+// One side of a placement move: the Stream (sky, `waves`), a release
+// (`package`, mono version) or the backlog (dashed, `inbox`) when there's none.
+// The event carries only the version; the Stream's is its fixed name (FR-46).
+function PlacementChip({ version }) {
+  const base = 'inline-flex h-5 items-center gap-1 rounded-full border px-2 align-middle text-[11px] font-medium whitespace-nowrap'
+  if (version === 'Stream') {
+    return (
+      <span className={cn(base, 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-300')}>
+        <Icon name="waves" size={10} strokeWidth={2.5} aria-hidden />
+        Stream
+      </span>
+    )
+  }
+  if (version) {
+    return (
+      <span className={cn(base, 'border-border bg-card text-foreground')}>
+        <Icon name="package" size={10} strokeWidth={2.5} className="text-muted-foreground" aria-hidden />
+        <span className="font-mono">{version}</span>
+      </span>
+    )
+  }
+  return (
+    <span className={cn(base, 'border-dashed border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400')}>
+      <Icon name="inbox" size={10} strokeWidth={2.5} aria-hidden />
+      Backlog
+    </span>
+  )
 }
 
 // A move into Rejected (09a) — a Reject or a merge into a Done item — reads as
@@ -339,29 +368,27 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       )
     }
 
+    // A placement move (08a) — the Stream and the backlog are containers, not
+    // releases, so each side is its own chip (the ContainerBadge look, static).
     if (event.type === 'release_changed') {
-      const toVersion = event.meta?.to_version ?? ''
-      const fromVersion = event.meta?.from_version
+      const toVersion = event.meta?.to_version ?? null
+      const fromVersion = event.meta?.from_version ?? null
+      const fromReturn = event.meta?.reason === 'production_return'
       return (
         <>
-          {!toVersion && fromVersion ? (
+          {fromVersion ? (
             <>
-              removed this from release{' '}
-              <Badge tone="blue" className="align-middle font-mono">{fromVersion}</Badge>
-            </>
-          ) : fromVersion ? (
-            <>
-              moved release{' '}
-              <Badge tone="blue" className="align-middle font-mono">{fromVersion}</Badge>
+              moved{' '}
+              <PlacementChip version={fromVersion} />
               <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
-              <Badge tone="blue" className="align-middle font-mono">{toVersion}</Badge>
+              <PlacementChip version={toVersion} />
             </>
           ) : (
             <>
-              moved to release{' '}
-              <Badge tone="blue" className="align-middle font-mono">{toVersion}</Badge>
+              moved to <PlacementChip version={toVersion} />
             </>
           )}
+          {fromReturn && <span className="text-zinc-500"> — returned from production</span>}
         </>
       )
     }

@@ -144,8 +144,8 @@ non-pill use.
 | `todo` | To do | zinc | `circle-dashed` |
 | `rejected` | Rejected | the reason's hue (see Cycles below); amber fallback | the reason's icon; `undo-2` fallback |
 | `in_progress` | In Progress | indigo | `loader` |
-| `to_review` | To review | amber | `clock` |
-| `in_review` | In Review | amber | `eye` |
+| `to_review` | To review | cyan | `clock` |
+| `in_review` | In Review | purple | `eye` |
 | `done` | Done | teal | `shield-check` |
 | `blocked` | Blocked | orange | `circle-slash` |
 | `cancelled` | Cancelled | zinc (dimmed: `text-zinc-500`) | `x-circle` |
@@ -267,11 +267,27 @@ merge into a Done item — reads like every other status change ("changed status
 [Rejected]"), marked by an amber `undo-2` dot instead of the grey status dot; the comment renders
 as any other.
 
-The item page's **Cycles** tab (`CycleHistorySection`, bugs and tasks) lists every cycle oldest
-first on a rail — a reason dot, "Cycle N", the reason pill, the container (Stream `waves` or release
-`package` + version), the reason comment as a quote, and relative stamps: Started (and by whom, for
-returns), Picked up, Delivered (first To review or In review — delivered by the assignee at that
-moment), Verified, Closed. Empty state: "No cycles yet" — backlog items have none.
+The item page's tabs — Activity, Attachments, Cycles — are in the URL as `?tab=attachments` /
+`?tab=cycles` (Activity, the default, is left out; switching replaces the history entry), like the
+Stream and Release pages.
+
+The item page's **Cycles** tab (`CycleHistorySection`, bugs and tasks; chosen from a prototype,
+2026-09-30) opens with three stat tiles — cycles, returns (amber when any), total time — then a card
+per cycle, **newest first**; the current one has a `primary/40` border and a "Current" tag. Card
+header: "Cycle N", the reason pill (icon + label), and where it ran as the `ContainerBadge` link
+(Stream → the project's Stream, release → its page; tooltip "Ran in …"/"Running in …"). A return's
+comment is a muted quote with its author. Then a five-step stepper, left to right, each step a 32px
+icon node in its own hue: **Started** (`play`, zinc — plus the returner's avatar on a return),
+**Picked up** (`hand`, blue), **Delivered** (`send`, violet — the deliverer's avatar, or
+"unassigned"), **Verified** (`shield-check`, emerald), and the ending — **Done** (`check-check`,
+emerald) or **Sent back** + where (the next cycle's reason icon and hue: Review amber, Release QA
+orange, Production red). Verified and the ending are separate: a verified cycle can still be sent
+back. States: reached = solid node; the step an open cycle is working towards = primary outline with
+a ping (none under reduced motion) and "up next"; one passed over = dashed `minus` node,
+struck-through label, "skipped"; later = faint dashed. The line into a reached step takes that step's
+hue; the time since the previous reached step sits on it as a small `clock` pill (under a minute is
+left out). Footer: "Took X" or, for the open cycle, "Open for X". Empty state: "No cycles yet" —
+backlog items have none.
 
 **Reject** (`RejectDialog`) is one action on To review, In review and Done items, shown when
 `reject` is in `allowed_actions` (Support never sees it). It has two names: **Reject** (`undo-2`)
@@ -429,6 +445,9 @@ line for bugs and tasks alike — a 24px rounded pill that links to the containe
 ("v2.4.1 · QA"). Backlog: dashed zinc outline, `inbox`, "Backlog" (not planned yet). The title
 attribute says it in words. Reads `container_kind`, `release_version`, `release_status` and
 `project_slug` from `IssueResponse`.
+On the timeline a placement move uses the same three looks as static 20px chips (no link, no
+lifecycle — the event only stores versions): "moved to [Stream]", "moved [v2.4.1] → [Stream]",
+"moved [Stream] → [Backlog]"; a production return adds "— returned from production".
 
 **Navigation.** The sidebar lists **Stream** (`waves`) above **Releases** (`tag`), both for the
 active project. The topbar `ReleaseSwitcher` lists the Stream first (a link to its page), then open
@@ -752,7 +771,7 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | Item placement (`IssueSidebar`, `MoveDialog` in `components/issues`) | Chosen from a prototype, 2026-09-30. **Sidebar:** in a release, a **Release** row styled like the Project row — the mono version as a text trigger (underline on hover) opening a "Move to release" dropdown of open releases with their lifecycle and "Current", confirm before moving; in the Stream or the backlog, a read-only **Placement** row showing the `ContainerBadge` pill (the same one as under the title, no extra hint), tooltip "Use Move… in the ⋯ menu"; a Done item's placement is the pill too, anywhere (it never moves). The **Category** row shows only in the backlog — it's the backlog category. **Move…** in the header's ⋯ menu (open items, `edit_item` allowed) opens `MoveDialog`: one `radiogroup` of destinations, the current one left out — Backlog ("not planned yet") and Stream ("ships when Done") first, then a separator and a **Releases · open only** group of open releases (mono version + lifecycle hint), or "No other open release in this project." Choosing Backlog reveals an optional **Backlog category** `Select` (empty = the project's Default). A release blocker leaving its release gets a one-line note. Move is disabled until a destination is chosen; the dialog closes when the PATCH succeeds |
 | `RejectedPill` / `CycleBadge` / `RejectDialog` / `CycleHistorySection` | See §3 Cycles, Rejected and the cycle badge |
 | `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the Rejected pill's amber→red scale and the priority pills |
-| `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
+| `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text (no "New report referencing this" link — removed 2026-09-30; `/support/new?ref=<key>` still prefills if linked to). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
 should use the primitive rather than re-declaring the classes.
 

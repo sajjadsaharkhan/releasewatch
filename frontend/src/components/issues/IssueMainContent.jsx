@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import { RoleBadge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -12,6 +13,8 @@ import { NeedsInfoQuestion } from './NeedsInfoQuestion'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
 import { ContainerBadge } from '../common/ContainerBadge'
+
+const TABS = ['activity', 'attachments', 'cycles']
 
 export function IssueMainContent({
   issue,
@@ -32,7 +35,15 @@ export function IssueMainContent({
   loadMoreTimeline,
   fetchAttachments,
 }) {
-  const [tab, setTab] = useState('activity')
+  // The open tab lives in `?tab=` (Activity, the default, is left out) so a
+  // link or reload lands on it — the same pattern as the Stream and Release pages.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'activity'
+  const setTab = (next) => {
+    const params = new URLSearchParams(searchParams)
+    if (next === 'activity') params.delete('tab'); else params.set('tab', next)
+    setSearchParams(params, { replace: true })
+  }
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
 
@@ -95,7 +106,7 @@ export function IssueMainContent({
           onValueChange={setTab}
           options={[
             { value: 'activity', label: 'Activity', icon: 'activity', badge: events.length + comments.length },
-            { value: 'evidence', label: 'Attachments', icon: 'paperclip', badge: issue.attachments?.length || null },
+            { value: 'attachments', label: 'Attachments', icon: 'paperclip', badge: issue.attachments?.length || null },
             // Cycles (08a) — bugs and tasks alike; the badge counts passes beyond the first.
             { value: 'cycles', label: 'Cycles', icon: 'refresh-ccw', badge: cycles.length > 1 ? cycles.length : null },
           ]}
@@ -131,7 +142,7 @@ export function IssueMainContent({
             />
           </>
         )}
-        {tab === 'evidence' && (
+        {tab === 'attachments' && (
           <AttachmentsSection
             issue={issue}
             onAttachmentsChange={(atts) => setLocalIssue(prev => ({ ...prev, attachments: atts }))}
@@ -139,7 +150,7 @@ export function IssueMainContent({
             onUploadComplete={() => fetchAttachments?.(issue.id)}
           />
         )}
-        {tab === 'cycles' && <CycleHistorySection cycles={cycles} comments={comments} />}
+        {tab === 'cycles' && <CycleHistorySection cycles={cycles} comments={comments} projectSlug={issue.project_slug} />}
       </div>
     </div>
   )

@@ -2,24 +2,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { cn } from '../lib/cn'
-import { Badge, TypeIcon, PriorityBadge } from '../components/ui/Badge'
+import { TypeIcon, PriorityBadge, StatusBadge } from '../components/ui/Badge'
 import { useApp } from '../hooks/useApp'
 import { searchApi, issuesApi } from '../lib/api'
 import { issueSlug, issueKey, parseIssueSlug } from '../lib/issueSlug'
 
-
-const STATUS_TONE = {
-  new: 'default',
-  needs_info: 'blue',
-  todo: 'default',
-  rejected: 'amber',
-  in_progress: 'blue',
-  to_review: 'amber',
-  in_review: 'amber',
-  done: 'green',
-  blocked: 'orange',
-  cancelled: 'default',
-}
 
 function MatchedVia({ tags }) {
   if (!tags?.length) return null
@@ -51,9 +38,7 @@ function ResultCard({ result, onClick }) {
               {result.key ?? issueKey(result)}
             </span>
             <PriorityBadge priority={result.priority} />
-            <Badge tone={STATUS_TONE[result.status] ?? 'default'} size="sm">
-              {result.status?.replace('_', ' ')}
-            </Badge>
+            <StatusBadge status={result.status} />
           </div>
           <p className="text-sm font-medium text-foreground leading-snug mb-1 group-hover:text-primary transition-colors">
             {result.title}
