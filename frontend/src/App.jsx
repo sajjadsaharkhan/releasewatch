@@ -17,6 +17,7 @@ const IssuesPage = lazy(() => import('./pages/IssuesPage'))
 const TriagePage = lazy(() => import('./pages/TriagePage'))
 const ReleasesPage = lazy(() => import('./pages/ReleasesPage'))
 const ReleaseDetailPage = lazy(() => import('./pages/ReleaseDetailPage'))
+const StreamPage = lazy(() => import('./pages/StreamPage'))
 const RegressionsPage = lazy(() => import('./pages/RegressionsPage'))
 const ContributionsPage = lazy(() => import('./pages/ContributionsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -185,6 +186,9 @@ function AppInner() {
             <Route path="triage" element={<TechRoute><TriagePage /></TechRoute>} />
             <Route path="my-issues" element={<TechRoute><MyIssuesPage /></TechRoute>} />
             <Route path="releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
+            <Route path="projects/:slug/releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
+            <Route path="stream" element={<TechRoute><StreamPage /></TechRoute>} />
+            <Route path="projects/:slug/stream" element={<TechRoute><StreamPage /></TechRoute>} />
             <Route path="backlog" element={<TechRoute><BacklogPage /></TechRoute>} />
             <Route path="projects/:slug/backlog" element={<TechRoute><BacklogPage /></TechRoute>} />
             <Route path="tech-debt" element={<TechRoute><TechDebtPage /></TechRoute>} />

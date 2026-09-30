@@ -5,6 +5,7 @@ from app.db.models.user_identity import UserIdentity
 from app.db.models.label import Label
 from app.db.models.project import Project
 from app.db.models.release import Release, register_stream_hooks
+from app.db.models.release_event import ReleaseEvent
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
@@ -31,6 +32,7 @@ __all__ = [
     "Label",
     "Project",
     "Release",
+    "ReleaseEvent",
     "IssueCycle",
     "Issue",
     "IssueTimeline",

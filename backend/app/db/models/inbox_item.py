@@ -42,6 +42,9 @@ class InboxEventType(str, enum.Enum):
     support_needs_info = "support_needs_info"
     support_cancelled = "support_cancelled"
     support_done = "support_done"
+    # Slice 09 — about a release, not an item (``issue_id`` null, ``release_id`` set).
+    release_shipped = "release_shipped"
+    release_overdue = "release_overdue"
 
 
 #: Events whose audience is Support subscribers (§13).
@@ -56,6 +59,9 @@ SUPPORT_EVENTS = frozenset({
 #: 2026-09-24 decision — a mention is someone asking them directly). Internal
 #: notes never reach Support (BR-31).
 SUPPORT_RECEIVABLE = SUPPORT_EVENTS | {InboxEventType.mention}
+
+#: Events about a release rather than an item (slice 09): ``issue_id`` is null.
+RELEASE_EVENTS = frozenset({InboxEventType.release_shipped, InboxEventType.release_overdue})
 
 
 class TelegramDeliveryStatus(str, enum.Enum):
@@ -89,8 +95,12 @@ class InboxItem(Base):
     actor_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    issue_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True
+    #: Null for a release-only notification (slice 09) — then ``release_id`` is set.
+    issue_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    release_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("releases.id", ondelete="CASCADE"), nullable=True, index=True
     )
     timeline_id: Mapped[int | None] = mapped_column(
         Integer,
@@ -128,6 +138,7 @@ class InboxItem(Base):
     user = relationship("User", foreign_keys=[user_id], back_populates="inbox_items")
     actor = relationship("User", foreign_keys=[actor_id])
     issue = relationship("Issue", back_populates="inbox_items")
+    release = relationship("Release")
     timeline_event = relationship("IssueTimeline", back_populates="inbox_items")
 
     def __repr__(self) -> str:

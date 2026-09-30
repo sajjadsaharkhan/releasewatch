@@ -62,15 +62,40 @@ export const CONTAINER_KIND = {
   backlog: { label: 'Backlog', icon: 'inbox' },
 }
 
-// Release lifecycle (PRD v3 §8.7). The Stream has no status. "Blocked" is not
-// a status — it's a release in QA with a no-go decision.
+// Release lifecycle (PRD v3 §8.7, FR-50). The Stream has no status. "Blocked" is
+// not a status — it's a release in QA with a no-go decision. `pill` is the
+// filled lifecycle badge (<ReleaseLifecycleBadge>); Overdue is never a status —
+// it's the separate red *outlined* <OverdueMarker> (slice 09).
 export const RELEASE_STATUS = {
-  planning:    { label: 'Planning',    tone: 'zinc',  description: 'Scope is being decided' },
-  development: { label: 'Development', tone: 'blue',  description: 'Work is in progress' },
-  qa:          { label: 'QA',          tone: 'amber', description: 'Code freeze — release-level QA' },
-  released:    { label: 'Released',    tone: 'green', description: 'Shipped to production' },
-  cancelled:   { label: 'Cancelled',   tone: 'zinc',  description: 'Will not ship' },
+  planning: {
+    label: 'Planning', tone: 'zinc', icon: 'pencil-ruler', description: 'Scope is being decided',
+    pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+  },
+  development: {
+    label: 'Development', tone: 'blue', icon: 'code-2', description: 'Work is in progress',
+    pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  },
+  qa: {
+    label: 'QA', tone: 'amber', icon: 'flask-conical', description: 'Code freeze — release-level QA',
+    pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  },
+  released: {
+    label: 'Released', tone: 'green', icon: 'rocket', description: 'Shipped to production',
+    pill: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  },
+  cancelled: {
+    label: 'Cancelled', tone: 'zinc', icon: 'ban', description: 'Will not ship',
+    pill: 'bg-zinc-100 text-zinc-500 line-through decoration-zinc-400/60 dark:bg-zinc-800 dark:text-zinc-500',
+  },
 }
+// How a manual lifecycle move reads as a menu item (FR-50). Released is Ship's.
+export const RELEASE_TRANSITION_LABEL = {
+  development: { planning: 'Start development', qa: 'Back to development' },
+  qa: { development: 'Start QA (code freeze)' },
+  cancelled: { '*': 'Cancel release' },
+}
+export const releaseTransitionLabel = (from, to) =>
+  RELEASE_TRANSITION_LABEL[to]?.[from] ?? RELEASE_TRANSITION_LABEL[to]?.['*'] ?? RELEASE_STATUS[to]?.label ?? to
 export const RELEASE_STATUSES = Object.keys(RELEASE_STATUS)
 // Releases that still take items — Released and Cancelled are closed (`release_closed`).
 export const OPEN_RELEASE_STATUSES = ['planning', 'development', 'qa']

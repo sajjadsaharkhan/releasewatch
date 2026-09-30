@@ -5,11 +5,12 @@ POST   /projects                              — create project
 GET    /projects/{slug}                       — get project detail
 PATCH  /projects/{slug}                       — update project
 DELETE /projects/{slug}                       — archive project
-GET    /projects/{slug}/releases              — list releases for project
-POST   /projects/{slug}/releases              — create release
-GET    /projects/{slug}/releases/{version}    — get release detail
-PATCH  /projects/{slug}/releases/{version}    — update release
-POST   /projects/{slug}/releases/{version}/go-nogo — submit go/no-go decision
+GET    /projects/{ref}/releases               — list releases for project (slug or id)
+POST   /projects/{ref}/releases               — create release (starts in Planning)
+GET    /projects/{ref}/stream                 — the project's Stream (slice 09)
+GET    /projects/{ref}/releases/{version}     — get release detail
+
+Release edits, lifecycle, go/no-go and ship live on ``/releases/{id}`` (slice 09).
 """
 
 from datetime import datetime, timezone
@@ -20,11 +21,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.db.models.project import Project
-from app.db.models.release import GoNogoStatus, Release, ReleaseKind
+from app.db.models.release import Release, ReleaseKind
+from app.core.clock import get_now
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.project import ProjectArchiveRequest, ProjectCreate, ProjectResponse, ProjectUpdate
-from app.schemas.release import GoNogoRequest, ReleaseCreate, ReleaseResponse, ReleaseUpdate
+from app.schemas.release import ProjectReleaseCreate, ReleaseResponse
 from app.policy import Action
 from app.services.authz import authorize, project_target, require_action
 from app.services.container_service import stream_of
@@ -257,23 +259,25 @@ async def archive_project_by_id(
     return await _project_to_response(db, project)
 
 
-# ── Releases (nested under projects) ─────────────────────────────────────────
+# ── Releases and the Stream (nested under projects, slice 09) ────────────────
+# ``{ref}`` is the project's slug or its numeric id.
 
 @router.get(
-    "/{slug}/releases",
+    "/{ref}/releases",
     response_model=List[ReleaseResponse],
     summary="List releases for a project",
 )
 async def list_releases(
-    slug: str,
+    ref: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    now: datetime = Depends(get_now),
 ) -> List[ReleaseResponse]:
-    """Return all releases for a project, most recent first — never its Stream (08a)."""
+    """Every release of a project, most recent first — never its Stream (08a)."""
     authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
-    project = await _get_project_or_404(db, slug)
+    project = await _get_project_or_404(db, ref)
     result = await db.execute(
         select(Release)
         .where(
@@ -283,129 +287,83 @@ async def list_releases(
         )
         .order_by(Release.created_at.desc())
     )
-    releases = result.scalars().all()
-    return [await _release_to_response(db, r) for r in releases]
+    return [
+        await _release_to_response(db, r, current_user, now) for r in result.scalars().all()
+    ]
 
 
 @router.post(
-    "/{slug}/releases",
+    "/{ref}/releases",
     response_model=ReleaseResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a release",
 )
 async def create_release(
-    slug: str,
-    payload: ReleaseCreate,
+    ref: str,
+    payload: ProjectReleaseCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    now: datetime = Depends(get_now),
 ) -> ReleaseResponse:
-    """Create a new release under the given project."""
+    """Create a release under the project; it starts in Planning (FR-49)."""
+    from app.api.v1.releases import _respond
+    from app.services.release_service import release_service
+
+    project = await _get_project_or_404(db, ref)
+    authorize(current_user, Action.manage_releases, project_target(project))
+    release = await release_service.create(db, project, payload.model_dump(), current_user)
+    return await _respond(db, release, current_user, now)
+
+
+@router.get("/{ref}/stream", response_model=ReleaseResponse, summary="The project's Stream")
+async def get_stream(
+    ref: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    now: datetime = Depends(get_now),
+) -> ReleaseResponse:
+    """The Stream (FR-46, FR-47); its board is ``GET /releases/{id}/board``."""
+    authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
-    project = await _get_project_or_404(db, slug)
-    authorize(current_user, Action.manage_releases, project_target(project))
-    release = Release(
-        project_id=project.id,
-        version=payload.version,
-        description=payload.description,
-        target_date=payload.target_date,
-        code_freeze_date=payload.code_freeze_date,
-        staging_url=payload.staging_url,
-        created_by_id=current_user.id,
-    )
-    db.add(release)
-    await db.commit()
-    await db.refresh(release)
-    return await _release_to_response(db, release)
+    project = await _get_project_or_404(db, ref)
+    return await _release_to_response(db, await stream_of(db, project.id), current_user, now)
 
 
 @router.get(
-    "/{slug}/releases/{version}",
+    "/{ref}/releases/{version}",
     response_model=ReleaseResponse,
     summary="Get a specific release",
 )
 async def get_release(
-    slug: str,
+    ref: str,
     version: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    now: datetime = Depends(get_now),
 ) -> ReleaseResponse:
-    """Return a single release identified by project slug + version string."""
+    """Return a single release identified by project + version string."""
     authorize(current_user, Action.view_releases)
     from app.api.v1.releases import _release_to_response
 
-    release = await _get_release_or_404(db, slug, version)
-    return await _release_to_response(db, release)
-
-
-@router.patch(
-    "/{slug}/releases/{version}",
-    response_model=ReleaseResponse,
-    summary="Update release metadata",
-)
-async def update_release(
-    slug: str,
-    version: str,
-    payload: ReleaseUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> ReleaseResponse:
-    """Partially update a release (status, staging URL, description, target date)."""
-    from app.api.v1.releases import _release_to_response, apply_release_update
-
-    authorize(current_user, Action.manage_releases, project_target(await _get_project_or_404(db, slug)))
-    release = await _get_release_or_404(db, slug, version)
-    apply_release_update(release, payload.model_dump(exclude_unset=True))
-    db.add(release)
-    await db.commit()
-    await db.refresh(release)
-    return await _release_to_response(db, release)
-
-
-@router.post(
-    "/{slug}/releases/{version}/go-nogo",
-    response_model=ReleaseResponse,
-    summary="Submit go/no-go decision",
-)
-async def submit_go_nogo(
-    slug: str,
-    version: str,
-    payload: GoNogoRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_action(Action.go_nogo)),
-) -> ReleaseResponse:
-    """Record a go or no-go gate decision for a release (CTO / admin only)."""
-    from app.api.v1.releases import _release_to_response
-
-    release = await _get_release_or_404(db, slug, version)
-    release.go_nogo_status = payload.decision
-    release.go_nogo_note = payload.note
-    release.go_nogo_by_id = current_user.id
-    release.go_nogo_at = datetime.now(tz=timezone.utc)
-    db.add(release)
-    await db.commit()
-    await db.refresh(release)
-
-    # Notify team via Celery task
-    template = "release_approved" if payload.decision == GoNogoStatus.approved else "release_blocked"
-    from app.tasks.notifications import bulk_notify_team
-    # (enqueue Telegram alerts for triage leads / QA team)
-
-    return await _release_to_response(db, release)
+    release = await _get_release_or_404(db, ref, version)
+    return await _release_to_response(db, release, current_user, now)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _get_project_or_404(db: AsyncSession, slug: str) -> Project:
-    result = await db.execute(select(Project).where(Project.slug == slug))
-    project = result.scalar_one_or_none()
+async def _get_project_or_404(db: AsyncSession, ref: str) -> Project:
+    """A project by slug, or by id when ``ref`` is all digits and no slug matches."""
+    project = (await db.execute(select(Project).where(Project.slug == ref))).scalar_one_or_none()
+    if project is None and ref.isdigit():
+        project = await db.get(Project, int(ref))
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project '{slug}' not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project '{ref}' not found")
     return project
 
 
-async def _get_release_or_404(db: AsyncSession, slug: str, version: str) -> Release:
-    project = await _get_project_or_404(db, slug)
+async def _get_release_or_404(db: AsyncSession, ref: str, version: str) -> Release:
+    project = await _get_project_or_404(db, ref)
     result = await db.execute(
         select(Release).where(
             Release.project_id == project.id,
@@ -418,6 +376,6 @@ async def _get_release_or_404(db: AsyncSession, slug: str, version: str) -> Rele
     if release is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Release '{version}' not found in project '{slug}'",
+            detail=f"Release '{version}' not found in project '{ref}'",
         )
     return release

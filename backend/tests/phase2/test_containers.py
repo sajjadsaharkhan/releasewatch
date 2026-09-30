@@ -116,12 +116,16 @@ async def test_release_status_controls_use_v3_values(factories, rig):
     for value in ("development", "qa"):
         resp = await admin.patch(f"/releases/{rid}", json={"status": value})
         assert resp.status_code == 200 and resp.json()["status"] == value
+    # Released is reached only by shipping (slice 09).
     resp = await admin.patch(f"/releases/{rid}", json={"status": "released"})
+    assert resp.status_code == 409 and resp.json()["code"] == "use_ship"
+    resp = await admin.post(f"/releases/{rid}/ship", json={"confirm": True})
     assert resp.status_code == 200
     assert resp.json()["released_at"] is not None
 
+    other = (await factories.release(project_id=rig["project"].id)).id
     for old in ("active", "blocked", "archived"):
-        resp = await admin.patch(f"/releases/{rid}", json={"status": old})
+        resp = await admin.patch(f"/releases/{other}", json={"status": old})
         assert resp.status_code == 422
 
 

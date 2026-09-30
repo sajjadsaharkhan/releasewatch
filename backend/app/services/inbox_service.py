@@ -25,6 +25,8 @@ recurrence_on_cancelled → triage leads (a merge or recurrence on a Cancelled i
 support_needs_info   → Support-role subscribers (slice 06, §13)
 support_cancelled    → Support-role subscribers
 support_done         → Support-role subscribers
+release_shipped      → the release's item assignees + active CTOs (slice 09, ``fan_out_release``)
+release_overdue      → active CTOs (slice 09, ``fan_out_release``)
 
 "triage leads" is the project's active triage lead, or every active admin
 while the project has none (AC-23). Whatever the event, a recipient who may
@@ -311,6 +313,168 @@ class InboxFanOutService:
         )
 
         return items
+
+    async def fan_out_release(
+        self,
+        db: AsyncSession,
+        trigger: InboxEventType,
+        release,
+        actor: User | None,
+        recipient_ids: set[int],
+        meta: dict[str, Any] | None = None,
+        roles: dict[int, set[str]] | None = None,
+    ) -> list[InboxItem]:
+        """The release-scoped variant of ``fan_out`` (slice 09): one ``InboxItem``
+        per recipient with ``issue_id`` null and ``release_id`` set.
+
+        The caller computes the audience; the actor is dropped and so is anyone
+        who isn't an active tech user (a release has no Support-visible content).
+        ``roles`` maps a recipient to their matrix relationships for this event
+        (``assignee`` / ``cto``) — Telegram is sent when the matrix row switches
+        one of them on.
+        """
+        from app.policy import is_tech
+
+        ids = set(recipient_ids)
+        if actor is not None:
+            ids.discard(actor.id)
+        if not ids:
+            return []
+        users = (await db.execute(
+            select(User).where(User.id.in_(ids), User.is_active.is_(True))
+        )).scalars().all()
+        users = [u for u in users if is_tech(u.role)]
+
+        items: list[InboxItem] = []
+        for u in users:
+            item = InboxItem(
+                user_id=u.id,
+                actor_id=actor.id if actor is not None else None,
+                issue_id=None,
+                release_id=release.id,
+                event_type=trigger,
+                is_read=False,
+                meta=meta,
+            )
+            db.add(item)
+            items.append(item)
+        await db.flush()
+
+        try:
+            from app.core.redis_client import publish
+
+            for item in items:
+                await publish(f"rw:inbox:{item.user_id}", {
+                    "type": "inbox_item", "event_type": trigger.value,
+                    "issue_id": None, "release_id": str(release.id), "item_id": str(item.id),
+                })
+        except Exception:
+            pass
+
+        await self._dispatch_release_telegram(
+            db, trigger, release, actor, items, {u.id: u for u in users}, meta or {}, roles or {},
+        )
+        return items
+
+    async def _dispatch_release_telegram(
+        self, db, trigger, release, actor, items, users_by_id, meta, roles,
+    ) -> None:
+        """Telegram for a release-only notice — same matrix, same outbox as items."""
+        if not items:
+            return
+        try:
+            from sqlalchemy.orm import attributes as sa_attrs
+
+            from app.config import settings as app_settings
+            from app.db.models.project import Project
+            from app.db.models.system_setting import SystemSetting
+            from app.db.models.telegram_integration import TelegramIntegration
+            from app.tasks.notifications import send_telegram_notification
+            from app.telegram.templates import MESSAGE_TEMPLATES
+
+            setting = (await db.execute(
+                select(SystemSetting).where(
+                    SystemSetting.category == "notifications", SystemSetting.key == "matrix",
+                )
+            )).scalar_one_or_none()
+            row = resolve_matrix(setting.value if setting else None).get(trigger.value)
+            if not row or trigger.value not in MESSAGE_TEMPLATES:
+                return
+            tg_cfg = (await db.execute(
+                select(SystemSetting).where(
+                    SystemSetting.category == "telegram", SystemSetting.key == "config",
+                )
+            )).scalar_one_or_none()
+            bot_token = (tg_cfg.value or {}).get("bot_token") if tg_cfg else None
+            if not bot_token:
+                return
+            proxy_cfg = (await db.execute(
+                select(SystemSetting).where(
+                    SystemSetting.category == "proxy", SystemSetting.key == "config",
+                    SystemSetting.is_active.is_(True),
+                )
+            )).scalar_one_or_none()
+            proxy_url = None
+            if proxy_cfg and (proxy_cfg.value or {}).get("enabled"):
+                proxy_url = proxy_cfg.value.get("http") or proxy_cfg.value.get("https") or None
+
+            tg_by_user = {
+                t.user_id: t for t in (await db.execute(
+                    select(TelegramIntegration).where(
+                        TelegramIntegration.user_id.in_([i.user_id for i in items]),
+                        TelegramIntegration.is_active.is_(True),
+                    )
+                )).scalars().all()
+            }
+            project = await db.get(Project, release.project_id)
+            frontend_base = (
+                ((tg_cfg.value or {}).get("frontend_url") if tg_cfg else None)
+                or app_settings.FRONTEND_URL
+            ).rstrip("/")
+
+            def _esc(v: object) -> str:
+                return html_lib.escape(str(v)) if v is not None else ""
+
+            context = {
+                "release_name": _esc(release.version),
+                "release_url": f"{frontend_base}/releases/{release.id}",
+                "project_name": _esc(project.name if project else ""),
+                "release_deadline": _esc(
+                    release.target_date.strftime("%b %d, %Y") if release.target_date else "—"
+                ),
+                "actor": _esc((actor.name or actor.username) if actor else "Releasewatch"),
+                "moved_count": _esc(meta.get("moved", 0)),
+            }
+            for item in items:
+                tg = tg_by_user.get(item.user_id)
+                if tg is None:
+                    continue
+                user = users_by_id.get(item.user_id)
+                rel = set(roles.get(item.user_id, set()))
+                if user is not None and getattr(user.role, "value", user.role) in ("cto", "admin"):
+                    rel.add("cto")
+                if not any(row.get(r) for r in rel):
+                    item.telegram_status = "skipped"
+                    continue
+                item_meta = dict(item.meta or {})
+                item_meta["tg_context"] = context
+                item_meta["tg_template"] = trigger.value
+                send_token = uuid4().hex
+                item_meta["send_token"] = send_token
+                item.meta = item_meta
+                sa_attrs.flag_modified(item, "meta")
+                item.telegram_status = "pending"
+                send_telegram_notification.apply_async(
+                    args=[tg.chat_id, trigger.value, context],
+                    kwargs={
+                        "bot_token": bot_token, "proxy_url": proxy_url,
+                        "inbox_item_id": item.id, "send_token": send_token,
+                    },
+                    countdown=2,
+                    queue="notifications",
+                )
+        except Exception:
+            logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

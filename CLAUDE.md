@@ -90,7 +90,9 @@ frontend/src/
 | `#/issues` | IssuesPage |
 | `#/issue/:id` | IssuePage |
 | `#/triage` | TriagePage |
-| `#/releases` | ReleasesPage |
+| `#/releases`, `#/projects/:slug/releases` | ReleasesPage (per project) |
+| `#/releases/:id` | ReleaseDetailPage |
+| `#/projects/:slug/stream` | StreamPage |
 | `#/regressions` | RegressionsPage |
 | `#/release-reports` | ReleaseReportsPage |
 | `#/contributions` | ContributionsPage |

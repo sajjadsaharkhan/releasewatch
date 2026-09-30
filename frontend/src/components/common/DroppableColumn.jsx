@@ -4,14 +4,15 @@ import { cn } from '../../lib/cn'
 import { StatusBadge } from '../ui/Badge'
 import { DraggableIssueCard } from './DraggableIssueCard'
 
-export function DroppableColumn({ status, issues, onOpen }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
+export function DroppableColumn({ status, issues, onOpen, readOnly = false, emptyText = 'No issues', headerExtra = null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status, disabled: readOnly })
 
   return (
     <div className="flex flex-col min-h-0" data-testid={`board-column-${status}`}>
       <div className="px-1 pb-2 flex items-center gap-1.5">
         <StatusBadge status={status} size="sm" />
         <span className="text-[11px] text-zinc-500 tabular-nums">{issues.length}</span>
+        {headerExtra}
       </div>
       <div
         ref={setNodeRef}
@@ -30,11 +31,12 @@ export function DroppableColumn({ status, issues, onOpen }) {
             assignee={issue.assignee_user}
             labels={issue.labels_detail ?? []}
             onOpen={onOpen}
+            readOnly={readOnly}
           />
         ))}
         {issues.length === 0 && !isOver && (
           <div className="h-16 flex items-center justify-center text-[11px] text-zinc-400 dark:text-zinc-600 italic">
-            No issues
+            {emptyText}
           </div>
         )}
       </div>

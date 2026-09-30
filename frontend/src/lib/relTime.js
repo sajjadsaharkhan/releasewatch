@@ -39,6 +39,16 @@ export function fullTime(date) {
 /**
  * Duration in hours → human readable "2h 15m", "3d 4h", etc.
  */
+/**
+ * A calendar day in the viewer's locale, e.g. "Oct 12, 2026". Accepts an ISO
+ * timestamp or a plain `YYYY-MM-DD` date (read as a local day, not UTC).
+ */
+export function formatDay(value) {
+  if (!value) return null
+  const d = typeof value === 'string' && value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export function formatDuration(hours) {
   if (hours < 1) return `${Math.round(hours * 60)}m`
   if (hours < 24) return `${Math.round(hours)}h`

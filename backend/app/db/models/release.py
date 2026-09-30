@@ -113,6 +113,12 @@ class Release(Base):
     )
     go_nogo_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    #: When the CTOs were told the release passed its target ship date (slice 09);
+    #: cleared whenever ``target_date`` changes, so a later date notifies again.
+    overdue_notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     # Audit
     created_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -149,6 +155,10 @@ class Release(Base):
     creator = relationship("User", foreign_keys=[created_by_id])
     go_nogo_user = relationship("User", foreign_keys=[go_nogo_by_id])
     issues = relationship("Issue", back_populates="release")
+    events = relationship(
+        "ReleaseEvent", cascade="all, delete-orphan", passive_deletes=True,
+        order_by="ReleaseEvent.created_at",
+    )
 
     def __repr__(self) -> str:
         return (

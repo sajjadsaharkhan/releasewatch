@@ -34,6 +34,7 @@ from app.services import backlog_service as backlog
 from app.services import container_service as containers
 from app.services.backlog_category_service import backlog_category_service
 from app.services.cycle_service import cycle_service
+from app.services.release_service import release_service
 from app.workflow import Workflow
 
 
@@ -161,6 +162,7 @@ class IssueService:
         from app.services.subscriber_service import subscribe
         # Filed into a container → cycle 1 (planned), even while still in triage (AC-78).
         await cycle_service.on_placed(db, issue, current_user, now=now)
+        await release_service.record_item_move(db, issue, None, issue.release_id, current_user)
         await subscribe(db, issue.id, current_user.id, SubscriptionReason.reporter)
         await db.flush()
 
@@ -223,6 +225,7 @@ class IssueService:
         comment: str | None = None,
         cancel_reason: str | None = None,
         question: str | None = None,
+        notify: bool = True,
         _internal_context: dict | None = None,
     ) -> Issue:
         """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
@@ -335,11 +338,12 @@ class IssueService:
             is_internal=False,
         )
 
-        await InboxFanOutService().fan_out(
-            db=db, trigger=InboxEventType.status_changed, issue=issue, actor=actor,
-            timeline_event=event,
-            meta={"from": from_status.value, "to": to_status.value},
-        )
+        if notify:
+            await InboxFanOutService().fan_out(
+                db=db, trigger=InboxEventType.status_changed, issue=issue, actor=actor,
+                timeline_event=event,
+                meta={"from": from_status.value, "to": to_status.value},
+            )
         if to_status != from_status:
             await self.notify_support(db, issue, to_status, actor, question=question)
 
@@ -447,6 +451,9 @@ class IssueService:
             # A Released release never holds an open item — the new cycle is in the Stream.
             stream = await containers.stream_of(db, issue.project_id)
             issue.release_id = stream.id
+            await release_service.record_item_move(
+                db, issue, container.id, stream.id, actor, reason="production_return",
+            )
             timeline = TimelineService()
             await timeline.create_event(
                 db=db, issue_id=issue.id, actor_id=actor.id,
@@ -599,8 +606,15 @@ class IssueService:
         issue_id: int,
         payload: dict,
         actor: User,
+        *,
+        notify: bool = True,
+        move_reason: str | None = None,
     ) -> Issue:
         """Apply a partial update to an issue, emitting a timeline event per changed field.
+
+        ``notify=False`` skips the inbox fan-out (a release ship or cancel sends
+        one release notice instead); ``move_reason`` is recorded on the release
+        Activity entry for a container change (slice 09).
 
         A ``status`` field routes through ``transition()`` — see D8
         (docs/phase-2/00-README.md).
@@ -837,6 +851,9 @@ class IssueService:
         db.add(issue)
         await db.flush()
         await cycle_service.after_container_change(db, issue, old_release_id, actor)
+        await release_service.record_item_move(
+            db, issue, old_release_id, issue.release_id, actor, reason=move_reason,
+        )
 
         # Emit timeline events
         for event_type, meta in events_to_emit:
@@ -851,7 +868,7 @@ class IssueService:
             )
 
         # Fan-out inbox notifications
-        for trigger, trigger_meta in inbox_triggers:
+        for trigger, trigger_meta in (inbox_triggers if notify else []):
             await inbox_svc.fan_out(
                 db=db, trigger=trigger, issue=issue, actor=actor, meta=trigger_meta,
             )

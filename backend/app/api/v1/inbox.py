@@ -24,7 +24,10 @@ from app.db.models.issue import Issue
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User
 from app.db.session import get_db
-from app.schemas.inbox import ActorInfo, InboxItemResponse, InboxListResponse, UnreadCountResponse
+from app.db.models.release import Release
+from app.schemas.inbox import (
+    ActorInfo, InboxItemResponse, InboxListResponse, InboxReleaseInfo, UnreadCountResponse,
+)
 from app.services.authz import sees_internal, visibility_clause
 
 router = APIRouter()
@@ -60,6 +63,17 @@ def _build_response(item: InboxItem) -> InboxItemResponse:
         issue_id = f"issue-{item.issue.issue_number}"
         issue_title = item.issue.title
 
+    release_info = None
+    if item.issue is None and item.release is not None:
+        project = item.release.project
+        release_info = InboxReleaseInfo(
+            id=item.release.id,
+            version=item.release.version,
+            project_id=item.release.project_id,
+            project_slug=project.slug if project else None,
+            project_name=project.name if project else None,
+        )
+
     return InboxItemResponse(
         id=item.id,
         type=item.event_type,
@@ -67,6 +81,7 @@ def _build_response(item: InboxItem) -> InboxItemResponse:
         actor=actor_info,
         issue_id=issue_id,
         issue_title=issue_title,
+        release=release_info,
         timeline_id=item.timeline_id,
         meta=item.meta,
         created_at=item.created_at,
@@ -104,6 +119,7 @@ async def get_inbox(
         base_query.options(
             selectinload(InboxItem.actor),
             selectinload(InboxItem.issue),
+            selectinload(InboxItem.release).selectinload(Release.project),
         )
         .order_by(InboxItem.created_at.desc(), InboxItem.id.desc())
         .offset((page - 1) * size)
@@ -176,6 +192,7 @@ async def mark_item_read(
         .options(
             selectinload(InboxItem.actor),
             selectinload(InboxItem.issue),
+            selectinload(InboxItem.release).selectinload(Release.project),
         )
         .where(
             InboxItem.id == item_id,

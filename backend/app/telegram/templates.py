@@ -10,6 +10,22 @@ key.  Dynamic fields are filled in by the sender:
 """
 
 MESSAGE_TEMPLATES: dict[str, str] = {
+    # Slice 09 — release-only notices (no item): release_name, release_url,
+    # project_name, release_deadline, actor, moved_count.
+    "release_shipped": (
+        "🚀 <b>Shipped: <a href=\"{release_url}\">{release_name}</a></b>\n"
+        "📦 <b>{project_name}</b>\n"
+        "\n"
+        "Unfinished items moved to the backlog: <b>{moved_count}</b>\n"
+        "\n"
+        "<i>Shipped by {actor}</i>"
+    ),
+    "release_overdue": (
+        "⏰ <b>Release overdue: <a href=\"{release_url}\">{release_name}</a></b>\n"
+        "📦 <b>{project_name}</b>\n"
+        "\n"
+        "Target ship date <b>{release_deadline}</b> has passed and it hasn't shipped."
+    ),
     "filed": (
         "🐛 <b>New issue filed!</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"

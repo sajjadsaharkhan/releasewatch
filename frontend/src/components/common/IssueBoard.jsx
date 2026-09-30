@@ -56,7 +56,9 @@ export function IssueBoardSkeleton({ cardsPerColumn = 3 }) {
   )
 }
 
-export function IssueBoard({ issues = [], onOpen, onStatusChange }) {
+// `readOnly` (a Released release, FR-54) turns off dragging. `columnHeaderExtra`
+// and `emptyText` are per-status (e.g. the Stream's Done-range note).
+export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = false, columnHeaderExtra = {}, emptyText = {} }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -84,6 +86,9 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange }) {
             status={status}
             issues={issues.filter(i => i.status === status)}
             onOpen={onOpen}
+            readOnly={readOnly}
+            headerExtra={columnHeaderExtra[status] ?? null}
+            emptyText={emptyText[status] ?? 'No issues'}
           />
         ))}
       </div>

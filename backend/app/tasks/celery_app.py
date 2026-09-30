@@ -22,6 +22,7 @@ celery_app = Celery(
         "app.tasks.attachments",
         "app.tasks.reports",
         "app.tasks.search",
+        "app.tasks.releases",
     ],
 )
 
@@ -79,6 +80,12 @@ celery_app.conf.beat_schedule = {
     "detect-regression-patterns-nightly": {
         "task": "app.tasks.reports.detect_regression_patterns",
         "schedule": crontab(hour=2, minute=0),  # 02:00 UTC nightly
+        "options": {"queue": "default"},
+    },
+    # Slice 09 (§13): one notice per release per target date that passes.
+    "notify-overdue-releases-daily": {
+        "task": "app.tasks.releases.notify_overdue_releases",
+        "schedule": crontab(hour=6, minute=0),
         "options": {"queue": "default"},
     },
     "invalidate-stale-report-cache-hourly": {

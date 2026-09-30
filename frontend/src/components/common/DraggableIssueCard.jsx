@@ -9,9 +9,10 @@ import { ReturnedMarker } from './ReturnedMarker'
 import { issueKey } from '../../lib/issueSlug'
 import { TypeIcon, PriorityBadge } from '../ui/Badge'
 
-export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
+export function DraggableIssueCard({ issue, assignee, labels, onOpen, readOnly = false }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: issue.id,
+    disabled: readOnly,
     data: {
       issue,
       currentStatus: issue.status,
@@ -29,7 +30,8 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "w-full text-left rounded-lg border border-border bg-card p-3 cursor-grab active:cursor-grabbing touch-none",
+        "w-full text-left rounded-lg border border-border bg-card p-3",
+        readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing touch-none",
         "transition-all duration-200 ease-out",
         isDragging && "opacity-50 shadow-xl rotate-1 scale-105 z-50"
       )}

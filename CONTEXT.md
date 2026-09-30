@@ -81,11 +81,19 @@ Where a work item is placed: its project's **Stream**, one of its **Releases**, 
 _Avoid_: "hotfix" (not a concept in v3 — urgent work is an item in the Stream), "milestone" and "project kind" (both removed).
 
 **Stream**:
-The one always-open container every project has (`releases.kind = stream`, BR-51), created with the project by an ORM hook, with no lifecycle status. Each item in it ships on its own when Done. It can't be renamed, cancelled, archived, go/no-go'd or deleted (409 `stream_immutable`, FR-46). Phase 1 release screens — release lists, the release switcher, dashboard, reports — never show it (`kind = release` only); `ProjectResponse.stream_id` and `IssueResponse.container_kind` expose it.
+The one always-open container every project has (`releases.kind = stream`, BR-51), created with the project by an ORM hook, with no lifecycle status. Each item in it ships on its own when Done. It can't be renamed, cancelled, archived, go/no-go'd or deleted (409 `stream_immutable`, FR-46). Release lists, dashboard and reports never show it (`kind = release` only); it has its own page, `/projects/:slug/stream` (slice 09) — a board whose Done column shows the last 7 days by default — and the release switcher lists it first as a link to that page. `ProjectResponse.stream_id` and `IssueResponse.container_kind` expose it.
 
 **Release** (container):
 A container whose items ship together (`releases.kind = release`). Lifecycle `planning → development → qa → released`, or `cancelled` (PRD v3 §8.7); `code_freeze_date`, `target_date` (target ship date) and `released_at`. "Blocked" is not a status — a blocked release is one in QA with a no-go decision. The release-blocker flag exists only on a bug in a Release (`release_blocker_release_only`, BR-58); moving the bug out clears it with a `blocker_cleared` event.
 _Avoid_: `active`, `blocked`, `archived` as release statuses (Phase 1 values, gone).
+
+**Release lifecycle** (slice 09):
+The allowed release status changes, owned by the pure module `app/release_lifecycle.py` (FR-50): Planning → Development → QA, QA → Development, Planning/Development/QA → Cancelled only while no item is Done (`release_has_done_items`, BR-55), and QA → Released only through **ship** (`use_ship`, `ship_only_from_qa`). Released and Cancelled are final (`release_final`) and read-only. `ReleaseResponse.allowed_transitions` / `allowed_actions` carry what the caller may do; the UI renders them. **Progress** is Done ÷ non-cancelled items (BR-47) and **Overdue** is a passed target ship date on a release that isn't Released or Cancelled (BR-48) — both computed on read, never stored. Changes to a release are recorded as **release events** (`release_events`, the Activity tab), separate from item timelines.
+_Avoid_: "blocked release" as a status; "overdue" as a status (it's a marker).
+
+**Ship** (slice 09):
+The one action that makes a release Released (`ReleaseService.ship`, FR-53): CTO, Admin, or the project's triage lead (`ship_release`), only from QA. It stamps `released_at`, moves every item that isn't Done or Cancelled to the backlog as To do in category Default — assignee kept, cycles deleted (BR-56, BR-62) — and sends `release_shipped` to the items' assignees and the CTOs. Go/no-go is shown in the ship notice but isn't required. **Cancel** moves open items the same way. A release that passes its target ship date sends `release_overdue` to active CTOs once per date (a daily Celery beat job); these two are release-only notifications (`inbox_items.issue_id` null, `release_id` set).
+_Avoid_: "release" as a verb for this action; "deploy".
 
 ### Triage (slice 06)
 

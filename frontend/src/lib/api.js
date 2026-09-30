@@ -221,6 +221,10 @@ export const projectsApi = {
   create: (data) => api.post('/projects', data),
   update: (id, data) => api.patch(`/projects/id/${id}`, data),
   archive: (id, archive = true) => api.post(`/projects/id/${id}/archive`, { archive }),
+  // Slice 09 — `ref` is the project's slug or id.
+  releases: (ref) => api.get(`/projects/${ref}/releases`),
+  createRelease: (ref, data) => api.post(`/projects/${ref}/releases`, data),
+  stream: (ref) => api.get(`/projects/${ref}/stream`),
 }
 
 // ─── Releases ────────────────────────────────────────────────────────────────
@@ -233,6 +237,16 @@ export const releasesApi = {
   block: (id, reason) => api.post(`/releases/${id}/block`, { reason }),
   delete: (id) => api.delete(`/releases/${id}`),
   analytics: (id) => api.get(`/releases/${id}/analytics`),
+  // Slice 09 — lifecycle, go/no-go, ship, and the Board / Items / Activity tabs.
+  setStatus: (id, to) => api.post(`/releases/${id}/status`, { to }),
+  cancel: (id) => api.post(`/releases/${id}/cancel`),
+  goNogo: (id, decision, note) => api.post(`/releases/${id}/go-nogo`, { decision, note: note || null }),
+  shipPreview: (id) => api.get(`/releases/${id}/ship-preview`),
+  ship: (id) => api.post(`/releases/${id}/ship`, { confirm: true }),
+  items: (id) => api.get(`/releases/${id}/items`),
+  activity: (id) => api.get(`/releases/${id}/activity`),
+  // `done_from` / `done_to` bound only the Done column (ISO strings).
+  board: (id, params) => api.get(`/releases/${id}/board`, { params }),
 }
 
 // ─── Labels ──────────────────────────────────────────────────────────────────

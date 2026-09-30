@@ -42,6 +42,9 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "support_needs_info":  _row(subscriber=True),
     "support_cancelled":   _row(subscriber=True),
     "support_done":        _row(subscriber=True),
+    # Slice 09 — about a release, not an item.
+    "release_shipped":     _row(assignee=True, cto=True),
+    "release_overdue":     _row(cto=True),
 }
 
 

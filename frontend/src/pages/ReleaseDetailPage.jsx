@@ -1,9 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { StatusBadge, RoleBadge } from '../components/ui/Badge'
-import { EditReleaseModal } from '../components/releases/EditReleaseModal'
-import { DeleteReleaseModal } from '../components/releases/DeleteReleaseModal'
+import {
+  EditReleaseModal, DeleteReleaseModal, ReleaseLifecycleMenu, OverdueMarker, ReleaseProgress,
+  ShipDialog, GoNogoPanel, ReleaseActivity, ContainerWork,
+} from '../components/releases'
+import { Button } from '../components/ui/Button'
+import { Empty } from '../components/ui/Empty'
+import { useToast } from '../hooks/useToast'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { IssueTable } from '../components/common/IssueTable'
@@ -18,13 +23,13 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts'
-import { PRIORITY, PRIORITIES, FIXED_STATUSES } from '../lib/constants'
+import { PRIORITY, PRIORITIES, isOpenRelease } from '../lib/constants'
 import { releasesApi, issuesApi, teamApi, labelsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { issueSlug } from '../lib/issueSlug'
-import { relTime } from '../lib/relTime'
+import { formatDay, relTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
-import { CheckCircle2, XCircle, Clock, AlertTriangle, Ship, Trash2 } from 'lucide-react'
+import { CheckCircle2, Trash2 } from 'lucide-react'
 
 // Priority items for filter dropdown
 const PRIORITY_ITEMS = Object.keys(PRIORITY).map((key) => ({
@@ -168,15 +173,28 @@ function generateDiscoveryData(releaseId) {
   }))
 }
 
+// The release page (slice 09, FR-51–FR-54): lifecycle, Overdue, progress, the
+// go/no-go panel and open release blockers in the rail; Board, Items and
+// Activity tabs (plus Analytics for CTO/Admin). Ship opens the ship notice.
+// A Released release is read-only: no lifecycle menu, edit, drag or delete.
 export default function ReleaseDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user: currentUser } = useApp()
+  const { user: currentUser, refetchReleases } = useApp()
+  const { toast } = useToast()
   const canViewAnalytics = ['admin', 'cto'].includes(currentUser?.role)
-  const canDelete = ['admin', 'cto'].includes(currentUser?.role)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const TABS = ['board', 'items', 'activity', ...(canViewAnalytics ? ['analytics'] : [])]
+  const activeTab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'board'
+  const setActiveTab = (tab) => {
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'board') next.delete('tab'); else next.set('tab', tab)
+    setSearchParams(next, { replace: true })
+  }
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [shipOpen, setShipOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const [release, setRelease] = useState(null)
@@ -185,63 +203,47 @@ export default function ReleaseDetailPage() {
   const [labels, setLabels] = useState([])
   const [analytics, setAnalytics] = useState(null) // { total_issues, verified_issues, regression_count, cycles }
   const [loading, setLoading] = useState(true)
+  const [activity, setActivity] = useState({ events: null, loading: true, error: null })
+
+  const loadRelease = () => releasesApi.get(id).then((r) => setRelease(r.data))
+  const loadIssues = () => issuesApi.list({ release_id: id, size: 500 }).then((r) => setIssues(r.data?.items || []))
+  const loadActivity = () => {
+    setActivity((a) => ({ ...a, loading: !a.events, error: null }))
+    return releasesApi.activity(id)
+      .then((r) => setActivity({ events: r.data.events, loading: false, error: null }))
+      .catch((err) => setActivity({ events: null, loading: false, error: err.response?.data?.detail || 'Could not load the activity.' }))
+  }
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    Promise.all([
-      releasesApi.get(id),
-      issuesApi.list({ release_id: id, size: 500 }),
-      teamApi.list(),
-      labelsApi.list(),
-      releasesApi.analytics(id),
-    ]).then(([rel, iss, tm, lbl, anl]) => {
-      setRelease(rel.data)
-      setIssues(iss.data?.items || [])
-      setTeam(tm.data || [])
-      setLabels(lbl.data || [])
-      setAnalytics(anl.data)
-    }).catch(console.error).finally(() => setLoading(false))
-  }, [id])
+    setRelease(null)
+    loadRelease().catch(() => setRelease(null)).finally(() => setLoading(false))
+    loadIssues().catch(console.error)
+    loadActivity()
+    Promise.allSettled([teamApi.list(), labelsApi.list(), releasesApi.analytics(id)])
+      .then(([tm, lbl, anl]) => {
+        if (tm.status === 'fulfilled') setTeam(tm.value.data || [])
+        if (lbl.status === 'fulfilled') setLabels(lbl.value.data || [])
+        if (anl.status === 'fulfilled') setAnalytics(anl.value.data)
+      })
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // After anything that changes the release or its items.
+  const refreshAll = () => {
+    loadRelease().catch(console.error)
+    loadIssues().catch(console.error)
+    loadActivity()
+    setRefreshKey((k) => k + 1)
+    refetchReleases?.()
+  }
 
   const cycles = analytics?.cycles || []
-
   const userById = (uid) => team.find(u => String(u.id) === String(uid))
-
-  // ── Overview tab helpers ──────────────────────────────────────────────────
-  const daysInfo = useMemo(() => {
-    if (!release) return { daysSinceCreated: 0, daysUntilTarget: 0, isDelayed: false, isToday: false }
-    const now = new Date()
-    const createdDate = new Date(release.created_at)
-    const targetDate = release.target_date ? new Date(release.target_date) : now
-    const daysSinceCreated = Math.max(0, Math.floor((now - createdDate) / 86400000))
-    const daysUntilTarget = Math.ceil((targetDate - now) / 86400000)
-    return { daysSinceCreated, daysUntilTarget, isDelayed: daysUntilTarget < 0, isToday: daysUntilTarget === 0 }
-  }, [release])
-
-  const timelineMilestones = useMemo(() => {
-    if (!release) return []
-    const fmt = (ts) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
-    return [
-      { label: 'Created',  date: fmt(release.created_at), done: true },
-      { label: 'Released', date: fmt(release.target_date), done: release.status === 'released' },
-    ]
-  }, [release])
 
   const activeBlockers = useMemo(() =>
     issues.filter(i => i.is_release_blocker && !['done', 'cancelled'].includes(i.status)),
     [issues]
-  )
-
-  const contributors = useMemo(() =>
-    team.slice(0, 6).map(u => ({
-      user: u,
-      filed: issues.filter(i => String(i.reporter_id) === String(u.id)).length,
-      fixed: issues.filter(i => String(i.assignee_id) === String(u.id) && FIXED_STATUSES.includes(i.status)).length,
-      inProgress: issues.filter(i => String(i.assignee_id) === String(u.id) && i.status === 'in_progress').length,
-      totalAssigned: issues.filter(i => String(i.assignee_id) === String(u.id)).length,
-    })).filter(c => c.filed + c.fixed + c.totalAssigned > 0),
-    [team, issues]
   )
 
   const priorityCounts = useMemo(() =>
@@ -294,478 +296,111 @@ export default function ReleaseDetailPage() {
     return (
       <div className="flex h-full items-center justify-center">
         {loading
-          ? <div className="text-sm text-zinc-400">Loading release…</div>
-          : <div className="text-center">
-              <h2 className="text-xl font-semibold mb-2">Release not found</h2>
-              <Link to="/releases" className="text-blue-600 dark:text-blue-400 hover:underline">Back to releases</Link>
-            </div>
+          ? <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><Icon name="loader-2" size={14} className="animate-spin" /> Loading release…</div>
+          : <Empty icon="package" title="Release not found" body="It may have been deleted.">
+              <Link to="/releases" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Back to releases</Link>
+            </Empty>
         }
       </div>
     )
   }
 
-  const discoveryData = generateDiscoveryData(id)
-
-  // Beautiful release status indicator
-  const getStatusIndicator = () => {
-    if (release.goNoGo === 'approved') {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <Ship className="h-8 w-8 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">GO</p>
-            <p className="text-sm text-muted-foreground">
-              Approved by {userById(release.goNoGoBy)?.name ?? 'CTO'}
-            </p>
-          </div>
-        </div>
-      )
-    } else if (release.goNoGo === 'blocked') {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-            <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">NO-GO</p>
-            <p className="text-sm text-muted-foreground">
-              Blocked by {userById(release.goNoGoBy)?.name ?? 'CTO'}
-            </p>
-          </div>
-        </div>
-      )
-    } else if (release.status === 'released') {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-            <Ship className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">Shipped</p>
-            <p className="text-sm text-muted-foreground">Release has been shipped to production</p>
-          </div>
-        </div>
-      )
-    } else if (release.blockers > 0) {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-            <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {release.blockers} Blocker{release.blockers > 1 ? 's' : ''}
-            </p>
-            <p className="text-sm text-muted-foreground">Critical issues must be resolved</p>
-          </div>
-        </div>
-      )
-    } else if (release.openIssues > 0) {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-            <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-              {release.openIssues} Open Issue{release.openIssues > 1 ? 's' : ''}
-            </p>
-            <p className="text-sm text-muted-foreground">Work in progress</p>
-          </div>
-        </div>
-      )
-    } else {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">Ready</p>
-            <p className="text-sm text-muted-foreground">All issues resolved</p>
-          </div>
-        </div>
-      )
-    }
+  // The Stream has its own page.
+  if (release.kind === 'stream') {
+    return <Navigate to={`/projects/${release.project_slug}/stream`} replace />
   }
 
-  // Compact inline status badge for panel header
-  const getStatusInlineBadge = () => {
-    if (release.goNoGo === 'approved') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
-          <Ship className="h-3.5 w-3.5" />
-          GO
-        </span>
-      )
-    } else if (release.goNoGo === 'blocked') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
-          <XCircle className="h-3.5 w-3.5" />
-          NO-GO
-        </span>
-      )
-    } else if (release.status === 'released') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-semibold">
-          <Ship className="h-3.5 w-3.5" />
-          Shipped
-        </span>
-      )
-    } else if (release.blockers > 0) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-semibold">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          {release.blockers} Blocker{release.blockers > 1 ? 's' : ''}
-        </span>
-      )
-    } else if (release.openIssues > 0) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold">
-          <Clock className="h-3.5 w-3.5" />
-          {release.openIssues} Open
-        </span>
-      )
-    } else {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Ready
-        </span>
-      )
-    }
-  }
+  const discoveryData = generateDiscoveryData(String(id))
+  const actions = release.allowed_actions ?? []
+  const closed = !isOpenRelease(release)
+  const canManage = actions.includes('manage_releases')
+  const canShip = actions.includes('ship_release')
+  const fmt = formatDay
 
   return (
-    <div className="flex h-full">
-      {/* Left: release detail */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+    <div className="flex h-full flex-col lg:flex-row">
+      <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <Link to="/releases" className="text-sm text-muted-foreground hover:text-foreground">
-                Releases
-              </Link>
-              <span className="text-muted-foreground">/</span>
-              <h1 className="text-2xl font-bold font-mono">{release.version}</h1>
-            </div>
-          </div>
-          {canDelete && (
-            <button
-              onClick={() => setDeleteModalOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              title="Delete release"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Tab Navigation */}
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          options={[
-            { value: 'overview', label: 'Overview' },
-            ...(canViewAnalytics ? [{ value: 'analytics', label: 'Analytics Dashboard' }] : []),
-          ]}
-        />
-
-        {/* Overview Tab Content */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-
-        {/* Metrics and Status */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Release Status - Redesigned */}
-          <div className="rounded-xl border border-border bg-card p-5 relative">
-            {/* Edit Button */}
-            <button
-              onClick={() => setEditModalOpen(true)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-              title="Edit release details"
-            >
-              <Icon name="edit-2" size={14} />
-            </button>
-
-            {/* Status Header with Icon and Description */}
-            <div className="flex items-start gap-4 mb-5 pr-8">
-              <div className={cn(
-                'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-                release.goNoGo === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
-                release.goNoGo === 'blocked' ? 'bg-red-100 dark:bg-red-900/30' :
-                release.status === 'released' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                release.blockers > 0 ? 'bg-red-100 dark:bg-red-900/30' :
-                release.openIssues > 0 ? 'bg-amber-100 dark:bg-amber-900/30' :
-                'bg-green-100 dark:bg-green-900/30'
-              )}>
-                {release.goNoGo === 'approved' ? (
-                  <Ship className="h-6 w-6 text-green-600 dark:text-green-400" />
-                ) : release.goNoGo === 'blocked' ? (
-                  <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
-                ) : release.status === 'released' ? (
-                  <Ship className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                ) : release.blockers > 0 ? (
-                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-                ) : release.openIssues > 0 ? (
-                  <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                ) : (
-                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold">Release Status</span>
-                  {getStatusInlineBadge()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {release.goNoGo === 'approved'
-                    ? `Approved by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Ready for deployment.`
-                    : release.goNoGo === 'blocked'
-                    ? `Blocked by ${userById(release.goNoGoBy)?.name ?? 'CTO'}. Critical issues must be resolved.`
-                    : release.status === 'released'
-                    ? 'This release has been shipped to production.'
-                    : release.blockers > 0
-                    ? `${release.blockers} critical issue${release.blockers > 1 ? 's' : ''} blocking release.`
-                    : release.openIssues > 0
-                    ? `${release.openIssues} open issue${release.openIssues > 1 ? 's' : ''} in progress.`
-                    : 'All issues resolved. Release is ready for review.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Timeline Progress */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="text-muted-foreground">Timeline Progress</span>
-                {release.status === 'released'
-                  ? <InfoTooltip content="Actual milestones reached in this release's QA lifecycle" side="top" />
-                  : <InfoTooltip content={`${daysInfo.daysSinceCreated} days elapsed since release creation`} side="top" />
-                }
-              </div>
-              {release.status === 'released' ? (() => {
-                const n = timelineMilestones.length
-                const lastDone = timelineMilestones.reduce((acc, m, i) => m.done ? i : acc, -1)
-                const factor = lastDone <= 0 ? 0 : lastDone / (n - 1)
-                return (
-                  <div className="relative">
-                    <div className="absolute top-[5px] left-[5px] right-[5px] h-0.5 bg-zinc-200 dark:bg-zinc-700" />
-                    {factor > 0 && (
-                      <div
-                        className="absolute top-[5px] left-[5px] h-0.5 bg-indigo-500 transition-all duration-500"
-                        style={{ width: `calc(${factor * 100}% - ${factor * 10}px)` }}
-                      />
-                    )}
-                    <div className="relative flex justify-between">
-                      {timelineMilestones.map((m) => (
-                        <div key={m.label} className="flex flex-col items-center gap-1">
-                          <div className={cn(
-                            'w-2.5 h-2.5 rounded-full border-2 z-10',
-                            m.done
-                              ? 'bg-indigo-500 border-indigo-500'
-                              : 'bg-card border-zinc-300 dark:border-zinc-600'
-                          )} />
-                          <span className={cn(
-                            'text-[9px] font-medium text-center leading-tight',
-                            m.done ? 'text-foreground' : 'text-muted-foreground'
-                          )}>{m.label}</span>
-                          {m.date && (
-                            <span className="text-[8px] text-muted-foreground text-center leading-none">{m.date}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })() : (
-                <>
-                  <div className="relative h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        'absolute top-0 left-0 h-full rounded-full transition-all duration-500',
-                        daysInfo.isDelayed ? 'bg-red-500' : daysInfo.isToday ? 'bg-amber-500' : 'bg-green-500'
-                      )}
-                      style={{
-                        width: `${Math.min(100, (daysInfo.daysSinceCreated / (daysInfo.daysSinceCreated + Math.max(0, daysInfo.daysUntilTarget))) * 100)}%`
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span>Created {new Date(release.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    <span>Target {new Date(release.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  </div>
-                </>
+        <header className="px-7 pt-5">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{release.project_name}</span>
+            <Icon name="chevron-right" size={12} aria-hidden />
+            <Link to={`/projects/${release.project_slug}/releases`} className="hover:text-foreground">Releases</Link>
+          </nav>
+          <div className="mt-1 flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold font-mono">{release.version}</h1>
+            <ReleaseLifecycleMenu release={release} toast={toast} onChanged={(r) => { setRelease(r); refreshAll() }} />
+            <OverdueMarker release={release} />
+            <div className="ml-auto flex items-center gap-2">
+              {canManage && (
+                <Button variant="outline" size="sm" onClick={() => setEditModalOpen(true)}>
+                  <Icon name="pencil" size={13} /> Edit
+                </Button>
+              )}
+              {canShip && (
+                <Button size="sm" onClick={() => setShipOpen(true)}>
+                  <Icon name="rocket" size={13} /> Ship
+                </Button>
+              )}
+              {canManage && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setDeleteModalOpen(true)}
+                  aria-label="Delete release"
+                  title="Delete release"
+                  className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                >
+                  <Trash2 size={15} />
+                </Button>
               )}
             </div>
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Days Active */}
-              <div className="rounded-lg border border-border bg-card p-3 text-center">
-                <p className="text-[10.5px] text-muted-foreground uppercase tracking-wide mb-1">Days Active</p>
-                <p className="text-2xl font-bold tracking-tight">{daysInfo.daysSinceCreated}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Since creation</p>
-              </div>
-
-              {/* Days Left/Delayed */}
-              <div className={cn(
-                'rounded-lg border bg-card p-3 text-center',
-                daysInfo.isDelayed
-                  ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
-                  : daysInfo.isToday
-                  ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10'
-                  : 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
-              )}>
-                <p className={cn(
-                  'text-[10.5px] uppercase tracking-wide mb-1',
-                  daysInfo.isDelayed || daysInfo.isToday
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'
-                )}>
-                  {daysInfo.isDelayed ? 'Delayed' : daysInfo.isToday ? 'Due Today' : 'Days Left'}
-                </p>
-                <p className={cn(
-                  'text-2xl font-bold tracking-tight',
-                  daysInfo.isDelayed
-                    ? 'text-red-600 dark:text-red-400'
-                    : daysInfo.isToday
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-green-600 dark:text-green-400'
-                )}>
-                  {daysInfo.isDelayed ? Math.abs(daysInfo.daysUntilTarget) : daysInfo.daysUntilTarget}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {daysInfo.isDelayed ? 'Days overdue' : daysInfo.isToday ? 'Today!' : 'Until target'}
-                </p>
-              </div>
-
-              {/* Completion Rate */}
-              <div className="rounded-lg border border-border bg-card p-3 text-center">
-                <p className="text-[10.5px] text-muted-foreground uppercase tracking-wide mb-1">Completion</p>
-                <p className="text-2xl font-bold tracking-tight">
-                  {release.totalIssues > 0
-                    ? Math.round((release.fixedIssues / release.totalIssues) * 100)
-                    : 0}%
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {release.fixedIssues} of {release.totalIssues} issues
-                </p>
-              </div>
-            </div>
-
           </div>
+          {release.description && <p className="mt-1 max-w-3xl text-[13px] text-muted-foreground">{release.description}</p>}
+          {release.status === 'released' && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-green-50 px-3 py-1.5 text-xs text-green-800 dark:bg-green-950/30 dark:text-green-300" role="note">
+              <Icon name="lock" size={12} aria-hidden />
+              Shipped {fmt(release.released_at)} — this release is read-only.
+            </p>
+          )}
+          {release.status === 'cancelled' && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" role="note">
+              <Icon name="ban" size={12} aria-hidden />
+              Cancelled — this release won’t ship.
+            </p>
+          )}
 
-          {/* Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <KPICard
-              label="Total Issues"
-              value={issues.length}
-              icon="list"
-              tone="blue"
-              description="All issues in this release"
-              tooltip="The total count of all issues filed against this release, regardless of status."
-            />
-            <KPICard
-              label="Fixed"
-              value={issues.filter((i) => FIXED_STATUSES.includes(i.status)).length}
-              icon="check-circle"
-              tone="green"
-              description="Fixed & verified issues"
-              tooltip="Issues that have been fixed by development and either verified by QA or awaiting verification."
-            />
-            <KPICard
-              label="Open"
-              value={release.openIssues}
-              icon="circle-dot"
-              tone="amber"
-              description="Unresolved issues"
-              tooltip="Issues that are not yet resolved. Includes new, triaged, and in-progress issues."
-            />
-            <KPICard
-              label="Blockers"
-              value={release.blockers}
-              icon="alert-octagon"
-              tone="red"
-              description="Release blocking issues"
-              tooltip="Critical issues marked as release blockers. The release cannot be approved until these are resolved."
-            />
-          </div>
-        </div>
+          <Tabs
+            className="mt-4"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            options={[
+              { value: 'board', label: 'Board', icon: 'kanban' },
+              { value: 'items', label: 'Items', icon: 'table-2', badge: release.total_issues },
+              { value: 'activity', label: 'Activity', icon: 'history' },
+              ...(canViewAnalytics ? [{ value: 'analytics', label: 'Analytics', icon: 'bar-chart-3' }] : []),
+            ]}
+          />
+        </header>
 
-        {/* Top contributors */}
-        {contributors.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold mb-3">Top Contributors</h3>
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Member</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Role</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right">Assigned</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right">In Progress</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right">Fixed</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground text-right">Filed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contributors.map(({ user, filed, fixed, inProgress, totalAssigned }) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-border last:border-0 hover:bg-accent cursor-pointer transition-colors"
-                      onClick={() => window.location.hash = `/u/${user.username}`}
-                    >
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <UserHoverCard user={user} size={24}>
-                            <Avatar user={user} size={24} />
-                          </UserHoverCard>
-                          <span className="font-medium">{user.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RoleBadge role={user.role} />
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{totalAssigned}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        {inProgress > 0 ? (
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">{inProgress}</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        {fixed > 0 ? (
-                          <span className="text-green-600 dark:text-green-400 font-medium">{fixed}</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{filed}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {(activeTab === 'board' || activeTab === 'items') && (
+          <ContainerWork
+            container={release}
+            view={activeTab}
+            readOnly={closed}
+            refreshKey={refreshKey}
+            onChanged={refreshAll}
+          />
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="px-7 py-4 max-w-3xl">
+            <ReleaseActivity {...activity} onRetry={loadActivity} />
           </div>
         )}
 
-        {/* Issues table */}
-        <div>
-          <h3 className="text-sm font-semibold mb-3">All Issues in this Release</h3>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <IssueTable issues={issues} />
-          </div>
-        </div>
-          </div>
-        )}
-
-        {/* Analytics Dashboard Tab Content */}
-        {activeTab === 'analytics' && canViewAnalytics && (
-          <div className="space-y-6">
+        {activeTab === 'analytics' && canViewAnalytics && <div className="p-6">
+<div className="space-y-6">
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-4">
               <Segmented
@@ -1109,24 +744,98 @@ export default function ReleaseDetailPage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Edit Release Modal */}
-        <EditReleaseModal
-          open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          release={release}
-          onSave={(updatedRelease) => setRelease(updatedRelease)}
-        />
-
-        {/* Delete Release Modal */}
-        <DeleteReleaseModal
-          open={deleteModalOpen}
-          onClose={() => setDeleteModalOpen(false)}
-          release={release}
-          onDeleted={() => navigate('/releases')}
-        />
+        </div>}
       </div>
+
+      {/* Rail: progress, dates, go/no-go, open release blockers */}
+      <aside className="lg:w-[300px] shrink-0 border-t lg:border-t-0 lg:border-l border-border overflow-y-auto scrollbar-thin p-4 space-y-4 bg-muted/20">
+        <section className="rounded-xl border border-border bg-card p-4 space-y-3" aria-label="Progress and dates">
+          <div>
+            <h3 className="text-sm font-semibold mb-2">Progress</h3>
+            <ReleaseProgress release={release} />
+          </div>
+          <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+            <dt className="text-muted-foreground">Code freeze</dt>
+            <dd>{fmt(release.code_freeze_date) ?? '—'}</dd>
+            <dt className="text-muted-foreground">Target ship</dt>
+            <dd className={release.is_overdue ? 'text-red-600 dark:text-red-400 font-medium' : undefined}>
+              {fmt(release.target_date) ?? '—'}
+            </dd>
+            {release.released_at && <>
+              <dt className="text-muted-foreground">Shipped</dt>
+              <dd>{fmt(release.released_at)}</dd>
+            </>}
+            {release.staging_url && <>
+              <dt className="text-muted-foreground">Staging</dt>
+              <dd className="truncate">
+                <a href={release.staging_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                  {release.staging_url.replace(/^https?:\/\//, '')}
+                </a>
+              </dd>
+            </>}
+          </dl>
+        </section>
+
+        <GoNogoPanel
+          release={release}
+          deciderName={userById(release.go_nogo_by_id)?.name}
+          toast={toast}
+          onChange={(r) => { setRelease(r); loadActivity() }}
+        />
+
+        <section className="rounded-xl border border-border bg-card" aria-labelledby="blockers-title">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <h3 id="blockers-title" className="text-sm font-semibold">Open release blockers</h3>
+            <span className={cn('text-xs tabular-nums', activeBlockers.length ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-muted-foreground')}>
+              {activeBlockers.length}
+            </span>
+          </div>
+          {activeBlockers.length === 0 ? (
+            <p className="flex items-center gap-2 px-4 pb-4 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-green-500" /> Nothing is blocking this release.
+            </p>
+          ) : (
+            <ul className="pb-2">
+              {activeBlockers.map((issue) => (
+                <li key={issue.id}>
+                  <Link
+                    to={`/issue/${issueSlug(issue)}`}
+                    className="flex items-center gap-2 px-4 py-1.5 hover:bg-accent transition-colors"
+                  >
+                    <span className="font-mono text-[11px] text-muted-foreground shrink-0">{issueKey(issue)}</span>
+                    <span className="truncate text-[13px] flex-1">{issue.title}</span>
+                    <StatusBadge status={issue.status} className="shrink-0" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </aside>
+
+      <EditReleaseModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        release={release}
+        onSave={(updated) => { setRelease(updated); refreshAll(); toast({ title: 'Release saved' }) }}
+      />
+      <DeleteReleaseModal
+        open={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        release={release}
+        onDeleted={() => { refetchReleases?.(); navigate(`/projects/${release.project_slug}/releases`) }}
+      />
+      <ShipDialog
+        open={shipOpen}
+        release={release}
+        onClose={() => setShipOpen(false)}
+        onShipped={(r, moved) => {
+          setShipOpen(false)
+          setRelease(r)
+          refreshAll()
+          toast({ title: `Shipped ${r.version}`, body: moved ? `${moved} unfinished item${moved === 1 ? '' : 's'} moved to the backlog.` : 'Every item was Done.' })
+        }}
+      />
     </div>
   )
 }

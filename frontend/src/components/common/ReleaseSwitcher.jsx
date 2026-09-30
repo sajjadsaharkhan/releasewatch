@@ -1,4 +1,6 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Icon } from '../ui/Icon'
 import { ChevronDown, Tag, Check, Circle, Ship, XCircle, File } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
@@ -29,14 +31,39 @@ function getStatusLabel(status) {
   return RELEASE_STATUS[status]?.label ?? status
 }
 
-// Releases only — never the Stream (08a): the Phase 1 release switcher keeps
-// its meaning. `allowNone` lets the caller represent "no release" as a real,
+// The active release is always a Release — never the Stream (08a). When
+// `streamHref` is given, the Stream is listed first as a link to its page
+// (slice 09), then open releases, then closed ones. `allowNone` lets the caller represent "no release" as a real,
 // selectable state; without it, the switcher always shows *some* release
 // (falling back to the first one), matching every pre-03 call site (Topbar, etc).
 export function ReleaseSwitcher({
   releases = [], activeReleaseId, onChange, compact = false, width = null, allowNone = false,
+  streamHref = null,
 }) {
+  const navigate = useNavigate()
+  const openReleases = releases.filter((r) => ['planning', 'development', 'qa'].includes(r.status))
+  const closedReleases = releases.filter((r) => !openReleases.includes(r))
   const active = releases.find((r) => r.id === activeReleaseId) ?? (allowNone ? null : releases[0])
+
+  const renderItem = (r, close) => (
+    <DropdownItem
+      key={r.id}
+      onClick={() => {
+        onChange?.(r.id)
+        close()
+      }}
+    >
+      <span className="flex items-center gap-2 flex-1">
+        {r.id === activeReleaseId ? (
+          <Check className="h-4 w-4 shrink-0" />
+        ) : (
+          <Circle className="h-4 w-4 shrink-0 opacity-70" />
+        )}
+        <span className="font-mono">{r.version}</span>
+        <Badge tone={getBadgeTone(r.status)}>{getStatusLabel(r.status)}</Badge>
+      </span>
+    </DropdownItem>
+  )
 
   if (!active && !allowNone) {
     return (
@@ -80,6 +107,17 @@ export function ReleaseSwitcher({
     >
       {({ close }) => (
         <>
+          {streamHref && (
+            <>
+              <DropdownItem onClick={() => { close(); navigate(streamHref) }}>
+                <span className="flex items-center gap-2 flex-1">
+                  <Icon name="waves" size={16} className="shrink-0 text-sky-600 dark:text-sky-400" />
+                  <span>Stream</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground">ships when Done</span>
+                </span>
+              </DropdownItem>
+            </>
+          )}
           <DropdownLabel>{allowNone ? 'Release' : 'Active release'}</DropdownLabel>
           {allowNone && (
             <DropdownItem
@@ -98,25 +136,13 @@ export function ReleaseSwitcher({
               </span>
             </DropdownItem>
           )}
-          {releases.map((r) => (
-            <DropdownItem
-              key={r.id}
-              onClick={() => {
-                onChange?.(r.id)
-                close()
-              }}
-            >
-              <span className="flex items-center gap-2 flex-1">
-                {r.id === activeReleaseId ? (
-                  <Check className="h-4 w-4 shrink-0" />
-                ) : (
-                  <Circle className="h-4 w-4 shrink-0 opacity-70" />
-                )}
-                <span className="font-mono">{r.version}</span>
-                <Badge tone={getBadgeTone(r.status)}>{getStatusLabel(r.status)}</Badge>
-              </span>
-            </DropdownItem>
-          ))}
+          {openReleases.map((r) => renderItem(r, close))}
+          {closedReleases.length > 0 && (
+            <>
+              <DropdownLabel>Closed</DropdownLabel>
+              {closedReleases.map((r) => renderItem(r, close))}
+            </>
+          )}
         </>
       )}
     </Dropdown>

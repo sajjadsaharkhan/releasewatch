@@ -19,6 +19,18 @@ class ActorInfo(BaseModel):
     avatar_url: Optional[str] = None
 
 
+class InboxReleaseInfo(BaseModel):
+    """The release a release-only notification is about (slice 09)."""
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    id: int
+    version: str
+    project_id: int
+    project_slug: Optional[str] = None
+    project_name: Optional[str] = None
+
+
 class InboxItemResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -28,6 +40,8 @@ class InboxItemResponse(BaseModel):
     actor: Optional[ActorInfo] = None
     issue_id: Optional[str] = None   # "issue-{number}" format
     issue_title: Optional[str] = None
+    #: Set for release-only items (``release_shipped``, ``release_overdue``); ``issue_id`` is null.
+    release: Optional[InboxReleaseInfo] = None
     timeline_id: Optional[int] = None
     meta: Optional[dict] = None
     created_at: datetime

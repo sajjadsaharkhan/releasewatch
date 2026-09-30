@@ -241,6 +241,60 @@ item's `return_reason`, decided by the server) on Done items, driven by `return_
 `allowed_actions` — Support never sees it. The confirm button is destructive and disabled until the
 comment has text.
 
+### Release lifecycle and Overdue — `RELEASE_STATUS` in `lib/constants.js` (slice 09)
+
+A release's lifecycle status and its Overdue state are **two different shapes on purpose**: the
+status is a filled pill, Overdue is a red *outlined* marker beside it. Overdue is never a status.
+
+| Status | Label | Icon | Hue |
+|---|---|---|---|
+| `planning` | Planning | `pencil-ruler` | zinc |
+| `development` | Development | `code-2` | blue |
+| `qa` | QA | `flask-conical` | amber |
+| `released` | Released | `rocket` | green |
+| `cancelled` | Cancelled | `ban` | zinc, struck through |
+
+`<ReleaseLifecycleBadge status size?>` (`components/releases`) renders the pill.
+`<OverdueMarker release>` renders only when the API says `is_overdue`: `border-red-500/80`
+outline, red text, `alarm-clock` icon, a tooltip with the passed target date, focusable.
+`<ReleaseProgress release>` is a 6px teal bar (green once Released), `role="progressbar"`, with
+"N of M done" and the percentage under it — Done ÷ non-cancelled items, "No items yet" when null.
+Go/no-go is `<GoNogoBadge>`: Pending (zinc, `circle-dashed`), Go (green, `thumbs-up`), No-go (red,
+`thumbs-down`).
+
+**Pages.** `/projects/:slug/releases` (`ReleasesPage`) is one table — release, status + Overdue,
+progress, target ship date (ship date once Released), go/no-go — with a `Segmented` filter
+(All / Open / Released & cancelled) and a sort (Target date / Progress / Newest + direction), all
+in the URL. `/releases` redirects to the active project's list. `/releases/:id`
+(`ReleaseDetailPage`): header with the lifecycle badge as a menu of `allowed_transitions`
+(`ReleaseLifecycleMenu`; Cancel asks first and says how many open items move to the backlog),
+Overdue, Edit, **Ship** (`ship_release` in `allowed_actions`) and delete; tabs Board, Items,
+Activity, and Analytics (CTO/Admin); a 300px rail with progress and dates, `GoNogoPanel` (record
+Go / No-go with an optional note) and the open release blockers. A Released release shows a green
+"Shipped … read-only" note, and its board can't be dragged (`IssueBoard readOnly`).
+`/projects/:slug/stream` (`StreamPage`) has Board and Items only, no edit/cancel/delete controls.
+Both pages share `ContainerWork` (board from `GET /releases/{id}/board`, items table).
+
+**Ship dialog** (`ShipDialog`) is built from `GET /releases/{id}/ship-preview`: the go/no-go badge
+(with an inline red warning on a no-go — shipping is still allowed), "N Done items will be on
+production", the not-Done counts as `StatusBadge`s, and a confirm button that says what moves
+("Ship and move 4 items to the backlog"). A toast confirms the ship.
+
+**Done-range picker** (`common/DoneRangePicker`): the Stream board's Done column is bounded by a
+log-search-style picker — relative presets (7 / 30 / 90 days, "Last N days") on the left, an
+absolute From/To range on the right, Reset back to 7 days. The range is in the URL (`?done=30d` or
+`?done_from=&done_to=`); open columns are never filtered.
+
+**Activity** (`ReleaseActivity`): newest first on a rail, one icon dot per event — lifecycle
+(blue, with from → to badges), dates and edits (zinc), item added (teal) / removed (zinc, with why:
+ship, cancel, production return), go/no-go (violet), shipped (green).
+
+**Navigation.** The sidebar lists **Stream** (`waves`) above **Releases** (`tag`), both for the
+active project. The topbar `ReleaseSwitcher` lists the Stream first (a link to its page), then open
+releases, then closed ones under "Closed". The inbox renders release-only notices
+(`release_shipped`, `release_overdue`) with a rocket or outlined alarm-clock avatar and a link to
+the release.
+
 ### Role — `ROLE` in `lib/constants.js`
 
 `support` teal · `qa` blue · `developer` violet · `pm` amber · `cto` rose · `admin` zinc.

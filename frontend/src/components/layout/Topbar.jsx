@@ -20,6 +20,8 @@ export function Topbar() {
   const isAdmin = ['admin', 'cto'].includes(user?.role)
   // Support has no project/release context, search, or direct filing (§7.3).
   const support = isSupport(user?.role)
+  const activeProject = projects?.find((p) => p.id === activeProjectId)
+  const streamHref = activeProject ? `/projects/${activeProject.slug}/stream` : null
   const canCreateProject = canManageUsersAndProjects(user?.role)
 
   const handleLogout = async () => {
@@ -68,7 +70,8 @@ export function Topbar() {
             activeReleaseId={activeReleaseId}
             onChange={setActiveReleaseId}
             compact
-            width={220}
+            width={240}
+            streamHref={streamHref}
           />
         ) : null}
       </div>}
@@ -176,6 +179,7 @@ export function Topbar() {
                   releases={releases}
                   activeReleaseId={activeReleaseId}
                   onChange={setActiveReleaseId}
+                  streamHref={streamHref}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">No releases for this project</p>

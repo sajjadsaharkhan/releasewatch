@@ -1,11 +1,12 @@
 """Release schemas."""
 
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.db.models.release import GoNogoStatus, ReleaseKind, ReleaseStatus
+from app.schemas.issue import IssueResponse, UserSummary
 
 
 class ReleaseBase(BaseModel):
@@ -20,6 +21,75 @@ class ReleaseCreate(ReleaseBase):
     """Payload for POST /releases."""
 
     project_id: int = Field(description="Project ID to create the release under")
+
+
+class ProjectReleaseCreate(ReleaseBase):
+    """Payload for POST /projects/{id}/releases (FR-49) — starts in Planning."""
+
+
+class ReleaseStatusRequest(BaseModel):
+    """POST /releases/{id}/status — a manual lifecycle move (FR-50)."""
+
+    to: ReleaseStatus
+
+
+class ShipRequest(BaseModel):
+    """POST /releases/{id}/ship — the caller confirms having seen the notice."""
+
+    confirm: Literal[True]
+
+
+class GoNogoDecision(BaseModel):
+    status: GoNogoStatus
+    note: Optional[str] = None
+    by_id: Optional[int] = None
+    at: Optional[datetime] = None
+
+
+class ShipPreviewResponse(BaseModel):
+    """GET /releases/{id}/ship-preview (FR-53, AC-60)."""
+
+    go_nogo: GoNogoDecision
+    #: Not-Done items by board status.
+    not_done: Dict[str, int]
+    #: Every item that will move to the backlog (triage statuses included).
+    total_not_done: int
+    done: int
+
+
+class ReleaseEventResponse(BaseModel):
+    """One entry of the release Activity tab (FR-51)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    event_type: str
+    actor: Optional[UserSummary] = None
+    meta: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+
+class ReleaseActivityResponse(BaseModel):
+    events: List[ReleaseEventResponse]
+
+
+class BoardColumn(BaseModel):
+    status: str
+    items: List[IssueResponse]
+
+
+class ReleaseBoardResponse(BaseModel):
+    """GET /releases/{id}/board — five columns; ``done_from``/``done_to`` bound
+    only the Done column (FR-47)."""
+
+    columns: List[BoardColumn]
+    done_from: Optional[datetime] = None
+    done_to: Optional[datetime] = None
+
+
+class ReleaseItemsResponse(BaseModel):
+    items: List[IssueResponse]
+    total: int
 
 
 class ReleaseUpdate(BaseModel):
@@ -70,6 +140,19 @@ class ReleaseResponse(ReleaseBase):
     total_issues: int = Field(default=0, description="Total issue count")
     fixed_issues: int = Field(default=0, description="Count of fixed/verified issues")
     project_name: Optional[str] = None
+    project_slug: Optional[str] = None
+
+    # Slice 09 — computed on read, never stored.
+    #: Items by status, every status included.
+    counts: Dict[str, int] = Field(default_factory=dict)
+    #: Done ÷ non-cancelled items (BR-47); null with no non-cancelled item or on the Stream.
+    progress: Optional[float] = None
+    #: BR-48 — never on the Stream, an undated, a Released or a Cancelled release.
+    is_overdue: bool = False
+    #: Lifecycle moves the caller may make now (Released is Ship's, never listed).
+    allowed_transitions: List[str] = Field(default_factory=list)
+    #: Of ``manage_releases``, ``ship_release``, ``go_nogo`` — empty once final.
+    allowed_actions: List[str] = Field(default_factory=list)
 
     # Frontend-friendly aliases
     @computed_field  # type: ignore[misc]

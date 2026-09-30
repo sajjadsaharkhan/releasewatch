@@ -61,8 +61,29 @@ class Factories:
         return resp.json()["stream_id"]
 
     async def set_release_status(self, release_id: int, status: str) -> None:
-        resp = await self.admin_client.patch(f"/releases/{release_id}", json={"status": status})
-        resp.raise_for_status()
+        """Walk the release lifecycle (slice 09) to ``status``: Released is reached
+        by shipping from QA, Cancelled by ``/cancel``."""
+        path = {
+            "planning": [], "development": ["development"], "qa": ["development", "qa"],
+            "released": ["development", "qa"], "cancelled": [],
+        }[status]
+        current = (await self.admin_client.get(f"/releases/{release_id}")).json()["status"]
+        for step in path:
+            if step == current or (step == "development" and current == "qa"):
+                continue
+            resp = await self.admin_client.post(
+                f"/releases/{release_id}/status", json={"to": step},
+            )
+            resp.raise_for_status()
+            current = step
+        if status == "released":
+            resp = await self.admin_client.post(
+                f"/releases/{release_id}/ship", json={"confirm": True},
+            )
+            resp.raise_for_status()
+        elif status == "cancelled":
+            resp = await self.admin_client.post(f"/releases/{release_id}/cancel")
+            resp.raise_for_status()
 
     async def cycles(self, issue_id: int) -> list[dict]:
         """The item's cycles (08a Part 2), oldest first."""

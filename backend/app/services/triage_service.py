@@ -198,6 +198,9 @@ class TriageService:
         issue.release_id = release_id
         db.add(issue)
         await cycle_service.after_container_change(db, issue, old_release_id, actor)
+        from app.services.release_service import release_service
+
+        await release_service.record_item_move(db, issue, old_release_id, release_id, actor)
         # BR-58: leaving a Release drops the blocker flag.
         if issue.is_release_blocker and (to_release is None or to_release.is_stream):
             issue.is_release_blocker = False

@@ -7,6 +7,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { IssueHoverCard } from '../components/common/IssueHoverCard'
 import { Empty } from '../components/ui/Empty'
+import { Icon } from '../components/ui/Icon'
 import { inboxApi } from '../lib/api'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../hooks/useToast'
@@ -53,6 +54,62 @@ const TYPE_DESCRIPTIONS = {
   support_needs_info:  'needs more information on',
   support_cancelled:   'closed without a fix',
   support_done:        'fixed',
+}
+
+// A notification about a release, not an item (release_shipped, release_overdue).
+function ReleaseInboxRow({ item, onRead }) {
+  const r = item.release
+  const shipped = item.type === 'release_shipped'
+  const moved = item.meta?.moved ?? 0
+  return (
+    <div
+      className={cn(
+        'flex gap-3 px-4 py-3.5 cursor-pointer transition-colors',
+        !item.read
+          ? 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+          : 'hover:bg-accent'
+      )}
+      onClick={onRead}
+    >
+      <div className="flex w-2 shrink-0 mt-[7px]">
+        {!item.read && <span className="h-2 w-2 rounded-full bg-blue-500" />}
+      </div>
+      <span
+        className={cn(
+          'flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full mt-0.5',
+          shipped
+            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+            : 'border border-red-500/80 text-red-600 dark:text-red-400',
+        )}
+        aria-hidden
+      >
+        <Icon name={shipped ? 'rocket' : 'alarm-clock'} size={16} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm leading-snug">
+          {shipped && <><span className="font-medium">{item.actor?.name ?? 'Someone'}</span>{' '}<span className="text-muted-foreground">shipped</span>{' '}</>}
+          <Link
+            to={`/releases/${r.id}`}
+            className="font-mono font-medium hover:text-primary transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {r.version}
+          </Link>
+          {!shipped && <>{' '}<span className="text-muted-foreground">passed its target ship date without shipping</span></>}
+        </p>
+        {shipped && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {moved > 0 ? `${moved} unfinished item${moved === 1 ? '' : 's'} moved to the backlog.` : 'Every item was Done.'}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
+          <span>{r.projectName}</span>
+          <span>·</span>
+          <span>{relTime(item.createdAt)}</span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Per-tab state shape
@@ -247,6 +304,10 @@ export default function InboxPage() {
       ) : (
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
           {current.items.map((item) => {
+            // Release-only notices (slice 09): no item — `release` instead of `issueId`.
+            if (item.release && !item.issueId) {
+              return <ReleaseInboxRow key={item.id} item={item} onRead={() => markRead(item.id)} />
+            }
             const actor = item.actor
             // A recurrence reaches the assignee and reporter as a comment (slice 07).
             const desc = item.type === 'comment' && item.meta?.recurrence

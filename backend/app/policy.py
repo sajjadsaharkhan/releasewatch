@@ -59,6 +59,7 @@ class Action(str, Enum):
     view_backlog = "view_backlog"
     manage_backlog = "manage_backlog"
     manage_releases = "manage_releases"
+    ship_release = "ship_release"
     view_queue = "view_queue"
     reorder_queue = "reorder_queue"
     pin = "pin"
@@ -157,6 +158,8 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_backlog: _T,  # the backlog and Technical debt pages (slice 08)
     Action.manage_backlog: _MANAGE,
     Action.manage_releases: _MANAGE,
+    # Slice 09 (FR-53): CTO, Admin, and the project's triage lead of any tech role.
+    Action.ship_release: frozenset({"cto", "admin", TRIAGE_LEAD}),
     Action.view_queue: _T,  # own queue; someone else's is CTO/Admin (decide)
     Action.reorder_queue: _T,
     Action.pin: _T,
@@ -199,6 +202,7 @@ _LABELS: dict[str, str] = {
     Action.view_backlog: "view the backlog",
     Action.manage_backlog: "manage the backlog",
     Action.manage_releases: "manage releases",
+    Action.ship_release: "ship releases",
     Action.view_team_overview: "view the team overview",
     Action.go_nogo: "make the release go/no-go call",
     Action.manage_templates: "manage templates",

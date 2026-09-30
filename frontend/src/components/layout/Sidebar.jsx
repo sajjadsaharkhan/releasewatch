@@ -23,6 +23,9 @@ export function Sidebar() {
   // The backlog is per project (slice 08) — link to the active project's.
   const activeProject = projects?.find((p) => p.id === activeProjectId)
   const backlogPath = activeProject ? `/projects/${activeProject.slug}/backlog` : '/backlog'
+  // Containers (slice 09): the project's Stream comes first, then its releases.
+  const streamPath = activeProject ? `/projects/${activeProject.slug}/stream` : '/stream'
+  const releasesPath = activeProject ? `/projects/${activeProject.slug}/releases` : '/releases'
 
   return (
     <aside className="hidden lg:flex h-full w-56 shrink-0 flex-col border-r border-border bg-card">
@@ -68,7 +71,8 @@ export function Sidebar() {
 
           {/* Releases */}
           <div className="pt-1 space-y-0.5">
-            <NavItem to="/releases" icon="tag" label="Releases" />
+            <NavItem to={streamPath} icon="waves" label="Stream" />
+            <NavItem to={releasesPath} icon="tag" label="Releases" />
             <NavItem to="/tech-debt" icon="construction" label="Technical debt" />
           </div>
 
