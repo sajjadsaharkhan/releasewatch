@@ -185,8 +185,8 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
         <>
           assigned to{' '}
           {assignee ? (
-            <UserHoverCard user={assignee}>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] font-medium align-middle cursor-pointer">
+            <UserHoverCard user={assignee} className="align-middle">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] font-medium leading-none cursor-pointer">
                 <Avatar user={assignee} size={14} />
                 {assignee.name}
               </span>
