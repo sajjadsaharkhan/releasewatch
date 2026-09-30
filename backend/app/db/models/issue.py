@@ -64,7 +64,12 @@ class IssueStatus(str, enum.Enum):
     new = "new"
     needs_info = "needs_info"
     todo = "todo"
+    #: Delivered work sent back with a reason (09a, ADR 0004). Entered only by
+    #: Reject or a merge into a Done item — never by ``/transition``.
+    rejected = "rejected"
     in_progress = "in_progress"
+    #: The developer has delivered; the work waits for QA to pick it up (09a).
+    to_review = "to_review"
     in_review = "in_review"
     done = "done"
     blocked = "blocked"
@@ -74,7 +79,9 @@ class IssueStatus(str, enum.Enum):
 #: Statuses shown on a board (bugs and, from slice 03, tasks).
 BOARD_STATUSES = (
     IssueStatus.todo,
+    IssueStatus.rejected,
     IssueStatus.in_progress,
+    IssueStatus.to_review,
     IssueStatus.in_review,
     IssueStatus.done,
     IssueStatus.blocked,
@@ -86,7 +93,25 @@ TRIAGE_STATUSES = (IssueStatus.new, IssueStatus.needs_info)
 
 #: Statuses a backlog member can hold (BR-04): a board status that isn't Done.
 #: New/Needs info are triage, not backlog; Cancelled is never on a board.
-BACKLOG_STATUSES = tuple(s for s in BOARD_STATUSES if s != IssueStatus.done)
+#: Rejected isn't either — it means nothing without a cycle, and the backlog
+#: has none (09a): a rejected item entering the backlog becomes To do.
+BACKLOG_STATUSES = tuple(
+    s for s in BOARD_STATUSES if s not in (IssueStatus.done, IssueStatus.rejected)
+)
+
+#: Still needs work — neither Done nor Cancelled (triage included), as in the frontend.
+OPEN_STATUSES = tuple(
+    s for s in IssueStatus if s not in (IssueStatus.done, IssueStatus.cancelled)
+)
+
+#: Phase 1's "fixed": the developer has delivered the work (09a).
+FIXED_STATUSES = (IssueStatus.to_review, IssueStatus.in_review, IssueStatus.done)
+
+#: Where Reject is allowed from (09a): delivered or finished work.
+REJECTABLE_STATUSES = FIXED_STATUSES
+
+#: Delivery statuses — the first move into one stamps ``submitted_at`` (CY-05, 09a).
+REVIEW_STATUSES = (IssueStatus.to_review, IssueStatus.in_review)
 
 #: Statuses nothing leaves on its own — ``done`` is the one exception, via
 #: the regression action (and, from slice 06, the merge regression).

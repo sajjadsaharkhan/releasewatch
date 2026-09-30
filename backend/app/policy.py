@@ -49,7 +49,7 @@ class Action(str, Enum):
     set_priority = "set_priority"
     set_due_date = "set_due_date"
     flag_release_blocker = "flag_release_blocker"
-    return_item = "return_item"
+    reject = "reject"
     flag_tech_debt = "flag_tech_debt"
     triage = "triage"
     report_recurrence = "report_recurrence"
@@ -179,15 +179,15 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_releases: _T,
     # §9.2 flags
     Action.flag_release_blocker: frozenset({"qa", "pm", "cto", "admin", TRIAGE_LEAD}),
-    # 08a: send Done work back (release QA or production) — every tech role, never Support.
-    Action.return_item: _T,
+    # 09a: Reject delivered or Done work — every tech role, never Support.
+    Action.reject: _T,
 }
 
 #: Actions about a specific item — visibility is checked before the matrix.
 _ITEM_ACTIONS = frozenset({
     Action.view_item, Action.comment_public, Action.comment_internal, Action.edit_item,
     Action.assign, Action.set_priority, Action.set_due_date, Action.flag_release_blocker,
-    Action.return_item, Action.flag_tech_debt, Action.triage, Action.report_recurrence,
+    Action.reject, Action.flag_tech_debt, Action.triage, Action.report_recurrence,
 })
 
 _QUEUE_ACTIONS = frozenset({Action.view_queue, Action.reorder_queue, Action.pin})
@@ -217,7 +217,7 @@ _LABELS: dict[str, str] = {
     Action.view_reports: "view reports",
     Action.view_releases: "view releases",
     Action.flag_release_blocker: "flag release blockers",
-    Action.return_item: "send work back",
+    Action.reject: "reject work",
 }
 
 _ROLE_LABELS = {
@@ -306,11 +306,17 @@ def _recurrence_denial(target: Target) -> Denied | None:
     return None
 
 
-def _return_denial(target: Target) -> Denied | None:
-    """08a — only a Done item can be sent back; elsewhere the control doesn't exist."""
-    if target.status is not None and target.status != "done":
+#: Where Reject is offered (09a) — ``REJECTABLE_STATUSES`` as plain values.
+_REJECTABLE = frozenset({"to_review", "in_review", "done"})
+
+
+def _reject_denial(target: Target) -> Denied | None:
+    """09a — only delivered (To review, In review) or Done work can be rejected;
+    elsewhere the control doesn't exist."""
+    if target.status is not None and target.status not in _REJECTABLE:
         return Denied(
-            "not_done", "Only a Done item can be sent back.", hidden=True, conflict=True,
+            "not_rejectable", "Only work in review or Done can be rejected.",
+            hidden=True, conflict=True,
         )
     return None
 
@@ -363,8 +369,8 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
         if denial is not None:
             return denial
 
-    if key == Action.return_item:
-        denial = _return_denial(target)
+    if key == Action.reject:
+        denial = _reject_denial(target)
         if denial is not None:
             return denial
 
@@ -390,7 +396,7 @@ RESPONSE_ITEM_ACTIONS: tuple[str, ...] = (
     Action.set_due_date.value,
     Action.triage.value,
     Action.flag_release_blocker.value,
-    Action.return_item.value,
+    Action.reject.value,
     Action.report_recurrence.value,
 )
 

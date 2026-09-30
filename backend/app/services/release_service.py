@@ -35,13 +35,17 @@ from app.services.authz import actor_of, project_target
 COUNT_STATUSES: tuple[str, ...] = tuple(s.value for s in IssueStatus)
 #: The not-Done statuses the ship notice lists (FR-53).
 SHIP_NOTICE_STATUSES: tuple[str, ...] = tuple(
-    s.value for s in (IssueStatus.todo, IssueStatus.in_progress, IssueStatus.in_review, IssueStatus.blocked)
+    s.value for s in (
+        IssueStatus.todo, IssueStatus.rejected, IssueStatus.in_progress,
+        IssueStatus.to_review, IssueStatus.in_review, IssueStatus.blocked,
+    )
 )
 #: Board column order (FR-47, FR-51) — Blocked sits before Done on container boards.
+#: Rejected is its own key; the frontend shows it on top of the To do column (09a).
 BOARD_COLUMNS: tuple[str, ...] = tuple(
     s.value for s in (
-        IssueStatus.todo, IssueStatus.in_progress, IssueStatus.in_review,
-        IssueStatus.blocked, IssueStatus.done,
+        IssueStatus.todo, IssueStatus.rejected, IssueStatus.in_progress,
+        IssueStatus.to_review, IssueStatus.in_review, IssueStatus.blocked, IssueStatus.done,
     )
 )
 #: The Stream's Done column shows this many days unless a range is given (FR-47).
@@ -393,7 +397,9 @@ class ReleaseService:
         done_from: datetime | None = None,
         done_to: datetime | None = None,
     ) -> tuple[list[tuple[str, list[Issue]]], datetime | None, datetime | None]:
-        """Five columns in board order. Only Done is bounded (``done_window``)."""
+        """One group per ``BOARD_COLUMNS`` status, in board order — Rejected is its
+        own group; the frontend draws it inside To do (09a). Only Done is bounded
+        (``done_window``)."""
         done_from, done_to = self.done_window(release, now, done_from, done_to)
         rows = await self._container_items(
             db, release, user, statuses=BOARD_COLUMNS, done_from=done_from, done_to=done_to,

@@ -13,7 +13,9 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.db.models.issue import Issue, IssueStatus, Priority, issue_key
+from app.db.models.issue import (
+    FIXED_STATUSES, OPEN_STATUSES, REVIEW_STATUSES, Issue, IssueStatus, Priority, issue_key,
+)
 from app.db.models.issue_cycle import IssueCycle
 from app.services.cycle_metrics import (
     is_regression_expr, regression_count_expr, regression_counts, regression_cycle_clause,
@@ -80,10 +82,7 @@ class ReportService:
         priority_breakdown = {p.value: 0 for p in Priority}
         status_breakdown = {s.value: 0 for s in IssueStatus}
         # "Open" means not done and not cancelled (docs/phase-2/02-unified-status-model.md).
-        open_statuses = {
-            IssueStatus.new, IssueStatus.needs_info, IssueStatus.todo,
-            IssueStatus.in_progress, IssueStatus.in_review, IssueStatus.blocked,
-        }
+        open_statuses = set(OPEN_STATUSES)
 
         triage_times: list[float] = []
         fix_times: list[float] = []
@@ -136,7 +135,7 @@ class ReportService:
     ) -> dict[str, Any]:
         """Return per-user contribution metrics: table rows, segmented chart data, and label distribution."""
         PRIORITIES = [p.value for p in Priority]
-        FIXED_STATUSES = {IssueStatus.in_review.value, IssueStatus.done.value}
+        FIXED = {s.value for s in FIXED_STATUSES}
 
         query = select(Issue)
         if pid := filters.get("project_id"):
@@ -193,7 +192,7 @@ class ReportService:
                 uid = iss.assignee_id
                 stats.setdefault(uid, _empty(uid))
                 stats[uid]["assigned"] += 1
-                if status in FIXED_STATUSES:
+                if status in FIXED:
                     stats[uid]["fixed"] += 1
                     if prio:
                         stats[uid]["fixed_breakdown"][prio] += 1
@@ -432,11 +431,8 @@ class ReportService:
 
         # Issues that completed at least one fix cycle — the denominator for
         # regression rate (docs/phase-2/02-unified-status-model.md: "Fixed"
-        # means in_review or done).
-        VERIFIED = (
-            IssueStatus.in_review.value,
-            IssueStatus.done.value,
-        )
+        # means delivered — to_review, in_review or done, 09a).
+        VERIFIED = tuple(s.value for s in FIXED_STATUSES)
 
         def _val(x: Any) -> Any:
             return x.value if hasattr(x, "value") else x
@@ -856,11 +852,8 @@ class ReportService:
         triage_cutoff = now - timedelta(hours=24)
         verify_cutoff = now - timedelta(hours=48)
 
-        OPEN = [
-            IssueStatus.new.value, IssueStatus.needs_info.value, IssueStatus.todo.value,
-            IssueStatus.in_progress.value, IssueStatus.in_review.value, IssueStatus.blocked.value,
-        ]
-        DONE = [IssueStatus.in_review.value, IssueStatus.done.value]
+        OPEN = [s.value for s in OPEN_STATUSES]
+        DONE = [s.value for s in FIXED_STATUSES]
 
         def _val(x: Any) -> Any:
             return x.value if hasattr(x, "value") else x
@@ -1049,7 +1042,7 @@ class ReportService:
                 to_status = meta.get("to")
                 if to_status == IssueStatus.todo.value:
                     activity_type = "triaged"
-                elif to_status == IssueStatus.in_review.value:
+                elif to_status in {s.value for s in REVIEW_STATUSES}:
                     activity_type = "fixed"
                 elif to_status == IssueStatus.done.value:
                     activity_type = "verified"

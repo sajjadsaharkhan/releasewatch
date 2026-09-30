@@ -35,7 +35,7 @@ EXPECTED = {
     Action.manage_projects: {"admin"},
     Action.manage_search: {"admin"},
     Action.flag_release_blocker: {"qa", "pm", "cto", "admin"},
-    Action.return_item: {"qa", "developer", "pm", "cto", "admin"},
+    Action.reject: {"qa", "developer", "pm", "cto", "admin"},
     Action.view_reports: {"qa", "developer", "pm", "cto", "admin"},
 }
 
@@ -114,20 +114,25 @@ def test_item_actions_builds_allowed_and_blocked_lists():
     blocked_by_action = {b["action"]: b for b in blocked}
     assert blocked_by_action["flag_release_blocker"]["code"] == "not_triage_lead"
     assert blocked_by_action["flag_release_blocker"]["detail"]
-    # return_item exists only on a Done item — hidden, not blocked, elsewhere.
-    assert "return_item" not in allowed and "return_item" not in blocked_by_action
+    # reject exists only on delivered or Done work — hidden, not blocked, elsewhere.
+    assert "reject" not in allowed and "reject" not in blocked_by_action
 
 
-def test_return_item_on_a_done_item():
-    done = Target(item_id=1, item_type="task", status="done")
+@pytest.mark.parametrize("status", ["to_review", "in_review", "done"])
+def test_reject_on_delivered_or_done_work(status):
+    item = Target(item_id=1, item_type="task", status=status)
     for role in ("qa", "developer", "pm", "cto", "admin"):
-        assert decide(Actor(ME, role), Action.return_item, done).ok
-    support = decide(Actor(ME, "support"), Action.return_item, Target(
-        item_id=1, item_type="bug", status="done", source="support",
+        assert decide(Actor(ME, role), Action.reject, item).ok
+    support = decide(Actor(ME, "support"), Action.reject, Target(
+        item_id=1, item_type="bug", status=status, source="support",
     ))
     assert not support.ok and support.hidden
-    open_item = decide(Actor(ME, "qa"), Action.return_item, Target(item_id=1, status="todo"))
-    assert not open_item.ok and open_item.code == "not_done" and open_item.hidden
+
+
+@pytest.mark.parametrize("status", ["todo", "rejected", "in_progress", "blocked", "cancelled"])
+def test_reject_hidden_elsewhere(status):
+    d = decide(Actor(ME, "qa"), Action.reject, Target(item_id=1, status=status))
+    assert not d.ok and d.code == "not_rejectable" and d.hidden
 
 
 def test_item_actions_hide_tech_controls_from_support():

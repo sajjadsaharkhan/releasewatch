@@ -2,7 +2,7 @@ import React from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { DroppableColumn } from './DroppableColumn'
 import { StatusBadge } from '../ui/Badge'
-import { BOARD_STATUSES } from '../../lib/constants'
+import { BOARD_COLUMNS, BOARD_COLUMN_OF } from '../../lib/constants'
 
 const CARD_TITLE_WIDTHS = [
   ['w-full', 'w-3/4'],
@@ -48,13 +48,16 @@ function SkeletonColumn({ cards = 3 }) {
 
 export function IssueBoardSkeleton({ cardsPerColumn = 3 }) {
   return (
-    <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_STATUSES.length}, minmax(220px, 1fr))` }}>
-      {BOARD_STATUSES.map(col => (
+    <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, minmax(220px, 1fr))` }}>
+      {BOARD_COLUMNS.map(col => (
         <SkeletonColumn key={col} cards={cardsPerColumn} />
       ))}
     </div>
   )
 }
+
+// The column a card sits in — a Rejected card is on top of To do (09a).
+const columnOf = (issue) => BOARD_COLUMN_OF[issue.status] ?? issue.status
 
 // `readOnly` (a Released release, FR-54) turns off dragging. `columnHeaderExtra`
 // and `emptyText` are per-status (e.g. the Stream's Done-range note).
@@ -72,19 +75,20 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
     if (!over) return
     const issue = issues.find(i => i.id === active.id)
     if (!issue) return
-    if (issue.status !== over.id) {
+    // A Rejected card already sits in To do — dropping it there changes nothing.
+    if (columnOf(issue) !== over.id) {
       onStatusChange?.(issue, over.id)
     }
   }
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_STATUSES.length}, minmax(220px, 1fr))` }}>
-        {BOARD_STATUSES.map(status => (
+      <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, minmax(220px, 1fr))` }}>
+        {BOARD_COLUMNS.map(status => (
           <DroppableColumn
             key={status}
             status={status}
-            issues={issues.filter(i => i.status === status)}
+            issues={issues.filter(i => columnOf(i) === status)}
             onOpen={onOpen}
             readOnly={readOnly}
             headerExtra={columnHeaderExtra[status] ?? null}

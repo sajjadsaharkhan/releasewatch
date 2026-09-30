@@ -2,6 +2,10 @@
 
 docs/phase-2/08a-release-stream-cycles.md Part 3, docs/phase-2/cycle-model.md.
 
+**09a merged the three into one Reject** (``POST /reject``, landing in the
+Rejected status); ``/returns`` stays as its alias for Done items. The tests
+below assert the 09a shape; ``test_review_queue_and_rejected.py`` has the rest.
+
 **Workflow stays free (2026-09-30 product decision).** Asked before this slice
 was built, the user chose to keep status movement unrestricted: v3's QA gate
 (no In progress → Done), "place it first" (AC-56), the Done → To do return-only
@@ -76,11 +80,8 @@ async def _done(factories, rig, **kwargs):
 @pytest.mark.asyncio
 async def test_ac_66_reject_requires_comment(factories, rig):
     item = await _delivered(factories, rig, release_id=rig["release"].id)
-    # The Reject control — a failed verification — refuses a blank reason.
-    for note in (None, "   "):
-        resp = await rig["qa_client"].post(
-            f"/issues/{item.id}/verify", json={"outcome": "fail", "note": note},
-        )
+    for comment in (None, "   "):
+        resp = await rig["qa_client"].post(f"/issues/{item.id}/reject", json={"comment": comment})
         assert resp.status_code == 422
         assert resp.json()["code"] == "reason_required"
     after = await _item(rig["qa_client"], item.id)
@@ -88,33 +89,27 @@ async def test_ac_66_reject_requires_comment(factories, rig):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("via", ["transition", "verify"])
-async def test_ac_67_reject_returns_to_todo_with_marker_and_notification(factories, rig, via):
+async def test_ac_67_reject_lands_in_rejected_with_notification(factories, rig):
     item = await _delivered(factories, rig, release_id=rig["release"].id)
-    if via == "transition":
-        resp = await rig["qa_client"].post(f"/issues/{item.id}/transition", json={
-            "to": "todo", "comment": "The empty state still shows the spinner.",
-        })
-    else:
-        resp = await rig["qa_client"].post(f"/issues/{item.id}/verify", json={
-            "outcome": "fail", "note": "The empty state still shows the spinner.",
-        })
+    resp = await rig["qa_client"].post(f"/issues/{item.id}/reject", json={
+        "comment": "The empty state still shows the spinner.",
+    })
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["status"] == "todo"
-    assert body["returned"]["reason"] == "review"
-    assert body["returned"]["number"] == 1  # "returned 1"
+    assert body["status"] == "rejected"
+    assert body["reject_reason"] == "review"
+    assert body["cycle_number"] == 2
 
     cycles = await factories.cycles(item.id)
     assert [c["start_reason"] for c in cycles] == ["planned", "review"]
-    assert cycles[1]["start_comment_id"] == body["returned"]["comment_id"]
+    assert cycles[1]["start_comment_id"] == body["reject_comment_id"]
     assert cycles[0]["delivered_by"]["id"] == rig["dev"].id
 
     # The reason is a public comment on the item.
     events = (await rig["qa_client"].get(
         f"/issues/{item.id}/timeline", params={"size": 50},
     )).json()["items"]
-    comment = next(e for e in events if e["id"] == body["returned"]["comment_id"])
+    comment = next(e for e in events if e["id"] == body["reject_comment_id"])
     assert comment["body"] == "The empty state still shows the spinner."
     assert not comment["is_internal"]
 
@@ -123,27 +118,25 @@ async def test_ac_67_reject_returns_to_todo_with_marker_and_notification(factori
     assert len(returned) == 1
     assert returned[0]["meta"]["reason"] == "review"
     assert returned[0]["meta"]["cycle_no"] == 2
-    assert returned[0]["meta"]["comment_id"] == body["returned"]["comment_id"]
+    assert returned[0]["meta"]["comment_id"] == body["reject_comment_id"]
 
 
 @pytest.mark.asyncio
-async def test_ac_68_marker_lasts_until_in_review(factories, rig):
+async def test_ac_68_rejected_until_picked_up_then_the_badge_stays(factories, rig):
     item = await _delivered(factories, rig, release_id=rig["stream_id"])
-    await rig["qa_client"].post(
-        f"/issues/{item.id}/transition", json={"to": "todo", "comment": "Wrong copy."},
-    )
+    await rig["qa_client"].post(f"/issues/{item.id}/reject", json={"comment": "Wrong copy."})
     body = await _move(rig["dev_client"], item.id, "in_progress")
-    assert body["returned"]["reason"] == "review"
+    assert body["reject_reason"] is None and body["cycle_number"] == 2
     body = await _move(rig["dev_client"], item.id, "in_review")
-    assert body["returned"] is None
+    assert body["cycle_number"] == 2
 
 
 @pytest.mark.asyncio
-async def test_in_review_to_todo_without_comment_is_a_plain_move(factories, rig):
-    """Free workflow: without a reason it's an ordinary status change, not a Reject."""
+async def test_in_review_to_todo_is_a_plain_move(factories, rig):
+    """09a: an In review → To do move is never a Reject, with or without a comment."""
     item = await _delivered(factories, rig, release_id=rig["release"].id)
     body = await _move(rig["qa_client"], item.id, "todo")
-    assert body["returned"] is None and body["cycle_count"] == 1
+    assert body["reject_reason"] is None and body["cycle_count"] == 1
 
 
 # ── Returns endpoint (FR-59, FR-60) ───────────────────────────────────────────
@@ -153,15 +146,14 @@ async def test_in_review_to_todo_without_comment_is_a_plain_move(factories, rig)
 async def test_ac_25_return_from_release_qa(factories, rig):
     await factories.set_release_status(rig["release"].id, "qa")
     bug = await _done(factories, rig, type="bug", release_id=rig["release"].id)
-    assert (await _item(rig["qa_client"], bug.id))["return_reason"] == "release_qa"
 
     resp = await rig["qa_client"].post(
         f"/issues/{bug.id}/returns", json={"comment": "Checkout crashes on the QA build."},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["status"] == "todo" and body["release_id"] == rig["release"].id
-    assert body["returned"]["reason"] == "release_qa"
+    assert body["status"] == "rejected" and body["release_id"] == rig["release"].id
+    assert body["reject_reason"] == "release_qa"
     assert [c["start_reason"] for c in await factories.cycles(bug.id)] == [
         "planned", "release_qa",
     ]
@@ -170,15 +162,14 @@ async def test_ac_25_return_from_release_qa(factories, rig):
 @pytest.mark.asyncio
 async def test_ac_26_problem_on_production_in_stream(factories, rig):
     task = await _done(factories, rig, release_id=rig["stream_id"])
-    assert (await _item(rig["dev_client"], task.id))["return_reason"] == "production"
 
     resp = await rig["dev_client"].post(
         f"/issues/{task.id}/returns", json={"comment": "Exports time out on production."},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["status"] == "todo" and body["release_id"] == rig["stream_id"]
-    assert body["returned"]["reason"] == "production"
+    assert body["status"] == "rejected" and body["release_id"] == rig["stream_id"]
+    assert body["reject_reason"] == "production"
 
 
 @pytest.mark.asyncio
@@ -191,7 +182,7 @@ async def test_ac_64_production_return_moves_to_stream(factories, rig):
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["status"] == "todo" and body["release_id"] == rig["stream_id"]
+    assert body["status"] == "rejected" and body["release_id"] == rig["stream_id"]
     cycles = await factories.cycles(bug.id)
     assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
         ("planned", rig["release"].id), ("production", rig["stream_id"]),
@@ -199,7 +190,8 @@ async def test_ac_64_production_return_moves_to_stream(factories, rig):
 
     # The release still has no open item.
     open_items = (await rig["qa_client"].get("/issues", params={
-        "release_id": rig["release"].id, "statuses": "todo,in_progress,in_review,blocked",
+        "release_id": rig["release"].id,
+        "statuses": "todo,rejected,in_progress,to_review,in_review,blocked",
     })).json()["items"]
     assert open_items == []
 
@@ -213,7 +205,7 @@ async def test_returns_endpoint_decides_the_reason_server_side(factories, rig):
             "comment": "Broken.", "reason": "review",  # the client can't choose
         })
         assert resp.status_code == 200, resp.text
-        assert resp.json()["returned"]["reason"] == expected
+        assert resp.json()["reject_reason"] == expected
 
 
 @pytest.mark.asyncio
@@ -243,13 +235,13 @@ async def test_ac_71_support_has_no_production_action(factories, rig, client_for
     await _move(admin, report.id, "in_progress", "in_review", "done")
 
     seen = await _item(rig["support_client"], report.id)
-    assert "return_item" not in seen["allowed_actions"]
-    assert "return_item" not in [b["action"] for b in seen["blocked_actions"]]
+    assert "reject" not in seen["allowed_actions"]
+    assert "reject" not in [b["action"] for b in seen["blocked_actions"]]
     resp = await rig["support_client"].post(f"/issues/{report.id}/returns", json={"comment": "x"})
     assert resp.status_code == 403
 
     tech = await _item(rig["dev_client"], report.id)
-    assert "return_item" in tech["allowed_actions"]
+    assert "reject" in tech["allowed_actions"]
 
 
 @pytest.mark.asyncio
@@ -335,10 +327,10 @@ async def test_ac_57_task_cannot_skip_review(factories, rig):
 @pytest.mark.asyncio
 async def test_marker_reason_comment_loads_on_its_own(factories, rig):
     item = await _delivered(factories, rig, release_id=rig["stream_id"])
-    body = (await rig["qa_client"].post(f"/issues/{item.id}/transition", json={
-        "to": "todo", "comment": "Label overlaps the icon.",
+    body = (await rig["qa_client"].post(f"/issues/{item.id}/reject", json={
+        "comment": "Label overlaps the icon.",
     })).json()
-    comment_id = body["returned"]["comment_id"]
+    comment_id = body["reject_comment_id"]
     resp = await rig["dev_client"].get(f"/issues/{item.id}/timeline/{comment_id}")
     assert resp.status_code == 200
     assert resp.json()["body"] == "Label overlaps the icon."

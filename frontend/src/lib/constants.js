@@ -102,15 +102,16 @@ export const OPEN_RELEASE_STATUSES = ['planning', 'development', 'qa']
 export const isOpenRelease = (release) => OPEN_RELEASE_STATUSES.includes(release?.status)
 
 // Cycles (08a, docs/phase-2/cycle-model.md §3): why a pass of work started.
-// Every return sends the item to To do; the reason says where it was caught.
-// `short` is the returned marker's word; `label` the sentence form.
+// Every Reject (09a) lands the item in Rejected; the reason says where it was
+// caught and colors the Rejected pill. `short` is the Cycles tab's word; `label`
+// the sentence form.
 export const CYCLE_REASON = {
   planned: {
     label: 'Planned', short: 'Planned', icon: 'play',
     pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
   },
   review: {
-    label: 'Rejected in review', short: 'Rejected', icon: 'undo-2',
+    label: 'Rejected in review', short: 'Review', icon: 'undo-2',
     pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   },
   release_qa: {
@@ -124,9 +125,12 @@ export const CYCLE_REASON = {
 }
 
 // docs/phase-2/02-unified-status-model.md — shared by bugs and (slice 03) tasks.
-// Board statuses: todo, in_progress, in_review, done, blocked.
+// Board statuses: todo, rejected, in_progress, to_review, in_review, done, blocked.
 // Triage statuses (bug-only, kept off boards): new, needs_info.
-// No terminal status: any status can move to any other (tasks: never new/needs_info).
+// No terminal status: any status can move to any other (tasks: never new/needs_info),
+// except that only Reject enters `rejected` (09a) — it's never in allowed_transitions.
+// A Rejected item's pill takes its reason's hue (`RejectedPill`); `pill` here is
+// the fallback for places that only know the status.
 export const STATUS = {
   new: {
     label: 'New',
@@ -143,10 +147,20 @@ export const STATUS = {
     pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
     icon: 'circle-dashed',
   },
+  rejected: {
+    label: 'Rejected',
+    pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    icon: 'undo-2',
+  },
   in_progress: {
     label: 'In Progress',
     pill: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
     icon: 'loader',
+  },
+  to_review: {
+    label: 'To review',
+    pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    icon: 'clock',
   },
   in_review: {
     label: 'In Review',
@@ -170,13 +184,32 @@ export const STATUS = {
   },
 }
 
-export const BOARD_STATUSES = ['todo', 'in_progress', 'in_review', 'done', 'blocked']
+export const BOARD_STATUSES = ['todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'done', 'blocked']
+// The board's columns (09a): Rejected cards sit in the To do column
+// (`BOARD_COLUMN_OF`) — the board gains one column, To review, not two.
+export const BOARD_COLUMNS = ['todo', 'in_progress', 'to_review', 'in_review', 'done', 'blocked']
+export const BOARD_COLUMN_OF = { rejected: 'todo' }
+
+// The To do column's areas, top to bottom (09a): work rejected in review,
+// work returned after Done (release QA or production), then new work. Each is
+// a collapsible group; the column only shows groups when something came back.
+export const TODO_AREAS = [
+  { key: 'rejected', label: 'Rejected', icon: 'undo-2', hint: 'Sent back from review',
+    text: 'text-amber-700 dark:text-amber-300',
+    match: (i) => i.status === 'rejected' && (i.reject_reason ?? 'review') === 'review' },
+  { key: 'returned', label: 'Returned', icon: 'rotate-ccw', hint: 'Sent back after Done — release QA or production',
+    text: 'text-orange-700 dark:text-orange-300',
+    match: (i) => i.status === 'rejected' && (i.reject_reason === 'release_qa' || i.reject_reason === 'production') },
+  { key: 'todo', label: 'To do', icon: 'circle-dashed', hint: 'New work',
+    text: 'text-zinc-600 dark:text-zinc-300',
+    match: (i) => i.status !== 'rejected' },
+]
 export const TRIAGE_STATUSES = ['new', 'needs_info']
 
-// "Fixed" — in_review or done (docs/phase-2/02-unified-status-model.md). Use
-// this everywhere a "has this been fixed" count is computed; do not
-// re-enumerate the pair at a call site.
-export const FIXED_STATUSES = ['in_review', 'done']
+// "Fixed" — delivered: to_review, in_review or done (09a). Use this everywhere
+// a "has this been fixed" count is computed; do not re-enumerate the set at a
+// call site.
+export const FIXED_STATUSES = ['to_review', 'in_review', 'done']
 
 // Cancel reasons (BR-13), optional for both types. Bugs: any of these except
 // `no_longer_needed`. Tasks: `no_longer_needed` only.
@@ -193,7 +226,7 @@ export const BUG_CANCEL_REASONS = Object.keys(CANCEL_REASON).filter((r) => r !==
 export const TASK_CANCEL_REASONS = ['no_longer_needed']
 
 // Statuses that still need work — not done and not cancelled.
-export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'in_progress', 'in_review', 'blocked']
+export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'blocked']
 
 // Backlog categories (2026-09-28) are per project, managed in Settings → Backlog
 // categories (CTO/Admin). Each has a name, an icon from CATEGORY_ICONS and a hue

@@ -61,7 +61,7 @@ async def test_bug_still_starts_in_new_and_has_bug_key(factories, rig):
 
 # ── Task workflow: free movement between task statuses ───────────────────────
 
-TASK_STATUSES = ["todo", "in_progress", "in_review", "done", "blocked", "cancelled"]
+TASK_STATUSES = ["todo", "in_progress", "to_review", "in_review", "done", "blocked", "cancelled"]
 
 
 @pytest.mark.asyncio
@@ -149,7 +149,8 @@ async def test_task_offers_every_other_task_status(factories, rig, from_status):
     task = await _task_in(factories, rig["project"].id, from_status)
     resp = await factories.admin_client.get(f"/issues/{task.id}")
     allowed = set(resp.json()["allowed_transitions"])
-    assert allowed == set(TASK_STATUSES) - {from_status}
+    # Rejected is never offered: only Reject enters it (09a).
+    assert allowed == set(TASK_STATUSES) - {from_status, "rejected"}
 
 
 @pytest.mark.asyncio

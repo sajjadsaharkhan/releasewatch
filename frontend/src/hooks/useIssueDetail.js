@@ -206,8 +206,8 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
-  // After a Reject or a return (08a): the item is back in To do with a new
-  // cycle and a reason comment on the timeline.
+  // After a Reject (09a): the item is Rejected with a new cycle and a reason
+  // comment on the timeline.
   const sentBack = async (updatedIssue) => {
     const id = issueIdRef.current
     setLocalIssue(prev => ({

@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, CheckCheck, Eye, Undo2, Play, Unlock } from 'lucide-react'
+import { ChevronDown, CheckCheck, Clock, Eye, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -9,14 +9,15 @@ import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { ContainerPicker } from '../common/ContainerPicker'
+import { CycleBadge } from '../common/CycleBadge'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
-import { SendBackDialog } from './SendBackDialog'
+import { RejectDialog } from './RejectDialog'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { CONTAINER_KIND, CYCLE_REASON, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { CONTAINER_KIND, PRIORITIES, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime } from '../../lib/relTime'
 
@@ -49,8 +50,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const allowedTransitions = issue.allowed_transitions || []
   const bug = isBug(issue)
   const noun = itemNoun(issue)
-  // Which send-back dialog is open (08a): 'review' | 'release_qa' | 'production' | null.
-  const [sendBack, setSendBack] = React.useState(null)
+  // Whether the Reject dialog is open (09a).
+  const [rejecting, setRejecting] = React.useState(false)
   const { categories } = useBacklogCategories(issue.project_id)
 
   const ttTriage = issue.time_to_triage_h
@@ -404,9 +405,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       <div className="mt-4 pt-3 border-t border-border space-y-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cycle {cycleNum} metrics</span>
-          {cycleNum > 1 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-medium">returned {cycleNum - 1}×</span>
-          )}
+          <CycleBadge item={issue} />
         </div>
         <TimeMetric label="Time in triage" value={fmtH(ttTriage) ?? '0m'} tone="green" />
         <TimeMetric label="Time to fix" value={ttFix != null ? fmtH(ttFix) : 'in-flight'} tone={ttFix != null ? 'default' : 'amber'} />
@@ -421,19 +420,24 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       )}
 
       {/* Quick actions — the next step along the flow for the current status
-          (docs/phase-2/02-unified-status-model.md): To do → In progress → In review
-          → Done, Blocked → back where it was. Any other move is the Status
-          control above. Each button still renders only what the API allows
+          (09a): To do / Rejected → In progress → To review → In review → Done,
+          Blocked → back where it was. Any other move is the Status control
+          above. Each button still renders only what the API allows
           (allowed_actions / blocked_actions) — never re-derived here. */}
       <div className="mt-5 pt-3 border-t border-border space-y-2">
-        {issue.status === 'todo' && offers('in_progress') && (
+        {(issue.status === 'todo' || issue.status === 'rejected') && offers('in_progress') && (
           <ActionButton action="transition:in_progress" item={issue} className="w-full" onClick={() => changeStatus('in_progress')}>
             <Play size={14} className="mr-1" /> Start work
           </ActionButton>
         )}
-        {issue.status === 'in_progress' && offers('in_review') && (
+        {issue.status === 'in_progress' && offers('to_review') && (
+          <ActionButton action="transition:to_review" item={issue} className="w-full" onClick={() => changeStatus('to_review')}>
+            <Clock size={14} className="mr-1" /> Send to review
+          </ActionButton>
+        )}
+        {issue.status === 'to_review' && offers('in_review') && (
           <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
-            <Eye size={14} className="mr-1" /> Send to review
+            <Eye size={14} className="mr-1" /> Start review
           </ActionButton>
         )}
         {/* A task may skip review (slice 03); a bug's fix is always reviewed. */}
@@ -447,33 +451,25 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <CheckCheck size={14} className="mr-1" /> Mark as done
           </ActionButton>
         )}
-        {/* Reject (08a, FR-57): back to To do with a required reason. */}
-        {issue.status === 'in_review' && offers('todo') && (
-          <ActionButton action="transition:todo" item={issue} variant="outline" className="w-full" onClick={() => setSendBack('review')}>
-            <Undo2 size={14} className="mr-1" /> Reject
-          </ActionButton>
-        )}
+
         {issue.status === 'blocked' && offers(unblockTo) && (
           <ActionButton action={`transition:${unblockTo}`} item={issue} className="w-full" onClick={() => changeStatus(unblockTo)}>
             <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
           </ActionButton>
         )}
-        {/* Return from release QA / Problem on production (08a, FR-59/60) —
-            bugs and tasks; the server names the reason, Support never sees it. */}
-        {issue.status === 'done' && (
-          <ActionButton action="return_item" item={issue} variant="outline" className="w-full" onClick={() => setSendBack(issue.return_reason ?? 'production')}>
-            <Icon name={CYCLE_REASON[issue.return_reason ?? 'production'].icon} size={14} className="mr-1" />
-            {issue.return_reason === 'release_qa' ? 'Return from release QA' : 'Problem on production'}
-          </ActionButton>
-        )}
+        {/* Reject (09a): one action on To review, In review and Done work,
+            comment required; the server decides where it was caught. The
+            action only exists in allowed_actions there — Support never sees it. */}
+        <ActionButton action="reject" item={issue} variant="outline" className="w-full" onClick={() => setRejecting(true)}>
+          <Undo2 size={14} className="mr-1" /> Reject
+        </ActionButton>
         {/* Bug-only; disabled with guidance on Done (FR-16), absent on tasks. */}
         <ReportRecurrenceButton item={issue} className="w-full" onReported={onRecurrenceReported} />
       </div>
-      <SendBackDialog
+      <RejectDialog
         item={issue}
-        reason={sendBack}
-        open={sendBack != null}
-        onClose={() => setSendBack(null)}
+        open={rejecting}
+        onClose={() => setRejecting(false)}
         onDone={onSentBack}
       />
     </aside>

@@ -147,6 +147,11 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
     const from = event.from ?? event.meta?.from
     const to = event.to ?? event.meta?.to
 
+    // Reject (09a): the reason is the comment next to it, rendered as any other.
+    if (event.type === 'status_changed' && to === 'rejected' && event.meta?.reason === 'reject') {
+      return <>rejected this {itemNoun(issue)}</>
+    }
+
     if (event.type === 'status_changed' && from && to) {
       return (
         <>

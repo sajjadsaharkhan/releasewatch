@@ -26,7 +26,7 @@ class CycleStartReason(str, enum.Enum):
 
     #: The item was placed in a container. Always cycle 1.
     planned = "planned"
-    #: Item-level QA rejected the delivered work (In review → To do).
+    #: Item-level QA rejected the delivered work (To review / In review → Rejected, 09a).
     review = "review"
     #: Release-level QA found a problem with a Done item in a Release that hasn't shipped.
     release_qa = "release_qa"
@@ -82,7 +82,8 @@ class IssueCycle(Base):
     )
     delivered_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True,
-        doc="The assignee when the work went to In review (CY-05). Never the actor; "
+        doc="The assignee when the work went to To review or In review (CY-05, 09a). "
+            "Never the actor; "
             "empty when the item had no assignee. Written once.",
     )
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -90,7 +91,8 @@ class IssueCycle(Base):
         DateTime(timezone=True), nullable=True, doc="First move to In progress in this cycle."
     )
     submitted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, doc="First move to In review in this cycle."
+        DateTime(timezone=True), nullable=True,
+        doc="First move to To review or In review in this cycle (09a).",
     )
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(

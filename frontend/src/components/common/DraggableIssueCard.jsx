@@ -5,7 +5,7 @@ import { Avatar, UserHoverCard } from '../ui'
 import { LabelChip } from './LabelChip'
 import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
-import { ReturnedMarker } from './ReturnedMarker'
+import { CycleBadge } from './CycleBadge'
 import { issueKey } from '../../lib/issueSlug'
 import { TypeIcon, PriorityBadge } from '../ui/Badge'
 
@@ -50,7 +50,7 @@ export function DraggableIssueCard({ issue, assignee, labels, onOpen, readOnly =
             </span>
             <ReportedCount count={issue.recurrence_count} className="text-[10.5px]" />
             <TechDebtMarker item={issue} compact />
-            <ReturnedMarker item={issue} compact />
+            <CycleBadge item={issue} compact />
           </span>
           <PriorityBadge priority={issue.priority} />
         </div>

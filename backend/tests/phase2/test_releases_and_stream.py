@@ -301,7 +301,9 @@ async def test_ac_60_ship_preview_counts_not_done_by_status(factories, client_fo
     resp = await c.get(f"/releases/{rig['release'].id}/ship-preview")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["not_done"] == {"todo": 2, "in_progress": 1, "in_review": 1, "blocked": 0}
+    assert body["not_done"] == {
+        "todo": 2, "rejected": 0, "in_progress": 1, "to_review": 0, "in_review": 1, "blocked": 0,
+    }
     assert body["total_not_done"] == 4
     assert body["go_nogo"]["status"] == "approved"
     assert body["go_nogo"]["note"] == "LGTM"
@@ -499,7 +501,9 @@ async def test_release_board_and_items(factories, rig):
 
     board = (await admin.get(f"/releases/{rid}/board")).json()
     cols = {c["status"]: [i["id"] for i in c["items"]] for c in board["columns"]}
-    assert list(cols) == ["todo", "in_progress", "in_review", "blocked", "done"]
+    assert list(cols) == [
+        "todo", "rejected", "in_progress", "to_review", "in_review", "blocked", "done",
+    ]
     assert cols["todo"] == [todo.id]
     # A release's Done column is unbounded by default.
     assert cols["done"] == [old_done.id]

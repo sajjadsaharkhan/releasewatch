@@ -462,10 +462,10 @@ async def test_ac_50_merge_into_done_stream_item_is_production_return(factories,
     assert resp.status_code == 200, resp.text
 
     after_b = await get(rig["admin"], b.id)
-    assert after_b["status"] == "todo"
+    assert after_b["status"] == "rejected"
     assert after_b["release_id"] == stream_id
     assert after_b["recurrence_count"] == 2
-    assert after_b["returned"]["reason"] == "production"
+    assert after_b["reject_reason"] == "production"
     cycles = await factories.cycles(b.id)
     assert [c["start_reason"] for c in cycles] == ["planned", "production"]
     assert cycles[1]["start_merged_issue_id"] == a.id
@@ -492,7 +492,7 @@ async def test_ac_51_merge_into_done_in_release_in_qa_is_release_qa(factories, r
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == "todo" and after["release_id"] == release.id
+    assert after["status"] == "rejected" and after["release_id"] == release.id
     cycles = await factories.cycles(b.id)
     assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
         ("planned", release.id), ("release_qa", release.id),
@@ -512,7 +512,7 @@ async def test_merge_into_done_item_of_released_release_moves_to_stream(factorie
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == "todo" and after["release_id"] == stream_id
+    assert after["status"] == "rejected" and after["release_id"] == stream_id
     cycles = await factories.cycles(b.id)
     assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
         ("planned", release.id), ("production", stream_id),
@@ -530,7 +530,7 @@ async def test_ac_52_merge_into_open_item_starts_no_cycle(factories, rig, status
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == status and after["returned"] is None
+    assert after["status"] == status and after["reject_reason"] is None
     assert after["cycle_count"] == 1
     assert after["recurrence_count"] == 2
 
@@ -563,7 +563,7 @@ async def test_ac_54_merged_support_reporter_gets_done_after_return(factories, r
     await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)
     # The return itself sends Support nothing (§13) — only A's cancellation.
     assert await inbox_types(rig["support_client"]) == ["support_cancelled"]
-    assert (await get(rig["admin"], b.id))["status"] == "todo"
+    assert (await get(rig["admin"], b.id))["status"] == "rejected"
 
     await to_status(rig["admin"], b.id, "in_review")
     await to_status(rig["admin"], b.id, "done")
@@ -582,8 +582,8 @@ async def test_ac_77_merge_into_done_task_in_stream(factories, rig, client_for):
     assert resp.status_code == 200, resp.text
 
     after = await get(rig["admin"], task.id)
-    assert after["status"] == "todo" and after["release_id"] == stream_id
-    assert after["returned"]["reason"] == "production"
+    assert after["status"] == "rejected" and after["release_id"] == stream_id
+    assert after["reject_reason"] == "production"
     # A task has no recurrence count (BR-22 is bug-only).
     assert after["recurrence_count"] == 1
     # A's reporter is subscribed to T — Support can now see it.

@@ -251,9 +251,10 @@ class FixRequest(BaseModel):
     note: str | None = None
 
 
-class ReturnRequest(BaseModel):
-    """Payload for POST /issues/{id}/returns (08a). The reason is decided by the
-    server; the comment says what's wrong (422 ``reason_required`` when blank)."""
+class RejectRequest(BaseModel):
+    """Payload for POST /issues/{id}/reject (and its /returns, /reopen aliases).
+    The reason is decided by the server; the comment says what's wrong (422
+    ``reason_required`` when blank)."""
 
     comment: str | None = None
 
@@ -294,10 +295,12 @@ class IssueResponse(IssueBase):
     labels_detail: list[LabelDetail] = Field(default_factory=list)
     #: How many cycles the item has had in its current placement (0 in the backlog).
     cycle_count: int = 0
-    #: Set while the current cycle is a return nobody has sent to review yet (CY-11).
-    returned: "ReturnedMarker | None" = None
-    #: On a Done item: what sending it back would be — ``release_qa`` or ``production`` (08a).
-    return_reason: str | None = None
+    #: The current cycle's number — the cycle badge shows from 2 (09a). Null in the backlog.
+    cycle_number: int | None = None
+    #: While Rejected: where the problem was caught — ``review`` | ``release_qa`` |
+    #: ``production`` — and the comment that says why (09a).
+    reject_reason: str | None = None
+    reject_comment_id: int | None = None
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int
@@ -356,16 +359,6 @@ class BulkMoveRequest(BaseModel):
 class BulkMoveResponse(BaseModel):
     moved_ids: list[int]
     items: list[IssueResponse]
-
-
-class ReturnedMarker(BaseModel):
-    """The returned marker (FR-63, CY-11): why the work came back and how many
-    times. Computed from the current cycle — ``start_reason <> planned`` and
-    ``submitted_at is null``; ``number`` = cycle number − 1."""
-
-    reason: str
-    number: int
-    comment_id: int | None = None
 
 
 class IssueCycleResponse(BaseModel):

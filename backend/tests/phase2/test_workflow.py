@@ -72,7 +72,8 @@ async def test_allowed_transitions_includes_every_other_status(factories, rig):
     resp = await admin.get(f"/issues/{issue.id}")
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body["allowed_transitions"]) == {s.value for s in IssueStatus} - {"new"}
+    # Rejected is never offered: only Reject enters it (09a).
+    assert set(body["allowed_transitions"]) == {s.value for s in IssueStatus} - {"new", "rejected"}
     assert body["blocked_transitions"] == []
 
 
@@ -172,8 +173,8 @@ async def test_reopen_maps_to_returns_and_still_requires_done(factories, client_
     done = await _done_bug(factories, client_for, rig["release"].id, rig["developer"], admin)
     resp = await admin.post(f"/issues/{done.id}/reopen", json={"comment": "Back"})
     assert resp.status_code == 200
-    assert resp.json()["status"] == "todo"
-    assert resp.json()["returned"]["reason"] == "release_qa"
+    assert resp.json()["status"] == "rejected"
+    assert resp.json()["reject_reason"] == "release_qa"
 
 
 # ── PATCH obeys the same (unrestricted) rules ────────────────────────────────

@@ -146,13 +146,12 @@ export const issuesApi = {
   move: (id, projectId) => api.post(`/issues/${id}/move`, { project_id: projectId }),
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),
   verify: (id, data) => api.post(`/issues/${id}/verify`, data),
-  reopen: (id) => api.post(`/issues/${id}/reopen`),
   // Generic status change — board drags and the sidebar's status control.
   // `to` is required; `reason`/`comment`/`cancel_reason` are optional.
   transition: (id, data) => api.post(`/issues/${id}/transition`, data),
-  // Flags a regression on a Done or In review bug (BR-24). No body.
-  // 08a: send Done work back — the server decides release QA vs production.
-  returnItem: (id, data) => api.post(`/issues/${id}/returns`, data),
+  // Reject (09a): To review / In review / Done → Rejected, `{comment}` required.
+  // The server decides review vs release QA vs production.
+  reject: (id, data) => api.post(`/issues/${id}/reject`, data),
   // One more occurrence of an open or Cancelled bug (slice 07). `data` is
   // {comment, pending_attachments?}; 409 recurrence_on_done / recurrence_bug_only.
   reportRecurrence: (id, data) => api.post(`/issues/${id}/recurrences`, data),

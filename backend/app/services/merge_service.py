@@ -18,11 +18,11 @@ Effects, in order:
 3. The merged report's reporter is subscribed to the original.
 4. A status effect by the original's status:
 
-   - ``done`` → the work came back (BR-49, 08a): ``done → todo`` and the
-     next cycle starts with the merge comment as its reason — ``release_qa``
-     in a Release that hasn't shipped, else ``production`` (and a Released
+   - ``done`` → a Reject (BR-49, 09a): ``done → rejected`` and the next
+     cycle starts with the merge comment as its reason — ``release_qa`` in a
+     Release that hasn't shipped, else ``production`` (and a Released
      release's item moves to the Stream). The assignee gets ``item_returned``;
-     Support hears nothing (§13). Same path as ``POST /issues/{id}/returns``.
+     Support hears nothing (§13). Same path as ``POST /issues/{id}/reject``.
    - ``cancelled`` → stays cancelled; the triage lead gets
      ``recurrence_on_cancelled``.
    - anything else → no status change.
@@ -40,9 +40,6 @@ from app.db.models.issue_subscriber import SubscriptionReason
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.user import User
 from app.policy import is_tech
-
-#: The status_changed reason for the Done → To do move a merge makes.
-MERGE_RETURN_REASON = "merge"
 
 
 async def lock_original(db: AsyncSession, issue_id: int) -> Issue | None:
@@ -145,9 +142,9 @@ class MergeService:
 
         status = getattr(original.status, "value", original.status)
         if status == IssueStatus.done.value:
-            original = await issue_service.send_back_done(
+            original = await issue_service.reject_with(
                 db, original, actor, comment,
-                merged_issue_id=merged_issue_id, reason_label=MERGE_RETURN_REASON,
+                merged_issue_id=merged_issue_id, move_reason="merge",
             )
         elif status == IssueStatus.cancelled.value:
             await InboxFanOutService().fan_out(

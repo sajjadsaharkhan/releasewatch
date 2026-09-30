@@ -141,13 +141,20 @@ non-pill use.
 | `new` | New | zinc | `circle` |
 | `needs_info` | Needs info | sky | `help-circle` |
 | `todo` | To do | zinc | `circle-dashed` |
+| `rejected` | Rejected | the reason's hue (see Cycles below); amber fallback | the reason's icon; `undo-2` fallback |
 | `in_progress` | In Progress | indigo | `loader` |
+| `to_review` | To review | amber | `clock` |
 | `in_review` | In Review | amber | `eye` |
 | `done` | Done | teal | `shield-check` |
 | `blocked` | Blocked | orange | `circle-slash` |
 | `cancelled` | Cancelled | zinc (dimmed: `text-zinc-500`) | `x-circle` |
 
-`BOARD_STATUSES` (`todo, in_progress, in_review, done, blocked`) is the five-column board set.
+`BOARD_STATUSES` (`todo, rejected, in_progress, to_review, in_review, done, blocked`) is the
+board status set; `BOARD_COLUMNS` (`todo, in_progress, to_review, in_review, done, blocked`) is
+what a board draws — Rejected cards sit in the To do column (`BOARD_COLUMN_OF`), so the board
+gained one column (To review), not two (09a). To review means "the developer delivered it,
+waiting for QA"; In review means "QA is checking it". `FIXED_STATUSES` is `to_review, in_review,
+done`.
 `TRIAGE_STATUSES` (`new, needs_info`) are bug-only and kept off boards — untriaged work never
 looks committed. `OPEN_STATUSES` — not `done` and not `cancelled` — is the canonical "still
 needs work" set. Use these; do not re-enumerate the lists at a call site.
@@ -156,7 +163,9 @@ An item's next statuses come from the API (`IssueResponse.allowed_transitions`, 
 backend's Workflow module) — the frontend never hardcodes the status list, it renders what the
 API returned. Status movement is unrestricted by product decision (bugs 2026-09-22, tasks
 2026-09-23): any status can move to any other status from the sidebar's status control, with no
-confirmation dialog and no reason required — including out of `done` and `cancelled`. Tasks are
+confirmation dialog and no reason required — including out of `done` and `cancelled`. The one
+exception (09a, ADR 0004): nothing enters `rejected` by a move — only **Reject** does, so the
+status control never lists it. Tasks are
 never offered the bug-only triage statuses (`new`, `needs_info`), so still render
 `allowed_transitions` rather than the full `STATUS` list. `CANCEL_REASON` (`lib/constants.js`)
 holds the optional `cancel_reason` values: a bug may give any value except `no_longer_needed`, a
@@ -207,39 +216,67 @@ reads "moved category [old] → [Default] — old was deleted";
 and the flag reads "flagged as [Technical debt chip]" / "cleared the [chip]" — the cleared chip
 dimmed and struck through, the way the release-blocker entries pair a phrase with their badge.
 
-### Cycles and the returned marker — `CYCLE_REASON` in `lib/constants.js` (08a)
+### Cycles, Rejected and the cycle badge — `CYCLE_REASON` in `lib/constants.js` (08a, 09a)
 
-A **cycle** is one pass of work on an item; every return starts the next one with a reason. There is
-no Returned status and no extra board column — work that came back is marked on its row or card.
+A **cycle** is one pass of work on an item; every Reject starts the next one with a reason. Since
+09a ([ADR 0004](adr/0004-rejected-is-a-status.md)) work that came back has the status **Rejected**
+until its developer picks it up — the cycle records where the problem was caught, the status says
+what the item is waiting for. There is no Rejected column: the To do column splits into areas
+(below).
 
-| Reason | Label (sentence / marker) | Icon | Hue |
+| Reason | Label (sentence / Cycles tab) | Icon | Hue |
 |---|---|---|---|
 | `planned` | Planned | `play` | zinc |
-| `review` | Rejected in review / Rejected | `undo-2` | amber |
+| `review` | Rejected in review / Review | `undo-2` | amber |
 | `release_qa` | Returned from release QA / Release QA | `rotate-ccw` | orange |
 | `production` | Problem on production / Production | `flame` | red |
 
 Amber → orange → red climbs with how far the problem got (item QA, release QA, production). Red is
 shared with the release-blocker marker on purpose: both mean "this hurts users now".
 
-`<ReturnedMarker item compact?>` (`components/common`) renders only while `item.returned` is set —
-the current cycle is a return nobody has sent to In review yet (CY-11). A rounded pill in the
-reason's hue: icon + "Rejected · returned 2" on `IssueTable` rows (after the title, next to
-`TechDebtMarker`), icon + number on board cards (`compact`). It's focusable; hover or focus opens a
+**The To do column's areas** (`TODO_AREAS` in `lib/constants.js`, drawn by `DroppableColumn`,
+chosen from a prototype 2026-09-30): when anything in the column came back, it splits into three
+collapsible groups, top to bottom — **Rejected** (amber, `undo-2`: rejected in review, from To
+review / In review), **Returned** (orange, `rotate-ccw`: sent back after Done, from release QA or
+production), then **To do** (new work). Each group header is a button (`aria-expanded`) with a
+chevron, the area icon and label, and a count chip; the hint ("Sent back from review" / "Sent
+back after Done — release QA or production") is its tooltip. Collapsing is per view and not
+remembered. The column header adds a summary after its count — "· 2 rejected · 1 returned". A
+column with only new work stays a plain list with no group headers. **Cards don't change**: a
+Rejected card looks like any To do card (plus the cycle badge it has anyway); the area says why
+it's there.
+
+`<RejectedPill item>` (`components/common`) is the Rejected status pill for lists: "Rejected" with
+the reason's icon, in the reason's hue (`item.reject_reason`). It replaces `StatusBadge` for
+Rejected items in `IssueTable` rows (not on board cards). It's focusable; hover or focus opens a
 popover card after 250 ms with the full label and the reason comment, fetched once on demand
-(`GET /issues/{id}/timeline/{comment_id}`, react-query). Screen readers get the full label.
+(`GET /issues/{id}/timeline/{reject_comment_id}`, react-query). Screen readers get
+"Rejected — <full label>".
+
+`<CycleBadge item compact?>` (`components/common`) shows from `cycle_number ≥ 2`, on every status:
+`refresh-cw` + the number in zinc, tooltip and screen-reader text "Cycle 2". It sits after the
+title on `IssueTable` rows (next to `TechDebtMarker`), beside the key on board cards (`compact`),
+and in the sidebar's cycle metrics header. It is how a developer still sees that picked-up work
+came back — Rejected only lasts until they move it to In progress. The spec named `repeat`, but
+that is `ReportedCount`'s icon on the same cards, so the badge uses `refresh-cw` (↻, as the ADR
+writes it).
+
+The reason is an ordinary public comment; the timeline renders the status change as "rejected this
+bug/task" and the comment as any other. A merge into a Done item records `reason: merge` and
+renders as a plain status change (Done → Rejected) next to the merge comment.
 
 The item page's **Cycles** tab (`CycleHistorySection`, bugs and tasks) lists every cycle oldest
 first on a rail — a reason dot, "Cycle N", the reason pill, the container (Stream `waves` or release
 `package` + version), the reason comment as a quote, and relative stamps: Started (and by whom, for
-returns), Picked up, In review (delivered by — the assignee at that moment), Verified, Closed. Empty
-state: "No cycles yet" — backlog items have none.
+returns), Picked up, Delivered (first To review or In review — delivered by the assignee at that
+moment), Verified, Closed. Empty state: "No cycles yet" — backlog items have none.
 
-Sending work back always takes a comment (`SendBackDialog`): **Reject** replaces "Send back to In
-progress" on In review items; **Return from release QA** or **Problem on production** (named by the
-item's `return_reason`, decided by the server) on Done items, driven by `return_item` in
-`allowed_actions` — Support never sees it. The confirm button is destructive and disabled until the
-comment has text.
+**Reject** (`RejectDialog`) is one action on To review, In review and Done items, shown when
+`reject` is in `allowed_actions` (Support never sees it). One title, "Reject"; the comment is
+required and the destructive confirm stays disabled until it has text. The server decides where
+it was caught. The sidebar's quick actions follow the flow: To do / Rejected → **Start work**,
+In progress → **Send to review** (To review), To review → **Start review** (In review), In review
+→ **Mark as done**, plus **Reject** where allowed.
 
 ### Release lifecycle and Overdue — `RELEASE_STATUS` in `lib/constants.js` (slice 09)
 
@@ -629,8 +666,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Checkbox` (`components/ui`) | `checked`, `indeterminate` ("mixed"), `onCheckedChange(next, event)` — the event carries `shiftKey` for ranges; clicks don't bubble, so it sits inside clickable rows |
 | `TechDebtMarker` / `BacklogCategoryBadge` / `BacklogCategoryPicker` (`components/common`) | See §3 Backlog category and technical debt. The picker is a `radiogroup` of chips (arrow keys move), `required` stops a second click from clearing it |
 | `ContainerPicker` (`components/common`) | Where an item lives (08a): Backlog (`inbox`), Stream (`waves`, "ships when Done"), then the project's open releases (`package`, lifecycle status as a muted hint). `projectId`, `value` (container id or null = backlog), `onChange`, `allowBacklog` (false in the bulk bar). Data from `useContainers(projectId)` (react-query, shared). A released or cancelled current container is still listed so the trigger can name it. On a Done item the sidebar shows the container as text instead — Done items never move |
-| `ReturnedMarker` / `SendBackDialog` / `CycleHistorySection` | See §3 Cycles and the returned marker |
-| `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the returned marker's amber→red scale and the priority pills |
+| `RejectedPill` / `CycleBadge` / `RejectDialog` / `CycleHistorySection` | See §3 Cycles, Rejected and the cycle badge |
+| `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the Rejected pill's amber→red scale and the priority pills |
 | `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text and offers "New report referencing this" (Support → `/support/new?ref=<key>`, tech → New issue prefilled via `setNewIssueDraft`). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
 should use the primitive rather than re-declaring the classes.

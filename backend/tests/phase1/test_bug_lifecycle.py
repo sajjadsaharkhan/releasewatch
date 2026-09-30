@@ -70,17 +70,22 @@ async def test_verify_fail_then_reopen(factories, client_for):
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
 
-    # Verify fail has no self_verification rule — the developer can fail their own fix.
-    # 08a: a failed verification is a Reject — it needs a note and lands in To do.
+    # 09a: a failed verification is refused — Reject is its own action, and
+    # there's no self-verification rule, so the developer can reject their own fix.
     verify_resp = await dev_client.post(
         f"/issues/{issue.id}/verify", json={"outcome": "fail", "note": "Still crashes"},
     )
-    assert verify_resp.status_code == 200
-    assert verify_resp.json()["status"] == "todo"
+    assert verify_resp.status_code == 409
+    assert verify_resp.json()["code"] == "use_reject"
+    reject_resp = await dev_client.post(
+        f"/issues/{issue.id}/reject", json={"comment": "Still crashes"},
+    )
+    assert reject_resp.status_code == 200
+    assert reject_resp.json()["status"] == "rejected"
 
     # Fix again, then verify pass from a different actor (AC-27: reviewer
     # can't verify their own fix), then reopen from done.
-    # reopen() maps to POST /returns (08a; the release hasn't shipped → release QA).
+    # reopen is an alias of Reject for Done items (09a; the release hasn't shipped → release QA).
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     verify_ok = await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
@@ -89,7 +94,7 @@ async def test_verify_fail_then_reopen(factories, client_for):
     reopen_resp = await admin.post(f"/issues/{issue.id}/reopen", json={"comment": "Back again"})
     assert reopen_resp.status_code == 200
     reopened = reopen_resp.json()
-    assert reopened["status"] == "todo"
+    assert reopened["status"] == "rejected"
     assert reopened["verified_at"] is None
     # The reject from review and the return from release QA are both cycles
     # Phase 1 reports count (08a).

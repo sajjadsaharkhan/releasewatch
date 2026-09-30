@@ -109,7 +109,7 @@ export function CycleHistorySection({ cycles = [], comments = [] }) {
                 <Stamp label="Started" at={c.started_at} />
                 {c.start_reason !== 'planned' && <Person user={c.start_by} verb="by" />}
                 <Stamp label="Picked up" at={c.picked_up_at} />
-                <Stamp label="In review" at={c.submitted_at} />
+                <Stamp label="Delivered" at={c.submitted_at} />
                 {c.submitted_at && (c.delivered_by
                   ? <Person user={c.delivered_by} verb="delivered by" />
                   : <span className="text-muted-foreground">delivered unassigned</span>)}

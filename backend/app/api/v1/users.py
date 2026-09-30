@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
-from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue import FIXED_STATUSES, Issue
 from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.user import ActivityDataPoint, UserProfileResponse
@@ -21,7 +21,7 @@ from app.services.authz import visibility_clause
 
 router = APIRouter()
 
-_FIXED_STATUSES = {IssueStatus.in_review, IssueStatus.done}
+_FIXED_STATUSES = set(FIXED_STATUSES)
 
 
 async def _build_profile(user: User, db: AsyncSession, viewer: User) -> UserProfileResponse:

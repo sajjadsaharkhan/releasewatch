@@ -44,7 +44,7 @@ async def test_ac_78_bug_filed_into_release_has_planned_cycle_in_triage(factorie
     assert [(c["cycle_number"], c["start_reason"], c["release_id"]) for c in cycles] == [
         (1, "planned", rig["release"].id),
     ]
-    assert bug.cycle_count == 1 and bug.returned is None
+    assert bug.cycle_count == 1 and bug.cycle_number == 1 and bug.reject_reason is None
 
 
 @pytest.mark.asyncio
@@ -154,21 +154,19 @@ async def test_ac_70_unassigned_delivery_has_no_author(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_return_starts_next_cycle_and_marks_item_returned(factories, rig):
+async def test_reject_starts_next_cycle_and_marks_item_rejected(factories, rig):
     admin = factories.admin_client
     task = await _task(factories, rig, release_id=rig["release"].id, assignee_id=rig["dev"].id)
     await _move(rig["dev_client"], task.id, "in_progress")
     await _move(rig["dev_client"], task.id, "in_review")
 
-    resp = await admin.post(
-        f"/issues/{task.id}/transition", json={"to": "todo", "comment": "Fails on Safari"},
-    )
+    resp = await admin.post(f"/issues/{task.id}/reject", json={"comment": "Fails on Safari"})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "todo"
-    assert body["cycle_count"] == 2
-    assert body["returned"]["reason"] == "review" and body["returned"]["number"] == 1
-    assert body["returned"]["comment_id"] is not None
+    assert body["status"] == "rejected"
+    assert body["cycle_count"] == 2 and body["cycle_number"] == 2
+    assert body["reject_reason"] == "review"
+    assert body["reject_comment_id"] is not None
 
     first, second = await factories.cycles(task.id)
     assert first["closed_at"] is not None
@@ -176,10 +174,11 @@ async def test_return_starts_next_cycle_and_marks_item_returned(factories, rig):
     assert second["start_by"]["id"] == factories.admin_id
     assert second["release_id"] == rig["release"].id
 
-    # The marker lasts until the item is sent to review again.
+    # Rejected lasts until the developer picks it up; the cycle badge stays.
     await _move(rig["dev_client"], task.id, "in_progress")
     await _move(rig["dev_client"], task.id, "in_review")
-    assert (await _item(admin, task.id))["returned"] is None
+    after = await _item(admin, task.id)
+    assert after["reject_reason"] is None and after["cycle_number"] == 2
 
 
 # ── The backlog deletes cycles ───────────────────────────────────────────────
@@ -191,12 +190,13 @@ async def test_ac_73_backlog_move_deletes_cycles_and_replacement_restarts_at_one
     task = await _task(factories, rig, release_id=rig["release"].id)
     await _move(admin, task.id, "in_progress")
     await _move(admin, task.id, "in_review")
-    await admin.post(f"/issues/{task.id}/transition", json={"to": "todo", "comment": "No"})
+    await admin.post(f"/issues/{task.id}/reject", json={"comment": "No"})
     assert len(await factories.cycles(task.id)) == 2
 
     resp = await admin.patch(f"/issues/{task.id}", json={"release_id": None})
     assert resp.status_code == 200
-    assert resp.json()["cycle_count"] == 0 and resp.json()["returned"] is None
+    assert resp.json()["cycle_count"] == 0 and resp.json()["cycle_number"] is None
+    assert resp.json()["status"] == "todo"
     assert await factories.cycles(task.id) == []
 
     resp = await admin.patch(f"/issues/{task.id}", json={"release_id": rig["stream_id"]})
@@ -253,7 +253,7 @@ async def test_current_cycle_iff_container_over_every_mutation_path(factories, r
     for to in ("in_progress", "in_review"):
         await _move(admin, streamed.id, to)
         await check(streamed.id)
-    await admin.post(f"/issues/{streamed.id}/transition", json={"to": "todo", "comment": "No"})
+    await admin.post(f"/issues/{streamed.id}/reject", json={"comment": "No"})
     await check(streamed.id)
     await _move(admin, streamed.id, "cancelled")
     await check(streamed.id)

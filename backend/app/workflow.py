@@ -21,6 +21,12 @@ offered to tasks.
 Both item types share one rule: a cancel reason is optional, but when one is
 given it must be valid for the type (BR-13) — ``no_longer_needed`` is
 task-only, every other reason is bug-only.
+
+The one exception to free movement (09a, ADR 0004): nothing enters
+``rejected`` by a plain move (409 ``use_reject``), and ``allowed_targets``
+never lists it. ``IssueService`` passes ``via_reject`` in the context when the
+Reject action (or a merge into a Done item) moves the item there. Leaving
+``rejected`` is free.
 """
 
 from dataclasses import dataclass, field
@@ -66,7 +72,7 @@ _TASK_STATUSES = tuple(
 
 
 def _task_targets(from_status: IssueStatus) -> set[IssueStatus]:
-    return {s for s in _TASK_STATUSES if s != from_status}
+    return {s for s in _TASK_STATUSES if s != from_status and s != IssueStatus.rejected}
 
 
 def _cancel_reason_error(item_type: str, context: dict[str, Any] | None) -> TransitionCheck | None:
@@ -109,7 +115,10 @@ class Workflow:
         from_st = _as_status(from_status)
         if item_type == "bug":
             return WorkflowTargets(
-                allowed=[s.value for s in IssueStatus if s != from_st],
+                allowed=[
+                    s.value for s in IssueStatus
+                    if s != from_st and s != IssueStatus.rejected
+                ],
                 blocked=[],
             )
         if item_type == "task":
@@ -133,6 +142,15 @@ class Workflow:
             )
         from_st = _as_status(from_status)
         to_st = _as_status(to_status)
+        if to_st == IssueStatus.rejected:
+            allowed = Workflow.allowed_targets(item_type, from_st, context).allowed
+            if not (context or {}).get("via_reject"):
+                return TransitionCheck(
+                    False, code="use_reject",
+                    detail="Use Reject to send work back — it needs a comment.",
+                    allowed=allowed,
+                )
+            return TransitionCheck(True, allowed=allowed)
         if item_type == "bug" and to_st == from_st:
             # A bug can re-enter its own status (e.g. the regression action
             # on an already-in_progress bug) — unrestricted movement (the

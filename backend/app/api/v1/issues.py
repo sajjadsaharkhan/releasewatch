@@ -15,9 +15,10 @@ POST   /issues/{id}/triage                  — apply a triage outcome (accept |
 POST   /issues/{id}/move                    — move a New/Needs info bug to another project
 POST   /issues/{id}/recurrences             — report a recurrence on an open or Cancelled bug
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
-POST   /issues/{id}/verify                  — verify the fix (in_review -> done | in_progress)
-POST   /issues/{id}/returns                 — send Done work back (release QA / production, 08a)
-POST   /issues/{id}/reopen                  — Phase 1 wrapper for /returns
+POST   /issues/{id}/verify                  — verify the fix (-> done; fail → 409 use_reject)
+POST   /issues/{id}/reject                  — Reject To review / In review / Done work (09a)
+POST   /issues/{id}/returns                 — alias of /reject for Done items (08a)
+POST   /issues/{id}/reopen                  — alias of /reject for Done items (Phase 1)
 POST   /issues/{id}/transition              — generic status change; used by board drags and menus
 GET    /issues/by-number/{n}/adjacent       — prev/next non-deleted issue numbers
 
@@ -66,8 +67,7 @@ from app.schemas.issue import (
     LabelDetail,
     MoveRequest,
     RecurrenceCreate,
-    ReturnRequest,
-    ReturnedMarker,
+    RejectRequest,
     TransitionRequest,
     TrashIssueResponse,
     TriageRequest,
@@ -84,7 +84,6 @@ from app.services.authz import (
     visibility_clause,
 )
 from app.services.cycle_metrics import is_regression_expr, regression_counts
-from app.services.cycle_service import return_reason_for_done
 from app.services.issue_service import issue_service
 from app.workflow import Workflow
 
@@ -236,15 +235,7 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
         b = blocked_by_policy.get(transition(to))
         if b is not None:
             blocked_transitions.append(BlockedTransition(to=to, code=b["code"], detail=b["detail"]))
-    # What sending this Done item back would be called (08a) — the server still
-    # decides on submit; the UI only needs the label.
-    return_reason = None
-    if getattr(issue.status, "value", issue.status) == IssueStatus.done.value:
-        return_reason = (
-            return_reason_for_done(release).value if release is not None else "production"
-        )
     return {
-        "return_reason": return_reason,
         "allowed_transitions": [to for to in targets.allowed if transition(to) in allowed_set],
         "blocked_transitions": blocked_transitions,
         "allowed_actions": allowed_actions,
@@ -273,19 +264,23 @@ async def _reload_and_enrich(db: AsyncSession, issue_id: int, current_user: User
     return enriched[0]
 
 
-def _cycle_fields(cycle: IssueCycle | None) -> dict:
-    """``cycle_count`` and the returned marker (CY-11) from the current cycle.
+def _cycle_fields(issue: Issue, cycle: IssueCycle | None) -> dict:
+    """The cycle badge and, while Rejected, why (09a) — from the current cycle.
     Cycles are numbered 1..N with no gaps, so the count is the current number."""
     if cycle is None:
-        return {"cycle_count": 0, "returned": None}
-    returned = None
-    if cycle.is_return and cycle.submitted_at is None:
-        returned = ReturnedMarker(
-            reason=getattr(cycle.start_reason, "value", cycle.start_reason),
-            number=cycle.cycle_number - 1,
-            comment_id=cycle.start_comment_id,
-        )
-    return {"cycle_count": cycle.cycle_number, "returned": returned}
+        return {
+            "cycle_count": 0, "cycle_number": None,
+            "reject_reason": None, "reject_comment_id": None,
+        }
+    rejected = getattr(issue.status, "value", issue.status) == IssueStatus.rejected.value
+    return {
+        "cycle_count": cycle.cycle_number,
+        "cycle_number": cycle.cycle_number,
+        "reject_reason": (
+            getattr(cycle.start_reason, "value", cycle.start_reason) if rejected else None
+        ),
+        "reject_comment_id": cycle.start_comment_id if rejected else None,
+    }
 
 
 async def _build_enriched_responses(
@@ -300,7 +295,7 @@ async def _build_enriched_responses(
             label_map[label.name] = label
 
     # The current cycle of every placed item, by primary key (08a Part 2) —
-    # the returned marker and cycle count read it.
+    # the cycle badge and the reject reason read it.
     cycle_ids = [i.current_cycle_id for i in issues if i.current_cycle_id is not None]
     cycles: dict[int, IssueCycle] = {}
     if cycle_ids:
@@ -325,7 +320,7 @@ async def _build_enriched_responses(
             "release_version": issue.release.version if issue.release else None,
             "container_kind": getattr(issue.release.kind, "value", issue.release.kind) if issue.release else None,
             "release_status": getattr(issue.release.status, "value", issue.release.status) if issue.release else None,
-            **_cycle_fields(cycles.get(issue.current_cycle_id)),
+            **_cycle_fields(issue, cycles.get(issue.current_cycle_id)),
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
             "project_slug": issue.project.slug if issue.project else None,
@@ -940,22 +935,44 @@ async def verify_fix(
     return await _reload_and_enrich(db, issue_id, current_user)
 
 
-@router.post("/{issue_id}/returns", response_model=IssueResponse, summary="Send Done work back")
-async def return_issue(
+@router.post("/{issue_id}/reject", response_model=IssueResponse, summary="Reject work")
+async def reject_issue(
     issue_id: int,
-    payload: ReturnRequest,
+    payload: RejectRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Return from release QA / Problem on production (FR-59, FR-60, 08a).
+    """Reject (09a): send To review, In review or Done work back with a comment.
 
-    The server decides the reason: a Done item in a Release that hasn't
-    shipped comes back from ``release_qa``; anything else from ``production``,
-    moving to the Stream if its release is Released. The item goes to To do and
-    starts its next cycle. 409 ``not_done`` unless Done; 422 without a comment.
+    The item lands in Rejected and starts its next cycle; the server decides
+    where the problem was caught (``review`` / ``release_qa`` / ``production``).
+    409 ``not_rejectable`` from any other status; 422 without a comment.
     """
-    issue = await authorize_issue(db, issue_id, current_user, Action.return_item)
-    await issue_service.return_done(db, issue, payload.comment, current_user)
+    issue = await authorize_issue(db, issue_id, current_user, Action.reject)
+    await issue_service.reject(db, issue, payload.comment, current_user)
+    await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+async def _authorize_reject_done(db: AsyncSession, issue_id: int, user: User) -> Issue:
+    """The aliases keep their Phase 1 / 08a precondition: Done items only (409
+    ``not_done``), checked before Policy's own status rule."""
+    issue = await authorize_issue(db, issue_id, user, Action.view_item)
+    issue_service.ensure_done(issue)
+    authorize(user, Action.reject, issue_target(issue, issue.project))
+    return issue
+
+
+@router.post("/{issue_id}/returns", response_model=IssueResponse, summary="Reject Done work")
+async def return_issue(
+    issue_id: int,
+    payload: RejectRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """08a's return — an alias of ``/reject`` for Done items."""
+    issue = await _authorize_reject_done(db, issue_id, current_user)
+    await issue_service.reject(db, issue, payload.comment, current_user)
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 
@@ -963,14 +980,14 @@ async def return_issue(
 @router.post("/{issue_id}/reopen", response_model=IssueResponse, summary="Reopen issue")
 async def reopen_issue(
     issue_id: int,
-    payload: ReturnRequest | None = None,
+    payload: RejectRequest | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Phase 1's reopen — now ``POST /issues/{id}/returns`` (08a)."""
-    await authorize_issue(db, issue_id, current_user, Action.return_item)
-    await issue_service.reopen(
-        db, issue_id, current_user, payload.comment if payload is not None else None,
+    """Phase 1's reopen — an alias of ``/reject`` for Done items (09a)."""
+    issue = await _authorize_reject_done(db, issue_id, current_user)
+    await issue_service.reject(
+        db, issue, payload.comment if payload is not None else None, current_user,
     )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
@@ -985,22 +1002,14 @@ async def transition_issue(
 ) -> IssueResponse:
     """Move the issue to a new status. Used by board drags and status menus.
 
-    409 with ``{detail, code, allowed}`` when Workflow refuses the move.
+    409 with ``{detail, code, allowed}`` when Workflow refuses the move —
+    ``use_reject`` for Rejected, which only ``/reject`` enters (09a).
     """
     issue = await authorize_issue(db, issue_id, current_user, transition(payload.to))
-    is_reject = (
-        getattr(issue.status, "value", issue.status) == IssueStatus.in_review.value
-        and payload.to == IssueStatus.todo
-        and (payload.comment or "").strip()
+    await issue_service.transition(
+        db, issue, to=payload.to, actor=current_user,
+        reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
     )
-    if is_reject:
-        # In review → To do with a comment is a Reject: a new ``review`` cycle (08a).
-        await issue_service.reject(db, issue, payload.comment, current_user)
-    else:
-        await issue_service.transition(
-            db, issue, to=payload.to, actor=current_user,
-            reason=payload.reason, comment=payload.comment, cancel_reason=payload.cancel_reason,
-        )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 

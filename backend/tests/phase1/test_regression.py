@@ -29,7 +29,7 @@ async def test_regression_increments_count_and_records_history(factories, client
     regress_resp = await admin.post(f"/issues/{issue.id}/returns", json={"comment": "Broke again"})
     assert regress_resp.status_code == 200
     regressed = regress_resp.json()
-    assert regressed["status"] == "todo"
+    assert regressed["status"] == "rejected"
     assert await factories.regression_count(issue.id) == 1
 
     history = [c for c in await factories.cycles(issue.id) if c["start_reason"] != "planned"]

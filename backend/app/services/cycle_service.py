@@ -8,9 +8,9 @@ triage and merges) call it; nothing else touches cycles.
   ``planned``. Moving it to the backlog deletes every cycle (CY-14).
 - While the item isn't Done, its open cycle follows it between containers (CY-01).
 - Status moves stamp the current cycle: first In progress → ``picked_up_at``;
-  first In review → ``submitted_at`` and ``delivered_by_id`` = the assignee,
-  never the actor (CY-05); Done from In review → ``verified_at``; Cancelled →
-  ``closed_at``.
+  first To review or In review, whichever comes first (09a) → ``submitted_at``
+  and ``delivered_by_id`` = the assignee, never the actor (CY-05); Done from
+  To review or In review → ``verified_at``; Cancelled → ``closed_at``.
 - ``start_return`` closes the current cycle and opens the next one with the
   reason the work came back.
 
@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue import REVIEW_STATUSES, Issue, IssueStatus
 from app.db.models.issue_cycle import CycleStartReason, IssueCycle
 from app.db.models.release import Release
 from app.db.models.user import User
@@ -128,14 +128,14 @@ class CycleService:
             return
         if to_status == IssueStatus.in_progress and cycle.picked_up_at is None:
             cycle.picked_up_at = now
-        elif to_status == IssueStatus.in_review and cycle.submitted_at is None:
+        elif to_status in REVIEW_STATUSES and cycle.submitted_at is None:
             cycle.submitted_at = now
             # CY-05: the assignee at this moment — never the actor, and no
             # fallback to the actor when nobody is assigned.
             cycle.delivered_by_id = issue.assignee_id
         elif (
             to_status == IssueStatus.done
-            and from_status == IssueStatus.in_review
+            and from_status in REVIEW_STATUSES
             and cycle.verified_at is None
         ):
             cycle.verified_at = now

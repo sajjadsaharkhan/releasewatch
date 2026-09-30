@@ -11,7 +11,7 @@ POST   /releases/{id}/ship                — ship (FR-53)
 POST   /releases/{id}/cancel              — cancel (BR-55)
 GET    /releases/{id}/items               — the Items tab
 GET    /releases/{id}/activity            — the Activity tab (FR-51)
-GET    /releases/{id}/board               — five columns; Done bounded by ``done_from``/``done_to``
+GET    /releases/{id}/board               — one group per board status; Done bounded by ``done_from``/``done_to``
 GET    /releases/{id}/analytics           — cycle analytics (Phase 1 report)
 """
 
@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.clock import get_now
-from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue import FIXED_STATUSES, Issue, IssueStatus
 from app.db.models.project import Project
 from app.db.models.release import GoNogoStatus, Release, ReleaseKind
 from app.db.models.user import User
@@ -95,8 +95,8 @@ async def _add_release_metrics(db: AsyncSession, release: Release) -> dict:
         "open_issues": sum(counts.values()) - counts["done"] - counts["cancelled"],
         "blocker_count": blockers,
         "total_issues": sum(counts.values()),
-        # "Fixed" per docs/phase-2/02-unified-status-model.md: in review or done.
-        "fixed_issues": counts["in_review"] + counts["done"],
+        # "Fixed": delivered — to review, in review or done (09a).
+        "fixed_issues": sum(counts[s.value] for s in FIXED_STATUSES),
         "counts": counts,
         "progress": None if release.is_stream else progress(counts),
     }
@@ -331,7 +331,7 @@ async def release_board(
     current_user: User = Depends(get_current_user),
     now: datetime = Depends(get_now),
 ) -> ReleaseBoardResponse:
-    """Five columns. Only Done is bounded: by default the last 7 days on the
+    """One group per board status (09a adds Rejected and To review). Only Done is bounded: by default the last 7 days on the
     Stream (FR-47, AC-63) and unbounded on a Release."""
     from app.api.v1.issues import _build_enriched_responses
 
