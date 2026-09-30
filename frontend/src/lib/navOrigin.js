@@ -10,7 +10,8 @@ const IGNORED = [/^\/issue\//, /^\/login/, /^\/auth\//]
 
 const LABELS = [
   [/^\/issues/, 'Issues'],
-  [/^\/my-issues/, 'My Issues'],
+  [/^\/my-work/, 'My Work'],
+  [/^\/u\/[^/]+\/work/, 'Work'],
   [/^\/deleted-issues/, 'Deleted Issues'],
   [/^\/inbox/, 'Inbox'],
   [/^\/dashboard/, 'Dashboard'],

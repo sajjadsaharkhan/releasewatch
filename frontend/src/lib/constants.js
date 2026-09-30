@@ -1,10 +1,13 @@
 // Priority (BR-08/09, docs/phase-2/03a-data-model-refactor.md) — one shared
 // scale for bugs and tasks, highest first. `order` drives sorting; `hex` is
 // the same hue for charts. A New or Needs info bug may have no priority
-// (rendered "Unrated"); a task starts at medium (BR-16).
+// (rendered "Unrated"); a task starts at medium (BR-16). `icon` + `text` are the
+// compact priority glyph on WorkItemCard (slice 10).
 export const PRIORITY = {
   critical: {
     label: 'Critical',
+    icon: 'chevrons-up',
+    text: 'text-red-600 dark:text-red-400',
     pill: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
     dot: 'bg-red-500',
     hex: '#ef4444',
@@ -12,6 +15,8 @@ export const PRIORITY = {
   },
   high: {
     label: 'High',
+    icon: 'chevron-up',
+    text: 'text-orange-600 dark:text-orange-400',
     pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
     dot: 'bg-orange-500',
     hex: '#f97316',
@@ -19,6 +24,8 @@ export const PRIORITY = {
   },
   medium: {
     label: 'Medium',
+    icon: 'equal',
+    text: 'text-amber-600 dark:text-amber-400',
     pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     dot: 'bg-amber-500',
     hex: '#f59e0b',
@@ -26,6 +33,8 @@ export const PRIORITY = {
   },
   low: {
     label: 'Low',
+    icon: 'chevron-down',
+    text: 'text-blue-600 dark:text-blue-400',
     pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     dot: 'bg-blue-400',
     hex: '#3b82f6',

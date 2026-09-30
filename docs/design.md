@@ -122,8 +122,9 @@ personal queue (slice 10).
 
 Bug or task (slice 03, docs/phase-2/03-tasks-and-placement.md). Fixed once an item is created
 (BR-07) — never shown as an editable control. Rendered as a small leading `<Icon>` plus the
-item's `key` (`BUG-123` / `TASK-124`) on `IssueTable` rows, `IssueBoard` cards, search results,
-and the command palette — see §9 for icon sizing.
+item's `key` (`BUG-123` / `TASK-124`) on `IssueTable` rows, search results, and the command
+palette — see §9 for icon sizing. Board cards (`WorkItemCard`, slice 10) show the key only in their
+hover details.
 
 | Key | Label | Icon | Hue |
 |---|---|---|---|
@@ -280,6 +281,65 @@ the comment is required and the destructive confirm stays disabled until it has 
 decides where it was caught. The sidebar's quick actions follow the flow: To do / Rejected → **Start work**,
 In progress → **Send to review** (To review), To review → **Start review** (In review), In review
 → **Mark as done**, plus **Reject** / **Return** where allowed.
+
+### Work item cards and My Work — `WorkItemCard`, `PRIORITY.icon` (slice 10)
+
+One card everywhere (P3): the Stream board, release boards, and My Work's Kanban all render
+`WorkItemCard` (`components/common`) inside `DraggableIssueCard`; My Work's list renders the same
+component as a row (`layout="row"`). It reads the slim `WorkItemCard` API shape and the full
+`IssueResponse` alike.
+
+**By default** a card shows three things: the title (two lines), the project chip (a 2px-radius
+square in the project's colour + name, muted), and the **priority glyph** — `PRIORITY[p].icon` in
+`PRIORITY[p].text`: Critical `chevrons-up` red, High `chevron-up` orange, Medium `equal` amber,
+Low `chevron-down` blue, unrated `minus` zinc; tooltip and screen-reader text "High priority". No
+key, no labels, no avatar.
+
+**Markers**, right-aligned before the glyph, appear only when they matter, in this order:
+
+| Marker | When | Look |
+|---|---|---|
+| Pin | pinned in the owner's queue | `pin` in primary; `lock` when a CTO/Admin pin is locked |
+| Reject reason | status Rejected | the `CYCLE_REASON` icon in its pill hue (review amber, release QA orange, production red) |
+| `CycleBadge` | `cycle_number ≥ 2` | as in Cycles above |
+| `ReportedCount` | `recurrence_count > 1` | violet `repeat ×N` |
+| Due | due within 2 days, or overdue | amber `calendar-clock` + "today" / "tomorrow" / "in 2d"; red `calendar-x` "Overdue" |
+| `TechDebtMarker` | technical-debt task | compact stone chip |
+
+Each marker has an icon and a tooltip, so none relies on colour alone. `due_state` comes from the
+server on queue/board payloads; for `IssueResponse` the card derives it with the same 2-day rule.
+
+**Hover details** open after 400 ms of hover, or on keyboard focus of the card's button, as a
+portaled 320px card (the §7 overlay rules, `Escape` closes, hidden while dragging): key + status,
+title, then one icon row per fact — pin (and who may unpin), where it came back from with the
+Reject comment (fetched lazily, react-query `['timeline-event', id, commentId]`), cycle, reports,
+technical debt, full due date, project · container (Stream / release / Backlog), reporter, and age.
+
+**My Work** (`/my-work`, `MyWorkPage`; CTO/Admin also at `/u/:username/work`, linked from the
+profile's **Work queue** button). Header: `text-xl font-bold` title ("My Work" or "Name’s work" with
+a breadcrumb), "N open · p/4 pinned", then **Reported by me** (own queue only, `/issues?reporter=`),
+**History**, and a List / Kanban `Segmented` remembered per user in `localStorage`
+(`rw:my-work-view:<id>`, UI preference only). Someone else's queue says the owner will be notified.
+
+- **List:** three sections, each a heading with icon and count chip over a bordered, divided
+  `<ol>` — **In progress** (`loader`, read-only), **Pinned** (`pin`, "p of 4 pins · always on
+  top"), **Queue** (`list-ordered`, with the default-rule hint). A row: grip handle (a real button,
+  `@dnd-kit/sortable` with pointer and keyboard sensors — Space, arrows, Space), the absolute queue
+  position (muted, tabular), the row card, a `StatusBadge` (md+), and the pin toggle (`pin` /
+  `pin-off`, `aria-pressed`). A locked pin viewed by its owner shows a disabled `lock` toggle whose
+  tooltip names who pinned it; a full queue disables Pin with "This queue already has 4 pins —
+  unpin one first." Reorders are optimistic, then replaced by the server's order; a drop across the
+  pin boundary shows the server's explanation as a toast. Empty sections are a dashed one-liner.
+- **Kanban:** the same six columns as project boards (`IssueBoard`, To do areas included); cards
+  follow queue order, dragging across columns changes status, and there is no reorder within a
+  column (that happens in the list, so both views agree). Done shows the last 7 days.
+- **History** (`Sheet`): one line per change — action icon in a muted circle, actor avatar and
+  name, "pinned / unpinned / moved", the item's `IssueHoverCard` chip and title, then "#3 → #1 ·
+  5m ago". Load more pages 30 at a time. Automatic changes aren't listed.
+
+Inbox: `queue_changed` reads "<actor> pinned / unpinned / moved in your queue <title>" with
+"position 3 → 1" in the meta row; `due_soon` / `overdue` have no actor — an amber `hourglass` or
+red `alarm-clock` circle stands in for the avatar ("Due within 24 hours:", "Overdue:").
 
 ### Release lifecycle and Overdue — `RELEASE_STATUS` in `lib/constants.js` (slice 09)
 
@@ -593,7 +653,7 @@ dialog headers/footers) uses `sticky` or `shrink-0` inside that scroller, not `p
 
 Width is chosen by content type: `max-w-7xl` dashboards and analytics · `max-w-6xl`
 releases, contributions · `max-w-5xl` team and settings (ten tabs need the width). Full-bleed (no
-`max-w`) for the dense list pages — Issues, Triage, My Issues, Deleted — where table width
+`max-w`) for the dense list pages — Issues, Triage, Deleted — where table width
 is the point.
 
 ### Spacing scale
@@ -846,7 +906,7 @@ Real inconsistencies in the current code. Fix opportunistically; do not propagat
 
 1. **Page `<h1>` size splits two ways** — `text-xl font-bold` (Dashboard, Inbox, Releases,
    Team, Settings, Contributions, Regressions) vs `text-lg font-semibold text-foreground`
-   (Issues, Triage, My Issues, Deleted Issues). It tracks the dashboard/list split, so it
+   (Issues, Triage, Deleted Issues). My Work (slice 10) uses `text-xl font-bold`. It tracks the dashboard/list split, so it
    is defensible, but it is not written down anywhere in code. Treat `text-xl font-bold`
    as the default and the `text-lg` variant as the dense-list exception.
 2. **`src/styles/fonts.css` is dead.** Nothing imports it; its `@font-face` blocks are

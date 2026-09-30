@@ -45,6 +45,10 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     # Slice 09 — about a release, not an item.
     "release_shipped":     _row(assignee=True, cto=True),
     "release_overdue":     _row(cto=True),
+    # Slice 10 — to the queue owner / assignee only.
+    "queue_changed":       _row(assignee=True),
+    "due_soon":            _row(assignee=True),
+    "overdue":             _row(assignee=True),
 }
 
 

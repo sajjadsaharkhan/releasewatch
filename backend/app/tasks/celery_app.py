@@ -23,6 +23,7 @@ celery_app = Celery(
         "app.tasks.reports",
         "app.tasks.search",
         "app.tasks.releases",
+        "app.tasks.queue",
     ],
 )
 
@@ -86,6 +87,12 @@ celery_app.conf.beat_schedule = {
     "notify-overdue-releases-daily": {
         "task": "app.tasks.releases.notify_overdue_releases",
         "schedule": crontab(hour=6, minute=0),
+        "options": {"queue": "default"},
+    },
+    # Slice 10 (§13): due within 24 hours / overdue, once each, to the assignee.
+    "notify-due-items-hourly": {
+        "task": "app.tasks.queue.notify_due_items",
+        "schedule": crontab(minute=5),
         "options": {"queue": "default"},
     },
     "invalidate-stale-report-cache-hourly": {

@@ -280,6 +280,8 @@ class IssueResponse(IssueBase):
     project_name: str | None = None
     #: For links to the project's Stream / backlog pages (slice 09 follow-up).
     project_slug: str | None = None
+    #: The project chip on WorkItemCard (slice 10).
+    project_color: str | None = None
     release_id: int | None = None
     release_version: str | None = None
     #: ``stream`` | ``release`` for the item's container; null in the backlog (08a).

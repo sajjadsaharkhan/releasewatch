@@ -146,3 +146,18 @@ An item's position in its project's backlog (`issues.backlog_rank`, a float). A 
 **Technical debt**:
 A flag on a task (`issues.is_tech_debt`, BR-36) — never on a bug (409 `tech_debt_task_only`). Any tech role sets it at creation or later; it adds no fields (components, risk and approach go in the description). Debt tasks are hidden from the backlog unless "Show technical debt" is on, and are listed on the Technical debt page (`GET /tech-debt`, filterable by several projects, status and assignee). Once assigned or placed in a release a debt task shows on boards and in queues like any task, with its marker (BR-37).
 _Avoid_: "debt" as a backlog category (it was one before PRD v2.1).
+### Personal queue (slice 10)
+
+**Personal queue**:
+One person's execution order across every project (`queue_entries`, FR-33): all their open assigned items — To do, Rejected, In progress, To review, In review, Blocked; never New/Needs info (triage), Done or Cancelled (BR-38). Two groups, always in this order: **pinned**, then the **rest** in manual order. A newly queued item (assigned, accepted, or back in a board status) enters the rest by the **default rule** — directly above the first item that ranks lower by priority, then due date (none last), then how often it was reported, then age — even when the owner ordered the rest by hand (FR-39). A priority change re-places an unpinned item by the same rule. The owner, a CTO and an Admin can reorder and pin (Policy `view_queue`, `reorder_queue`, `pin`); a drag never crosses the pin boundary (409 `queue_group_boundary`). `QueueService` is the only writer; the ordering rules are the pure `app/queue_order.py`. Shown at `/my-work` (and `/u/:username/work` for CTO/Admin) as a list — In progress, Pinned, Queue — or a Kanban whose columns follow queue order.
+_Avoid_: "My Issues" (the page it replaced), "priority" for queue position — priority is the item's, position is the person's.
+
+**Pin**:
+Lifts an item into the pinned group, at its end (FR-40). At most 4 per queue (409 `pin_limit_reached`, the message names the limit). A pin set by a CTO or Admin on someone else's queue is a **locked pin** (`pin_locked`): the owner can't remove it (409 `pin_locked`); a CTO or Admin pinning their own queue doesn't lock it. Reassigning, cancelling, or completing an item releases its pin (BR-45, BR-46). Unpinning re-places the item by the default rule.
+_Avoid_: "urgent", "star", "favourite".
+
+**Dormant queue entry**:
+The entry of an item that reached Done (`queue_entries.left_at` set). It keeps its rest-group position — a pinned one first moves to the top of the rest — so when the item comes back from Done to the same assignee (a Reject from release QA or production) it returns to where it was, never above the pins (FR-64, BR-61). Hidden from every queue read, from pin counts and from positions. A reject from To review / In review changes nothing: the item never left. An item reassigned while Done loses its entry and returns by the default rule.
+
+**Queue history**:
+The owner's append-only record of human queue changes — reorder, pin, unpin — with actor, item, and 1-based positions in the full queue before and after (`queue_history`, FR-41, BR-44). Automatic insertions and removals aren't recorded. Kept out of item timelines. When the actor isn't the owner, the owner gets a `queue_changed` notification (BR-43). Readable by the owner, CTOs and Admins.

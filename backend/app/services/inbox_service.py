@@ -48,7 +48,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.notification_defaults import resolve_matrix
-from app.db.models.inbox_item import SUPPORT_EVENTS, SUPPORT_RECEIVABLE, InboxItem, InboxEventType
+from app.db.models.inbox_item import (
+    ASSIGNEE_EVENTS, SUPPORT_EVENTS, SUPPORT_RECEIVABLE, InboxItem, InboxEventType,
+)
 from app.db.models.issue import Issue, IssueSource
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User, UserRole
@@ -67,7 +69,7 @@ class InboxFanOutService:
         db: AsyncSession,
         trigger: InboxEventType,
         issue: Issue,
-        actor: User,
+        actor: User | None,
         timeline_event: IssueTimeline | None = None,
         extra_meta: dict[str, Any] | None = None,
         meta: dict[str, Any] | None = None,
@@ -85,7 +87,8 @@ class InboxFanOutService:
         issue:
             The issue the event relates to.
         actor:
-            The user who performed the action (excluded from their own inbox).
+            The user who performed the action (excluded from their own inbox);
+            ``None`` for a scheduled notice (the due-date job, slice 10).
         timeline_event:
             Optional linked timeline entry (stored for deep-link support).
         extra_meta:
@@ -255,6 +258,10 @@ class InboxFanOutService:
             leads = await self._triage_recipients(db, issue)
             recipients.update(str(u.id) for u in leads)
 
+        elif trigger in ASSIGNEE_EVENTS:
+            if issue.assignee_id:
+                recipients.add(str(issue.assignee_id))
+
         elif trigger in SUPPORT_EVENTS:
             from app.services.subscriber_service import subscriber_ids
 
@@ -267,8 +274,9 @@ class InboxFanOutService:
 
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).
-        logger.info("[fan_out] trigger=%s recipients_before_discard=%s actor_id=%s", trigger, recipients, actor.id)
-        recipients.discard(str(actor.id))
+        actor_id = actor.id if actor is not None else None
+        logger.info("[fan_out] trigger=%s recipients_before_discard=%s actor_id=%s", trigger, recipients, actor_id)
+        recipients.discard(str(actor_id))
         recipients.update(forced_recipients)
         if suppress_user_ids:
             recipients -= suppress_user_ids
@@ -280,7 +288,7 @@ class InboxFanOutService:
         for user_id_str in recipients:
             item = InboxItem(
                 user_id=int(user_id_str),
-                actor_id=actor.id,
+                actor_id=actor_id,
                 issue_id=issue.id,
                 timeline_id=timeline_event.id if timeline_event else None,
                 event_type=trigger,
@@ -609,8 +617,11 @@ class InboxFanOutService:
             from_val = _meta.get("from", "—")
             to_val = _meta.get("to", "—")
 
-            actor_name = actor.name or actor.username
-            actor_url = f"{frontend_base}/u/{actor.username}" if actor.username else f"{frontend_base}/team"
+            actor_name = (actor.name or actor.username) if actor is not None else "Releasewatch"
+            actor_url = (
+                f"{frontend_base}/u/{actor.username}" if actor is not None and actor.username
+                else f"{frontend_base}/team"
+            )
 
             def _esc(v: object) -> str:
                 return html_lib.escape(str(v)) if v is not None else ""
@@ -646,6 +657,13 @@ class InboxFanOutService:
                 # item_returned (08a): where the problem was caught.
                 "return_reason": _esc(_meta.get("reason_label", "")),
                 "merged_into_key": _esc(_meta.get("merged_into_key", "")),
+                # queue_changed / due_soon / overdue (slice 10).
+                "queue_action": _esc({"reorder": "moved", "pin": "pinned", "unpin": "unpinned"}
+                                     .get(_meta.get("action"), _meta.get("action", ""))),
+                "old_index": _esc(_meta.get("old_index", "—")),
+                "new_index": _esc(_meta.get("new_index", "—")),
+                "due_date": _esc(_meta.get("due_date", "")),
+                "queue_url": f"{frontend_base}/my-work",
                 "merged_into_url": (
                     f"{frontend_base}/issue/issue-{_meta['merged_into_number']}"
                     if _meta.get("merged_into_number") else issue_url

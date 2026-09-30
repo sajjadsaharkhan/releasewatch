@@ -324,6 +324,7 @@ async def _build_enriched_responses(
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
             "project_slug": issue.project.slug if issue.project else None,
+            "project_color": issue.project.color if issue.project else None,
             **_workflow_fields(issue, current_user),
         })
         responses.append(enriched)
@@ -784,10 +785,7 @@ async def delete_issue(
             detail="Not authorized to delete this issue",
         )
 
-    from datetime import datetime
-    issue.deleted_at = datetime.now(tz=UTC)
-    issue.deleted_by_id = current_user.id
-    db.add(issue)
+    await issue_service.set_deleted(db, issue, current_user, True)
     await db.commit()
 
 
@@ -810,9 +808,7 @@ async def restore_issue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found in trash",
         )
-    issue.deleted_at = None
-    issue.deleted_by_id = None
-    db.add(issue)
+    await issue_service.set_deleted(db, issue, current_user, False)
     await db.commit()
 
 

@@ -225,6 +225,14 @@ class Issue(Base):
         doc="Shared by bugs and tasks. Null on New/Needs info bugs nobody has rated yet (BR-16)."
     )
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    #: When the assignee was told the due date is within 24 hours / has passed
+    #: (slice 10, §13) — once each; both cleared when ``due_date`` changes.
+    due_soon_notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    overdue_notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     status: Mapped[IssueStatus] = mapped_column(
         String(32), nullable=False, default=IssueStatus.new
     )

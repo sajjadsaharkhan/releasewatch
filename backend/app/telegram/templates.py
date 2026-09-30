@@ -136,6 +136,27 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "🧑‍💻 Moved by <a href=\"{actor_url}\">{actor}</a>"
     ),
+    # Slice 10 — to the queue owner / assignee.
+    "queue_changed": (
+        "📌 <b>Your queue changed</b>\n"
+        "<a href=\"{actor_url}\">{actor}</a> {queue_action} "
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "Position: <code>{old_index}</code> → <code>{new_index}</code>\n"
+        "\n"
+        "<a href=\"{queue_url}\">Open My Work →</a>"
+    ),
+    "due_soon": (
+        "⏳ <b>Due within 24 hours</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b>\n"
+        "Due: <b>{due_date}</b>"
+    ),
+    "overdue": (
+        "⏰ <b>Overdue</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b>\n"
+        "Was due: <b>{due_date}</b>"
+    ),
     "item_returned": (
         "↩️ <b>Back to you: {return_reason}</b>\n"
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"

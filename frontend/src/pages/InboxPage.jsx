@@ -54,7 +54,20 @@ const TYPE_DESCRIPTIONS = {
   support_needs_info:  'needs more information on',
   support_cancelled:   'closed without a fix',
   support_done:        'fixed',
+  queue_changed:       'changed your queue:',
+  due_soon:            'Due within 24 hours:',
+  overdue:             'Overdue:',
 }
+
+// Someone else changed your queue (slice 10) — say what they did.
+const QUEUE_ACTION = { pin: 'pinned', unpin: 'unpinned', reorder: 'moved' }
+
+function queueDescription(meta) {
+  return `${QUEUE_ACTION[meta?.action] ?? 'changed'} in your queue`
+}
+
+// Scheduled notices have no actor (the due-date job, slice 10).
+const SYSTEM_TYPES = new Set(['due_soon', 'overdue'])
 
 // A notification about a release, not an item (release_shipped, release_overdue).
 function ReleaseInboxRow({ item, onRead }) {
@@ -312,7 +325,10 @@ export default function InboxPage() {
             // A recurrence reaches the assignee and reporter as a comment (slice 07).
             const desc = item.type === 'comment' && item.meta?.recurrence
               ? 'reported a recurrence on'
-              : TYPE_DESCRIPTIONS[item.type] ?? item.type
+              : item.type === 'queue_changed'
+                ? queueDescription(item.meta)
+                : TYPE_DESCRIPTIONS[item.type] ?? item.type
+            const system = SYSTEM_TYPES.has(item.type)
             const anchor = timelineAnchor(item)
             const issueTo = anchor ? `/issue/${item.issueId}#${anchor}` : `/issue/${item.issueId}`
             const snippet = COMMENT_TYPES.has(item.type) ? (item.meta?.body_snippet ?? null) : null
@@ -334,13 +350,26 @@ export default function InboxPage() {
                   {!item.read && <span className="h-2 w-2 rounded-full bg-blue-500" />}
                 </div>
 
-                <UserHoverCard user={actor} size={34} className="shrink-0 mt-0.5" />
+                {system ? (
+                  <span
+                    className={cn(
+                      'flex h-[34px] w-[34px] shrink-0 mt-0.5 items-center justify-center rounded-full',
+                      item.type === 'overdue'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                    )}
+                    aria-hidden="true"
+                  >
+                    <Icon name={item.type === 'overdue' ? 'alarm-clock' : 'hourglass'} size={16} />
+                  </span>
+                ) : (
+                  <UserHoverCard user={actor} size={34} className="shrink-0 mt-0.5" />
+                )}
 
                 <div className="flex-1 min-w-0">
                   {/* Action line */}
                   <p className="text-sm leading-snug">
-                    <span className="font-medium">{actor?.name}</span>
-                    {' '}
+                    {!system && <><span className="font-medium">{actor?.name}</span>{' '}</>}
                     <span className="text-muted-foreground">{merged ? 'merged your report' : desc}</span>
                     {' '}
                     <Link
@@ -368,6 +397,14 @@ export default function InboxPage() {
                   {/* Meta row */}
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="font-mono text-[11px] text-muted-foreground">{item.issueId}</span>
+                    {item.type === 'queue_changed' && item.meta?.old_index != null && (
+                      <>
+                        <span className="text-[11px] text-muted-foreground">·</span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          position {item.meta.old_index} → {item.meta.new_index}
+                        </span>
+                      </>
+                    )}
                     <span className="text-[11px] text-muted-foreground">·</span>
                     <span className="text-[11px] text-muted-foreground">{relTime(item.createdAt)}</span>
                   </div>

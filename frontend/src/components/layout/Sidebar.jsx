@@ -64,7 +64,7 @@ export function Sidebar() {
                 <NavItem to="/issues" icon="list" label="All Issues" />
                 <NavItem to="/triage" icon="filter" label="Triage" />
                 <NavItem to={backlogPath} icon="list-ordered" label="Backlog" />
-                <NavItem to="/my-issues" icon="circle-user-round" label="My Issues" />
+                <NavItem to="/my-work" icon="list-todo" label="My Work" />
               </div>
             )}
           </div>

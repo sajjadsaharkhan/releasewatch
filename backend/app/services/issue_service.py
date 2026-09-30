@@ -34,6 +34,7 @@ from app.services import backlog_service as backlog
 from app.services import container_service as containers
 from app.services.backlog_category_service import backlog_category_service
 from app.services.cycle_service import cycle_service
+from app.services.queue_service import queue_service
 from app.services.release_service import release_service
 from app.workflow import Workflow
 
@@ -164,6 +165,7 @@ class IssueService:
         await cycle_service.on_placed(db, issue, current_user, now=now)
         await release_service.record_item_move(db, issue, None, issue.release_id, current_user)
         await subscribe(db, issue.id, current_user.id, SubscriptionReason.reporter)
+        await queue_service.sync(db, issue)
         await db.flush()
 
         timeline_svc = TimelineService()
@@ -326,6 +328,8 @@ class IssueService:
 
         db.add(issue)
         await db.flush()
+        # Done → dormant entry, back from Done → its old place (FR-64, slice 10).
+        await queue_service.sync(db, issue)
 
         timeline_svc = TimelineService()
         event = await timeline_svc.create_event(
@@ -647,6 +651,7 @@ class IssueService:
         inbox_svc = InboxFanOutService()
         events_to_emit: list[tuple[TimelineEventType, dict]] = []
         inbox_triggers: list[tuple[InboxEventType, dict | None]] = []
+        priority_changed = False
 
         # ── Backlog category / technical debt (slice 08) ──────────────────────
         if category_after is not None and category_after.id != issue.backlog_category_id:
@@ -697,6 +702,7 @@ class IssueService:
                     InboxEventType.priority_changed, {"from": old_val, "to": new_val},
                 ))
                 issue.priority = new_priority
+                priority_changed = True
 
         # ── Environment name ──────────────────────────────────────────────────
         if "environment_name" in payload and payload["environment_name"] != issue.environment_name:
@@ -829,9 +835,14 @@ class IssueService:
 
         # ── Passthrough fields with no timeline event ─────────────────────────
         for field in ("environment_browser", "environment_os", "environment_build_hash",
-                      "environment_staging_url", "curl_command", "due_date"):
+                      "environment_staging_url", "curl_command"):
             if field in payload:
                 setattr(issue, field, payload[field])
+        if "due_date" in payload and payload["due_date"] != issue.due_date:
+            issue.due_date = payload["due_date"]
+            # A new date gets its own due-soon and overdue notices (slice 10, §13).
+            issue.due_soon_notified_at = None
+            issue.overdue_notified_at = None
 
         await backlog.backlog_service.place(db, issue)
         db.add(issue)
@@ -879,6 +890,8 @@ class IssueService:
                     cancel_reason=payload.get("cancel_reason"),
                 )
 
+        # Assignee or priority changes move the item between or within queues.
+        await queue_service.sync(db, issue, priority_changed=priority_changed)
         return issue
 
     # ── Placement rules for PATCH (BR-05, 2026-09-28 categories) ───────────────
@@ -935,6 +948,18 @@ class IssueService:
                 db, project_after, payload["backlog_category_id"],
             )
         return None
+
+    # ── Trash ─────────────────────────────────────────────────────────────────
+
+    async def set_deleted(
+        self, db: AsyncSession, issue: Issue, actor: User, deleted: bool,
+    ) -> None:
+        """Soft-delete or restore ``issue``. A deleted item leaves its assignee's
+        queue; a restored one re-enters it by the default rule (slice 10)."""
+        issue.deleted_at = datetime.now(tz=UTC) if deleted else None
+        issue.deleted_by_id = actor.id if deleted else None
+        db.add(issue)
+        await queue_service.sync(db, issue)
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 

@@ -45,6 +45,13 @@ class InboxEventType(str, enum.Enum):
     # Slice 09 — about a release, not an item (``issue_id`` null, ``release_id`` set).
     release_shipped = "release_shipped"
     release_overdue = "release_overdue"
+    # Slice 10 — to the queue owner / assignee only.
+    #: Someone else reordered, pinned or unpinned the owner's queue: meta
+    #: ``{action, old_index, new_index}`` (BR-43).
+    queue_changed = "queue_changed"
+    #: The scheduled due-date notices (§13), once each; ``actor_id`` is null.
+    due_soon = "due_soon"
+    overdue = "overdue"
 
 
 #: Events whose audience is Support subscribers (§13).
@@ -59,6 +66,11 @@ SUPPORT_EVENTS = frozenset({
 #: 2026-09-24 decision — a mention is someone asking them directly). Internal
 #: notes never reach Support (BR-31).
 SUPPORT_RECEIVABLE = SUPPORT_EVENTS | {InboxEventType.mention}
+
+#: Events whose only audience is the item's assignee (slice 10).
+ASSIGNEE_EVENTS = frozenset({
+    InboxEventType.queue_changed, InboxEventType.due_soon, InboxEventType.overdue,
+})
 
 #: Events about a release rather than an item (slice 09): ``issue_id`` is null.
 RELEASE_EVENTS = frozenset({InboxEventType.release_shipped, InboxEventType.release_overdue})

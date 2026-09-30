@@ -8,14 +8,7 @@ import { DraggableIssueCard } from './DraggableIssueCard'
 
 function Cards({ issues, onOpen, readOnly }) {
   return issues.map((issue) => (
-    <DraggableIssueCard
-      key={issue.id}
-      issue={issue}
-      assignee={issue.assignee_user}
-      labels={issue.labels_detail ?? []}
-      onOpen={onOpen}
-      readOnly={readOnly}
-    />
+    <DraggableIssueCard key={issue.id} issue={issue} onOpen={onOpen} readOnly={readOnly} />
   ))
 }
 

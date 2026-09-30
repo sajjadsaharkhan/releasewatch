@@ -25,7 +25,7 @@ const TeamPage = lazy(() => import('./pages/TeamPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const DeletedIssuesPage = lazy(() => import('./pages/DeletedIssuesPage'))
-const MyIssuesPage = lazy(() => import('./pages/MyIssuesPage'))
+const MyWorkPage = lazy(() => import('./pages/MyWorkPage'))
 const SupportReportsPage = lazy(() => import('./pages/SupportReportsPage'))
 const BacklogPage = lazy(() => import('./pages/BacklogPage'))
 const TechDebtPage = lazy(() => import('./pages/TechDebtPage'))
@@ -184,7 +184,8 @@ function AppInner() {
             <Route path="inbox" element={<InboxPage />} />
             <Route path="issues" element={<TechRoute><IssuesPage /></TechRoute>} />
             <Route path="triage" element={<TechRoute><TriagePage /></TechRoute>} />
-            <Route path="my-issues" element={<TechRoute><MyIssuesPage /></TechRoute>} />
+            <Route path="my-work" element={<TechRoute><MyWorkPage /></TechRoute>} />
+            <Route path="my-issues" element={<Navigate to="/my-work" replace />} />
             <Route path="releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
             <Route path="projects/:slug/releases" element={<TechRoute><ReleasesPage /></TechRoute>} />
             <Route path="stream" element={<TechRoute><StreamPage /></TechRoute>} />
@@ -202,6 +203,7 @@ function AppInner() {
             <Route path="support/new" element={<SupportReportRoute><SupportReportsPage newReportOpen /></SupportReportRoute>} />
             <Route path="support/reports" element={<SupportReportsPage />} />
             <Route path="u/:username" element={<ProfilePage />} />
+            <Route path="u/:username/work" element={<TechRoute><MyWorkPage /></TechRoute>} />
             <Route path="issue/:slug" element={<IssuePage />} />
           </Route>
 

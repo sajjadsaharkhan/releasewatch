@@ -337,6 +337,12 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold">{user.name}</h1>
             <RoleBadge role={user.role} />
+            {/* Slice 10: CTO and Admin can open anyone's queue; your own is My Work. */}
+            {isTech(user.role) && (isOwnProfile || ['cto', 'admin'].includes(currentUser?.role)) && (
+              <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate(isOwnProfile ? '/my-work' : `/u/${user.username}/work`)}>
+                Work queue
+              </Button>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">@{user.username}</p>
           {user.title && <p className="text-sm mt-1">{user.title}</p>}

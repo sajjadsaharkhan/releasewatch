@@ -304,6 +304,17 @@ export const userApi = {
   getActivity: (userId) => api.get(`/users/${userId}/activity`),
 }
 
+// ─── Personal queue and board (slice 10) — `owner` is a user id or 'me' ───────
+export const queueApi = {
+  get: (owner = 'me') => api.get(`/users/${owner}/queue`),
+  board: (owner = 'me', params) => api.get(`/users/${owner}/board`, { params }),
+  move: (owner, { issueId, beforeId = null, afterId = null }) =>
+    api.post(`/users/${owner}/queue/move`, { issue_id: issueId, before_id: beforeId, after_id: afterId }),
+  pin: (owner, issueId) => api.post(`/users/${owner}/queue/pins`, { issue_id: issueId }),
+  unpin: (owner, issueId) => api.delete(`/users/${owner}/queue/pins/${issueId}`),
+  history: (owner, params) => api.get(`/users/${owner}/queue/history`, { params }),
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 export const searchApi = {
   query: (q, projectId, limit = 20) =>

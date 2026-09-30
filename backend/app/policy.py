@@ -203,6 +203,10 @@ _LABELS: dict[str, str] = {
     Action.manage_backlog: "manage the backlog",
     Action.manage_releases: "manage releases",
     Action.ship_release: "ship releases",
+    # Only reached for someone else's queue — every tech role has their own (slice 10).
+    Action.view_queue: "view other people's queues",
+    Action.reorder_queue: "reorder other people's queues",
+    Action.pin: "pin items in other people's queues",
     Action.view_team_overview: "view the team overview",
     Action.go_nogo: "make the release go/no-go call",
     Action.manage_templates: "manage templates",

@@ -28,6 +28,7 @@ from app.api.v1 import (
     support_templates,
     backlog,
     backlog_categories,
+    queue,
 )
 
 api_router = APIRouter()
@@ -51,6 +52,7 @@ api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(team.router, prefix="/team", tags=["team"])
 api_router.include_router(user.router, tags=["user"])
 api_router.include_router(users.router, tags=["users"])
+api_router.include_router(queue.router, tags=["queue"])
 api_router.include_router(settings_router.router, prefix="/settings", tags=["settings"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
