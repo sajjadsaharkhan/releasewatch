@@ -24,7 +24,8 @@ export function GoNogoBadge({ status, className }) {
 
 // FR-52 — the decision on record, and (CTO/Admin, `go_nogo` in allowed_actions)
 // a Go / No-go control with an optional note.
-export function GoNogoPanel({ release, deciderName, onChange, toast }) {
+// `bare` drops the card frame, for use inside another surface (the release Details menu).
+export function GoNogoPanel({ release, deciderName, onChange, toast, bare = false }) {
   const [deciding, setDeciding] = useState(null) // 'approved' | 'blocked'
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -45,7 +46,7 @@ export function GoNogoPanel({ release, deciderName, onChange, toast }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="gonogo-title">
+    <section className={cn(!bare && 'rounded-xl border border-border bg-card p-4')} aria-labelledby="gonogo-title">
       <div className="flex items-center justify-between gap-2">
         <h3 id="gonogo-title" className="text-sm font-semibold">Go / no-go</h3>
         <GoNogoBadge status={release.go_nogo_status} />

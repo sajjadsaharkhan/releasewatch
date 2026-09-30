@@ -637,5 +637,105 @@ async def test_changing_target_date_clears_overdue_notice_date_only(factories, r
     )
     assert resp.status_code == 200
     events = (await admin.get(f"/releases/{rig['release'].id}/activity")).json()["events"]
-    assert events[0]["event_type"] == "dates_changed"
-    assert "code_freeze_date" in events[0]["meta"]["changes"]
+    assert events[-1]["event_type"] == "dates_changed"
+    assert "code_freeze_date" in events[-1]["meta"]["changes"]
+
+
+# ── Activity starts at creation; every lifecycle move is recorded ────────────
+
+
+@pytest.mark.asyncio
+async def test_activity_starts_with_created_then_each_lifecycle_move(factories, client_for, rig):
+    admin = factories.admin_client
+    resp = await admin.post(f"/projects/{rig['project'].id}/releases", json={"version": "4.0.0"})
+    assert resp.status_code == 201, resp.text
+    rid = resp.json()["id"]
+
+    await _to_qa(admin, rid)
+    # Admin can take a release in QA back to Development (FR-50).
+    back = await admin.post(f"/releases/{rid}/status", json={"to": "development"})
+    assert back.status_code == 200, back.text
+    assert back.json()["status"] == "development"
+    assert "qa" in back.json()["allowed_transitions"]
+
+    events = (await admin.get(f"/releases/{rid}/activity")).json()["events"]
+    # Oldest first (A → Z).
+    oldest_first = [(e["event_type"], e["meta"].get("from"), e["meta"].get("to")) for e in events]
+    assert oldest_first == [
+        ("created", None, None),
+        ("status_changed", "planning", "development"),
+        ("status_changed", "development", "qa"),
+        ("status_changed", "qa", "development"),
+    ]
+    created = events[0]
+    assert created["meta"] == {"version": "4.0.0", "status": "planning"}
+    stamps = [e["created_at"] for e in events]
+    assert stamps == sorted(stamps)
+    assert created["actor"]["id"] == factories.admin_id
+
+
+@pytest.mark.asyncio
+async def test_qa_back_to_development_is_offered_to_admin_in_qa(factories, rig):
+    admin = factories.admin_client
+    body = await _to_qa(admin, rig["release"].id)
+    assert "development" in body["allowed_transitions"]
+
+
+@pytest.mark.asyncio
+async def test_stream_items_share_the_done_range_with_the_board(factories, rig, clock):
+    admin = factories.admin_client
+    sid, pid = rig["stream_id"], rig["project"].id
+    now = datetime.now(UTC)
+    clock.set(now)
+    recent = await _item(factories, sid, pid, "done")
+    await _backdate_completed(recent.id, now - timedelta(days=2))
+    old = await _item(factories, sid, pid, "done")
+    await _backdate_completed(old.id, now - timedelta(days=60))
+    open_item = await _item(factories, sid, pid, "in_progress")
+    dropped = await _item(factories, sid, pid, "cancelled")
+
+    async def item_ids(**params):
+        resp = await admin.get(f"/releases/{sid}/items", params=params)
+        assert resp.status_code == 200, resp.text
+        return {i["id"] for i in resp.json()["items"]}, resp.json()
+
+    # Default: Done bounded to the last 7 days; everything else always listed.
+    ids, body = await item_ids()
+    assert ids == {recent.id, open_item.id, dropped.id}
+    assert body["done_from"] is not None and body["done_to"] is None
+
+    ids, _ = await item_ids(done_from=(now - timedelta(days=90)).isoformat())
+    assert ids == {recent.id, old.id, open_item.id, dropped.id}
+
+    ids, _ = await item_ids(
+        done_from=(now - timedelta(days=90)).isoformat(),
+        done_to=(now - timedelta(days=30)).isoformat(),
+    )
+    assert ids == {old.id, open_item.id, dropped.id}
+
+    # The board and the items agree on Done for the same range.
+    board = (await admin.get(f"/releases/{sid}/board", params={
+        "done_from": (now - timedelta(days=90)).isoformat(),
+        "done_to": (now - timedelta(days=30)).isoformat(),
+    })).json()
+    done_col = next(c for c in board["columns"] if c["status"] == "done")
+    assert {i["id"] for i in done_col["items"]} == {old.id}
+
+
+@pytest.mark.asyncio
+async def test_issue_response_names_its_container(factories, rig):
+    admin = factories.admin_client
+    pid = rig["project"].id
+    in_release = await factories.issue(project_id=pid, release_id=rig["release"].id, type="task")
+    in_stream = await factories.issue(project_id=pid, release_id=rig["stream_id"])  # a bug
+    in_backlog = await factories.issue(project_id=pid, type="task")
+
+    r = (await admin.get(f"/issues/{in_release.id}")).json()
+    assert (r["container_kind"], r["release_version"], r["release_status"]) == (
+        "release", rig["release"].version, "planning",
+    )
+    s = (await admin.get(f"/issues/{in_stream.id}")).json()
+    assert (s["type"], s["container_kind"], s["release_status"]) == ("bug", "stream", None)
+    b = (await admin.get(f"/issues/{in_backlog.id}")).json()
+    assert (b["container_kind"], b["release_id"]) == (None, None)
+    assert r["project_slug"] == s["project_slug"] == b["project_slug"] == rig["project"].slug

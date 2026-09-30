@@ -20,7 +20,6 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.core.clock import get_now
@@ -48,7 +47,7 @@ from app.schemas.release import (
     ShipPreviewResponse,
     ShipRequest,
 )
-from app.services.authz import authorize, project_target, require_action, visibility_clause
+from app.services.authz import authorize, project_target, require_action
 from app.services.container_service import stream_immutable
 from app.services.cycle_metrics import is_regression_expr
 from app.services.release_service import is_overdue, progress, release_service
@@ -301,34 +300,26 @@ async def ship_release(
 # ── Items, board, activity ────────────────────────────────────────────────────
 
 
-async def _container_items(db: AsyncSession, release: Release, user: User, *extra):
-    from app.api.v1.issues import _build_enriched_responses
-
-    rows = await db.execute(
-        select(Issue)
-        .options(
-            selectinload(Issue.assignee), selectinload(Issue.reporter),
-            selectinload(Issue.release), selectinload(Issue.project),
-        )
-        .where(
-            Issue.release_id == release.id, Issue.deleted_at.is_(None),
-            visibility_clause(user), *extra,
-        )
-        .order_by(Issue.created_at.desc(), Issue.id.desc())
-    )
-    return await _build_enriched_responses(list(rows.scalars().all()), db, user)
-
-
 @router.get("/{release_id}/items", response_model=ReleaseItemsResponse, summary="The Items tab")
 async def release_items(
     release_id: int,
+    done_from: datetime | None = Query(None, description="Done items: completed at or after"),
+    done_to: datetime | None = Query(None, description="Done items: completed at or before"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    now: datetime = Depends(get_now),
 ) -> ReleaseItemsResponse:
+    """Every item; Done ones bounded like the board's Done column (the Stream
+    defaults to the last 7 days, a Release is unbounded)."""
+    from app.api.v1.issues import _build_enriched_responses
+
     authorize(current_user, Action.view_releases)
     release = await _get_release_or_404(db, release_id)
-    items = await _container_items(db, release, current_user)
-    return ReleaseItemsResponse(items=items, total=len(items))
+    rows, done_from, done_to = await release_service.items(
+        db, release, current_user, now=now, done_from=done_from, done_to=done_to,
+    )
+    items = await _build_enriched_responses(rows, db, current_user)
+    return ReleaseItemsResponse(items=items, total=len(items), done_from=done_from, done_to=done_to)
 
 
 @router.get("/{release_id}/board", response_model=ReleaseBoardResponse, summary="The board")
@@ -367,7 +358,7 @@ async def release_activity(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReleaseActivityResponse:
-    """Lifecycle, dates, items added or removed, go/no-go, ship, edits — newest first."""
+    """Created, lifecycle, dates, items added or removed, go/no-go, ship, edits — oldest first."""
     authorize(current_user, Action.view_releases)
     release = await _get_release_or_404(db, release_id)
     events = await release_service.activity(db, release.id)

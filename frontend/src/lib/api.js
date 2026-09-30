@@ -243,7 +243,8 @@ export const releasesApi = {
   goNogo: (id, decision, note) => api.post(`/releases/${id}/go-nogo`, { decision, note: note || null }),
   shipPreview: (id) => api.get(`/releases/${id}/ship-preview`),
   ship: (id) => api.post(`/releases/${id}/ship`, { confirm: true }),
-  items: (id) => api.get(`/releases/${id}/items`),
+  // Same `done_from` / `done_to` as the board: Done items only.
+  items: (id, params) => api.get(`/releases/${id}/items`, { params }),
   activity: (id) => api.get(`/releases/${id}/activity`),
   // `done_from` / `done_to` bound only the Done column (ISO strings).
   board: (id, params) => api.get(`/releases/${id}/board`, { params }),

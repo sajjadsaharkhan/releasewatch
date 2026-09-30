@@ -269,8 +269,11 @@ in the URL. `/releases` redirects to the active project's list. `/releases/:id`
 (`ReleaseDetailPage`): header with the lifecycle badge as a menu of `allowed_transitions`
 (`ReleaseLifecycleMenu`; Cancel asks first and says how many open items move to the backlog),
 Overdue, Edit, **Ship** (`ship_release` in `allowed_actions`) and delete; tabs Board, Items,
-Activity, and Analytics (CTO/Admin); a 300px rail with progress and dates, `GoNogoPanel` (record
-Go / No-go with an optional note) and the open release blockers. A Released release shows a green
+Activity, and Analytics (CTO/Admin only). The page body is full width — no side rail: progress
+and dates, `GoNogoPanel bare` (record Go / No-go with an optional note) and the open release
+blockers live in a **Details** popover opened from the header (`panel-right-open` icon, 340px,
+sections split by rules). The Details button carries the go/no-go badge and, when there are open
+blockers, a red count, so both signals stay visible while it's closed. A Released release shows a green
 "Shipped … read-only" note, and its board can't be dragged (`IssueBoard readOnly`).
 `/projects/:slug/stream` (`StreamPage`) has Board and Items only, no edit/cancel/delete controls.
 Both pages share `ContainerWork` (board from `GET /releases/{id}/board`, items table).
@@ -280,14 +283,32 @@ Both pages share `ContainerWork` (board from `GET /releases/{id}/board`, items t
 production", the not-Done counts as `StatusBadge`s, and a confirm button that says what moves
 ("Ship and move 4 items to the backlog"). A toast confirms the ship.
 
-**Done-range picker** (`common/DoneRangePicker`): the Stream board's Done column is bounded by a
-log-search-style picker — relative presets (7 / 30 / 90 days, "Last N days") on the left, an
-absolute From/To range on the right, Reset back to 7 days. The range is in the URL (`?done=30d` or
-`?done_from=&done_to=`); open columns are never filtered.
+**Time range picker** (`ui/DateTimeRangePicker`, ported from llmeter): a Kibana-style filter in
+one popover. **Quick select** lists relative presets (calendar icon, check on the active one), a
+"Last N days" row with its own Apply, and **Custom time range ›**, which swaps the popover to a
+Start / End summary (the side the next click sets is outlined), a `ui/RangeCalendar` (click the
+start day, then the end day; days between are tinted, hovering previews the range, today has a
+ring) and two `TimeField`s (24-hour `HH:mm`, typed freely — "930" → 09:30 — ↑/↓ step 15 minutes),
+with Cancel / Apply, pre-filled from the current range. No end day means "until now". Never use
+the browser's native `date` / `datetime-local` controls for this — they ignore the theme. The trigger shows "Last 7 days", or a custom range as
+`2026-09-23 14:59 → 2026-09-30 14:59` in mono. Values are `{ days }` or `{ from, to }` (local
+`YYYY-MM-DDTHH:mm`). The Stream board's Done column uses it through `common/DoneRangePicker`
+(presets 7 / 30 / 90 days, "Done:" prefix); the range is in the URL (`?done=30d` or
+`?done_from=&done_to=`) and shared by the **Board and Items** tabs — the picker sits at the right end of the
+Stream page's tab row (not inside a tab), so it stays put when the tab changes; only Done items are bounded, open (and cancelled) items always show.
 
-**Activity** (`ReleaseActivity`): newest first on a rail, one icon dot per event — lifecycle
-(blue, with from → to badges), dates and edits (zinc), item added (teal) / removed (zinc, with why:
+**Activity** (`ReleaseActivity`): oldest first on a rail (the release's story, top to bottom), one icon dot per event — **created**
+(zinc `flag`, "created the release · Planning"; always the first entry), lifecycle moves named for what
+they mean ("started development", "started QA — code freeze", "moved it back to development",
+"released it", "cancelled the release"; blue, with from → to badges), dates and edits (zinc), item added (teal) / removed (zinc, with why:
 ship, cancel, production return), go/no-go (violet), shipped (green).
+
+**Container badge** (`common/ContainerBadge`): where an item lives, on the item page's header
+line for bugs and tasks alike — a 24px rounded pill that links to the container. Stream: sky,
+`waves`, "Stream". Release: `package`, mono version and a small `ReleaseLifecycleBadge`
+("v2.4.1 · QA"). Backlog: dashed zinc outline, `inbox`, "Backlog" (not planned yet). The title
+attribute says it in words. Reads `container_kind`, `release_version`, `release_status` and
+`project_slug` from `IssueResponse`.
 
 **Navigation.** The sidebar lists **Stream** (`waves`) above **Releases** (`tag`), both for the
 active project. The topbar `ReleaseSwitcher` lists the Stream first (a link to its page), then open

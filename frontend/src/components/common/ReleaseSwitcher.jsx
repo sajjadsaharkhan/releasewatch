@@ -38,7 +38,7 @@ function getStatusLabel(status) {
 // (falling back to the first one), matching every pre-03 call site (Topbar, etc).
 export function ReleaseSwitcher({
   releases = [], activeReleaseId, onChange, compact = false, width = null, allowNone = false,
-  streamHref = null,
+  streamHref = null, releasesHref = null,
 }) {
   const navigate = useNavigate()
   const openReleases = releases.filter((r) => ['planning', 'development', 'qa'].includes(r.status))
@@ -65,7 +65,7 @@ export function ReleaseSwitcher({
     </DropdownItem>
   )
 
-  if (!active && !allowNone) {
+  if (!active && !allowNone && !streamHref) {
     return (
       <button
         className={cn(
@@ -94,7 +94,7 @@ export function ReleaseSwitcher({
         >
           <Tag className="h-3.5 w-3.5 shrink-0" />
           <span className={cn('font-mono truncate', compact ? 'max-w-[100px]' : 'flex-1 text-left')}>
-            {active ? active.version : 'No release'}
+            {active ? active.version : allowNone ? 'No release' : 'No active release'}
           </span>
           {active && (
             <div className="flex items-center">
@@ -137,6 +137,23 @@ export function ReleaseSwitcher({
             </DropdownItem>
           )}
           {openReleases.map((r) => renderItem(r, close))}
+          {!allowNone && openReleases.length === 0 && (
+            <div className="px-3 py-2 text-[12px] text-muted-foreground" role="note">
+              <p className="flex items-center gap-2">
+                <Circle className="h-4 w-4 shrink-0 opacity-40" />
+                No active release in this project.
+              </p>
+              {releasesHref && (
+                <button
+                  type="button"
+                  onClick={() => { close(); navigate(releasesHref) }}
+                  className="mt-1.5 ml-6 text-[12px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Plan a release →
+                </button>
+              )}
+            </div>
+          )}
           {closedReleases.length > 0 && (
             <>
               <DropdownLabel>Closed</DropdownLabel>

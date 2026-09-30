@@ -90,6 +90,9 @@ class ReleaseBoardResponse(BaseModel):
 class ReleaseItemsResponse(BaseModel):
     items: List[IssueResponse]
     total: int
+    #: The Done range applied (the board's, FR-47); other statuses are never bounded.
+    done_from: Optional[datetime] = None
+    done_to: Optional[datetime] = None
 
 
 class ReleaseUpdate(BaseModel):

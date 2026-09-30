@@ -4,8 +4,9 @@ import { cn } from '../lib/cn'
 import { StatusBadge, RoleBadge } from '../components/ui/Badge'
 import {
   EditReleaseModal, DeleteReleaseModal, ReleaseLifecycleMenu, OverdueMarker, ReleaseProgress,
-  ShipDialog, GoNogoPanel, ReleaseActivity, ContainerWork,
+  ShipDialog, GoNogoPanel, GoNogoBadge, ReleaseActivity, ContainerWork,
 } from '../components/releases'
+import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/Popover'
 import { Button } from '../components/ui/Button'
 import { Empty } from '../components/ui/Empty'
 import { useToast } from '../hooks/useToast'
@@ -173,9 +174,9 @@ function generateDiscoveryData(releaseId) {
   }))
 }
 
-// The release page (slice 09, FR-51–FR-54): lifecycle, Overdue, progress, the
-// go/no-go panel and open release blockers in the rail; Board, Items and
+// The release page (slice 09, FR-51–FR-54): lifecycle and Overdue in the header; Board, Items and
 // Activity tabs (plus Analytics for CTO/Admin). Ship opens the ship notice.
+// Progress, dates, go/no-go and open blockers live in the header's Details menu.
 // A Released release is read-only: no lifecycle menu, edit, drag or delete.
 export default function ReleaseDetailPage() {
   const { id } = useParams()
@@ -194,6 +195,7 @@ export default function ReleaseDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [shipOpen, setShipOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   // ── Data loading ──────────────────────────────────────────────────────────
@@ -318,8 +320,8 @@ export default function ReleaseDetailPage() {
   const fmt = formatDay
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
-      <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin">
+    <div className="h-full">
+      <div className="h-full overflow-y-auto scrollbar-thin">
         {/* Header */}
         <header className="px-7 pt-5">
           <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -332,6 +334,96 @@ export default function ReleaseDetailPage() {
             <ReleaseLifecycleMenu release={release} toast={toast} onChanged={(r) => { setRelease(r); refreshAll() }} />
             <OverdueMarker release={release} />
             <div className="ml-auto flex items-center gap-2">
+              <Popover open={detailsOpen} onOpenChange={setDetailsOpen} align="end">
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-haspopup="dialog"
+                    aria-expanded={detailsOpen}
+                    aria-label={activeBlockers.length
+                      ? `Release details — ${activeBlockers.length} open blocker${activeBlockers.length === 1 ? '' : 's'}`
+                      : 'Release details'}
+                  >
+                    <Icon name="panel-right-open" size={13} /> Details
+                    <GoNogoBadge status={release.go_nogo_status} className="px-1.5 py-0 text-[10.5px]" />
+                    {activeBlockers.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white tabular-nums">
+                        {activeBlockers.length}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent width={340} className="p-0">
+                  <div role="dialog" aria-label="Release details">
+            <section className="p-4 space-y-3" aria-label="Progress and dates">
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Progress</h3>
+                <ReleaseProgress release={release} />
+              </div>
+              <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+                <dt className="text-muted-foreground">Code freeze</dt>
+                <dd>{fmt(release.code_freeze_date) ?? '—'}</dd>
+                <dt className="text-muted-foreground">Target ship</dt>
+                <dd className={release.is_overdue ? 'text-red-600 dark:text-red-400 font-medium' : undefined}>
+                  {fmt(release.target_date) ?? '—'}
+                </dd>
+                {release.released_at && <>
+                  <dt className="text-muted-foreground">Shipped</dt>
+                  <dd>{fmt(release.released_at)}</dd>
+                </>}
+                {release.staging_url && <>
+                  <dt className="text-muted-foreground">Staging</dt>
+                  <dd className="truncate">
+                    <a href={release.staging_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                      {release.staging_url.replace(/^https?:\/\//, '')}
+                    </a>
+                  </dd>
+                </>}
+              </dl>
+            </section>
+
+            <div className="border-t border-border p-4">
+            <GoNogoPanel
+              bare
+              release={release}
+              deciderName={userById(release.go_nogo_by_id)?.name}
+              toast={toast}
+              onChange={(r) => { setRelease(r); loadActivity() }}
+            />
+            </div>
+
+            <section className="border-t border-border" aria-labelledby="blockers-title">
+              <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                <h3 id="blockers-title" className="text-sm font-semibold">Open release blockers</h3>
+                <span className={cn('text-xs tabular-nums', activeBlockers.length ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-muted-foreground')}>
+                  {activeBlockers.length}
+                </span>
+              </div>
+              {activeBlockers.length === 0 ? (
+                <p className="flex items-center gap-2 px-4 pb-4 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" /> Nothing is blocking this release.
+                </p>
+              ) : (
+                <ul className="pb-2">
+                  {activeBlockers.map((issue) => (
+                    <li key={issue.id}>
+                      <Link
+                        to={`/issue/${issueSlug(issue)}`}
+                        className="flex items-center gap-2 px-4 py-1.5 hover:bg-accent transition-colors"
+                      >
+                        <span className="font-mono text-[11px] text-muted-foreground shrink-0">{issueKey(issue)}</span>
+                        <span className="truncate text-[13px] flex-1">{issue.title}</span>
+                        <StatusBadge status={issue.status} className="shrink-0" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+                  </div>
+                </PopoverContent>
+              </Popover>
               {canManage && (
                 <Button variant="outline" size="sm" onClick={() => setEditModalOpen(true)}>
                   <Icon name="pencil" size={13} /> Edit
@@ -747,71 +839,6 @@ export default function ReleaseDetailPage() {
         </div>}
       </div>
 
-      {/* Rail: progress, dates, go/no-go, open release blockers */}
-      <aside className="lg:w-[300px] shrink-0 border-t lg:border-t-0 lg:border-l border-border overflow-y-auto scrollbar-thin p-4 space-y-4 bg-muted/20">
-        <section className="rounded-xl border border-border bg-card p-4 space-y-3" aria-label="Progress and dates">
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Progress</h3>
-            <ReleaseProgress release={release} />
-          </div>
-          <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
-            <dt className="text-muted-foreground">Code freeze</dt>
-            <dd>{fmt(release.code_freeze_date) ?? '—'}</dd>
-            <dt className="text-muted-foreground">Target ship</dt>
-            <dd className={release.is_overdue ? 'text-red-600 dark:text-red-400 font-medium' : undefined}>
-              {fmt(release.target_date) ?? '—'}
-            </dd>
-            {release.released_at && <>
-              <dt className="text-muted-foreground">Shipped</dt>
-              <dd>{fmt(release.released_at)}</dd>
-            </>}
-            {release.staging_url && <>
-              <dt className="text-muted-foreground">Staging</dt>
-              <dd className="truncate">
-                <a href={release.staging_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
-                  {release.staging_url.replace(/^https?:\/\//, '')}
-                </a>
-              </dd>
-            </>}
-          </dl>
-        </section>
-
-        <GoNogoPanel
-          release={release}
-          deciderName={userById(release.go_nogo_by_id)?.name}
-          toast={toast}
-          onChange={(r) => { setRelease(r); loadActivity() }}
-        />
-
-        <section className="rounded-xl border border-border bg-card" aria-labelledby="blockers-title">
-          <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <h3 id="blockers-title" className="text-sm font-semibold">Open release blockers</h3>
-            <span className={cn('text-xs tabular-nums', activeBlockers.length ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-muted-foreground')}>
-              {activeBlockers.length}
-            </span>
-          </div>
-          {activeBlockers.length === 0 ? (
-            <p className="flex items-center gap-2 px-4 pb-4 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-green-500" /> Nothing is blocking this release.
-            </p>
-          ) : (
-            <ul className="pb-2">
-              {activeBlockers.map((issue) => (
-                <li key={issue.id}>
-                  <Link
-                    to={`/issue/${issueSlug(issue)}`}
-                    className="flex items-center gap-2 px-4 py-1.5 hover:bg-accent transition-colors"
-                  >
-                    <span className="font-mono text-[11px] text-muted-foreground shrink-0">{issueKey(issue)}</span>
-                    <span className="truncate text-[13px] flex-1">{issue.title}</span>
-                    <StatusBadge status={issue.status} className="shrink-0" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </aside>
 
       <EditReleaseModal
         open={editModalOpen}

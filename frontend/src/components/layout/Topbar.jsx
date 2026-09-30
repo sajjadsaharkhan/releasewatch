@@ -22,6 +22,7 @@ export function Topbar() {
   const support = isSupport(user?.role)
   const activeProject = projects?.find((p) => p.id === activeProjectId)
   const streamHref = activeProject ? `/projects/${activeProject.slug}/stream` : null
+  const releasesHref = activeProject ? `/projects/${activeProject.slug}/releases` : null
   const canCreateProject = canManageUsersAndProjects(user?.role)
 
   const handleLogout = async () => {
@@ -64,7 +65,7 @@ export function Topbar() {
           <div className="flex items-center justify-center w-[140px] h-8">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           </div>
-        ) : releases.length > 0 ? (
+        ) : releases.length > 0 || streamHref ? (
           <ReleaseSwitcher
             releases={releases}
             activeReleaseId={activeReleaseId}
@@ -72,6 +73,7 @@ export function Topbar() {
             compact
             width={240}
             streamHref={streamHref}
+            releasesHref={releasesHref}
           />
         ) : null}
       </div>}
@@ -174,12 +176,13 @@ export function Topbar() {
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : releases.length > 0 ? (
+              ) : releases.length > 0 || streamHref ? (
                 <ReleaseSwitcher
                   releases={releases}
                   activeReleaseId={activeReleaseId}
                   onChange={setActiveReleaseId}
                   streamHref={streamHref}
+                  releasesHref={releasesHref}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">No releases for this project</p>

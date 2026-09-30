@@ -16,6 +16,8 @@ from app.db.base import Base
 
 
 class ReleaseEventType(str, enum.Enum):
+    #: meta ``{version, status}`` — the release was created (always in Planning).
+    created = "created"
     #: meta ``{from, to}``
     status_changed = "status_changed"
     #: meta ``{changes: {field: {from, to}}}`` for code_freeze_date / target_date

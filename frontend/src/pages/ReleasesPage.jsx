@@ -16,7 +16,7 @@ import { formatDay as formatDate } from '../lib/relTime'
 
 // A project's releases (slice 09): lifecycle status, progress, target ship
 // date and the Overdue marker, sortable by date and progress. The Stream is
-// never in this list — it has its own page, linked from the header.
+// never in this list — it has its own page (sidebar).
 
 const SORTS = {
   target: { label: 'Target date', icon: 'calendar' },
@@ -113,9 +113,6 @@ export default function ReleasesPage() {
           </p>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${slug}/stream`)}>
-            <Icon name="waves" size={14} /> Stream
-          </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Icon name="plus" size={14} /> New release
           </Button>

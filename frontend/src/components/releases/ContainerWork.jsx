@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { IssueBoard, IssueBoardSkeleton } from '../common/IssueBoard'
 import { IssueTable, IssueTableSkeleton } from '../common/IssueTable'
-import { DoneRangePicker, doneRangeToApi, doneRangeLabel } from '../common/DoneRangePicker'
+import { doneRangeToApi, doneRangeLabel } from '../common/DoneRangePicker'
 import { Button } from '../ui/Button'
 import { Empty } from '../ui/Empty'
 import { releasesApi, issuesApi } from '../../lib/api'
@@ -11,9 +11,9 @@ import { issueSlug } from '../../lib/issueSlug'
 import { useToast } from '../../hooks/useToast'
 
 // A container's Board and Items tabs (FR-47, FR-51) — the Stream page and the
-// release page share it. The board comes from GET /releases/{id}/board; only
-// the Done column is bounded, by `doneRange` (the Stream's time picker).
-export function ContainerWork({ container, view, readOnly = false, doneRange = null, onDoneRangeChange, refreshKey = 0, onChanged }) {
+// release page share it. Board and Items share one range: `doneRange` (the
+// Stream's time picker, which the page puts on its tab row) bounds Done items only.
+export function ContainerWork({ container, view, readOnly = false, doneRange = null, refreshKey = 0, onChanged }) {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [data, setData] = useState(null) // board: issues[]; items: issues[]
@@ -31,7 +31,7 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
         const res = await releasesApi.board(container.id, params)
         setData(res.data.columns.flatMap((c) => c.items))
       } else {
-        const res = await releasesApi.items(container.id)
+        const res = await releasesApi.items(container.id, params)
         setData(res.data.items)
       }
     } catch (err) {
@@ -58,11 +58,6 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     }
   }, [load, onChanged, toast])
 
-  const toolbar = view === 'board' && doneRange && (
-    <div className="flex items-center justify-end gap-2 px-7 pt-4">
-      <DoneRangePicker value={doneRange} onChange={onDoneRangeChange} />
-    </div>
-  )
 
   if (error) {
     return (
@@ -76,7 +71,6 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
   if (view === 'board') {
     return (
       <>
-        {toolbar}
         {loading && !data ? (
           <IssueBoardSkeleton />
         ) : (
@@ -97,14 +91,24 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
   if (loading && !data) return <IssueTableSkeleton rows={6} hideRelease />
   if (!data?.length) {
     return (
+      <>
       <Empty
         icon={container.kind === 'stream' ? 'waves' : 'package'}
-        title="No items yet"
-        body={container.kind === 'stream'
-          ? 'Items placed in the Stream ship on their own when they’re Done.'
-          : 'Move items here from the backlog, or pick this release when filing one.'}
+        title={doneRange ? 'Nothing in this range' : 'No items yet'}
+        body={doneRange
+          ? `No open items, and nothing was done in ${doneRangeLabel(doneRange).toLowerCase()}. Widen the range to see older work.`
+          : container.kind === 'stream'
+            ? 'Items placed in the Stream ship on their own when they’re Done.'
+            : 'Move items here from the backlog, or pick this release when filing one.'}
       />
+      </>
     )
   }
-  return <IssueTable issues={data} onOpen={open} hideRelease />
+  return (
+    <>
+      <div className={loading ? 'opacity-60 transition-opacity' : undefined} aria-busy={loading}>
+        <IssueTable issues={data} onOpen={open} hideRelease />
+      </div>
+    </>
+  )
 }

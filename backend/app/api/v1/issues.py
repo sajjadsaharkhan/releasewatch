@@ -324,9 +324,11 @@ async def _build_enriched_responses(
             ],
             "release_version": issue.release.version if issue.release else None,
             "container_kind": getattr(issue.release.kind, "value", issue.release.kind) if issue.release else None,
+            "release_status": getattr(issue.release.status, "value", issue.release.status) if issue.release else None,
             **_cycle_fields(cycles.get(issue.current_cycle_id)),
             "project_triage_lead_id": issue.project.triage_lead_id if issue.project else None,
             "project_name": issue.project.name if issue.project else None,
+            "project_slug": issue.project.slug if issue.project else None,
             **_workflow_fields(issue, current_user),
         })
         responses.append(enriched)

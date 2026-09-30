@@ -38,12 +38,13 @@ export function ReleaseLifecycleMenu({ release, onChanged, toast }) {
   return (
     <>
       <Dropdown
-        width={240}
+        width={280}
         trigger={
           <button
             type="button"
             aria-label={`Status: ${RELEASE_STATUS[release.status]?.label}. Change status`}
-            className="inline-flex items-center gap-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            title="Change status"
+            className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1.5 border border-transparent hover:border-border hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             disabled={busy}
           >
             <ReleaseLifecycleBadge status={release.status} />

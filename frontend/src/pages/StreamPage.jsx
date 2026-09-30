@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { Icon } from '../components/ui/Icon'
 import { Tabs } from '../components/ui/Tabs'
 import { Empty } from '../components/ui/Empty'
 import { ContainerWork } from '../components/releases'
 import { IssueBoardSkeleton } from '../components/common/IssueBoard'
-import { readDoneRange, writeDoneRange } from '../components/common/DoneRangePicker'
+import { DoneRangePicker, readDoneRange, writeDoneRange } from '../components/common/DoneRangePicker'
 import { projectsApi } from '../lib/api'
 import { useProjectRoute } from '../hooks/useProjectRoute'
 
@@ -33,6 +33,8 @@ export default function StreamPage() {
   if (!slug) return redirectTo ? <Navigate to={redirectTo} replace /> : <Empty icon="waves" title="No projects yet" />
   if (notFound) return <Empty icon="waves" title="Project not found" body={`There's no project called “${slug}”.`} />
 
+  const setDoneRange = (range) => setSearchParams(writeDoneRange(searchParams, range), { replace: true })
+
   const setTab = (tab) => {
     const next = new URLSearchParams(searchParams)
     if (tab === 'board') next.delete('tab'); else next.set('tab', tab)
@@ -55,27 +57,23 @@ export default function StreamPage() {
               {stream.open_issues} open · {stream.counts?.done ?? 0} done all time
             </span>
           )}
-          <span className="ml-auto flex items-center gap-3 text-xs">
-            <Link to={`/projects/${slug}/releases`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
-              <Icon name="package" size={13} /> Releases
-            </Link>
-            <Link to={`/projects/${slug}/backlog`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
-              <Icon name="list-ordered" size={13} /> Backlog
-            </Link>
-          </span>
         </div>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Continuous work — each item is on production the moment it’s Done.
         </p>
-        <Tabs
-          className="mt-3"
-          value={view}
-          onValueChange={setTab}
-          options={[
-            { value: 'board', label: 'Board', icon: 'kanban' },
-            { value: 'items', label: 'Items', icon: 'table-2', badge: stream?.total_issues },
-          ]}
-        />
+        {/* One range for both tabs, so the picker sits on the tab row, not inside a tab. */}
+        <div className="mt-3 flex items-end gap-3 border-b border-border">
+          <Tabs
+            className="flex-1 border-b-0"
+            value={view}
+            onValueChange={setTab}
+            options={[
+              { value: 'board', label: 'Board', icon: 'kanban' },
+              { value: 'items', label: 'Items', icon: 'table-2' },
+            ]}
+          />
+          <DoneRangePicker value={doneRange} onChange={setDoneRange} className="mb-1.5 shrink-0" />
+        </div>
       </header>
       <div className="flex-1 min-h-0 overflow-auto scrollbar-thin">
         {error ? (
@@ -87,7 +85,6 @@ export default function StreamPage() {
             container={stream}
             view={view}
             doneRange={doneRange}
-            onDoneRangeChange={(range) => setSearchParams(writeDoneRange(searchParams, range), { replace: true })}
           />
         )}
       </div>

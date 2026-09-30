@@ -277,10 +277,14 @@ class IssueResponse(IssueBase):
     recurrence_count: int = 1
     project_id: int
     project_name: str | None = None
+    #: For links to the project's Stream / backlog pages (slice 09 follow-up).
+    project_slug: str | None = None
     release_id: int | None = None
     release_version: str | None = None
     #: ``stream`` | ``release`` for the item's container; null in the backlog (08a).
     container_kind: str | None = None
+    #: The Release's lifecycle status (null for the Stream and the backlog).
+    release_status: str | None = None
     status: IssueStatus
     due_date: date | None = None
     reporter_id: int | None = None

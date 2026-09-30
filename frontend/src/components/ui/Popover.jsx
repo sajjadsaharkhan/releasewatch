@@ -77,7 +77,7 @@ export function PopoverContent({ children, className, width }) {
 
   const { isOpen, handleOpenChange, triggerRef, align } = context
   const contentRef = useRef(null)
-  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: undefined })
 
   useEffect(() => {
     if (!isOpen || !triggerRef.current) return
@@ -115,6 +115,8 @@ export function PopoverContent({ children, className, width }) {
       setPosition({
         top: triggerRect.bottom + scrollY + 4,
         left: left,
+        // Never run past the bottom of the window — the content scrolls instead.
+        maxHeight: Math.max(160, window.innerHeight - triggerRect.bottom - 4 - padding),
       })
     }
 
@@ -157,11 +159,11 @@ export function PopoverContent({ children, className, width }) {
     <div
       ref={contentRef}
       className={cn(
-        'fixed z-[100] rounded-lg border border-border bg-card shadow-lg p-4',
+        'fixed z-[100] rounded-lg border border-border bg-card shadow-lg p-4 overflow-y-auto scrollbar-thin',
         'animate-in fade-in-0 zoom-in-95',
         className
       )}
-      style={{ top: position.top, left: position.left, width: width || 'auto' }}
+      style={{ top: position.top, left: position.left, width: width || 'auto', maxHeight: position.maxHeight }}
       onClick={(e) => e.stopPropagation()}
     >
       {children}

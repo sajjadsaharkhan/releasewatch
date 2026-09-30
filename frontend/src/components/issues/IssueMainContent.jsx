@@ -11,6 +11,7 @@ import { IssueTimeline } from './IssueTimeline'
 import { NeedsInfoQuestion } from './NeedsInfoQuestion'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
+import { ContainerBadge } from '../common/ContainerBadge'
 
 export function IssueMainContent({
   issue,
@@ -83,7 +84,7 @@ export function IssueMainContent({
         <span>·</span>
         <span>{relTime(issue.created_at)}</span>
         <span>·</span>
-        <span className="font-mono">{issue.release_version || '—'}</span>
+        <ContainerBadge item={issue} />
       </div>
 
       <NeedsInfoQuestion issue={issue} comments={comments} />

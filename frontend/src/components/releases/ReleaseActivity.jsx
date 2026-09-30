@@ -8,8 +8,9 @@ import { ReleaseLifecycleBadge } from './ReleaseMarkers'
 import { GoNogoBadge } from './GoNogoPanel'
 
 // The release Activity tab (FR-51): lifecycle, dates, items added or removed,
-// go/no-go, ship, edits — newest first, one rail row per event.
+// go/no-go, ship, edits — oldest first (created at the top), one rail row per event.
 const EVENT = {
+  created: { icon: 'flag', dot: 'bg-zinc-500' },
   status_changed: { icon: 'git-commit-horizontal', dot: 'bg-blue-500' },
   dates_changed: { icon: 'calendar-clock', dot: 'bg-zinc-400' },
   item_added: { icon: 'package-plus', dot: 'bg-teal-500' },
@@ -42,11 +43,23 @@ function ItemRef({ meta }) {
   )
 }
 
+// A lifecycle move named for what it means (FR-50), with the badges it moved between.
+const MOVE = {
+  'planning>development': 'started development',
+  'development>qa': 'started QA — code freeze',
+  'qa>development': 'moved it back to development',
+  'qa>released': 'released it',
+}
+
 function describe(e) {
   const m = e.meta || {}
   switch (e.event_type) {
-    case 'status_changed':
-      return <>moved it <ReleaseLifecycleBadge status={m.from} size="sm" /> → <ReleaseLifecycleBadge status={m.to} size="sm" /></>
+    case 'created':
+      return <>created the release <ReleaseLifecycleBadge status={m.status ?? 'planning'} size="sm" /></>
+    case 'status_changed': {
+      const phrase = m.to === 'cancelled' ? 'cancelled the release' : MOVE[`${m.from}>${m.to}`] ?? 'moved it'
+      return <>{phrase} <ReleaseLifecycleBadge status={m.from} size="sm" /> → <ReleaseLifecycleBadge status={m.to} size="sm" /></>
+    }
     case 'dates_changed':
     case 'edited':
       return (

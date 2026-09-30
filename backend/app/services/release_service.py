@@ -162,6 +162,11 @@ class ReleaseService:
         )
         db.add(release)
         await db.flush()
+        # The Activity tab starts here: created, in Planning.
+        self._event(db, release, actor, ReleaseEventType.created, {
+            "version": release.version, "status": _value(release.status),
+        })
+        await db.flush()
         return release
 
     async def edit(self, db: AsyncSession, release: Release, changes: dict, actor: User) -> Release:
@@ -329,6 +334,55 @@ class ReleaseService:
 
     # ── Board (FR-47, FR-51) ─────────────────────────────────────────────────
 
+    @staticmethod
+    def done_window(
+        release: Release, now: datetime, done_from: datetime | None, done_to: datetime | None,
+    ) -> tuple[datetime | None, datetime | None]:
+        """The Done range to apply: the caller's, or — on the Stream with none
+        given — the last ``STREAM_DONE_DAYS`` days (AC-63). A Release is unbounded."""
+        if release.is_stream and done_from is None and done_to is None:
+            done_from = now - timedelta(days=STREAM_DONE_DAYS)
+        return done_from, done_to
+
+    async def _container_items(
+        self,
+        db: AsyncSession,
+        release: Release,
+        user: User,
+        *,
+        statuses: tuple[str, ...] | None,
+        done_from: datetime | None,
+        done_to: datetime | None,
+    ) -> list[Issue]:
+        """Visible items in the container. Done items are bounded by the window;
+        every other status is always included. ``statuses`` limits the set (the board)."""
+        from sqlalchemy.orm import selectinload
+
+        from app.services.authz import visibility_clause
+
+        done = IssueStatus.done.value
+        done_bounds = []
+        if done_from is not None:
+            done_bounds.append(Issue.completed_at >= done_from)
+        if done_to is not None:
+            done_bounds.append(Issue.completed_at <= done_to)
+        not_done = Issue.status != done if statuses is None else Issue.status.in_(
+            [s for s in statuses if s != done]
+        )
+        included = or_(not_done, and_(Issue.status == done, *done_bounds))
+        return list((await db.execute(
+            select(Issue)
+            .options(
+                selectinload(Issue.assignee), selectinload(Issue.reporter),
+                selectinload(Issue.release), selectinload(Issue.project),
+            )
+            .where(
+                Issue.release_id == release.id, Issue.deleted_at.is_(None),
+                visibility_clause(user), included,
+            )
+            .order_by(Issue.completed_at.desc().nulls_last(), Issue.created_at.desc(), Issue.id.desc())
+        )).scalars().all())
+
     async def board(
         self,
         db: AsyncSession,
@@ -339,40 +393,33 @@ class ReleaseService:
         done_from: datetime | None = None,
         done_to: datetime | None = None,
     ) -> tuple[list[tuple[str, list[Issue]]], datetime | None, datetime | None]:
-        """Five columns in board order. Only Done is bounded: the Stream defaults
-        to the last ``STREAM_DONE_DAYS`` days (AC-63); a Release is unbounded."""
-        from sqlalchemy.orm import selectinload
-
-        from app.services.authz import visibility_clause
-
-        if release.is_stream and done_from is None and done_to is None:
-            done_from = now - timedelta(days=STREAM_DONE_DAYS)
-        done = IssueStatus.done.value
-        done_bounds = []
-        if done_from is not None:
-            done_bounds.append(Issue.completed_at >= done_from)
-        if done_to is not None:
-            done_bounds.append(Issue.completed_at <= done_to)
-        in_board = or_(
-            Issue.status.in_([s for s in BOARD_COLUMNS if s != done]),
-            and_(Issue.status == done, *done_bounds),
+        """Five columns in board order. Only Done is bounded (``done_window``)."""
+        done_from, done_to = self.done_window(release, now, done_from, done_to)
+        rows = await self._container_items(
+            db, release, user, statuses=BOARD_COLUMNS, done_from=done_from, done_to=done_to,
         )
-        rows = (await db.execute(
-            select(Issue)
-            .options(
-                selectinload(Issue.assignee), selectinload(Issue.reporter),
-                selectinload(Issue.release), selectinload(Issue.project),
-            )
-            .where(
-                Issue.release_id == release.id, Issue.deleted_at.is_(None),
-                visibility_clause(user), in_board,
-            )
-            .order_by(Issue.completed_at.desc().nulls_last(), Issue.created_at.desc(), Issue.id.desc())
-        )).scalars().all()
         columns = [
             (col, [i for i in rows if _value(i.status) == col]) for col in BOARD_COLUMNS
         ]
         return columns, done_from, done_to
+
+    async def items(
+        self,
+        db: AsyncSession,
+        release: Release,
+        user: User,
+        *,
+        now: datetime,
+        done_from: datetime | None = None,
+        done_to: datetime | None = None,
+    ) -> tuple[list[Issue], datetime | None, datetime | None]:
+        """The Items tab: every item in the container, with Done bounded the same
+        way as the board's Done column, so both tabs share one range."""
+        done_from, done_to = self.done_window(release, now, done_from, done_to)
+        rows = await self._container_items(
+            db, release, user, statuses=None, done_from=done_from, done_to=done_to,
+        )
+        return rows, done_from, done_to
 
     async def _move_open_items_to_backlog(
         self, db: AsyncSession, release: Release, actor: User, *, reason: str,
@@ -462,7 +509,8 @@ class ReleaseService:
             select(ReleaseEvent)
             .options(selectinload(ReleaseEvent.actor))
             .where(ReleaseEvent.release_id == release_id)
-            .order_by(ReleaseEvent.created_at.desc(), ReleaseEvent.id.desc())
+            # Oldest first: the Activity tab reads as the release's story, top to bottom.
+            .order_by(ReleaseEvent.created_at.asc(), ReleaseEvent.id.asc())
         )).scalars().all())
 
     # ── Overdue notice (§13) ─────────────────────────────────────────────────
