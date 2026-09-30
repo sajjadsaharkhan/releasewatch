@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, CheckCheck, Clock, Eye, Undo2, Play, Unlock } from 'lucide-react'
+import { ChevronDown, CheckCheck, Clock, Eye, RotateCcw, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -457,11 +457,14 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
           </ActionButton>
         )}
-        {/* Reject (09a): one action on To review, In review and Done work,
+        {/* Reject (09a): one action on To review, In review and Done work —
+            named Return on a Done item, as the board's Returned area is —
             comment required; the server decides where it was caught. The
             action only exists in allowed_actions there — Support never sees it. */}
         <ActionButton action="reject" item={issue} variant="outline" className="w-full" onClick={() => setRejecting(true)}>
-          <Undo2 size={14} className="mr-1" /> Reject
+          {issue.status === 'done'
+            ? <><RotateCcw size={14} className="mr-1" /> Return</>
+            : <><Undo2 size={14} className="mr-1" /> Reject</>}
         </ActionButton>
         {/* Bug-only; disabled with guidance on Done (FR-16), absent on tasks. */}
         <ReportRecurrenceButton item={issue} className="w-full" onReported={onRecurrenceReported} />

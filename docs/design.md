@@ -273,11 +273,13 @@ returns), Picked up, Delivered (first To review or In review — delivered by th
 moment), Verified, Closed. Empty state: "No cycles yet" — backlog items have none.
 
 **Reject** (`RejectDialog`) is one action on To review, In review and Done items, shown when
-`reject` is in `allowed_actions` (Support never sees it). One title, "Reject"; the comment is
-required and the destructive confirm stays disabled until it has text. The server decides where
-it was caught. The sidebar's quick actions follow the flow: To do / Rejected → **Start work**,
+`reject` is in `allowed_actions` (Support never sees it). It has two names: **Reject** (`undo-2`)
+on To review / In review, **Return** (`rotate-ccw`) on a Done item — it's already out, so it comes
+back, matching the board's Returned area. The dialog's title, text and confirm follow the name;
+the comment is required and the destructive confirm stays disabled until it has text. The server
+decides where it was caught. The sidebar's quick actions follow the flow: To do / Rejected → **Start work**,
 In progress → **Send to review** (To review), To review → **Start review** (In review), In review
-→ **Mark as done**, plus **Reject** where allowed.
+→ **Mark as done**, plus **Reject** / **Return** where allowed.
 
 ### Release lifecycle and Overdue — `RELEASE_STATUS` in `lib/constants.js` (slice 09)
 
