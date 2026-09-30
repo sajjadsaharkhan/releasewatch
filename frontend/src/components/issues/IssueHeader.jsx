@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, FileDown } from 'lucide-react'
+import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, FileDown, MoveRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { StatusBadge, TypeIcon, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
@@ -7,7 +7,7 @@ import { issueKey } from '../../lib/issueSlug'
 import { TechDebtMarker } from '../common/TechDebtMarker'
 import { itemNoun } from '../../lib/constants'
 
-export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete }) {
+export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete, canMove, onMove }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
@@ -50,9 +50,20 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
         <Button variant="ghost" size="icon" onClick={() => onNavigate?.('next')} title="Next issue" disabled={adjacent?.next_number === null}>
           <ChevronDown size={15} />
         </Button>
-        {canDelete && (
-          <Dropdown align="right" trigger={<Button variant="ghost" size="icon"><MoreVertical size={15} /></Button>}>
-            <DropdownItem destructive onClick={onDelete}>Delete {itemNoun(issue)}</DropdownItem>
+        {(canMove || canDelete) && (
+          <Dropdown align="right" trigger={<Button variant="ghost" size="icon" aria-label="More actions"><MoreVertical size={15} /></Button>}>
+            {({ close }) => (
+              <>
+                {canMove && (
+                  <DropdownItem onClick={() => { close(); onMove() }}>
+                    <MoveRight size={14} className="mr-2 text-muted-foreground" /> Move…
+                  </DropdownItem>
+                )}
+                {canDelete && (
+                  <DropdownItem destructive onClick={() => { close(); onDelete() }}>Delete {itemNoun(issue)}</DropdownItem>
+                )}
+              </>
+            )}
           </Dropdown>
         )}
       </div>

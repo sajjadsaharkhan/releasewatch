@@ -13,6 +13,7 @@ import { CycleBadge } from '../common/CycleBadge'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
 import { RejectDialog } from './RejectDialog'
+import { placementOf } from './MoveDialog'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
@@ -52,6 +53,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const noun = itemNoun(issue)
   // Whether the Reject dialog is open (09a).
   const [rejecting, setRejecting] = React.useState(false)
+  const place = placementOf(issue)
   const { categories } = useBacklogCategories(issue.project_id)
 
   const ttTriage = issue.time_to_triage_h
@@ -80,7 +82,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
     applyUpdate({ status: newStatus }, `Status set to ${STATUS[newStatus]?.label ?? newStatus}`)
 
   return (
-    <aside className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
+    <aside data-testid="issue-sidebar" className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
         {allowedTransitions.length === 0 ? <StatusBadge status={issue.status} /> : (
         <Dropdown width={190} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
@@ -178,43 +180,44 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </div>
       </MetaRow>
 
-      <MetaRow label="Placement">
-        {issue.status === 'done' ? (
-          // A Done item never changes container (BR-54).
-          <span
-            className="inline-flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-200"
-            title="A Done item stays where it shipped."
-          >
-            <Icon name={CONTAINER_KIND[issue.container_kind ?? 'backlog'].icon} size={14} className="text-zinc-400" />
-            {issue.container_kind === 'stream' ? 'Stream' : issue.release_version || 'Backlog'}
-          </span>
-        ) : (
+      {/* Placement: in a release, move it between releases here; anywhere else
+          it's read-only — Move… in the header's ⋯ menu changes it. */}
+      {place === 'release' && issue.status !== 'done' ? (
+        <MetaRow label="Release">
           <ContainerPicker
             projectId={issue.project_id}
-            value={issue.release_id ?? null}
+            value={issue.release_id}
+            allowBacklog={false}
+            allowStream={false}
             className="h-8 text-[13px]"
             onChange={(id) => {
-              if (id === (issue.release_id ?? null)) return
-              const to = id == null ? 'the backlog' : 'the new container'
-              const dropsBlocker = issue.is_release_blocker
+              if (id == null || id === issue.release_id) return
               onConfirm({
-                title: id == null ? 'Move to the backlog?' : 'Move this ' + noun + '?',
-                body: (
-                  <span>
-                    Move this {noun} to {to}?
-                    {id == null && ' If it\'s still open it keeps its category and rank.'}
-                    {dropsBlocker && ' It stops being a release blocker unless it lands in another release.'}
-                  </span>
-                ),
+                title: `Move this ${noun}?`,
+                body: <span>Move this {noun} to another release?</span>,
                 confirmLabel: `Move ${noun}`,
-                onConfirm: () => applyUpdate({ release_id: id }, id == null ? 'Moved to the backlog' : 'Moved'),
+                onConfirm: () => applyUpdate({ release_id: id }, 'Moved'),
               })
             }}
           />
-        )}
-      </MetaRow>
+        </MetaRow>
+      ) : (
+        <MetaRow label="Placement">
+          <span
+            className="inline-flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-200"
+            title={issue.status === 'done' ? 'A Done item stays where it shipped.' : 'Use Move… in the ⋯ menu to change it.'}
+          >
+            <Icon name={CONTAINER_KIND[issue.container_kind ?? 'backlog'].icon} size={14} className="text-zinc-400" />
+            <span className={cn(place === 'release' && 'font-mono')}>
+              {place === 'stream' ? 'Stream' : place === 'backlog' ? 'Backlog' : issue.release_version}
+            </span>
+            {place === 'stream' && <span className="text-[11px] text-muted-foreground">ships when Done</span>}
+          </span>
+        </MetaRow>
+      )}
 
-      {/* Backlog placement (slice 08): category, and the tech-debt flag on tasks. */}
+      {/* The backlog category means something only in the backlog. */}
+      {place === 'backlog' && (
       <MetaRow label="Category">
         <Editable
           issue={issue}
@@ -248,6 +251,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           </Dropdown>
         </Editable>
       </MetaRow>
+      )}
 
       {!bug && actionState(issue, 'flag_tech_debt').state !== 'hidden' && (
         <MetaRow label="Tech debt">

@@ -25,13 +25,15 @@ function Option({ icon, label, hint }) {
  * `value` is a container id or `null` for the backlog; `onChange` gets the same.
  * A current container that no longer takes items (a released or cancelled
  * release) is still listed so the control can show it. `allowBacklog={false}`
- * drops the backlog option (bulk move: the items are already there).
+ * drops the backlog option (bulk move: the items are already there);
+ * `allowStream={false}` too leaves releases only (the item sidebar, 2026-09-30).
  */
 export function ContainerPicker({
   projectId,
   value,
   onChange,
   allowBacklog = true,
+  allowStream = true,
   disabled = false,
   className,
   placeholder = 'Choose where it goes',
@@ -56,7 +58,7 @@ export function ContainerPicker({
           <Option icon={CONTAINER_KIND.backlog.icon} label="Backlog" hint="not planned yet" />
         </SelectItem>
       )}
-      {streamId != null && (
+      {allowStream && streamId != null && (
         <SelectItem value={String(streamId)}>
           <Option icon={CONTAINER_KIND.stream.icon} label="Stream" hint="ships when Done" />
         </SelectItem>

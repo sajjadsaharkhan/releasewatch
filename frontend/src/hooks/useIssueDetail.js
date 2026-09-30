@@ -182,6 +182,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     }
   }
 
+  // Resolves true when the PATCH succeeded (the Move dialog closes on it).
   const applyUpdate = async (patch, successMsg) => {
     const id = issueIdRef.current
     try {
@@ -197,13 +198,14 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
       if (successMsg) toast({ title: successMsg })
     } catch (err) {
       toast({ title: err.response?.data?.detail || 'Failed to update issue' })
-      return
+      return false
     }
     await fetchTimeline(id)
     // Status, assignee and placement all touch the cycles (08a).
     if (patch.status || 'assignee_id' in patch || 'release_id' in patch) {
       await fetchCycles(id)
     }
+    return true
   }
 
   // After a Reject (09a): the item is Rejected with a new cycle and a reason

@@ -9,6 +9,8 @@ import { IssueHeader } from './IssueHeader'
 import { IssueMainContent } from './IssueMainContent'
 import { IssueSidebar } from './IssueSidebar'
 import { ExportMarkdownModal } from './ExportMarkdownModal'
+import { MoveDialog } from './MoveDialog'
+import { actionState } from '../common/ActionButton'
 import { itemNoun } from '../../lib/constants'
 
 export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, adjacent }) {
@@ -46,6 +48,9 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
   const [pendingChange, setPendingChange] = useState(null)
   const [labelPickerOpen, setLabelPickerOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
+  // Move… in the ⋯ menu: open work, for whoever may edit it. Done items stay put (BR-54).
+  const canMove = localIssue.status !== 'done' && actionState(localIssue, 'edit_item').state === 'allowed'
 
   useEffect(() => {
     if (scrolledRef.current) return
@@ -80,6 +85,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
         adjacent={adjacent}
         onExportMarkdown={() => setExportModalOpen(true)}
         canDelete={canDeleteIssue(currentUser, localIssue)}
+        canMove={canMove}
+        onMove={() => setMoveOpen(true)}
         onDelete={() => confirm({
           title: `Delete ${itemNoun(localIssue)}`,
           body: `This will permanently delete the ${itemNoun(localIssue)} and all its activity. This cannot be undone.`,
@@ -108,6 +115,13 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           timelineLoadingMore={timelineLoadingMore}
           loadMoreTimeline={loadMoreTimeline}
           fetchAttachments={fetchAttachments}
+        />
+
+        <MoveDialog
+          issue={localIssue}
+          open={moveOpen}
+          onClose={() => setMoveOpen(false)}
+          onMove={applyUpdate}
         />
 
         <IssueSidebar
