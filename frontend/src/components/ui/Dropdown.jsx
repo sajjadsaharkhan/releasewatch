@@ -19,7 +19,9 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
     if (!triggerRef.current) return false
     const rect = triggerRef.current.getBoundingClientRect()
     if (rect.bottom < 0 || rect.top > window.innerHeight) return false
-    const dropdownWidth = width || 140
+    // Without a fixed width the menu shrink-wraps its items, so measure it —
+    // assuming a width misaligns right-aligned menus from their trigger.
+    const dropdownWidth = width || dropdownRef.current?.offsetWidth || 140
     const padding = 12
     let left = align === 'right' ? rect.right - dropdownWidth : rect.left
     left = Math.max(padding, Math.min(left, window.innerWidth - dropdownWidth - padding))
@@ -38,7 +40,8 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
   useEffect(() => {
     if (!open) return
     function follow(e) {
-      if (e?.target && dropdownRef.current?.contains(e.target)) return
+      // A resize's target is window, which isn't a Node — contains() would throw.
+      if (e?.target instanceof Node && dropdownRef.current?.contains(e.target)) return
       if (!place()) close()
     }
     window.addEventListener('scroll', follow, true)
@@ -75,6 +78,8 @@ export function Dropdown({ trigger, children, align = 'left', className, width =
         className={cn(
           'fixed z-[100] rounded-lg border border-border bg-card shadow-lg py-1 text-sm',
           position.bottom == null && 'mt-1',
+          // Intrinsic width, so place() measures the same size wherever the menu sits.
+          !width && 'w-max',
           className,
         )}
         style={{ top: position.top, bottom: position.bottom, left: position.left, width: width || undefined }}
