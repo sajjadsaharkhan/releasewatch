@@ -234,6 +234,10 @@ async def test_moving_to_another_project_lands_in_its_default(factories, project
     resp = await admin.patch(f"/issues/{task.id}", json={"project_id": target.id})
     assert resp.status_code == 200, resp.text
     assert resp.json()["backlog_category_id"] == target_default.id
+    # The sidebar renders these, so they must describe the new project, not the old.
+    assert resp.json()["project_id"] == target.id
+    assert resp.json()["project_name"] == target.name
+    assert resp.json()["backlog_category"]["id"] == target_default.id
 
 
 @pytest.mark.asyncio
@@ -247,6 +251,19 @@ async def test_moving_projects_may_pick_a_category_of_the_target(factories, proj
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["backlog_category_id"] == there.id
+
+
+@pytest.mark.asyncio
+async def test_changing_category_returns_the_new_category(factories, project):
+    # The sidebar badge renders the nested object, so it must match the new id.
+    here = await factories.backlog_category(project_id=project.id, name="Here")
+    task = await factories.issue(project_id=project.id, type="task")
+    resp = await factories.admin_client.patch(
+        f"/issues/{task.id}", json={"backlog_category_id": here.id}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["backlog_category_id"] == here.id
+    assert resp.json()["backlog_category"]["name"] == "Here"
 
 
 @pytest.mark.asyncio

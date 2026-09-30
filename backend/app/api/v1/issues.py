@@ -258,13 +258,15 @@ async def _reload_and_enrich(db: AsyncSession, issue_id: int, current_user: User
     Used by every action endpoint (``/triage``, ``/fix``, ``/transition``, …)
     so the response always carries ``allowed_transitions`` for the next click.
     """
+    # populate_existing: the service already loaded this issue into the session,
+    # so without it the relations would be the ones from before the action.
     result = await db.execute(
         select(Issue).options(
             selectinload(Issue.assignee),
             selectinload(Issue.reporter),
             selectinload(Issue.release),
             selectinload(Issue.project),
-        ).where(Issue.id == issue_id)
+        ).where(Issue.id == issue_id).execution_options(populate_existing=True)
     )
     issue = result.scalar_one()
     enriched = await _build_enriched_responses([issue], db, current_user)
@@ -743,13 +745,15 @@ async def update_issue(
     await db.commit()
     from app.tasks.search import embed_issue
     embed_issue.apply_async((issue.id,), countdown=10)
+    # populate_existing: the session keeps objects across commit, so without it the
+    # view-only backlog_category would still be the one loaded before the change.
     result = await db.execute(
         select(Issue).options(
             selectinload(Issue.assignee),
             selectinload(Issue.reporter),
             selectinload(Issue.release),
             selectinload(Issue.project),
-        ).where(Issue.id == issue_id)
+        ).where(Issue.id == issue_id).execution_options(populate_existing=True)
     )
     issue = result.scalar_one()
     enriched = await _build_enriched_responses([issue], db, current_user)
