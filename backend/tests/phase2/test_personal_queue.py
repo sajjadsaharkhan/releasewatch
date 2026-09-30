@@ -662,3 +662,131 @@ async def test_due_job_skips_done_and_unassigned(factories, rig):
     )
     notified = await _run_due(now)
     assert notified == {"due_soon": [], "overdue": []}
+
+
+# ── Round 2 of the My Work page (2026-10-01): card fields, Done range, history filters ─
+
+
+@pytest.mark.asyncio
+async def test_card_carries_release_blocker_and_cycle_count(factories, client_for, rig):
+    admin = factories.admin_client
+    qa_c = await client_for(await factories.user(role="qa"))
+    release = await factories.release(project_id=rig["project"].id)
+    bug = await factories.issue(
+        project_id=rig["project"].id, release_id=release.id, is_release_blocker=True,
+    )
+    resp = await admin.post(
+        f"/issues/{bug.id}/triage",
+        json={"outcome": "accept", "priority": "high", "assignee_id": rig["dev"].id},
+    )
+    assert resp.status_code == 200, resp.text
+    await _transition(admin, bug.id, "in_review")
+    await qa_c.post(f"/issues/{bug.id}/reject", json={"comment": "Nope."})
+
+    card = (await _queue(rig["dev_client"]))["groups"]["rest"][0]["issue"]
+    assert card["is_release_blocker"] is True
+    assert card["cycle_count"] == 2
+    assert card["container"] == {"kind": "release", "name": release.version}
+
+    plain = await _task(factories, rig)
+    rest = (await _queue(rig["dev_client"]))["groups"]["rest"]
+    cards = {e["issue"]["id"]: e["issue"] for e in rest}
+    assert cards[plain.id]["is_release_blocker"] is False
+    assert cards[plain.id]["cycle_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_board_done_column_takes_an_explicit_range(factories, rig, clock):
+    now = datetime(2030, 3, 10, 12, tzinfo=UTC)
+    clock.set(now)
+    items = [await _task(factories, rig) for _ in range(3)]
+    for item in items:
+        await _transition(factories.admin_client, item.id, "done")
+    await _backdate_completed(items[0].id, now - timedelta(days=20))
+    await _backdate_completed(items[1].id, now - timedelta(days=10))
+    await _backdate_completed(items[2].id, now - timedelta(days=1))
+
+    async def done_ids(**params):
+        board = (await rig["dev_client"].get("/users/me/board", params=params)).json()
+        return [i["id"] for c in board["columns"] if c["status"] == "done" for i in c["items"]]
+
+    assert await done_ids() == [items[2].id]
+    window = {
+        "done_from": (now - timedelta(days=15)).isoformat(),
+        "done_to": (now - timedelta(days=5)).isoformat(),
+    }
+    assert await done_ids(**window) == [items[1].id]
+    assert await done_ids(done_from=(now - timedelta(days=30)).isoformat()) == [
+        items[2].id, items[1].id, items[0].id,
+    ]
+
+
+async def _history(client, owner="me", **params):
+    resp = await client.get(f"/users/{owner}/queue/history", params=params)
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+@pytest.fixture
+async def history_rig(factories, client_for, rig):
+    """The owner pins a task, a CTO pins a bug, the owner unpins the task."""
+    cto = await factories.user(role="cto", name="Casey CTO")
+    cto_c = await client_for(cto)
+    task = await _task(factories, rig, title="Refactor the importer")
+    bug = await factories.issue(project_id=rig["project"].id, release_id=rig["stream_id"])
+    await factories.admin_client.post(
+        f"/issues/{bug.id}/triage",
+        json={"outcome": "accept", "priority": "low", "assignee_id": rig["dev"].id},
+    )
+    await _pin(rig["dev_client"], task.id)
+    await _pin(cto_c, bug.id, owner=rig["dev"].id)
+    await _unpin(rig["dev_client"], task.id)
+    return {**rig, "cto": cto, "task": task, "bug": bug}
+
+
+@pytest.mark.asyncio
+async def test_history_filters_by_actor_action_type_and_search(history_rig):
+    dev_c, cto = history_rig["dev_client"], history_rig["cto"]
+    task, bug = history_rig["task"], history_rig["bug"]
+
+    everything = await _history(dev_c)
+    assert everything["total"] == 3
+    assert [h["issue_type"] for h in everything["items"]] == ["task", "bug", "task"]
+
+    by_cto = await _history(dev_c, actor_id=cto.id)
+    assert [(h["action"], h["issue_id"]) for h in by_cto["items"]] == [("pin", bug.id)]
+    assert (await _history(dev_c, not_owner="true"))["total"] == 1
+
+    assert [h["issue_id"] for h in (await _history(dev_c, action="unpin"))["items"]] == [task.id]
+    assert {h["issue_id"] for h in (await _history(dev_c, type="bug"))["items"]} == {bug.id}
+
+    assert (await _history(dev_c, q="importer"))["total"] == 2
+    assert (await _history(dev_c, q=bug.key))["total"] == 1
+    assert (await _history(dev_c, q=f"#{bug.issue_number}"))["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_history_facets_count_before_the_other_filters(history_rig):
+    dev_c, dev, cto = history_rig["dev_client"], history_rig["dev"], history_rig["cto"]
+    facets = (await _history(dev_c, action="pin"))["facets"]
+    assert facets["total"] == 3
+    assert facets["not_owner"] == 1
+    assert facets["actions"] == {"reorder": 0, "pin": 2, "unpin": 1}
+    assert facets["types"] == {"bug": 1, "task": 2}
+    assert {a["actor"]["id"]: a["count"] for a in facets["actors"]} == {dev.id: 2, cto.id: 1}
+
+
+@pytest.mark.asyncio
+async def test_history_date_range(history_rig):
+    dev_c = history_rig["dev_client"]
+    async with get_engine().begin() as conn:
+        await conn.execute(text(
+            "UPDATE queue_history SET created_at = now() - interval '10 days' "
+            "WHERE id = (SELECT min(id) FROM queue_history)"
+        ))
+    since = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+    recent = await _history(dev_c, **{"from": since})
+    assert recent["total"] == 2
+    assert recent["facets"]["total"] == 2
+    old = await _history(dev_c, to=since)
+    assert old["total"] == 1

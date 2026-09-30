@@ -14,7 +14,7 @@ the human actions (``move``, ``pin``, ``unpin``) are (BR-44).
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,6 +33,10 @@ from app.schemas.queue import CardContainer, CardProject, WorkItemCard
 #: New/Needs info (triage) and Cancelled are never queued.
 QUEUE_STATUSES = tuple(s for s in BOARD_STATUSES if s != IssueStatus.done)
 _QUEUE_VALUES = frozenset(s.value for s in QUEUE_STATUSES)
+
+#: Namespace for the per-owner advisory lock (``_lock_queue``) — any constant
+#: unique to queues; the second key is the owner's user id.
+QUEUE_LOCK_NS = 10_010
 
 #: ``due_state == "soon"`` when the due date is at most this many days away.
 DUE_SOON_DAYS = 2
@@ -110,9 +114,11 @@ async def build_cards(
             due_date=issue.due_date,
             due_state=due_state(issue.due_date, now),
             is_tech_debt=issue.is_tech_debt,
+            is_release_blocker=issue.is_release_blocker,
             pinned=bool(entry and entry.is_pinned),
             pin_locked=bool(entry and entry.is_pinned and entry.pin_locked),
             cycle_number=cycle.cycle_number if cycle is not None else None,
+            cycle_count=cycle.cycle_number if cycle is not None else 0,
             reject_reason=_value(cycle.start_reason) if cycle is not None and rejected else None,
             reject_comment_id=cycle.start_comment_id if cycle is not None and rejected else None,
             container=(
@@ -134,6 +140,16 @@ def card_load_options():
     )
 
 
+async def _lock_queue(db: AsyncSession, owner_id: int) -> None:
+    """Serialise every write to one owner's queue until the transaction ends.
+
+    Positions are computed from the neighbours a transaction reads; two
+    concurrent inserts or moves into the same queue would otherwise place
+    items from stale reads (seen with parallel E2E workers).
+    """
+    await db.execute(select(func.pg_advisory_xact_lock(QUEUE_LOCK_NS, owner_id)))
+
+
 class QueueService:
     # ── Keeping queues in step with items ──────────────────────────────────────
 
@@ -153,10 +169,12 @@ class QueueService:
         - Priority changed on an unpinned entry: re-placed by the default rule.
         A reject from To review / In review changes nothing: it never left.
         """
+        owner_id = issue.assignee_id
+        if owner_id is not None:
+            await _lock_queue(db, owner_id)
         entry = (await db.execute(
             select(QueueEntry).where(QueueEntry.issue_id == issue.id)
         )).scalar_one_or_none()
-        owner_id = issue.assignee_id
         current = _value(issue.status)
         live = owner_id is not None and issue.deleted_at is None
 
@@ -276,19 +294,23 @@ class QueueService:
         return await self._active(db, owner.id)
 
     async def board(
-        self, db: AsyncSession, owner: User, *, now: datetime, done_days: int,
+        self, db: AsyncSession, owner: User, *, done_from: datetime, done_to: datetime | None,
     ) -> list[tuple[str, list[Issue], dict[int, QueueEntry]]]:
         """One group per board status. Open columns follow queue order (AC-41);
-        Done lists the owner's items completed within ``done_days``, newest first."""
+        Done lists the owner's items completed in ``[done_from, done_to]``, newest first."""
         active = await self._active(db, owner.id)
         entries = {i.id: e for e, i in active}
+        done_q = select(Issue).where(
+            Issue.assignee_id == owner.id,
+            Issue.deleted_at.is_(None),
+            Issue.status == IssueStatus.done.value,
+            Issue.completed_at >= done_from,
+        )
+        if done_to is not None:
+            done_q = done_q.where(Issue.completed_at <= done_to)
         done = (await db.execute(
-            select(Issue).where(
-                Issue.assignee_id == owner.id,
-                Issue.deleted_at.is_(None),
-                Issue.status == IssueStatus.done.value,
-                Issue.completed_at >= now - timedelta(days=done_days),
-            ).options(*card_load_options()).order_by(Issue.completed_at.desc(), Issue.id.desc())
+            done_q.options(*card_load_options())
+            .order_by(Issue.completed_at.desc(), Issue.id.desc())
         )).scalars().all()
         columns = []
         for s in BOARD_STATUSES:
@@ -301,17 +323,83 @@ class QueueService:
 
     async def history(
         self, db: AsyncSession, owner: User, *, page: int, size: int,
-    ) -> tuple[list[QueueHistory], int]:
+        since: datetime | None = None, until: datetime | None = None,
+        actor_id: int | None = None, not_owner: bool = False,
+        action: str | None = None, item_type: str | None = None, q: str | None = None,
+    ) -> tuple[list[QueueHistory], int, dict]:
+        """The owner's queue history, newest first, filtered — plus facet
+        counts over the date range and search only, so every filter option can
+        say how many changes it would show."""
+        base = (
+            select(QueueHistory)
+            .outerjoin(Issue, Issue.id == QueueHistory.issue_id)
+            .where(QueueHistory.user_id == owner.id)
+        )
+        if since is not None:
+            base = base.where(QueueHistory.created_at >= since)
+        if until is not None:
+            base = base.where(QueueHistory.created_at <= until)
+        if q and q.strip():
+            needle = q.strip().lstrip("#")
+            clauses = [Issue.title.ilike(f"%{needle}%")]
+            key = needle.upper().replace("BUG-", "").replace("TASK-", "")
+            if key.isdigit():
+                clauses += [Issue.issue_number == int(key), Issue.id == int(key)]
+            base = base.where(or_(*clauses))
+
+        facets = await self._history_facets(db, owner, base)
+
+        filtered = base
+        if actor_id is not None:
+            filtered = filtered.where(QueueHistory.actor_id == actor_id)
+        if not_owner:
+            filtered = filtered.where(QueueHistory.actor_id != owner.id)
+        if action:
+            filtered = filtered.where(QueueHistory.action == action)
+        if item_type:
+            filtered = filtered.where(Issue.type == item_type)
+
         total = (await db.execute(
-            select(func.count(QueueHistory.id)).where(QueueHistory.user_id == owner.id)
+            select(func.count()).select_from(filtered.subquery())
         )).scalar_one()
         rows = (await db.execute(
-            select(QueueHistory).where(QueueHistory.user_id == owner.id)
-            .options(selectinload(QueueHistory.actor), selectinload(QueueHistory.issue))
+            filtered.options(selectinload(QueueHistory.actor), selectinload(QueueHistory.issue))
             .order_by(QueueHistory.created_at.desc(), QueueHistory.id.desc())
             .offset((page - 1) * size).limit(size)
         )).scalars().all()
-        return list(rows), total
+        return list(rows), total, facets
+
+    @staticmethod
+    async def _history_facets(db: AsyncSession, owner: User, base) -> dict:
+        sub = base.with_only_columns(
+            QueueHistory.actor_id, QueueHistory.action, Issue.type,
+        ).subquery()
+        rows = (await db.execute(select(sub.c.actor_id, sub.c.action, sub.c.type))).all()
+        actions = {a.value: 0 for a in QueueAction}
+        types = {"bug": 0, "task": 0}
+        by_actor: dict[int, int] = {}
+        for actor_id, action, item_type in rows:
+            actions[_value(action)] = actions.get(_value(action), 0) + 1
+            if item_type is not None:
+                types[_value(item_type)] = types.get(_value(item_type), 0) + 1
+            if actor_id is not None:
+                by_actor[actor_id] = by_actor.get(actor_id, 0) + 1
+        users = {}
+        if by_actor:
+            users = {u.id: u for u in (await db.execute(
+                select(User).where(User.id.in_(by_actor))
+            )).scalars().all()}
+        return {
+            "total": len(rows),
+            "not_owner": sum(n for a, n in by_actor.items() if a != owner.id),
+            "actions": actions,
+            "types": types,
+            "actors": [
+                {"actor": UserSummary.model_validate(users[a]), "count": n}
+                for a, n in sorted(by_actor.items(), key=lambda kv: (-kv[1], kv[0]))
+                if a in users
+            ],
+        }
 
     # ── Human actions (recorded in queue history) ─────────────────────────────
 
@@ -320,6 +408,7 @@ class QueueService:
         *, before_id: int | None, after_id: int | None,
     ) -> None:
         """Drag within a group (FR-38). Refuses a cross-group move (``queue_group_boundary``)."""
+        await _lock_queue(db, owner.id)
         active = await self._active(db, owner.id)
         items = [_item(e, i) for e, i in active]
         try:
@@ -336,6 +425,7 @@ class QueueService:
     async def pin(self, db: AsyncSession, owner: User, actor: User, issue_id: int) -> None:
         """Pin to the end of the pin group (FR-40). A CTO or Admin pinning
         someone else's queue locks the pin (BR-41)."""
+        await _lock_queue(db, owner.id)
         entry, issue = await self._entry_or_404(db, owner.id, issue_id)
         if entry.is_pinned:
             return
@@ -357,6 +447,7 @@ class QueueService:
 
     async def unpin(self, db: AsyncSession, owner: User, actor: User, issue_id: int) -> None:
         """Unpin and re-place by the default rule. The owner can't remove a locked pin (BR-41)."""
+        await _lock_queue(db, owner.id)
         entry, issue = await self._entry_or_404(db, owner.id, issue_id)
         if not entry.is_pinned:
             raise DomainError(status.HTTP_409_CONFLICT, "That item isn't pinned.", "not_pinned")

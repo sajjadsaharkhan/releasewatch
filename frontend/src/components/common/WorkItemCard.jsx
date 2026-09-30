@@ -258,11 +258,8 @@ function useHoverDetails() {
   return { open, pos, ref, show, hide, close, keep: () => clearTimeout(timer.current) }
 }
 
-/**
- * `layout`: `card` (boards) or `row` (the queue list). `dragging` suppresses
- * the hover details. `trailing` renders at the row's end (e.g. the pin toggle).
- */
-export function WorkItemCard({ item: raw, onOpen, layout = 'card', dragging = false, trailing = null, className, buttonProps = {} }) {
+/** A board card. `dragging` suppresses the hover details. */
+export function WorkItemCard({ item: raw, onOpen, dragging = false, className, buttonProps = {} }) {
   const item = normalize(raw)
   const hover = useHoverDetails()
   useEffect(() => { if (dragging) hover.close() }, [dragging]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -283,38 +280,6 @@ export function WorkItemCard({ item: raw, onOpen, layout = 'card', dragging = fa
 
   const open = () => { hover.close(); onOpen?.(raw) }
   const label = `${item.key} ${item.title}`
-
-  if (layout === 'row') {
-    return (
-      <div
-        ref={hover.ref}
-        onMouseEnter={hover.show}
-        onMouseLeave={hover.hide}
-        className={cn('flex min-w-0 flex-1 items-center gap-3', className)}
-        data-testid="work-item"
-        data-item-id={item.id}
-      >
-        <button
-          type="button"
-          onClick={open}
-          onFocus={hover.show}
-          onBlur={hover.hide}
-          aria-label={label}
-          className="min-w-0 flex-1 truncate rounded text-left text-[13px] font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          {...buttonProps}
-        >
-          {item.title}
-        </button>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <Markers item={item} />
-        </span>
-        <ProjectChip project={item.project} className="hidden w-28 shrink-0 sm:inline-flex" />
-        <PriorityGlyph priority={item.priority} />
-        {trailing}
-        {details}
-      </div>
-    )
-  }
 
   return (
     <div

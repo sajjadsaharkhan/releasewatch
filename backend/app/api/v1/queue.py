@@ -1,18 +1,20 @@
 """Personal queue and board endpoints (slice 10, FR-33–FR-41).
 
 GET    /users/{id}/queue                 — pinned + rest, with what the viewer may do
-GET    /users/{id}/board?done_days=7     — one group per board status, in queue order
+GET    /users/{id}/board?done_from=&done_to= — one group per board status, in queue order
 POST   /users/{id}/queue/move            — drag within a group
 POST   /users/{id}/queue/pins            — pin
 DELETE /users/{id}/queue/pins/{issue_id} — unpin
-GET    /users/{id}/queue/history?page=   — reorders, pins, unpins (append-only)
+GET    /users/{id}/queue/history?from=&to=&actor_id=&not_owner=&action=&type=&q=&page=
+                                         — reorders, pins, unpins (append-only), with facet counts
 
 ``{id}`` is a user id or ``me``. Policy: the owner, a CTO and an Admin
 (``view_queue``, ``reorder_queue``, ``pin``). Ordering lives in
 ``QueueService`` and ``app/queue_order.py``; these routes authorize and shape.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import policy
 from app.core.auth import get_current_user
 from app.core.clock import get_now
-from app.db.models.issue import issue_key
+from app.db.models.issue import IssueType, issue_key
 from app.db.models.user import User
 from app.db.session import get_db
 from app.policy import Action, Target
@@ -41,6 +43,9 @@ from app.services.authz import actor_of, authorize
 from app.services.queue_service import build_cards, queue_service
 
 router = APIRouter()
+
+#: The Done column's default window (AC-42), as on the Stream board.
+DEFAULT_DONE_DAYS = 7
 
 
 async def _owner(db: AsyncSession, user_ref: str, viewer: User, action: Action) -> User:
@@ -103,21 +108,27 @@ async def _queue_response(
 )
 async def get_board(
     user_ref: str,
-    done_days: int = Query(7, ge=1, le=90),
+    done_days: int = Query(DEFAULT_DONE_DAYS, ge=1, le=3650),
+    done_from: datetime | None = Query(None),
+    done_to: datetime | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     now: datetime = Depends(get_now),
 ) -> PersonalBoardResponse:
-    """Open columns follow queue order (AC-41); Done shows the last ``done_days`` (AC-42)."""
+    """Open columns follow queue order (AC-41). Done shows items completed in
+    ``[done_from, done_to]``, or the last ``done_days`` (default 7, AC-42)."""
     owner = await _owner(db, user_ref, current_user, Action.view_queue)
-    columns = await queue_service.board(db, owner, now=now, done_days=done_days)
+    if done_from is None:
+        done_from, done_to = now - timedelta(days=done_days), None
+    columns = await queue_service.board(db, owner, done_from=done_from, done_to=done_to)
     return PersonalBoardResponse(
         owner=UserSummary.model_validate(owner),
         columns=[
             BoardColumnOut(status=col, items=await build_cards(db, issues, now, entries))
             for col, issues, entries in columns
         ],
-        done_days=done_days,
+        done_from=done_from,
+        done_to=done_to,
     )
 
 
@@ -174,11 +185,22 @@ async def history(
     user_ref: str,
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
+    since: datetime | None = Query(None, alias="from"),
+    until: datetime | None = Query(None, alias="to"),
+    actor_id: int | None = Query(None),
+    not_owner: bool = Query(False),
+    action: Literal["reorder", "pin", "unpin"] | None = Query(None),
+    item_type: IssueType | None = Query(None, alias="type"),
+    q: str | None = Query(None, max_length=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> QueueHistoryResponse:
     owner = await _owner(db, user_ref, current_user, Action.view_queue)
-    rows, total = await queue_service.history(db, owner, page=page, size=size)
+    rows, total, facets = await queue_service.history(
+        db, owner, page=page, size=size, since=since, until=until, actor_id=actor_id,
+        not_owner=not_owner, action=action,
+        item_type=item_type.value if item_type else None, q=q,
+    )
     return QueueHistoryResponse(
         items=[
             QueueHistoryItem(
@@ -188,11 +210,12 @@ async def history(
                 issue_id=r.issue_id,
                 issue_key=issue_key(r.issue.type, r.issue.issue_number) if r.issue else None,
                 issue_title=r.issue.title if r.issue else None,
+                issue_type=getattr(r.issue.type, "value", r.issue.type) if r.issue else None,
                 old_index=r.old_index,
                 new_index=r.new_index,
                 created_at=r.created_at,
             )
             for r in rows
         ],
-        total=total, page=page, size=size,
+        total=total, page=page, size=size, facets=facets,
     )

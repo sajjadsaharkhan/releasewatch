@@ -44,10 +44,13 @@ class WorkItemCard(BaseModel):
     #: ``none`` | ``soon`` (due within 2 days) | ``overdue`` — computed server-side.
     due_state: Literal["none", "soon", "overdue"] = "none"
     is_tech_debt: bool = False
+    is_release_blocker: bool = False
     pinned: bool = False
     pin_locked: bool = False
     #: The current cycle's number — the cycle badge shows from 2 (09a).
     cycle_number: int | None = None
+    #: How many cycles the item has had in its placement (0 in the backlog).
+    cycle_count: int = 0
     #: While Rejected: ``review`` | ``release_qa`` | ``production`` (09a).
     reject_reason: str | None = None
     #: The Reject comment, fetched lazily on hover (``GET /issues/{id}/timeline/{event_id}``).
@@ -97,7 +100,9 @@ class BoardColumnOut(BaseModel):
 class PersonalBoardResponse(BaseModel):
     owner: UserSummary
     columns: list[BoardColumnOut]
-    done_days: int
+    #: The Done column's window — ``done_from``/``done_to`` when given, else the last 7 days.
+    done_from: datetime
+    done_to: datetime | None = None
 
 
 class QueueMoveRequest(BaseModel):
@@ -117,9 +122,26 @@ class QueueHistoryItem(BaseModel):
     issue_id: int | None = None
     issue_key: str | None = None
     issue_title: str | None = None
+    issue_type: str | None = None
     old_index: int | None = None
     new_index: int | None = None
     created_at: datetime
+
+
+class HistoryActorCount(BaseModel):
+    actor: UserSummary
+    count: int
+
+
+class QueueHistoryFacets(BaseModel):
+    """Counts within the date range (and search), before the other filters —
+    what each filter option would show."""
+
+    total: int
+    not_owner: int
+    actions: dict[str, int]
+    types: dict[str, int]
+    actors: list[HistoryActorCount]
 
 
 class QueueHistoryResponse(BaseModel):
@@ -127,3 +149,4 @@ class QueueHistoryResponse(BaseModel):
     total: int
     page: int
     size: int
+    facets: QueueHistoryFacets

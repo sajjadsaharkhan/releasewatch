@@ -1,54 +1,50 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import {
-  DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
-} from '@dnd-kit/core'
-import {
-  SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { cn } from '../lib/cn'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { issuesApi, queueApi, userApi } from '../lib/api'
 import { issueSlug } from '../lib/issueSlug'
-import { relTime, fullTime } from '../lib/relTime'
+import { PRIORITY } from '../lib/constants'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
-import { Avatar } from '../components/ui/Avatar'
-import { Button } from '../components/ui/Button'
-import { Empty } from '../components/ui/Empty'
-import { Icon } from '../components/ui/Icon'
-import { Segmented } from '../components/ui/Segmented'
-import { Sheet } from '../components/ui/Sheet'
-import { Tooltip } from '../components/ui/Tooltip'
-import { StatusBadge } from '../components/ui/Badge'
-import { IssueHoverCard } from '../components/common/IssueHoverCard'
+import { Button, Empty, Icon, Segmented, Tabs } from '../components/ui'
 import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
-import { WorkItemCard } from '../components/common/WorkItemCard'
+import {
+  DoneRangePicker, doneRangeLabel, doneRangeToApi, readDoneRange, writeDoneRange,
+} from '../components/common/DoneRangePicker'
+import { PinSlots, QueueItemRow, SortableQueue, groupByDay } from '../components/queue'
 
-// My Work (slice 10, FR-33–FR-42): one person's queue across every project —
-// In progress, then Pinned (≤ 4), then the rest in manual order — as a list or
-// a Kanban. The owner, a CTO and an Admin can reorder and pin; everyone else
-// never gets here (the API says 403). `/my-work` is your own; CTO and Admin
-// open anyone's at `/u/:username/work`.
+// My Work (slice 10; redesigned 2026-10-01 from prototype variant D): one
+// person's queue across every project. Tabs filter it — All, In progress,
+// Overdue, Blockers, Done — and a List | Board switch shows it as rows or as
+// the project boards' columns. Pinned rows sit on top under "Pinned · n of 4".
+// The owner, a CTO and an Admin can reorder, pin and change priority; the API
+// refuses everyone else. `/my-work` is your own; CTO and Admin open anyone's
+// at `/u/:username/work`. State lives in the URL: `?tab=`, `?view=board`, and
+// the Done range (`?done=30d` or `?done_from=&done_to=`, default 7 days).
 
-const VIEW_KEY = 'rw:my-work-view'
+const VIEW_OPTIONS = [
+  { value: 'list', label: 'List' },
+  { value: 'board', label: 'Board' },
+]
 
-function readView(userId) {
-  try { return localStorage.getItem(`${VIEW_KEY}:${userId}`) === 'kanban' ? 'kanban' : 'list' } catch { return 'list' }
+const TAB_FILTERS = {
+  all: () => true,
+  in_progress: (i) => i.status === 'in_progress',
+  overdue: (i) => i.due_state === 'overdue',
+  blockers: (i) => i.is_release_blocker,
 }
 
-function writeView(userId, view) {
-  try { localStorage.setItem(`${VIEW_KEY}:${userId}`, view) } catch { /* private window — UI preference only */ }
+const EMPTY_TAB = {
+  in_progress: 'Nothing in progress.',
+  overdue: 'Nothing overdue.',
+  blockers: 'No release blockers.',
 }
 
 function errorDetail(err, fallback) {
   return err?.response?.data?.detail || fallback
 }
 
-// ─── Owner ───────────────────────────────────────────────────────────────────
-
 /** `me` on /my-work; the profile's id on /u/:username/work (yourself → `me`). */
-function useOwner(username, me) {
+export function useQueueOwner(username, me) {
   const [state, setState] = useState({ ref: username ? null : 'me', user: username ? null : me, error: null })
   useEffect(() => {
     if (!username || username === me?.username) {
@@ -63,364 +59,244 @@ function useOwner(username, me) {
   return state
 }
 
-// ─── List view ───────────────────────────────────────────────────────────────
-
-function PinToggle({ entry, queue, isOwner, onPin, onUnpin, busy }) {
-  const { can_pin: canPin, pins_used: used, pin_limit: limit } = queue
-  if (!canPin) return <span className="w-8 shrink-0" />
-  const title = entry.issue.title
-  if (entry.pinned) {
-    const locked = entry.pin_locked && isOwner
-    const reason = locked
-      ? `${entry.pinned_by?.name ?? 'A CTO or Admin'} pinned this — only a CTO or Admin can unpin it.`
-      : 'Unpin'
-    return (
-      <Tooltip content={reason}>
-        <span className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={locked ? 0 : undefined} data-testid="pin-toggle-wrapper">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            disabled={locked || busy}
-            onClick={() => onUnpin(entry)}
-            aria-label={locked ? `${title} — locked pin` : `Unpin ${title}`}
-            aria-pressed="true"
-            className="text-primary"
-            data-testid="unpin"
-          >
-            <Icon name={locked ? 'lock' : 'pin-off'} size={14} aria-hidden="true" />
-          </Button>
-        </span>
-      </Tooltip>
-    )
-  }
-  const full = used >= limit
-  return (
-    <Tooltip content={full ? `This queue already has ${limit} pins — unpin one first.` : 'Pin to the top'}>
-      <span className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={full ? 0 : undefined}>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          disabled={full || busy}
-          onClick={() => onPin(entry)}
-          aria-label={`Pin ${title}`}
-          aria-pressed="false"
-          className="text-muted-foreground"
-          data-testid="pin"
-        >
-          <Icon name="pin" size={14} aria-hidden="true" />
-        </Button>
-      </span>
-    </Tooltip>
-  )
+function flatten(queue) {
+  return [...queue.groups.pinned, ...queue.groups.rest].map((e) => ({
+    ...e.issue, pinned: e.pinned, pin_locked: e.pin_locked, pinned_by: e.pinned_by,
+  }))
 }
 
-function QueueRow({ entry, index, sortable, onOpen, toggle }) {
-  const {
-    attributes, listeners, setNodeRef, transform, transition, isDragging,
-  } = useSortable({ id: entry.issue.id, disabled: !sortable })
-  return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(
-        'flex items-center gap-2 px-3 py-2 bg-card',
-        isDragging && 'relative z-10 shadow-lg ring-1 ring-border rounded-md',
-      )}
-      data-testid="queue-row"
-      data-item-id={entry.issue.id}
-    >
-      {sortable ? (
-        <button
-          type="button"
-          className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-zinc-400 hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-none"
-          aria-label={`Reorder ${entry.issue.title}`}
-          {...attributes}
-          {...listeners}
-        >
-          <Icon name="grip-vertical" size={14} aria-hidden="true" />
-        </button>
-      ) : <span className="w-5 shrink-0" />}
-      <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{index}</span>
-      <WorkItemCard item={entry.issue} onOpen={onOpen} layout="row" dragging={isDragging} />
-      <StatusBadge status={entry.issue.status} className="hidden md:inline-flex" />
-      {toggle}
-    </li>
-  )
+function optimisticMove(queue, id, { beforeId, afterId }) {
+  if (!queue) return queue
+  const group = queue.groups.pinned.some((e) => e.issue.id === id) ? 'pinned' : 'rest'
+  const list = queue.groups[group]
+  const anchor = beforeId ?? afterId
+  if (!list.some((e) => e.issue.id === anchor)) return queue // across the pin line — the API refuses
+  const moving = list.find((e) => e.issue.id === id)
+  const others = list.filter((e) => e.issue.id !== id)
+  const at = others.findIndex((e) => e.issue.id === anchor) + (afterId != null ? 1 : 0)
+  return { ...queue, groups: { ...queue.groups, [group]: [...others.slice(0, at), moving, ...others.slice(at)] } }
 }
 
-function Section({ id, title, icon, hint, count, children, empty }) {
-  return (
-    <section aria-labelledby={`${id}-title`} className="space-y-2" data-testid={`section-${id}`}>
-      <div className="flex items-center gap-2 px-1">
-        <Icon name={icon} size={14} className="text-muted-foreground" aria-hidden="true" />
-        <h2 id={`${id}-title`} className="text-[13px] font-semibold">{title}</h2>
-        <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{count}</span>
-        {hint && <span className="text-[11.5px] text-muted-foreground">{hint}</span>}
-      </div>
-      {count === 0 && empty
-        ? <p className="rounded-lg border border-dashed border-border px-4 py-3 text-[12px] text-muted-foreground">{empty}</p>
-        : <ol className="divide-y divide-border overflow-hidden rounded-lg border border-border">{children}</ol>}
-    </section>
-  )
-}
+// ─── Data: the queue, the board (Done + the Board view), and the actions ─────
 
-function QueueList({ queue, ownerRef, isOwner, onChange, onOpen }) {
+function useMyWork(ownerRef, doneRange) {
   const { toast } = useToast()
+  const [queue, setQueue] = useState(null)
+  const [board, setBoard] = useState(null)
+  const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const rangeKey = JSON.stringify(doneRange)
+  const doneParams = useMemo(() => doneRangeToApi(doneRange), [rangeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // In progress first (FR-34); Pinned and Queue hold everything else, in queue order.
-  const all = [...queue.groups.pinned, ...queue.groups.rest]
-  const indexOf = new Map(all.map((e, i) => [e.issue.id, i + 1]))
-  const inProgress = all.filter((e) => e.issue.status === 'in_progress')
-  const pinned = queue.groups.pinned.filter((e) => e.issue.status !== 'in_progress')
-  const rest = queue.groups.rest.filter((e) => e.issue.status !== 'in_progress')
-  const sortable = queue.can_reorder
+  const loadQueue = useCallback(async () => {
+    if (ownerRef == null) return null
+    try {
+      const res = await queueApi.get(ownerRef)
+      setQueue(res.data)
+      setError(null)
+      return res.data
+    } catch (err) {
+      setError(err.response?.status === 403
+        ? 'Only the owner, a CTO or an Admin can see this queue.'
+        : errorDetail(err, 'Could not load the queue.'))
+      return null
+    }
+  }, [ownerRef])
 
-  const run = async (call, fallback) => {
+  const loadBoard = useCallback(async () => {
+    if (ownerRef == null) return
+    try {
+      const res = await queueApi.board(ownerRef, doneParams)
+      setBoard(res.data)
+    } catch {
+      setBoard({ columns: [] })
+    }
+  }, [ownerRef, doneParams])
+
+  useEffect(() => { setQueue(null); loadQueue() }, [loadQueue])
+  useEffect(() => { setBoard(null); loadBoard() }, [loadBoard])
+
+  const run = async (call, fail, success) => {
     setBusy(true)
     try {
       const res = await call()
-      onChange(res.data)
+      if (res?.data?.groups) setQueue(res.data)
+      if (success) toast({ title: success })
+      return true
     } catch (err) {
-      toast.error(errorDetail(err, fallback))
+      toast.error(errorDetail(err, fail))
+      await loadQueue()
+      return false
     } finally {
       setBusy(false)
+      loadBoard()
     }
   }
 
-  const handleDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return
-    const pinnedIds = pinned.map((e) => e.issue.id)
-    const restIds = rest.map((e) => e.issue.id)
-    const from = pinnedIds.includes(active.id) ? pinnedIds : restIds
-    const to = pinnedIds.includes(over.id) ? pinnedIds : restIds
-    if (from !== to) {
-      // Across the pin boundary — the server explains why not (queue_group_boundary).
-      run(() => queueApi.move(ownerRef, { issueId: active.id, beforeId: over.id }), 'Could not move that item.')
-      return
-    }
-    const oldIndex = from.indexOf(active.id)
-    const newIndex = from.indexOf(over.id)
-    const anchor = newIndex > oldIndex ? { afterId: over.id } : { beforeId: over.id }
-    // Optimistic: the row lands, then the server's order replaces it.
-    const moved = arrayMove(from, oldIndex, newIndex)
-    const group = from === pinnedIds ? 'pinned' : 'rest'
-    const byId = new Map(queue.groups[group].map((e) => [e.issue.id, e]))
-    const others = queue.groups[group].filter((e) => !from.includes(e.issue.id))
-    onChange({ ...queue, groups: { ...queue.groups, [group]: [...moved.map((id) => byId.get(id)), ...others] } })
-    run(() => queueApi.move(ownerRef, { issueId: active.id, ...anchor }), 'Could not reorder the queue.')
+  const actions = {
+    pin: (i) => run(() => queueApi.pin(ownerRef, i.id), 'Could not pin that item.', `Pinned ${i.key}`),
+    unpin: (i) => run(() => queueApi.unpin(ownerRef, i.id), 'Could not unpin that item.', `Unpinned ${i.key}`),
+    move: (id, anchor) => {
+      setQueue((q) => optimisticMove(q, id, anchor))
+      return run(() => queueApi.move(ownerRef, { issueId: id, ...anchor }), 'Could not reorder the queue.')
+    },
+    setPriority: async (item, priority) => {
+      if (priority === item.priority) return
+      const before = flatten(queue).findIndex((i) => i.id === item.id) + 1
+      const ok = await run(() => issuesApi.update(item.id, { priority }), 'Could not change the priority.')
+      if (!ok) return
+      const after = await loadQueue()
+      if (!after) return
+      const list = flatten(after)
+      const now = list.findIndex((i) => i.id === item.id) + 1
+      toast({
+        title: `${item.key} is ${PRIORITY[priority].label} now`,
+        body: list[now - 1]?.pinned ? 'It stays pinned where it is.'
+          : now === before ? 'Its place in the queue is unchanged.'
+            : `The default rule moved it from #${before} to #${now}.`,
+      })
+    },
+    transition: async (issue, to) => {
+      try {
+        await issuesApi.transition(issue.id, { to })
+      } catch (err) {
+        toast.error(errorDetail(err, `Could not move ${issue.key ?? 'that item'}`))
+      }
+      await Promise.all([loadQueue(), loadBoard()])
+    },
   }
 
-  const toggle = (entry) => (
-    <PinToggle
-      entry={entry}
-      queue={queue}
-      isOwner={isOwner}
-      busy={busy}
-      onPin={(e) => run(() => queueApi.pin(ownerRef, e.issue.id), 'Could not pin that item.')}
-      onUnpin={(e) => run(() => queueApi.unpin(ownerRef, e.issue.id), 'Could not unpin that item.')}
-    />
-  )
+  return { queue, board, error, busy, actions, reload: loadQueue }
+}
 
-  const rows = (entries, canSort) => entries.map((entry) => (
-    <QueueRow
-      key={entry.issue.id}
-      entry={entry}
-      index={indexOf.get(entry.issue.id)}
-      sortable={canSort}
-      onOpen={onOpen}
-      toggle={toggle(entry)}
-    />
-  ))
+// ─── Pieces ──────────────────────────────────────────────────────────────────
 
+function SectionLabel({ icon, children, right }) {
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-7 py-5">
-      {inProgress.length > 0 && (
-        <Section id="in-progress" title="In progress" icon="loader" count={inProgress.length}>
-          {rows(inProgress, false)}
-        </Section>
-      )}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <Section
-          id="pinned"
-          title="Pinned"
-          icon="pin"
-          count={pinned.length}
-          hint={`${queue.pins_used} of ${queue.pin_limit} pins · always on top`}
-          empty={queue.can_pin ? `Pin up to ${queue.pin_limit} items to keep them on top, whatever arrives.` : 'Nothing pinned.'}
-        >
-          <SortableContext items={pinned.map((e) => e.issue.id)} strategy={verticalListSortingStrategy}>
-            {rows(pinned, sortable)}
-          </SortableContext>
-        </Section>
-        <Section
-          id="queue"
-          title="Queue"
-          icon="list-ordered"
-          count={rest.length}
-          hint={sortable ? 'Drag to reorder · new work is placed by priority, due date, reports, then age' : null}
-          empty="Nothing else queued."
-        >
-          <SortableContext items={rest.map((e) => e.issue.id)} strategy={verticalListSortingStrategy}>
-            {rows(rest, sortable)}
-          </SortableContext>
-        </Section>
-      </DndContext>
+    <div className="mb-2 flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <Icon name={icon} size={12} aria-hidden="true" />{children}
+      <span className="h-px flex-1 bg-border" />{right}
     </div>
   )
 }
 
 function ListSkeleton() {
-  const pulse = 'animate-pulse rounded bg-zinc-200 dark:bg-zinc-700'
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-7 py-5" aria-hidden="true">
-      {[2, 5].map((n, s) => (
-        <div key={s} className="space-y-2">
-          <div className={`h-4 w-24 ${pulse}`} />
-          <div className="divide-y divide-border rounded-lg border border-border">
-            {Array.from({ length: n }, (_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-3">
-                <div className={`h-3 flex-1 ${pulse}`} />
-                <div className={`h-3 w-20 ${pulse}`} />
-                <div className={`h-3 w-4 ${pulse}`} />
-              </div>
-            ))}
+    <div className="space-y-2 px-7 pt-4" aria-hidden="true">
+      {[0, 1, 2, 3].map((n) => (
+        <div key={n} className="flex items-center gap-3 rounded-xl border border-border px-3 py-3.5">
+          <div className="h-6 w-6 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3.5 w-2/5 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-3 w-3/5 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
           </div>
+          <div className="h-6 w-20 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
         </div>
       ))}
     </div>
   )
 }
 
-// ─── Kanban view ─────────────────────────────────────────────────────────────
+function QueueList({ items, queue, tab, isOwner, busy, actions, onOpen }) {
+  const shown = items.filter(TAB_FILTERS[tab] ?? TAB_FILTERS.all)
+  const sortable = queue.can_reorder && tab === 'all'
+  const positions = new Map(items.map((i, n) => [i.id, n + 1]))
+  const pinned = shown.filter((i) => i.pinned)
+  const rest = shown.filter((i) => !i.pinned)
+  const pin = {
+    canPin: queue.can_pin, pinsUsed: queue.pins_used, pinLimit: queue.pin_limit, isOwner, busy,
+    onPin: actions.pin, onUnpin: actions.unpin,
+  }
+  const row = (i) => (
+    <QueueItemRow
+      key={i.id} item={i} position={positions.get(i.id)} sortable={sortable} onOpen={onOpen}
+      onPriority={queue.can_reorder ? actions.setPriority : null} pin={pin}
+    />
+  )
 
-function QueueBoard({ ownerRef, onOpen, refreshKey }) {
-  const { toast } = useToast()
-  const [items, setItems] = useState(null)
-  const [error, setError] = useState(null)
-
-  const load = useCallback(() => {
-    setError(null)
-    return queueApi.board(ownerRef)
-      .then((res) => setItems(res.data.columns.flatMap((c) => c.items)))
-      .catch((err) => setError(errorDetail(err, 'Could not load the board.')))
-  }, [ownerRef])
-
-  useEffect(() => { load() }, [load, refreshKey])
-
-  // Dragging between columns is a status change; order within a column is the
-  // queue's — reorder in the list view (AC-41 holds by construction).
-  const move = useCallback(async (issue, to) => {
-    setItems((prev) => prev.map((i) => (i.id === issue.id ? { ...i, status: to } : i)))
-    try {
-      await issuesApi.transition(issue.id, { to })
-    } catch (err) {
-      toast.error(errorDetail(err, `Could not move ${issue.key ?? 'that item'}`))
-    } finally {
-      load()
-    }
-  }, [load, toast])
-
-  if (error) {
+  if (shown.length === 0) {
     return (
-      <div role="alert" className="py-16 text-center text-sm text-muted-foreground">
-        {error}
-        <Button variant="outline" size="sm" className="ml-3" onClick={load}>Retry</Button>
-      </div>
+      <p className="mx-7 mt-4 rounded-xl border border-dashed border-border px-4 py-10 text-center text-[13px] text-muted-foreground">
+        {EMPTY_TAB[tab] ?? 'Nothing here.'}
+      </p>
     )
   }
-  if (!items) return <IssueBoardSkeleton />
   return (
-    <div className="overflow-x-auto scrollbar-thin">
-      <IssueBoard
-        issues={items}
-        onOpen={onOpen}
-        onStatusChange={move}
-        emptyText={{ done: 'Nothing done in the last 7 days' }}
-      />
+    <div className="px-7 pb-24 pt-4">
+      {tab !== 'all' && (
+        <p className="mb-3 text-[12px] text-muted-foreground">Showing a filter — switch to All to reorder.</p>
+      )}
+      <SortableQueue items={shown} enabled={sortable} onMove={actions.move}>
+        {pinned.length > 0 && (
+          <section aria-label="Pinned" data-testid="section-pinned">
+            <SectionLabel icon="pin" right={<PinSlots used={queue.pins_used} limit={queue.pin_limit} />}>
+              Pinned · {queue.pins_used} of {queue.pin_limit}
+            </SectionLabel>
+            <ol className="mb-5 space-y-2">{pinned.map(row)}</ol>
+          </section>
+        )}
+        <section aria-label="Queue" data-testid="section-queue">
+          {pinned.length > 0 && rest.length > 0 && <SectionLabel icon="list-ordered">Queue</SectionLabel>}
+          <ol className="space-y-2">{rest.map(row)}</ol>
+        </section>
+      </SortableQueue>
     </div>
   )
 }
 
-// ─── History drawer ──────────────────────────────────────────────────────────
-
-const HISTORY_VERB = { reorder: 'moved', pin: 'pinned', unpin: 'unpinned' }
-const HISTORY_ICON = { reorder: 'arrow-up-down', pin: 'pin', unpin: 'pin-off' }
-
-function HistoryDrawer({ open, onClose, ownerRef }) {
-  const [state, setState] = useState({ items: [], total: 0, page: 0, loading: false, error: null })
-
-  const loadPage = useCallback((page) => {
-    setState((s) => ({ ...s, loading: true, error: null }))
-    queueApi.history(ownerRef, { page, size: 30 })
-      .then((res) => setState((s) => ({
-        items: page === 1 ? res.data.items : [...s.items, ...res.data.items],
-        total: res.data.total, page, loading: false, error: null,
-      })))
-      .catch((err) => setState((s) => ({ ...s, loading: false, error: errorDetail(err, 'Could not load the history.') })))
-  }, [ownerRef])
-
-  useEffect(() => { if (open) loadPage(1) }, [open, loadPage])
-
+function DoneList({ board, range, onRange, onOpen }) {
+  const done = board?.columns.find((c) => c.status === 'done')?.items
   return (
-    <Sheet open={open} onClose={onClose} title="Queue history" width="w-full max-w-[440px]">
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-4" data-testid="queue-history">
-        <p className="mb-3 text-[12px] text-muted-foreground">
-          Every reorder, pin and unpin, by whoever made it. Items entering or leaving on their own aren’t listed.
+    <div className="px-7 pb-24 pt-4" data-testid="done-list">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <p className="text-[12.5px] text-muted-foreground">
+          {done == null ? 'Loading…' : `${done.length} item${done.length === 1 ? '' : 's'} finished · ${doneRangeLabel(range).toLowerCase()}`}
         </p>
-        {state.error ? (
-          <p role="alert" className="text-sm text-muted-foreground">{state.error}</p>
-        ) : state.items.length === 0 && state.loading ? (
-          <div className="space-y-3" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="flex gap-2.5">
-                <div className="h-7 w-7 shrink-0 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
-                  <div className="h-2.5 w-24 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : state.items.length === 0 ? (
-          <Empty icon="history" title="No changes yet" body="Reorders and pins show up here." />
-        ) : (
-          <ol className="space-y-3">
-            {state.items.map((h) => (
-              <li key={h.id} className="flex gap-2.5" data-testid="history-item">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <Icon name={HISTORY_ICON[h.action]} size={13} aria-hidden="true" />
-                </span>
-                <div className="min-w-0 flex-1 text-[12.5px] leading-snug">
-                  <p>
-                    <span className="inline-flex items-center gap-1 font-medium">
-                      {h.actor && <Avatar user={h.actor} size={14} />}
-                      {h.actor?.name ?? 'Someone'}
-                    </span>{' '}
-                    <span className="text-muted-foreground">{HISTORY_VERB[h.action]}</span>{' '}
-                    {h.issue_id && <IssueHoverCard issueId={h.issue_id} label={h.issue_key} />}{' '}
-                    <span className="text-foreground">{h.issue_title}</span>
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                    {h.old_index != null && h.new_index != null && <>#{h.old_index} → #{h.new_index} · </>}
-                    <span title={fullTime(h.created_at)}>{relTime(h.created_at)}</span>
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-        {state.items.length < state.total && (
-          <Button variant="outline" size="sm" className="mt-4 w-full" loading={state.loading} onClick={() => loadPage(state.page + 1)}>
-            Load more
-          </Button>
-        )}
+        <DoneRangePicker value={range} onChange={onRange} className="ml-auto" />
       </div>
-    </Sheet>
+      {done == null ? <ListSkeleton /> : done.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center">
+          <Icon name="circle-check-big" size={22} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" aria-hidden="true" />
+          <p className="text-[13px] font-medium">Nothing finished in this range</p>
+          <p className="mt-1 text-[12px] text-muted-foreground">Widen the range to see older work.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {groupByDay(done, (i) => i.completed_at).map((g) => (
+            <section key={g.label} aria-label={g.label}>
+              <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {g.label} <span className="font-normal normal-case tracking-normal">· {g.rows.length}</span>
+              </h3>
+              <ol className="space-y-2">
+                {g.rows.map((i) => <QueueItemRow key={i.id} item={i} done onOpen={onOpen} />)}
+              </ol>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QueueBoard({ board, tab, range, onRange, onOpen, onStatusChange }) {
+  const filter = TAB_FILTERS[tab] ?? TAB_FILTERS.all
+  return (
+    <>
+      <div className="flex items-center justify-end gap-2 px-7 pt-3 text-[12px] text-muted-foreground">
+        <span>Done column shows</span>
+        <DoneRangePicker value={range} onChange={onRange} />
+      </div>
+      {!board ? <IssueBoardSkeleton /> : (
+        <div className="overflow-x-auto scrollbar-thin">
+          <IssueBoard
+            issues={board.columns.flatMap((c) => c.items).filter((i) => i.status === 'done' || filter(i))}
+            onOpen={onOpen}
+            onStatusChange={onStatusChange}
+            emptyText={{ done: `Nothing finished · ${doneRangeLabel(range).toLowerCase()}` }}
+          />
+        </div>
+      )}
+    </>
   )
 }
 
@@ -430,31 +306,27 @@ export default function MyWorkPage() {
   const { username } = useParams()
   const { user } = useApp()
   const navigate = useNavigate()
-  const owner = useOwner(username, user)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const owner = useQueueOwner(username, user)
   const isOwner = owner.ref === 'me'
-  const [view, setView] = useState(() => readView(user?.id))
-  const [queue, setQueue] = useState(null)
-  const [error, setError] = useState(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const view = searchParams.get('view') === 'board' ? 'board' : 'list'
+  const rawTab = searchParams.get('tab') ?? 'all'
+  const tab = view === 'board' && rawTab === 'done' ? 'all' : rawTab
+  const doneRange = readDoneRange(searchParams)
+  const { queue, board, error, busy, actions, reload } = useMyWork(owner.ref, doneRange)
 
-  const changeView = (next) => { setView(next); writeView(user?.id, next) }
-
-  const load = useCallback(() => {
-    if (owner.ref == null) return
-    setError(null)
-    queueApi.get(owner.ref)
-      .then((res) => setQueue(res.data))
-      .catch((err) => setError(err.response?.status === 403
-        ? 'Only the owner, a CTO or an Admin can see this queue.'
-        : errorDetail(err, 'Could not load the queue.')))
-  }, [owner.ref])
-
-  useEffect(() => { setQueue(null); load() }, [load])
-
+  const setParam = (key, value, fallback) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === fallback) next.delete(key); else next.set(key, value)
+    setSearchParams(next, { replace: true })
+  }
+  const setDoneRange = (range) => setSearchParams(writeDoneRange(searchParams, range), { replace: true })
   const openItem = (issue) => navigate(`/issue/${issueSlug(issue)}`)
+  const historyPath = isOwner ? '/my-work/history' : `/u/${username}/work/history`
 
-  const openCount = queue ? queue.groups.pinned.length + queue.groups.rest.length : null
+  const items = useMemo(() => (queue ? flatten(queue) : []), [queue])
+  const doneCount = board?.columns.find((c) => c.status === 'done')?.items.length
+  const count = (key) => (queue ? items.filter(TAB_FILTERS[key]).length : undefined)
 
   if (owner.error) return <Empty icon="user-x" title="User not found" body={`There's no user called “${username}”.`} />
 
@@ -462,81 +334,63 @@ export default function MyWorkPage() {
   const title = isOwner ? 'My Work' : `${ownerName ?? '…'}’s work`
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="border-b border-border px-7 pb-3 pt-5">
+    <div className="h-full overflow-auto scrollbar-thin">
+      <header className="px-7 pt-6">
         {!isOwner && (
-          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
+          <nav aria-label="Breadcrumb" className="mb-1 text-xs text-muted-foreground">
             <Link to={`/u/${username}`} className="hover:text-foreground">{ownerName ?? username}</Link>
           </nav>
         )}
-        <div className="mt-1 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold">{title}</h1>
-          {queue && (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {openCount} open · {queue.pins_used}/{queue.pin_limit} pinned
-            </span>
-          )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {isOwner && user && (
-              <Link
-                to={`/issues?reporter=${user.id}`}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Icon name="user-pen" size={13} aria-hidden="true" />
-                Reported by me
-              </Link>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)} disabled={owner.ref == null}>
-              <Icon name="history" size={13} aria-hidden="true" />
-              History
+          <div className="ml-auto flex items-center gap-2">
+            <Segmented value={view} onValueChange={(v) => setParam('view', v, 'list')} options={VIEW_OPTIONS} />
+            <Button variant="outline" size="sm" onClick={() => navigate(historyPath)} disabled={owner.ref == null}>
+              <Icon name="history" size={14} aria-hidden="true" />Queue history
             </Button>
-            <Segmented
-              value={view}
-              onValueChange={changeView}
-              options={[
-                { value: 'list', label: 'List', icon: <Icon name="list-ordered" size={13} /> },
-                { value: 'kanban', label: 'Kanban', icon: <Icon name="kanban" size={13} /> },
-              ]}
-            />
           </div>
         </div>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {isOwner
-            ? 'Everything assigned to you across projects, in the order to work on it.'
-            : `You can ${queue?.can_reorder ? 'reorder and pin' : 'view'} this queue. ${ownerName ?? 'They'} will be notified of changes.`}
-        </p>
+        {!isOwner && queue && (
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {queue.can_reorder
+              ? `You can reorder and pin this queue. ${ownerName ?? 'They'} will be notified of changes.`
+              : 'View only.'}
+          </p>
+        )}
+        <Tabs
+          className="mt-3"
+          value={tab}
+          onValueChange={(t) => setParam('tab', t, 'all')}
+          options={[
+            { value: 'all', label: 'All', badge: count('all') },
+            { value: 'in_progress', label: 'In progress', badge: count('in_progress') },
+            { value: 'overdue', label: 'Overdue', badge: count('overdue') },
+            { value: 'blockers', label: 'Blockers', badge: count('blockers') },
+            ...(view === 'list' ? [{ value: 'done', label: 'Done', badge: doneCount }] : []),
+          ]}
+        />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto scrollbar-thin">
-        {error ? (
-          <div role="alert" className="py-16 text-center text-sm text-muted-foreground">
-            {error}
-            <Button variant="outline" size="sm" className="ml-3" onClick={load}>Retry</Button>
-          </div>
-        ) : view === 'kanban' ? (
-          owner.ref != null
-            ? <QueueBoard ownerRef={owner.ref} onOpen={openItem} refreshKey={refreshKey} />
-            : <IssueBoardSkeleton />
-        ) : !queue ? (
-          <ListSkeleton />
-        ) : openCount === 0 ? (
-          <Empty
-            icon="list-todo"
-            title={isOwner ? 'Nothing assigned to you' : 'Nothing assigned'}
-            body="Open items assigned across every project show up here — To do, Rejected, In progress, in review and Blocked."
-          />
-        ) : (
-          <QueueList
-            queue={queue}
-            ownerRef={owner.ref}
-            isOwner={isOwner}
-            onOpen={openItem}
-            onChange={(next) => { setQueue(next); setRefreshKey((k) => k + 1) }}
-          />
-        )}
-      </div>
-
-      <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} ownerRef={owner.ref ?? 'me'} />
+      {error ? (
+        <div role="alert" className="py-16 text-center text-sm text-muted-foreground">
+          {error}
+          <Button variant="outline" size="sm" className="ml-3" onClick={reload}>Retry</Button>
+        </div>
+      ) : view === 'board' ? (
+        <QueueBoard board={board} tab={tab} range={doneRange} onRange={setDoneRange} onOpen={openItem} onStatusChange={actions.transition} />
+      ) : tab === 'done' ? (
+        <DoneList board={board} range={doneRange} onRange={setDoneRange} onOpen={openItem} />
+      ) : !queue ? (
+        <ListSkeleton />
+      ) : items.length === 0 ? (
+        <Empty
+          icon="list-todo"
+          title={isOwner ? 'Nothing assigned to you' : 'Nothing assigned'}
+          body="Open items assigned across every project show up here — To do, Rejected, In progress, in review and Blocked."
+        />
+      ) : (
+        <QueueList items={items} queue={queue} tab={tab} isOwner={isOwner} busy={busy} actions={actions} onOpen={openItem} />
+      )}
     </div>
   )
 }

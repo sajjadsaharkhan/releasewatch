@@ -285,8 +285,8 @@ In progress → **Send to review** (To review), To review → **Start review** (
 ### Work item cards and My Work — `WorkItemCard`, `PRIORITY.icon` (slice 10)
 
 One card everywhere (P3): the Stream board, release boards, and My Work's Kanban all render
-`WorkItemCard` (`components/common`) inside `DraggableIssueCard`; My Work's list renders the same
-component as a row (`layout="row"`). It reads the slim `WorkItemCard` API shape and the full
+`WorkItemCard` (`components/common`) inside `DraggableIssueCard`; My Work's list uses its own
+`QueueItemRow` (below). It reads the slim `WorkItemCard` API shape and the full
 `IssueResponse` alike.
 
 **By default** a card shows three things: the title (two lines), the project chip (a 2px-radius
@@ -316,26 +316,46 @@ Reject comment (fetched lazily, react-query `['timeline-event', id, commentId]`)
 technical debt, full due date, project · container (Stream / release / Backlog), reporter, and age.
 
 **My Work** (`/my-work`, `MyWorkPage`; CTO/Admin also at `/u/:username/work`, linked from the
-profile's **Work queue** button). Header: `text-xl font-bold` title ("My Work" or "Name’s work" with
-a breadcrumb), "N open · p/4 pinned", then **Reported by me** (own queue only, `/issues?reporter=`),
-**History**, and a List / Kanban `Segmented` remembered per user in `localStorage`
-(`rw:my-work-view:<id>`, UI preference only). Someone else's queue says the owner will be notified.
+profile's **Work queue** button). Chosen from prototype variant D, 2026-10-01. Header: `text-xl
+font-bold` title ("My Work", or "Name’s work" with a breadcrumb and "…will be notified of changes"),
+then a **List | Board** `Segmented` (as on All Issues) and a **Queue history** button. Under it,
+`Tabs` that filter: **All · In progress · Overdue · Blockers · Done**, each with a count (Done is
+List-only — on the Board it's a column). Tab, view and the Done range live in the URL (`?tab=`,
+`?view=board`, `?done=30d` / `?done_from=&done_to=`, default 7 days).
 
-- **List:** three sections, each a heading with icon and count chip over a bordered, divided
-  `<ol>` — **In progress** (`loader`, read-only), **Pinned** (`pin`, "p of 4 pins · always on
-  top"), **Queue** (`list-ordered`, with the default-rule hint). A row: grip handle (a real button,
-  `@dnd-kit/sortable` with pointer and keyboard sensors — Space, arrows, Space), the absolute queue
-  position (muted, tabular), the row card, a `StatusBadge` (md+), and the pin toggle (`pin` /
-  `pin-off`, `aria-pressed`). A locked pin viewed by its owner shows a disabled `lock` toggle whose
-  tooltip names who pinned it; a full queue disables Pin with "This queue already has 4 pins —
-  unpin one first." Reorders are optimistic, then replaced by the server's order; a drop across the
-  pin boundary shows the server's explanation as a toast. Empty sections are a dashed one-liner.
-- **Kanban:** the same six columns as project boards (`IssueBoard`, To do areas included); cards
-  follow queue order, dragging across columns changes status, and there is no reorder within a
-  column (that happens in the list, so both views agree). Done shows the last 7 days.
-- **History** (`Sheet`): one line per change — action icon in a muted circle, actor avatar and
-  name, "pinned / unpinned / moved", the item's `IssueHoverCard` chip and title, then "#3 → #1 ·
-  5m ago". Load more pages 30 at a time. Automatic changes aren't listed.
+- **Rows** (`QueueItemRow`, `components/queue`): a bordered `rounded-xl` card per item, in one flat
+  list. Left: grip handle (a real button; `@dnd-kit/sortable`, pointer + keyboard — Space, arrows,
+  Space; only on All, where the whole queue shows), then the queue position in large muted digits.
+  Line 1: type icon, title (link), `BlockerBadge`, the Rejected reason tag. Line 2, muted: key,
+  project (colour square + name), `PlacementChip` (Stream: sky `waves` "Stream"; release: zinc
+  `package` "Release v2.4.1"; else "Backlog"), `ReportsPill` (violet `repeat` "n reports" — stronger
+  from 2), `CyclesPill` (`refresh-cw` "n cycles" — soft teal at 1, amber once it came back), age
+  ("Opened today" / "5d old"), and the due date (red "Overdue", amber when within 2 days). Right:
+  `StatusBadge` (lg+), `PriorityPicker` (the priority pill opens a menu of the four levels; a
+  toast says whether the default rule moved it, "from #2 to #4"), and `PinToggle`.
+- **Pins:** yellow is the pin's own hue (a thumbtack — not a status or priority colour). Pinned rows
+  come first under a "Pinned · n of 4" label with `PinSlots` (four bars, yellow for used), then a
+  "Queue" label. A pinned row is `yellow-50` with a `yellow-200` border and a yellow pin (a `lock`
+  when a CTO/Admin pinned it) in place of its number. A locked pin viewed by its owner has a
+  disabled toggle whose tooltip names who pinned it; a full queue disables Pin with "This queue
+  already has 4 pins — unpin one first." A drop across the pin line shows the server's refusal.
+- **`BlockerBadge`:** an outlined red pill "Blocker" with a pulsing dot (the ping stops under
+  reduced motion); tooltip "Release blocker — this release can't ship until it's fixed".
+- **Done tab:** the same rows, grouped by the day they finished (Today, Yesterday, date), with a
+  teal check instead of the number, "Finished 2h ago" instead of the due date, and no handle, pin or
+  priority menu. `DoneRangePicker` (7/30/90 days or a custom range) sits top right.
+- **Board:** `IssueBoard` with the six board columns and the `WorkItemCard` board cards, in queue
+  order; the tabs still filter it. Dragging across columns changes status; there's no reorder
+  within a column (that's the list's job, so both agree). "Done column shows" + `DoneRangePicker`
+  sits above it.
+- **Queue history** (`/my-work/history`, `/u/:username/work/history`, `QueueHistoryPage`): a
+  facet sidebar — When (`DateTimeRangePicker`, 1/7/30/90 days, default 30), Changed by (Anyone,
+  "Not the owner", then each person with an avatar), Action (Moved, Pinned, Unpinned), Item type
+  (Bugs, Tasks) — each option with its count from the server's `facets`; a search over key, #id or
+  title; and `QueueHistoryTimeline`: changes grouped by day on a thin rail, an action dot (moved
+  zinc, pinned yellow, unpinned amber), "<avatar> Name pinned [BUG-3] #3 ↑ #1" (the arrow green when
+  it went up), the title under it, and the time. A change by someone else is tagged "changed your
+  queue". Load more pages 50 at a time. Automatic changes aren't listed.
 
 Inbox: `queue_changed` reads "<actor> pinned / unpinned / moved in your queue <title>" with
 "position 3 → 1" in the meta row; `due_soon` / `overdue` have no actor — an amber `hourglass` or
