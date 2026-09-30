@@ -25,6 +25,13 @@ export function Topbar() {
   const releasesHref = activeProject ? `/projects/${activeProject.slug}/releases` : null
   const canCreateProject = canManageUsersAndProjects(user?.role)
 
+  // Picking a release makes it the active one and opens its page.
+  const openRelease = (releaseId) => {
+    setActiveReleaseId(releaseId)
+    setMobileMenuOpen(false)
+    if (releaseId) navigate(`/releases/${releaseId}`)
+  }
+
   const handleLogout = async () => {
     await logout()
   }
@@ -69,7 +76,7 @@ export function Topbar() {
           <ReleaseSwitcher
             releases={releases}
             activeReleaseId={activeReleaseId}
-            onChange={setActiveReleaseId}
+            onChange={openRelease}
             compact
             width={240}
             streamHref={streamHref}
@@ -180,7 +187,7 @@ export function Topbar() {
                 <ReleaseSwitcher
                   releases={releases}
                   activeReleaseId={activeReleaseId}
-                  onChange={setActiveReleaseId}
+                  onChange={openRelease}
                   streamHref={streamHref}
                   releasesHref={releasesHref}
                 />
