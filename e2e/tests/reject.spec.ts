@@ -48,7 +48,10 @@ test('Reject an In review item, find it Rejected in To do, pick it up', async ({
     .fill('The empty state still shows the spinner.')
   await confirm.click()
   await expect(page.getByText(`${task.key} is rejected`)).toBeVisible()
-  await expect(page.getByText('rejected this task')).toBeVisible()
+  // The Reject reads as a status change like any other: In Review → Rejected.
+  const move = page.locator('li[id^="event-"]').filter({ hasText: 'changed status' }).last()
+  await expect(move).toContainText('In Review')
+  await expect(move).toContainText('Rejected')
   await expect(page.getByText('The empty state still shows the spinner.').first()).toBeVisible()
 
   // ── On the Stream board: in the To do column's Rejected area, above To do ─

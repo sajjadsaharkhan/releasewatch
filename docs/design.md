@@ -261,9 +261,10 @@ came back — Rejected only lasts until they move it to In progress. The spec na
 that is `ReportedCount`'s icon on the same cards, so the badge uses `refresh-cw` (↻, as the ADR
 writes it).
 
-The reason is an ordinary public comment; the timeline renders the status change as "rejected this
-bug/task" and the comment as any other. A merge into a Done item records `reason: merge` and
-renders as a plain status change (Done → Rejected) next to the merge comment.
+The reason is an ordinary public comment. On the timeline a move into Rejected — a Reject or a
+merge into a Done item — reads like every other status change ("changed status [In Review] →
+[Rejected]"), marked by an amber `undo-2` dot instead of the grey status dot; the comment renders
+as any other.
 
 The item page's **Cycles** tab (`CycleHistorySection`, bugs and tasks) lists every cycle oldest
 first on a rail — a reason dot, "Cycle N", the reason pill, the container (Stream `waves` or release

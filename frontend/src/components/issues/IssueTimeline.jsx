@@ -100,9 +100,14 @@ const EVENT_ICONS = {
   tech_debt_cleared:   'construction',
 }
 
-function EventDot({ type }) {
-  const style = EVENT_STYLES[type] ?? { dot: 'bg-zinc-300' }
-  const iconName = EVENT_ICONS[type] ?? 'circle'
+// A move into Rejected (09a) — a Reject or a merge into a Done item — reads as
+// a status change like any other, marked by an amber undo dot.
+const REJECTED_DOT = { dot: 'bg-amber-500', icon: 'undo-2' }
+
+function EventDot({ type, to }) {
+  const rejected = type === 'status_changed' && to === 'rejected'
+  const style = rejected ? REJECTED_DOT : (EVENT_STYLES[type] ?? { dot: 'bg-zinc-300' })
+  const iconName = rejected ? REJECTED_DOT.icon : (EVENT_ICONS[type] ?? 'circle')
   return (
     <span className={cn('absolute left-[8px] top-2.5 h-4 w-4 rounded-full ring-4 ring-white dark:ring-zinc-950 flex items-center justify-center text-white', style.dot)}>
       <Icon name={iconName} size={9} strokeWidth={2.6} />
@@ -146,11 +151,6 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
 
     const from = event.from ?? event.meta?.from
     const to = event.to ?? event.meta?.to
-
-    // Reject (09a): the reason is the comment next to it, rendered as any other.
-    if (event.type === 'status_changed' && to === 'rejected' && event.meta?.reason === 'reject') {
-      return <>rejected this {itemNoun(issue)}</>
-    }
 
     if (event.type === 'status_changed' && from && to) {
       return (
@@ -554,7 +554,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
             }
             return (
               <li key={item.id ?? idx} id={`event-${item.id ?? idx}`} className="relative pl-10 pr-2 py-1.5 group rounded hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
-                <EventDot type={item.type} />
+                <EventDot type={item.type} to={item.to ?? item.meta?.to} />
                 <div className="flex items-baseline gap-1.5 text-[13px] flex-wrap text-zinc-500 dark:text-zinc-400">
                   <span className="font-medium text-zinc-700 dark:text-zinc-200">{actor?.name ?? actorId}</span>
                   <span>{getLabel(item)}</span>
