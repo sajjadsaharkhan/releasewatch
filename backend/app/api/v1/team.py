@@ -2,7 +2,11 @@
 
 User management is admin-only (``manage_users``, §7.3). ``GET /team?assignable=true``
 is what every assignee picker calls — it never lists Support users (BR-32, AC-47).
+``GET /team/workload`` is the Team overview's Workload view (slice 11, FR-43) —
+CTO and Admin only (``view_team_overview``, AC-48).
 """
+
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -10,9 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, get_password_hash
+from app.core.clock import get_now
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.policy import ASSIGNABLE_ROLES, Action
+from app.schemas.queue import WorkloadRow
 from app.schemas.team import (
     ChangeRoleRequest,
     InviteRequest,
@@ -23,6 +29,7 @@ from app.schemas.team import (
 from app.schemas.user import UserResponse
 from app.services.authz import require_action
 from app.services.project_service import projects_led_by
+from app.services.queue_service import queue_service
 
 router = APIRouter()
 
@@ -66,6 +73,21 @@ async def list_team(
         )
         for user in users
     ]
+
+
+@router.get("/workload", response_model=list[WorkloadRow], summary="Team workload")
+async def workload(
+    role: UserRole | None = Query(None, description="Only people with this role"),
+    project_id: int | None = Query(None, description="Only people with open work in this project"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_action(Action.view_team_overview)),
+    now: datetime = Depends(get_now),
+) -> list[WorkloadRow]:
+    """Each active assignable user's In progress items, next three queue items,
+    and open/pinned counts, in name order."""
+    return await queue_service.workload(
+        db, now, role=role.value if role else None, project_id=project_id,
+    )
 
 
 @router.get("/all", response_model=list[MemberResponse])

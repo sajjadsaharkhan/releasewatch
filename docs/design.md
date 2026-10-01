@@ -377,6 +377,21 @@ Inbox: `queue_changed` reads "<actor> pinned / unpinned / moved in your queue <t
 "position 3 → 1" in the meta row; `due_soon` / `overdue` have no actor — an amber `hourglass` or
 red `alarm-clock` circle stands in for the avatar ("Due within 24 hours:", "Overdue:").
 
+**Workload** (Team page, `?tab=workload`, `WorkloadView` in `components/team`; slice 11). CTO and
+Admin see `Tabs` — **Members · Workload** — under the Team title; everyone else sees only the member
+grid, unchanged. Above the list: `FilterDropdown`s **Role** (All roles + the five tech roles) and
+**Working in** (All projects + each project — people with open queued work there), "Clear filters"
+when either is set, and a muted "Open someone’s board to reorder or pin." on the right. Filters live
+in the URL (`?role=`, `?project=`). One bordered `rounded-xl` card per person, in name order — never
+sorted by load. Three columns from `lg` (stacked below): the person (avatar, name linking to the
+board, `RoleBadge`, "**n** open · pin **n** pinned", the pin icon yellow when any are pinned), **In
+progress**, and **Up next** (up to three, numbered, a yellow pin or `lock` in place of the number for
+pinned items). Each item line: `TypeMark`, title (link to the item), key (xl+), `ProjectChip` (sm+),
+`PriorityGlyph`. Empty columns say "Nothing in progress" / "Queue is empty" in muted italics.
+Clicking anywhere else on the card opens `/u/:username/work`. Loading is three skeleton cards;
+filtered-to-nothing is "No one matches these filters."; a failed load toasts "Failed to load
+workload". The copy describes and never ranks people (no "busiest", no scores).
+
 ### Release lifecycle and Overdue — `RELEASE_STATUS` in `lib/constants.js` (slice 09)
 
 A release's lifecycle status and its Overdue state are **two different shapes on purpose**: the

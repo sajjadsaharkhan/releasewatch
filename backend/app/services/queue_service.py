@@ -11,6 +11,7 @@ Automatic insertions and removals are never written to queue history — only
 the human actions (``move``, ``pin``, ``unpin``) are (BR-44).
 """
 
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import status
@@ -25,9 +26,16 @@ from app.db.models.issue import BOARD_STATUSES, Issue, IssueStatus
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.queue import QueueAction, QueueEntry, QueueHistory
 from app.db.models.user import User, UserRole
+from app.policy import ASSIGNABLE_ROLES
 from app.queue_order import PIN_LIMIT, QueueItem, QueueRuleError
 from app.schemas.issue import UserSummary
-from app.schemas.queue import CardContainer, CardProject, WorkItemCard
+from app.schemas.queue import (
+    CardContainer,
+    CardProject,
+    WorkItemCard,
+    WorkloadCounts,
+    WorkloadRow,
+)
 
 #: Statuses an assigned item is queued in (BR-38): the board, minus Done.
 #: New/Needs info (triage) and Cancelled are never queued.
@@ -38,8 +46,21 @@ _QUEUE_VALUES = frozenset(s.value for s in QUEUE_STATUSES)
 #: unique to queues; the second key is the owner's user id.
 QUEUE_LOCK_NS = 10_010
 
+#: How many upcoming queue items the Workload view shows per person (FR-43).
+WORKLOAD_NEXT = 3
+
 #: ``due_state == "soon"`` when the due date is at most this many days away.
 DUE_SOON_DAYS = 2
+
+
+@dataclass
+class _Workload:
+    """One person's tally while building the Workload view."""
+
+    in_progress: list[int] = field(default_factory=list)
+    next: list[int] = field(default_factory=list)
+    open: int = 0
+    pinned: int = 0
 
 
 def _value(v):
@@ -541,6 +562,78 @@ class QueueService:
             )
         await db.flush()
         return {"due_soon": [i.id for i in soon], "overdue": [i.id for i in overdue]}
+
+    # ── Team overview (slice 11) ──────────────────────────────────────────────
+
+    async def workload(
+        self, db: AsyncSession, now: datetime, *,
+        role: str | None = None, project_id: int | None = None,
+    ) -> list[WorkloadRow]:
+        """Every active assignable user's In progress items, next three and counts.
+
+        A fixed number of queries whatever the team size (never one per user):
+        the people, their active entries (with each item's status), then the
+        cards for just the items shown. People come in name order — the view
+        never ranks anyone by load. ``project_id`` keeps people with open
+        queued work in that project.
+        """
+        active = (QueueEntry.left_at.is_(None), Issue.deleted_at.is_(None))
+        people_q = select(User).where(
+            User.is_active.is_(True), User.role.in_(sorted(ASSIGNABLE_ROLES)),
+        )
+        if role is not None:
+            people_q = people_q.where(User.role == role)
+        if project_id is not None:
+            people_q = people_q.where(
+                select(QueueEntry.id)
+                .join(Issue, Issue.id == QueueEntry.issue_id)
+                .where(QueueEntry.user_id == User.id, Issue.project_id == project_id, *active)
+                .exists()
+            )
+        people = (await db.execute(
+            people_q.order_by(func.lower(User.name), User.id)
+        )).scalars().all()
+        if not people:
+            return []
+
+        rows = (await db.execute(
+            select(QueueEntry, Issue.status)
+            .join(Issue, Issue.id == QueueEntry.issue_id)
+            .where(QueueEntry.user_id.in_([u.id for u in people]), *active)
+            .order_by(
+                QueueEntry.user_id, QueueEntry.is_pinned.desc(),
+                QueueEntry.position, QueueEntry.issue_id,
+            )
+        )).all()
+
+        loads = {u.id: _Workload() for u in people}
+        shown: dict[int, QueueEntry] = {}
+        for entry, item_status in rows:
+            load = loads[entry.user_id]
+            load.open += 1
+            load.pinned += int(entry.is_pinned)
+            if _value(item_status) == IssueStatus.in_progress.value:
+                load.in_progress.append(entry.issue_id)
+            elif len(load.next) < WORKLOAD_NEXT:
+                load.next.append(entry.issue_id)
+            else:
+                continue
+            shown[entry.issue_id] = entry
+
+        issues = (await db.execute(
+            select(Issue).where(Issue.id.in_(list(shown))).options(*card_load_options())
+        )).scalars().all() if shown else []
+        cards = {c.id: c for c in await build_cards(db, list(issues), now, shown)}
+
+        return [
+            WorkloadRow(
+                user=UserSummary.model_validate(u),
+                in_progress=[cards[i] for i in loads[u.id].in_progress],
+                next=[cards[i] for i in loads[u.id].next],
+                counts=WorkloadCounts(open=loads[u.id].open, pinned=loads[u.id].pinned),
+            )
+            for u in people
+        ]
 
     # ── Owners ────────────────────────────────────────────────────────────────
 

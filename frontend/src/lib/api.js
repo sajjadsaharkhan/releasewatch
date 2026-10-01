@@ -206,6 +206,8 @@ export const teamApi = {
   // Projects this user leads — shown before deactivating them (AC-23).
   deactivationImpact: (userId) => api.get(`/team/${userId}/deactivation-impact`),
   listAll: () => api.get('/team/all'),
+  // Team overview's Workload view (slice 11) — CTO and Admin only (AC-48).
+  workload: (params) => api.get('/team/workload', { params }),
   invite: (data) => api.post('/team/invite', data),
   update: (userId, data) => api.patch(`/team/${userId}`, data),
   changeRole: (userId, role) => api.patch(`/team/${userId}/role`, { role }),

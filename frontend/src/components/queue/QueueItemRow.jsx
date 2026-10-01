@@ -14,7 +14,7 @@ import { Icon } from '../ui/Icon'
 import { StatusBadge } from '../ui/Badge'
 import { Tooltip } from '../ui/Tooltip'
 import {
-  BlockerBadge, CyclesPill, DueTag, PlacementChip, RejectedTag, ReportsPill, TypeMark, ageOf,
+  BlockerBadge, CyclesPill, DueTag, PIN_ICON, PlacementChip, RejectedTag, ReportsPill, TypeMark, ageOf,
 } from './QueueMarks'
 
 // One My Work row (slice 10, round 2 — docs/design.md §3 "My Work"): drag
@@ -24,7 +24,6 @@ import {
 // own hue. A `done` row swaps the position for a check, "Finished …" for the
 // due date, and has no handle, pin or priority menu.
 
-const PIN_ICON = 'text-yellow-600 dark:text-yellow-400'
 
 /** One DndContext over the whole list; a drop across the pin line is the API's to refuse. */
 export function SortableQueue({ items, enabled, onMove, children }) {

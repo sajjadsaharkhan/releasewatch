@@ -6,8 +6,9 @@ smallest request that exercises the capability and expects success, 403
 422 (Support can't be assigned — BR-32).
 
 Rows with no endpoint yet (support report, recurrence, technical debt,
-queues, team overview, templates, search settings) are covered by
-``test_policy.py`` until their slices land.
+queues, templates, search settings) are covered by ``test_policy.py`` until
+their slices land. Team overview's endpoint is tested by role in
+``test_team_workload.py`` (AC-48).
 """
 
 from types import SimpleNamespace

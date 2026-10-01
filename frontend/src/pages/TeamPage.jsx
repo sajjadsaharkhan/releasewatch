@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Send, Plus, MoreVertical, Pencil, ShieldBan, RefreshCw, User } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
@@ -7,12 +7,15 @@ import { RoleBadge } from '../components/ui/Badge'
 import { Tooltip } from '../components/ui/Tooltip'
 import { Dropdown, DropdownItem, DropdownSep } from '../components/ui/Dropdown'
 import { Button } from '../components/ui/Button'
+import { Tabs } from '../components/ui/Tabs'
 import { InviteUserModal } from '../components/team/InviteUserModal'
 import { EditUserModal } from '../components/team/EditUserModal'
 import { DeactivateUserModal } from '../components/team/DeactivateUserModal'
+import { WorkloadView } from '../components/team/WorkloadView'
 import { teamApi } from '../lib/api'
 import { useToast } from '../components/ui/Toast'
 import { useApp } from '../hooks/useApp'
+import { canViewTeamOverview } from '../lib/roles'
 
 
 const ADMIN_ROLES = ['admin', 'cto']
@@ -28,6 +31,25 @@ export default function TeamPage() {
   const { user: currentUser } = useApp()
   const { toast } = useToast()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Workload (slice 11) is CTO/Admin only; everyone else just sees the directory.
+  const showWorkload = canViewTeamOverview(currentUser?.role)
+  const tab = showWorkload && searchParams.get('tab') === 'workload' ? 'workload' : 'members'
+
+  function setTab(next) {
+    setSearchParams(next === 'workload' ? { tab: 'workload' } : {}, { replace: true })
+  }
+
+  function setWorkloadFilter(patch) {
+    const params = new URLSearchParams(searchParams)
+    params.set('tab', 'workload')
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) params.set(key, value)
+      else params.delete(key)
+    }
+    setSearchParams(params, { replace: true })
+  }
 
   const canInviteUser = currentUser?.role && CAN_INVITE_ROLES.includes(currentUser.role)
   const canEditRole = currentUser?.role && currentUser.role === 'admin'
@@ -81,7 +103,7 @@ export default function TeamPage() {
     setTeam((prev) => prev.filter((member) => member.id !== userId))
   }
 
-  if (loading) {
+  if (loading && tab === 'members') {
     return (
       <div className="p-6 max-w-5xl mx-auto flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
@@ -96,7 +118,7 @@ export default function TeamPage() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Team</h1>
-        {canInviteUser && (
+        {canInviteUser && tab === 'members' && (
           <Button size="sm" onClick={handleInviteModalOpen}>
             <Plus className="h-4 w-4 mr-2" />
             Invite Member
@@ -104,7 +126,25 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* Member grid */}
+      {showWorkload && (
+        <Tabs
+          value={tab}
+          onValueChange={setTab}
+          options={[
+            { value: 'members', label: 'Members', icon: 'users' },
+            { value: 'workload', label: 'Workload', icon: 'list-checks' },
+          ]}
+        />
+      )}
+
+      {tab === 'workload' ? (
+        <WorkloadView
+          role={searchParams.get('role') || ''}
+          project={searchParams.get('project') || ''}
+          onFilter={setWorkloadFilter}
+        />
+      ) : (
+      /* Member grid */
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {team.map((member) => {
           const isCurrentUser = currentUser?.id === member.id
@@ -176,6 +216,7 @@ export default function TeamPage() {
           )
         })}
       </div>
+      )}
 
       {/* Modals */}
       <InviteUserModal

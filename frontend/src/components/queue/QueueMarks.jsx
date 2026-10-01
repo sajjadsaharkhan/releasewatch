@@ -11,6 +11,9 @@ import { Tooltip } from '../ui/Tooltip'
 
 const DAY = 86400000
 
+/** The pin's own hue — a thumbtack, not a status or priority colour. */
+export const PIN_ICON = 'text-yellow-600 dark:text-yellow-400'
+
 /** "today", "5d", "3w", "4mo". */
 export function ageOf(iso) {
   const days = Math.floor((Date.now() - new Date(iso)) / DAY)

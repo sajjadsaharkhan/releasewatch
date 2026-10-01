@@ -150,3 +150,20 @@ class QueueHistoryResponse(BaseModel):
     page: int
     size: int
     facets: QueueHistoryFacets
+
+
+class WorkloadCounts(BaseModel):
+    #: Active queue entries — dormant (Done) entries never count.
+    open: int
+    pinned: int
+
+
+class WorkloadRow(BaseModel):
+    """One person on the Team overview's Workload view (slice 11, FR-43)."""
+
+    user: UserSummary
+    #: Their In progress items, in queue order.
+    in_progress: list[WorkItemCard]
+    #: The first three queue items that aren't already In progress.
+    next: list[WorkItemCard]
+    counts: WorkloadCounts

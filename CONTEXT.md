@@ -161,3 +161,28 @@ The entry of an item that reached Done (`queue_entries.left_at` set). It keeps i
 
 **Queue history**:
 The owner's append-only record of human queue changes — reorder, pin, unpin — with actor, item, and 1-based positions in the full queue before and after (`queue_history`, FR-41, BR-44). Automatic insertions and removals aren't recorded. Kept out of item timelines. When the actor isn't the owner, the owner gets a `queue_changed` notification (BR-43). Readable by the owner, CTOs and Admins.
+
+**Workload**:
+The Team page's CTO/Admin view of everyone's queue at once (`GET /team/workload`, Policy `view_team_overview`, FR-43). One row per active assignable person, in name order: their In progress items, the next three queue items that aren't In progress, and counts of open and pinned items — dormant entries never count. Filterable by role and by project ("working in": people with open queued work there). A row opens the person's board at `/u/:username/work`, where reorder and pin live. It describes; it never ranks or scores people (PRD non-goal).
+_Avoid_: "team overview" for the view itself (that's the Policy action), "load", "capacity", "utilisation" — nothing here measures people.
+
+## Decisions
+
+Where Phase 2 deliberately departs from the PRD. Each came up while checking the PRD against the code and was decided before building, so the code follows the decision, not the PRD. Moved here from the Phase 2 specs' README after slice 11 so the decisions outlive the specs. Later product overrides (the free workflow, 2026-09-22/23) are noted where they changed a row.
+
+| # | PRD says | Code before Phase 2 | Decision |
+|---|---|---|---|
+| D1 | "Global Triage Lead role" in v1 | Triage lead is already per project (`projects.triage_lead_id`, nullable) | Keep the column. Make it required on create and update (slice 04). Existing projects without a lead are flagged, and their notifications fall back to admins. |
+| D2 | Roles include Project Manager and Support | Roles are `qa`, `developer`, `cto`, `admin` | Add `pm` and `support` (slice 04). |
+| D3 | IDs like `BUG-042` | Display is `issue-123`, global sequence | Type-prefixed keys (`BUG-123`, `TASK-124`) over the same global sequence (slice 03). |
+| D4 | Severity is required when a bug is accepted | `severity` is non-null with default `minor` | Make it nullable, then rename it to `priority` with the shared scale in 03a. Null for New and Needs info bugs nobody has rated; required when leaving triage (02, enforced in 06). |
+| D5 | Severity has four levels | Five levels, including `enhancement` | A data migration maps `enhancement` to `minor` (slice 02). |
+| D6 | Needs info is a status | "Needs clarification" sets status `blocked` and reassigns the item to the reporter | Needs info becomes a real status. The migration moves those rows to `needs_info` and restores the previous assignee (slice 02). |
+| D7 | Bugs may have no release | `issues.release_id` is `NOT NULL` | Make it nullable (slice 03). **v3:** `release_id` is the item's container — a Stream row or a Release row (`releases.kind`) — and null means backlog (08a). |
+| D8 | Invalid transitions are rejected | `PATCH /issues/{id}` accepts any `status` | Every status change goes through Workflow, including PATCH (slice 02). **Override:** Workflow now allows any move for bugs and tasks; only entering Rejected is gated (see Workflow above, 09a). |
+| D9 | The Team page is for CTO/Admin | `/team` is a member directory for everyone | Keep the directory. Add a **Workload** view that only CTO and Admin can open (slice 11). |
+| D10 | My Work | `/my-issues` page | Replaced by `/my-work`. `/my-issues` redirects (slice 10). |
+| D11 | Search & Ranking Engine replaces Phase 1 search | `search_service.py` (hybrid + LLM rerank), `issue_embeddings`, `issues.search_tsv`, `llm` settings; migration `7f60b302c290` altered the vector column and constraints | Removed and replaced by engine tables and the `embeddings` service (slice 12). The migration tolerates whatever state `7f60b302c290` left. |
+| D12 | A merge into a Done bug records a regression cycle, possibly without a release (BR-49) | `regression_history.release_id` is `NOT NULL` | Made nullable with `source` in 06. **v3:** `regression_history` is replaced by `issue_cycles` with a `start_reason`, and every cycle has a container (08a Part 2). |
+| D13 | One `issues` table with type-specific and derived columns | Bug-only, task-only, lifecycle and duration columns all live on `issues` | Split into `issues` + `issue_bugs` + `issue_tasks` + `issue_timestamps`; `time_to_*_h` are computed by `DurationService` (03a Part 2). The API response shape does not change. |
+| D16 | The fix belongs to whoever did the work (v3 BR-63) | `record_regression` credits the actor of the last `fixed` event | Replaced by `delivered_by_id`, a snapshot of the assignee at In review (08a Part 2). |

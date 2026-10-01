@@ -20,6 +20,9 @@ export const canSubmitSupportReport = (role) => role === 'support' || role === '
 /** Manage support templates (slice 05) — CTO and Admin (§7.3). */
 export const canManageTemplates = (role) => role === 'cto' || role === 'admin'
 
+/** The Team page's Workload view (slice 11) — CTO and Admin (`view_team_overview`). */
+export const canViewTeamOverview = (role) => role === 'cto' || role === 'admin'
+
 /** Manage users and projects — Admin only (§7.3). */
 export const canManageUsersAndProjects = (role) => role === 'admin'
 
