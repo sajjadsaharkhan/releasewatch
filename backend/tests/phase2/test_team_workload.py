@@ -208,6 +208,44 @@ async def test_workload_hides_deleted_items(factories, rig):
     assert row["counts"] == {"open": 0, "pinned": 0}
 
 
+@pytest.mark.asyncio
+async def test_workload_counts_every_open_board_status(factories, rig):
+    """Rejected, To review, In review and Blocked are open work too (BR-38):
+    counted, and listed in Up next in queue order — only In progress is "Now"."""
+    admin = factories.admin_client
+    dev = await factories.user(role="developer")
+    rejected = await _task(factories, rig, dev, "critical")
+    to_review = await _task(factories, rig, dev, "high")
+    in_review = await _task(factories, rig, dev, "medium")
+    blocked = await _task(factories, rig, dev, "low")
+    for item, to in ((to_review, "to_review"), (in_review, "in_review"), (blocked, "blocked")):
+        await _transition(admin, item.id, to)
+    await _transition(admin, rejected.id, "in_review")
+    resp = await admin.post(f"/issues/{rejected.id}/reject", json={"comment": "Still broken"})
+    assert resp.status_code == 200, resp.text
+
+    row = _row(await _workload(admin), dev)
+    assert row["counts"] == {"open": 4, "pinned": 0}
+    assert row["in_progress"] == []
+    assert _ids(row["next"]) == [rejected.id, to_review.id, in_review.id]
+    assert [c["status"] for c in row["next"]] == ["rejected", "to_review", "in_review"]
+
+
+@pytest.mark.asyncio
+async def test_workload_marks_locked_pins(factories, client_for, rig):
+    """A CTO/Admin pin on someone else's queue is locked (BR-41); the owner's own isn't."""
+    dev = await factories.user(role="developer")
+    dev_client = await client_for(dev)
+    locked = await _task(factories, rig, dev, "high")
+    own = await _task(factories, rig, dev, "low")
+    await _pin(factories.admin_client, dev.id, locked.id)
+    await _pin(dev_client, "me", own.id)
+
+    cards = {c["id"]: c for c in _row(await _workload(factories.admin_client), dev)["next"]}
+    assert cards[locked.id]["pinned"] and cards[locked.id]["pin_locked"]
+    assert cards[own.id]["pinned"] and not cards[own.id]["pin_locked"]
+
+
 # ── Filters ───────────────────────────────────────────────────────────────────
 
 
@@ -233,6 +271,18 @@ async def test_workload_filters_by_project_involvement(factories, rig):
     workload = await _workload(factories.admin_client, project_id=rig["project"].id)
     ids = {r["user"]["id"] for r in workload}
     assert inside.id in ids and outside.id not in ids
+
+
+@pytest.mark.asyncio
+async def test_workload_project_filter_ignores_done_work(factories, rig):
+    """Only open queued work makes someone "working in" a project — a Done item
+    (a dormant entry) doesn't."""
+    finished = await factories.user(role="developer")
+    item = await _task(factories, rig, finished)
+    await _transition(factories.admin_client, item.id, "done")
+
+    workload = await _workload(factories.admin_client, project_id=rig["project"].id)
+    assert finished.id not in {r["user"]["id"] for r in workload}
 
 
 # ── Query count guard ─────────────────────────────────────────────────────────
