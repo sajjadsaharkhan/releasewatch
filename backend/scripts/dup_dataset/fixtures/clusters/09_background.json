@@ -1,0 +1,1106 @@
+[
+ {
+  "id": "b01",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "فاصله بین حباب پیام‌ها در حالت RTL ناهماهنگ است",
+    "d": "فاصله عمودی بین پیام‌های پشت‌سرهم یک نفر در اندروید ۲ پیکسل بیشتر از iOS است.",
+    "days": 12
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b02",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "developer",
+    "src": "internal",
+    "t": "Message timestamps ignore the user's timezone",
+    "d": "Times are rendered in UTC; a learner in Dubai sees messages from the future.",
+    "days": 19,
+    "curl": "/student/api/v1/chat/conversations/messages"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b03",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "شمارش اعضای گروه بعد از ترک گروه کم نمی‌شود",
+    "d": "شاگردی از گروه خارج شد ولی تعداد اعضا در هدر گروه همان ۲۸ ماند.",
+    "days": 26,
+    "curl": "/student/api/v1/chat/groups/leave",
+    "cm": [
+     [
+      "developer",
+      "شمارنده از جدول عضویت خوانده نمی‌شد، حالا COUNT می‌گیرد."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b04",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "todo",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "امکان بی‌صدا کردن یک گروه برای مدت مشخص",
+    "d": "کاربر بتواند اعلان یک گروه را ۸ ساعت یا یک هفته بی‌صدا کند.",
+    "days": 33
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b05",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "support",
+    "src": "support",
+    "t": "یکی از زبان‌آموزا میگه اسم گروه کلاسش بعد از ویرایش عوض نشد",
+    "d": "استاد اسم گروه رو عوض کرد ولی برای بچه‌ها هنوز اسم قدیمیه.",
+    "days": 40
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b06",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "in_progress",
+    "sev": "critical",
+    "role": "developer",
+    "src": "internal",
+    "t": "WebSocket reconnect storm after the gateway restarts",
+    "d": "All clients retry at the same second which overloads the node; need jitter in backoff.",
+    "days": 47,
+    "curl": "/ws/chat",
+    "cm": [
+     [
+      "developer",
+      "Added exponential backoff with full jitter; rolling out to staging."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b07",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "اسکرول خودکار به آخرین پیام بعد از دریافت پیام جدید انجام نمی‌شود",
+    "d": "وقتی کاربر پایین‌ترین قسمت چت است و پیامی می‌رسد، لیست پایین نمی‌رود.",
+    "days": 54
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b08",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "cto",
+    "src": "internal",
+    "t": "Export a conversation transcript as PDF for school administrators",
+    "d": "Admins asked for a printable record of a class group chat for a given date range.",
+    "days": 61
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b09",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "دکمه ارسال بعد از انتخاب فایل غیرفعال می‌ماند",
+    "d": "بعد از افزودن پیوست و حذف آن، دکمه ارسال تا رفرش خاکستری است.",
+    "days": 68
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b10",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "support",
+    "src": "support",
+    "t": "پیام‌های صوتی روی گوشی‌های شیائومی پخش نمیشه",
+    "d": "چند تا مشتری با شیائومی گفتن ویس باز نمی‌شه ولی عکس و متن مشکلی نداره.",
+    "days": 75
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b11",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "Sticker packs fail to load on slow 3G",
+    "d": "The sticker tray shows an endless spinner when the connection is below 200 kbps.",
+    "days": 82,
+    "curl": "/student/api/v1/chat/stickers"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b12",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "فرمت تاریخ در جداکننده روزها میلادی نمایش داده می‌شود",
+    "d": "برای کاربران فارسی‌زبان جداکننده روز باید شمسی باشد، الان «Tuesday, 14 Sep» می‌نویسد.",
+    "days": 89
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b13",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "لیمسا برای سوالات گرامری سطح A1 توضیح بیش از حد پیچیده می‌دهد",
+    "d": "در پاسخ درباره فعل to be از اصطلاحات تخصصی استفاده می‌کند که برای سطح مبتدی نامناسب است.",
+    "days": 6
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b14",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "todo",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "نمایش پیشرفت هفتگی لغات جدید در صفحه اصلی لیمسا",
+    "d": "یک نمودار ساده از تعداد لغت‌های جدید در هفته گذشته.",
+    "days": 13
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b15",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "in_progress",
+    "sev": "major",
+    "role": "developer",
+    "src": "internal",
+    "t": "Quiz answer key is shuffled but the explanation still cites the old option letter",
+    "d": "After shuffling options the explanation says 'option B' while the correct answer is now C.",
+    "days": 20,
+    "curl": "/student/api/v1/limsa/quiz/submit"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b16",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "support",
+    "src": "support",
+    "t": "زبان‌آموز میگه لیمسا اسمش رو غلط تلفظ می‌کنه",
+    "d": "اسم‌های ایرانی مثل «سهراب» را به صورت عجیب می‌خواند.",
+    "days": 27
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b17",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "critical",
+    "role": "qa",
+    "src": "internal",
+    "t": "پاسخ لیمسا حاوی محتوای نامناسب برای کودکان بود",
+    "d": "در حساب رده سنی زیر ۱۲ سال، پاسخ یک مثال شامل کلمه نامناسب بود.",
+    "days": 34,
+    "cm": [
+     [
+      "developer",
+      "فیلتر محتوای ورودی و خروجی برای رده‌های سنی فعال شد."
+     ],
+     [
+      "cto",
+      "گزارش را به تیم محصول بدهید."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b18",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "developer",
+    "src": "internal",
+    "t": "Cache embeddings for frequently asked grammar questions",
+    "d": "Top 200 questions repeat daily; caching would cut model cost.",
+    "days": 41,
+    "curl": "/student/api/v1/limsa/sessions/messages"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b19",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "دکمه «ادامه گفتگو» پس از بستن مرورگر به گفتگوی قبلی نمی‌رود",
+    "d": "بعد از ورود دوباره، لیمسا گفتگوی جدید باز می‌کند.",
+    "days": 48,
+    "curl": "/student/api/v1/limsa/sessions"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b20",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "The progress bar of a reading lesson jumps back to 0% when rotating the phone",
+    "d": "Landscape orientation recreates the component and resets the state.",
+    "days": 55
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b21",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "support",
+    "src": "support",
+    "t": "لیمسا جواب‌های انگلیسی رو با فونت نامناسب نشون میده",
+    "d": "حروف انگلیسی داخل جمله فارسی با فونت متفاوت و کوچک‌تر دیده می‌شود.",
+    "days": 62
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b22",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "Weekly summary email of what the learner practised with Limsa",
+    "d": "A short email every Friday with minutes practised, new words and mistakes.",
+    "days": 69
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b23",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "فیلتر تاریخ در گزارش مالی روزهای آخر ماه را شامل نمی‌شود",
+    "d": "با انتخاب بازه ۱ تا ۳۱ فقط تا ۳۰ام نتایج برمی‌گردد.",
+    "days": 76,
+    "curl": "/api/v1/admin/finance/report"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b24",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "Pagination reset after deleting the last item on a page",
+    "d": "Deleting the only row of page 3 leaves an empty page instead of going back to page 2.",
+    "days": 83
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b25",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "امکان اضافه کردن توضیح به هر تراکنش کیف پول",
+    "d": "ادمین بتواند هنگام شارژ دستی یادداشت ثبت کند.",
+    "days": 90
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b26",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "ایمیل خوش‌آمدگویی برای کاربران با آدرس بزرگ‌حرف ارسال نمی‌شود",
+    "d": "اگر ایمیل شامل حروف بزرگ باشد، ارسال رد می‌شود.",
+    "days": 7,
+    "cm": [
+     [
+      "developer",
+      "ایمیل قبل از ارسال lowercase می‌شود."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b27",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "support",
+    "src": "support",
+    "t": "ادمین موسسه میگه نمیتونه فاکتور ماه قبل رو دانلود کنه",
+    "d": "دکمه دانلود کار نمی‌کنه و خطایی هم نمیاد.",
+    "days": 14,
+    "curl": "/api/v1/admin/invoice/download"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b28",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "minor",
+    "role": "developer",
+    "src": "internal",
+    "t": "Role permissions page loads all users for the dropdown",
+    "d": "The users select requests 12k rows; should use async search.",
+    "days": 21
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b29",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "cto",
+    "src": "internal",
+    "t": "گزارش حضور و غیاب ماهانه به تفکیک کلاس",
+    "d": "مدیر آموزشی گزارش تجمیعی غیبت‌ها را می‌خواهد.",
+    "days": 28
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b30",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "in_progress",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "تغییر مدرس یک کلاس، مدرس قبلی را از گروه چت حذف نمی‌کند",
+    "d": "مدرس جدید اضافه می‌شود ولی قبلی هم عضو می‌ماند.",
+    "days": 35,
+    "curl": "/api/v1/admin/class/teacher"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b31",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "The search box on the class list keeps the previous query after navigating back",
+    "d": "Back button restores the list but the input shows the old text and the list is filtered.",
+    "days": 42
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b32",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "اعلان‌های درون‌برنامه‌ای پس از خوانده شدن همچنان با نقطه قرمز نمایش داده می‌شوند",
+    "d": "بعد از باز کردن اعلان‌ها، نشانگر روی آیکن زنگ می‌ماند.",
+    "days": 49
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b33",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "developer",
+    "src": "internal",
+    "t": "Certificate download button is visible before the course is completed",
+    "d": "The button should only show when progress is 100%.",
+    "days": 56,
+    "curl": "/student/api/v1/certificates"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b34",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "todo",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "نمایش فهرست تکالیف سررسید نزدیک در داشبورد",
+    "d": "کارت «تکالیف هفته» با تاریخ تحویل.",
+    "days": 63
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b35",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "تغییر زبان رابط بعد از رفرش به فارسی برمی‌گردد",
+    "d": "زبان انتخابی ذخیره نمی‌شد.",
+    "days": 70,
+    "curl": "/student/api/v1/profile/language",
+    "cm": [
+     [
+      "developer",
+      "در localStorage ذخیره می‌شد نه در پروفایل. اصلاح شد."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b36",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "support",
+    "src": "support",
+    "t": "زبان‌آموز میگه عکس پروفایلش بعد از آپلود کج میشه",
+    "d": "عکس‌های گرفته‌شده با گوشی ۹۰ درجه چرخیده نمایش داده می‌شوند.",
+    "days": 77
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b37",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "Video player doesn't remember the last position on iOS",
+    "d": "Reopening a recorded class starts from 00:00.",
+    "days": 84
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b38",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "Release report PDF cuts off long issue titles",
+    "d": "Titles over 80 characters overflow the table cell.",
+    "days": 91
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b39",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "todo",
+    "sev": "enhancement",
+    "role": "pm",
+    "src": "internal",
+    "t": "Show a release's risk level on the Releases list",
+    "d": "A small badge next to the release name derived from open blockers.",
+    "days": 8
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b40",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "done",
+    "sev": "major",
+    "role": "developer",
+    "src": "internal",
+    "t": "Inbox unread counter goes negative after marking all as read twice",
+    "d": "The badge shows -3 until reload.",
+    "days": 15,
+    "cm": [
+     [
+      "developer",
+      "Server returns clamped value now."
+     ]
+    ]
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b41",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "qa",
+    "src": "internal",
+    "t": "فیلتر برچسب‌ها در صفحه ایشوها",
+    "d": "امکان انتخاب چند لیبل برای فیلتر کردن.",
+    "days": 22
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b42",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "minor",
+    "role": "qa",
+    "src": "internal",
+    "t": "Keyboard shortcut for the command palette conflicts with the browser find on Firefox",
+    "d": "Ctrl+K opens the browser's search bar instead of the palette.",
+    "days": 29
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b43",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "developer",
+    "src": "internal",
+    "t": "File names with Persian digits are saved with question marks",
+    "d": "Uploading «گزارش۱۲.pdf» stores «????12.pdf».",
+    "days": 36,
+    "curl": "/student/api/v1/chat/conversations/attachment/upload"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b44",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "critical",
+    "role": "qa",
+    "src": "internal",
+    "t": "پیام‌های ارسال‌شده در حالت آفلاین بعد از اتصال دوباره دو بار ارسال می‌شوند",
+    "d": "صف ارسال بدون idempotency key دوباره ارسال می‌کند.",
+    "days": 43
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b45",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "Limsa mixes up he/she when the learner's profile gender is empty",
+    "d": "Pronouns are guessed from the name and are wrong for unisex names.",
+    "days": 50
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b46",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "new",
+    "sev": "critical",
+    "role": "qa",
+    "src": "internal",
+    "t": "حذف یک کلاس ثبت‌نام‌های پرداخت‌شده را بدون بازپرداخت پاک می‌کند",
+    "d": "با حذف کلاس، رکورد پرداخت زبان‌آموزان هم حذف می‌شود.",
+    "days": 57,
+    "curl": "/api/v1/admin/class/delete"
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b47",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "OTP code field does not auto-fill from SMS on Android",
+    "d": "The sms-retriever hash is not included in the message text.",
+    "days": 64
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b48",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "todo",
+    "sev": "minor",
+    "role": "developer",
+    "src": "internal",
+    "t": "Mentions in comments are not highlighted in dark theme",
+    "d": "@username appears as plain text when the dark theme is active.",
+    "days": 71
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b49",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "bug",
+    "st": "in_progress",
+    "sev": "major",
+    "role": "qa",
+    "src": "internal",
+    "t": "تعداد ری‌اکشن‌های بالاتر از ۹۹ به صورت 99+ نمایش داده نمی‌شود",
+    "d": "عدد سه رقمی از کادر بیرون می‌زند.",
+    "days": 78
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ },
+ {
+  "id": "b50",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": [
+   {
+    "k": "a",
+    "type": "task",
+    "st": "new",
+    "sev": "enhancement",
+    "role": "cto",
+    "src": "internal",
+    "t": "Add an admin dashboard for Limsa usage per institute",
+    "d": "Daily active learners, messages sent and average session length by institute.",
+    "days": 85
+   }
+  ],
+  "drafts": [],
+  "queries": []
+ }
+]

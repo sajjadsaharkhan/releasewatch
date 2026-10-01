@@ -1,0 +1,134 @@
+[
+ {"id":"c49","project":"StudentPanel","area":"auth","note":"Cannot log in to the new portal; Done original, support and dev dupes.",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"blocker","role":"qa","t":"زبان‌آموز نمی‌تواند وارد پرتال جدید شود",
+    "d":"پس از وارد کردن شماره موبایل و کد تایید، صفحه بدون پیام خطا به همان صفحه ورود برمی‌گردد.","steps":[["شماره موبایل را وارد و کد را تایید کنید","ورود به داشبورد","بازگشت به صفحه ورود بدون خطا"]],"curl":"/student/api/v1/auth/login","days":50,
+    "cm":[["developer","کوکی SameSite در دامنه جدید ست نمی‌شد. اصلاح و دیپلوی شد."],["qa","تایید شد."]]},
+   {"k":"b","type":"bug","st":"new","sev":"blocker","role":"support","src":"support","t":"چند تا از بچه‌ها نمی‌تونن برن تو پرتال جدید","d":"کد میاد و میزنن ولی دوباره میره صفحه اول.","days":2,"dupe_of":"a"},
+   {"k":"c","type":"bug","st":"new","sev":"blocker","role":"developer","t":"New student portal login loop after OTP","d":"Callback sets the session cookie but the first guarded route redirects to /login again.","curl":"/student/api/v1/auth/login","days":1,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"support","t":"ورود به پرتال زبان‌آموز دوباره حلقه شده","d":"از دیروز هرچی کد رو میزنن برمی‌گرده به صفحه ورود.","same":["a","b","c"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
+   {"k":"2","kind":"duplicate","p":"qa","t":"Login succeeds but user is bounced back to the sign-in page","d":"Reproduced on Chrome and Safari; no error toast.","steps":[["Complete OTP verification","Land on dashboard","Redirected to sign-in"]],"same":["a","b","c"],"cat":["en2fa","cross_lingual"],"sig":["repro"],"diff":"medium"}
+  ],
+  "queries":[{"q":"ورود پرتال","cat":["short"],"rel":{"a":2,"b":2,"c":2}},{"q":"login loop otp","cat":["en2fa","cross_lingual","codeswitch"],"rel":{"a":2,"b":2,"c":2}}]},
+
+ {"id":"c50","project":"StudentPanel","area":"auth","note":"Intermittent errors while refreshing a token (hard negative sibling: c51).",
+  "members":[
+   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"خطای مقطعی ورود به پرتال جدید هنگام تمدید توکن",
+    "d":"گاهی کاربر وسط کار با خطای ۴۰۱ از سیستم خارج می‌شود؛ تکرارپذیر نیست ولی چند بار در روز رخ می‌دهد.","curl":"/student/api/v1/auth/refresh-token","days":15,
+    "cm":[["developer","دو تب هم‌زمان refresh می‌زنند و token قدیمی در دومی باطل شده است."]]},
+   {"k":"b","type":"bug","st":"new","sev":"critical","role":"developer","t":"Concurrent tabs invalidate each other's refresh token","d":"Two tabs refresh at the same moment; the loser gets a 401 and is signed out.","curl":"/student/api/v1/auth/refresh-token","days":3,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"support","t":"زبان‌آموز وسط کلاس یهو از حساب میاد بیرون","d":"بدون هیچ پیامی صفحه ورود میاد، بعد دوباره وارد میشه.","same":["a","b"],"cat":["colloquial","symptom"],"sig":["description"],"diff":"hard"}
+  ],
+  "queries":[{"q":"refresh token 401","cat":["identifier","short"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c51","project":"StudentPanel","area":"auth","note":"Refresh needed twice after expiry; hard negative with c50.",
+  "rel_clusters":["c50"],
+  "members":[
+   {"k":"a","type":"bug","st":"todo","sev":"critical","role":"qa","t":"بعد از انقضای توکن باید دو بار رفرش شود تا تمدید انجام شود",
+    "d":"توکن منقضی شده است؛ اولین رفرش صفحه همچنان خطا می‌دهد و فقط دومی کار می‌کند.","steps":[["۶۰ دقیقه صبر کنید تا توکن منقضی شود","با یک رفرش صفحه بالا بیاید","خطا و نیاز به رفرش دوم"]],"curl":"/student/api/v1/auth/refresh-token","days":22}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"Expired session needs a double reload before it recovers","d":"First reload after expiry shows the error, second one works.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"رفرش دوبار توکن","cat":["short","symptom"],"rel":{"a":2}}]},
+
+ {"id":"c52","project":"StudentPanel","area":"payment","note":"Wrong redirect after choosing Pay; cancelled dupe present.",
+  "members":[
+   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"بعد از انتخاب «پرداخت» در ثبت‌نام کلاس به صفحه اشتباه هدایت می‌شود",
+    "d":"به‌جای درگاه، کاربر به لیست کلاس‌ها برمی‌گردد و ثبت‌نام ناتمام می‌ماند.","steps":[["کلاسی انتخاب و دکمه پرداخت را بزنید","انتقال به درگاه","بازگشت به لیست کلاس‌ها"]],"curl":"/student/api/v1/finance/pre-payment","days":10},
+   {"k":"b","type":"bug","st":"cancelled","sev":"critical","role":"qa","t":"دکمه پرداخت به درگاه وصل نمی‌شود","d":"زدن پرداخت کاربر را به درگاه نمی‌برد.","days":9,"dupe_of":"a"},
+   {"k":"c","type":"bug","st":"new","sev":"critical","role":"support","src":"support","t":"موقع ثبت‌نام کلاس دکمه پرداخت رو میزنه ولی درگاه باز نمیشه","d":"چند نفر نتونستن ثبت‌نام کنن.","days":1,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"developer","t":"pre-payment returns but the client navigates to the class list instead of the gateway","d":"","same":["a","b","c"],"cat":["codeswitch","identifier"],"sig":["title","curl"],"diff":"medium"},
+   {"k":"2","kind":"hard_negative","p":"qa","t":"بعد از پرداخت موفق وضعیت ثبت‌نام در پرتال دیر به‌روز می‌شود","d":"پس از بازگشت از درگاه تا پنج دقیقه ثبت‌نام هنوز در انتظار پرداخت است.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"hard"}
+  ],
+  "queries":[{"q":"پرداخت ثبت نام","cat":["short"],"rel":{"a":2,"b":2,"c":2}}]},
+
+ {"id":"c53","project":"StudentPanel","area":"exam","note":"SMS exam link stuck on loading.",
+  "members":[
+   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"لینک آزمون ارسالی با پیامک صفحه را روی بارگذاری نگه می‌دارد",
+    "d":"زبان‌آموز از پیامک لینک آزمون را باز می‌کند و صفحه تا ابد در حالت loading می‌ماند.","curl":"/student/api/v1/exam/session","days":6,
+    "cm":[["developer","توکن کوتاه‌مدت لینک وقتی کاربر لاگین نیست در redirect گم می‌شود."]]},
+   {"k":"b","type":"bug","st":"new","sev":"critical","role":"support","src":"support","t":"از لینک پیامک وارد آزمون نمیشن صفحه چرخ میزنه","d":"چند نفر ۵ دقیقه بعد از ارسال لینک هنوز صفحه لودینگ داشتن.","days":1,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"Exam deep-link from SMS spins forever when the user is signed out","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  ],
+  "queries":[{"q":"لینک پیامک آزمون","cat":["short"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c54","project":"StudentPanel","area":"dashboard","note":"Dashboard error when a class has no session defined.",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"داشبورد برای کلاس بدون جلسه تعریف‌شده خطا نمایش می‌دهد",
+    "d":"اگر کلاس هنوز جلسه‌ای نداشته باشد کارت «جلسه بعدی» با پیام خطای فنی به‌جای حالت خالی نمایش داده می‌شود.","curl":"/student/api/v1/dashboard/next-session","days":44,
+    "cm":[["developer","پاسخ ۴۰۴ به‌جای لیست خالی بود. اصلاح شد."]]}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"support","t":"کلاس جدیدی که هنوز جلسه نداره تو داشبورد ارور میده","d":"زبان‌آموز عکس خطا فرستاده.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"},
+   {"k":"2","kind":"duplicate","p":"developer","t":"next-session 404 when no sessions exist","d":"","same":["a"],"cat":["identifier","en2fa"],"sig":["title","curl"],"diff":"easy"}
+  ],
+  "queries":[{"q":"/student/api/v1/dashboard/next-session","cat":["identifier"],"rel":{"a":2}}]},
+
+ {"id":"c55","project":"StudentPanel","area":"dashboard","note":"Suggestion card not linked to session content (task).",
+  "members":[
+   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"اتصال پیشنهاد داشبورد به محتوای جلسه کلاس","d":"پیشنهاد تمرین روی داشبورد باید بر اساس مبحث آخرین جلسه باشد، نه یک پیشنهاد ثابت.","days":37}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"developer","t":"Make dashboard practice suggestions follow the last session topic","d":"","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  ],
+  "queries":[{"q":"suggestion dashboard session content","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
+
+ {"id":"c56","project":"Releasewatch","area":"filters","note":"Reporter filter and URL params are two tasks in one area (hard negative).",
+  "members":[
+   {"k":"a","type":"task","st":"done","sev":"enhancement","role":"developer","t":"Add Reporter filter in issue list page","d":"The list can be filtered by assignee but not by reporter; QA wants to see everything they filed.","days":70,
+    "cm":[["pm","Shipped in 3.1."]]},
+   {"k":"b","type":"task","st":"new","sev":"enhancement","role":"qa","t":"فیلتر گزارش‌دهنده در لیست ایشوها","d":"می‌خواهم فقط ایشوهایی را ببینم که خودم ثبت کرده‌ام.","days":4,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"فیلتر بر اساس کسی که ایشو را ثبت کرده","d":"در لیست فقط assignee دارد.","same":["a","b"],"cat":["codeswitch"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"reporter filter","cat":["short"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c57","project":"Releasewatch","area":"filters","note":"Filters in URL — sibling of c56.",
+  "rel_clusters":["c56"],
+  "members":[
+   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"developer","t":"Keep issue page filters in URL query params","d":"Reloading or sharing a link loses status and project filters; they should live in the query string.","days":30}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"فیلترهای صفحه ایشوها بعد از رفرش پاک می‌شود","d":"لینک فیلترشده را برای همکار می‌فرستم و او لیست کامل را می‌بیند.","same":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"فیلتر در url","cat":["short","codeswitch"],"rel":{"a":2}}]},
+
+ {"id":"c58","project":"Releasewatch","area":"list","note":"Sorting bug.",
+  "members":[
+   {"k":"a","type":"bug","st":"new","sev":"minor","role":"qa","t":"Sorting by Last update is wrong in the issue list","d":"Items edited today appear below items edited last week.","steps":[["Sort the list by Last update descending","Newest edit first","Order is shuffled"]],"days":7}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"support","t":"مرتب‌سازی براساس آخرین بروزرسانی درست کار نمیکنه","d":"ایشوهایی که امروز تغییر کردن پایین لیستن.","same":["a"],"cat":["fa2en","cross_lingual"],"sig":["description"],"diff":"easy"}
+  ],
+  "queries":[{"q":"sort last update","cat":["short"],"rel":{"a":2}}]},
+
+ {"id":"c59","project":"Releasewatch","area":"attachments","note":"Attachments vanish after a status change (Done original).",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"فایل‌های پیوست بعد از تغییر وضعیت ایشو ناپدید می‌شوند",
+    "d":"به یک ایشو دو اسکرین‌شات پیوست کرده بودم؛ بعد از انتقال ایشو به «در حال انجام» پیوست‌ها دیده نمی‌شوند.","steps":[["دو تصویر پیوست کنید","—","—"],["وضعیت را تغییر دهید","پیوست‌ها بمانند","پیوست‌ها از لیست حذف شده‌اند"]],"days":55,
+    "cm":[["developer","presigned URL پس از تغییر وضعیت دوباره ساخته نمی‌شد. درست شد."]]}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"qa","t":"Screenshots attached to an issue are gone after moving it to review","d":"Attachments list is empty once the status changes.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"attachment status change disappear","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
+
+ {"id":"c60","project":"Releasewatch","area":"comments","note":"Cross-project distractor for Chat message reactions (c01): reactions on comments are a different feature in another project.",
+  "members":[
+   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"Add reactions to comments in issue details","d":"Let team members react to a comment with an emoji instead of writing +1.","days":42}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"ایموجی زدن زیر کامنت‌های ایشو","d":"به جای نوشتن موافقم بشود روی کامنت واکنش گذاشت.","same":["a"],"cat":["fa2en","cross_lingual"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"comment reactions","cat":["short"],"rel":{"a":2}}]}
+]

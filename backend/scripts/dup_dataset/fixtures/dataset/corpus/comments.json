@@ -1,0 +1,562 @@
+[
+ {
+  "id": "fc001",
+  "issue_id": "f001",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "مشکل از کش سمت کلاینت بود؛ پاسخ لیست پیام‌ها ری‌اکشن‌های کاربر جاری را برنمی‌گرداند و بعد از رفرش فقط شمارنده می‌ماند. اصلاح شد.",
+  "created_at": "2026-08-03T15:00:00+00:00"
+ },
+ {
+  "id": "fc002",
+  "issue_id": "f001",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "روی نسخه staging دوباره تست کردم و بعد از رفرش ری‌اکشن‌ها می‌مانند.",
+  "created_at": "2026-08-03T20:00:00+00:00"
+ },
+ {
+  "id": "fc003",
+  "issue_id": "f001",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "اوکی، ببندیم.",
+  "created_at": "2026-08-04T01:00:00+00:00"
+ },
+ {
+  "id": "fc004",
+  "issue_id": "f002",
+  "author_role": "support",
+  "is_internal": false,
+  "body": "دو تا از زبان‌آموزای دیگه همین رو گفتن، فکر کنم عمومیه.",
+  "created_at": "2026-09-24T08:00:00+00:00"
+ },
+ {
+  "id": "fc005",
+  "issue_id": "f004",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "به نظر race condition روی آپدیت شمارنده است، باید atomic بشه.",
+  "created_at": "2026-09-09T18:00:00+00:00"
+ },
+ {
+  "id": "fc006",
+  "issue_id": "f004",
+  "author_role": "qa",
+  "is_internal": true,
+  "body": "شبیه باگ ناپدید شدن ری‌اکشن بعد رفرش به نظر میاد ولی اون با این فرق داره، اینجا بعد رفرش هم همون یکی می‌مونه.",
+  "created_at": "2026-09-09T23:00:00+00:00"
+ },
+ {
+  "id": "fc007",
+  "issue_id": "f005",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "پیام socket برای پین به اعضا ارسال نمی‌شود؛ فقط در fetch بعدی لیست می‌آید.",
+  "created_at": "2026-09-16T10:00:00+00:00"
+ },
+ {
+  "id": "fc008",
+  "issue_id": "f005",
+  "author_role": "support",
+  "is_internal": false,
+  "body": "چند تا از موسسه‌ها پرسیدن، لطفا اولویت بدید.",
+  "created_at": "2026-09-16T15:00:00+00:00"
+ },
+ {
+  "id": "fc009",
+  "issue_id": "f008",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "شمارنده unread در دیتابیس کم می‌شود ولی event به کلاینت نمی‌رسد.",
+  "created_at": "2026-09-21T12:00:00+00:00"
+ },
+ {
+  "id": "fc010",
+  "issue_id": "f010",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "timeout پراکسی روی confirm بعد از آپلود بود؛ از 30 ثانیه به 120 ثانیه رفت.",
+  "created_at": "2026-07-20T22:00:00+00:00"
+ },
+ {
+  "id": "fc011",
+  "issue_id": "f010",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "تایید شد روی فایل ۲۰ مگ.",
+  "created_at": "2026-07-21T03:00:00+00:00"
+ },
+ {
+  "id": "fc012",
+  "issue_id": "f013",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "باید timeout سمت سرور اضافه شود؛ الان فقط با ارسال event توقف می‌گیرد.",
+  "created_at": "2026-09-08T00:00:00+00:00"
+ },
+ {
+  "id": "fc013",
+  "issue_id": "f015",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "در کامپوننت reply هنگام نبودن متن، header هم رندر نمی‌شد. اصلاح شد.",
+  "created_at": "2026-08-14T09:00:00+00:00"
+ },
+ {
+  "id": "fc014",
+  "issue_id": "f017",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "state کادر تایپ به شناسه گفتگو وابسته نبود. حالا به ازای هر گفتگو ذخیره می‌شود.",
+  "created_at": "2026-07-11T19:00:00+00:00"
+ },
+ {
+  "id": "fc015",
+  "issue_id": "f017",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "تایید شد، ولی روی iOS Safari هم یک بار چک کنید.",
+  "created_at": "2026-07-12T00:00:00+00:00"
+ },
+ {
+  "id": "fc016",
+  "issue_id": "f017",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "iOS هم درست است.",
+  "created_at": "2026-07-12T05:00:00+00:00"
+ },
+ {
+  "id": "fc017",
+  "issue_id": "f019",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "هنگام حذف باید last_message دوباره از دیتابیس خوانده شود. اصلاح شد.",
+  "created_at": "2026-07-26T04:00:00+00:00"
+ },
+ {
+  "id": "fc018",
+  "issue_id": "f021",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "اولویت متوسط، بعد از ریلیز ۳.۲.",
+  "created_at": "2026-08-21T13:00:00+00:00"
+ },
+ {
+  "id": "fc019",
+  "issue_id": "f024",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "ترتیب ارسال و sequence_id تداخل دارد؛ در حال اصلاح.",
+  "created_at": "2026-09-12T15:00:00+00:00"
+ },
+ {
+  "id": "fc020",
+  "issue_id": "f024",
+  "author_role": "developer",
+  "is_internal": true,
+  "body": "اتفاقا آپلود فایل هم همین مشکل ۹۹٪ رو داشت، ربطی نداره ولی یادمون باشه تست بشه.",
+  "created_at": "2026-09-12T20:00:00+00:00"
+ },
+ {
+  "id": "fc021",
+  "issue_id": "f026",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "token APNs بعد از ۳۰ دقیقه منقضی می‌شود و refresh نمی‌شود.",
+  "created_at": "2026-08-26T01:00:00+00:00"
+ },
+ {
+  "id": "fc022",
+  "issue_id": "f029",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "limit پیش‌فرض ۲۰ بود. صفحه‌بندی اضافه شد.",
+  "created_at": "2026-07-02T03:00:00+00:00"
+ },
+ {
+  "id": "fc023",
+  "issue_id": "f029",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "درست شد.",
+  "created_at": "2026-07-02T08:00:00+00:00"
+ },
+ {
+  "id": "fc024",
+  "issue_id": "f030",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "event حذف از پرتال قدیمی به سرویس چت نمی‌رسد.",
+  "created_at": "2026-09-17T20:00:00+00:00"
+ },
+ {
+  "id": "fc025",
+  "issue_id": "f033",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "هنگام ذخیره \\n حذف می‌شد، پاک‌سازی ورودی خط‌ها را حذف می‌کرد. برطرف شد.",
+  "created_at": "2026-07-29T22:00:00+00:00"
+ },
+ {
+  "id": "fc026",
+  "issue_id": "f033",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "روی staging تایید شد.",
+  "created_at": "2026-07-30T03:00:00+00:00"
+ },
+ {
+  "id": "fc027",
+  "issue_id": "f035",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "مدل گاهی JSON را داخل markdown می‌پیچید و parser آن را رد می‌کرد. fallback اضافه شد.",
+  "created_at": "2026-07-17T07:00:00+00:00"
+ },
+ {
+  "id": "fc028",
+  "issue_id": "f040",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "کلاس‌ها با index اشتباه از context انتخاب می‌شد؛ در دست اصلاح.",
+  "created_at": "2026-09-13T19:00:00+00:00"
+ },
+ {
+  "id": "fc029",
+  "issue_id": "f042",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "prompt از حد context رد می‌شد. حالا خلاصه‌سازی مرحله‌ای داریم.",
+  "created_at": "2026-08-06T04:00:00+00:00"
+ },
+ {
+  "id": "fc030",
+  "issue_id": "f044",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "با تیم محتوا هماهنگ شد، قرار است معیار توزیع distractor را بنویسند.",
+  "created_at": "2026-08-11T13:00:00+00:00"
+ },
+ {
+  "id": "fc031",
+  "issue_id": "f044",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "یادآوری: ربطی به خطای کتاب‌های حجیم نداره.",
+  "created_at": "2026-08-11T18:00:00+00:00"
+ },
+ {
+  "id": "fc032",
+  "issue_id": "f047",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "جستجوی برداری تاریخچه ناحیه‌ی زمانی را فیلتر نمی‌کند.",
+  "created_at": "2026-09-09T15:00:00+00:00"
+ },
+ {
+  "id": "fc033",
+  "issue_id": "f048",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "soft delete کافی است؛ حذف از index جستجو هم لازم است.",
+  "created_at": "2026-08-23T08:00:00+00:00"
+ },
+ {
+  "id": "fc034",
+  "issue_id": "f052",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "با middleware اضافه شد و در هدر پاسخ هم برمی‌گردد.",
+  "created_at": "2026-08-01T03:00:00+00:00"
+ },
+ {
+  "id": "fc035",
+  "issue_id": "f054",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "gateway بعد از ۶۰ ثانیه stream را می‌بندد.",
+  "created_at": "2026-09-17T12:00:00+00:00"
+ },
+ {
+  "id": "fc036",
+  "issue_id": "f057",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "فیلتر user_id در query جا افتاده بود. با hotfix اصلاح شد.",
+  "created_at": "2026-07-07T14:00:00+00:00"
+ },
+ {
+  "id": "fc037",
+  "issue_id": "f057",
+  "author_role": "cto",
+  "is_internal": false,
+  "body": "بررسی کنید قبلاً چه داده‌ای نشت کرده.",
+  "created_at": "2026-07-07T19:00:00+00:00"
+ },
+ {
+  "id": "fc038",
+  "issue_id": "f059",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "در ساعت ۲۰ تا ۲۲ صف درخواست‌های مدل پر می‌شود و لیمسا با پیام «سرویس موقتا در دسترس نیست» پاسخ می‌دهد، حدود ۱۵٪ درخواست‌ها.",
+  "created_at": "2026-09-13T00:00:00+00:00"
+ },
+ {
+  "id": "fc039",
+  "issue_id": "f059",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "فقط برای کاربران پلن رایگان رخ می‌دهد؛ پلن پولی صف جدا دارد.",
+  "created_at": "2026-09-13T05:00:00+00:00"
+ },
+ {
+  "id": "fc040",
+  "issue_id": "f059",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "rate limiter خود ما قبل از ارائه‌دهنده مدل جواب ۴۲۹ می‌دهد، نه خود ارائه‌دهنده.",
+  "created_at": "2026-09-13T10:00:00+00:00"
+ },
+ {
+  "id": "fc041",
+  "issue_id": "f060",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "پنل از cache ده دقیقه‌ای می‌خواند و پس از شارژ آن را باطل نمی‌کند.",
+  "created_at": "2026-09-16T17:00:00+00:00"
+ },
+ {
+  "id": "fc042",
+  "issue_id": "f060",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "برای مالی حساس است، اولویت بالا.",
+  "created_at": "2026-09-16T22:00:00+00:00"
+ },
+ {
+  "id": "fc043",
+  "issue_id": "f065",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "ستون کد ملی با فرمت عددی خوانده می‌شد و صفر ابتدایی حذف و رد می‌شد. اصلاح شد.",
+  "created_at": "2026-07-20T04:00:00+00:00"
+ },
+ {
+  "id": "fc044",
+  "issue_id": "f067",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "pageSize ثابت بود و lazy load اضافه نشده بود.",
+  "created_at": "2026-07-28T13:00:00+00:00"
+ },
+ {
+  "id": "fc045",
+  "issue_id": "f072",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "فیلتر روی نام و کد ملی با OR ترکیب شده بود.",
+  "created_at": "2026-09-09T01:00:00+00:00"
+ },
+ {
+  "id": "fc046",
+  "issue_id": "f078",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "کوکی SameSite در دامنه جدید ست نمی‌شد. اصلاح و دیپلوی شد.",
+  "created_at": "2026-08-11T05:00:00+00:00"
+ },
+ {
+  "id": "fc047",
+  "issue_id": "f078",
+  "author_role": "qa",
+  "is_internal": false,
+  "body": "تایید شد.",
+  "created_at": "2026-08-11T10:00:00+00:00"
+ },
+ {
+  "id": "fc048",
+  "issue_id": "f081",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "دو تب هم‌زمان refresh می‌زنند و token قدیمی در دومی باطل شده است.",
+  "created_at": "2026-09-15T07:00:00+00:00"
+ },
+ {
+  "id": "fc049",
+  "issue_id": "f087",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "توکن کوتاه‌مدت لینک وقتی کاربر لاگین نیست در redirect گم می‌شود.",
+  "created_at": "2026-09-24T11:00:00+00:00"
+ },
+ {
+  "id": "fc050",
+  "issue_id": "f089",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "پاسخ ۴۰۴ به‌جای لیست خالی بود. اصلاح شد.",
+  "created_at": "2026-08-16T21:00:00+00:00"
+ },
+ {
+  "id": "fc051",
+  "issue_id": "f091",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "Shipped in 3.1.",
+  "created_at": "2026-07-22T06:00:00+00:00"
+ },
+ {
+  "id": "fc052",
+  "issue_id": "f095",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "presigned URL پس از تغییر وضعیت دوباره ساخته نمی‌شد. درست شد.",
+  "created_at": "2026-08-06T01:00:00+00:00"
+ },
+ {
+  "id": "fc053",
+  "issue_id": "f097",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "heartbeat timeout ۵ دقیقه بود. به ۴۵ ثانیه کاهش یافت.",
+  "created_at": "2026-07-15T10:00:00+00:00"
+ },
+ {
+  "id": "fc054",
+  "issue_id": "f105",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "کیفیت JPEG از ۴۰ به ۸۰ رفت و حداکثر ابعاد افزایش یافت.",
+  "created_at": "2026-07-04T00:00:00+00:00"
+ },
+ {
+  "id": "fc055",
+  "issue_id": "f108",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "۴۸ ساعت را با تیم محصول نهایی کنید.",
+  "created_at": "2026-09-05T02:00:00+00:00"
+ },
+ {
+  "id": "fc056",
+  "issue_id": "f108",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "روی گروه‌ها و چت خصوصی یکسان اعمال می‌شود؟",
+  "created_at": "2026-09-05T07:00:00+00:00"
+ },
+ {
+  "id": "fc057",
+  "issue_id": "f112",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "system prompt بعد از خلاصه‌سازی تاریخچه حذف می‌شود.",
+  "created_at": "2026-09-15T21:00:00+00:00"
+ },
+ {
+  "id": "fc058",
+  "issue_id": "f114",
+  "author_role": "pm",
+  "is_internal": false,
+  "body": "فرمت CSV و PDF هر دو خوب است.",
+  "created_at": "2026-09-21T06:00:00+00:00"
+ },
+ {
+  "id": "fc059",
+  "issue_id": "f114",
+  "author_role": "support",
+  "is_internal": true,
+  "body": "سه موسسه تا الان درخواست کردند.",
+  "created_at": "2026-09-21T11:00:00+00:00"
+ },
+ {
+  "id": "fc060",
+  "issue_id": "f116",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "فونت بدون shaping استفاده می‌شد. فونت Vazirmatn و reshaper اضافه شد.",
+  "created_at": "2026-07-11T15:00:00+00:00"
+ },
+ {
+  "id": "fc061",
+  "issue_id": "f118",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "SELECT ... FOR UPDATE اضافه شد.",
+  "created_at": "2026-06-27T01:00:00+00:00"
+ },
+ {
+  "id": "fc062",
+  "issue_id": "f121",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "URI از content:// برمی‌گشت و ما MIME را از پسوند می‌خواندیم.",
+  "created_at": "2026-07-26T03:00:00+00:00"
+ },
+ {
+  "id": "fc063",
+  "issue_id": "f124",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "Celery task retried after a timeout even though the first send succeeded. Added an idempotency key.",
+  "created_at": "2026-08-03T05:00:00+00:00"
+ },
+ {
+  "id": "fc064",
+  "issue_id": "f129",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "شمارنده از جدول عضویت خوانده نمی‌شد، حالا COUNT می‌گیرد.",
+  "created_at": "2026-09-03T17:00:00+00:00"
+ },
+ {
+  "id": "fc065",
+  "issue_id": "f132",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "Added exponential backoff with full jitter; rolling out to staging.",
+  "created_at": "2026-08-13T19:00:00+00:00"
+ },
+ {
+  "id": "fc066",
+  "issue_id": "f143",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "فیلتر محتوای ورودی و خروجی برای رده‌های سنی فعال شد.",
+  "created_at": "2026-08-27T10:00:00+00:00"
+ },
+ {
+  "id": "fc067",
+  "issue_id": "f143",
+  "author_role": "cto",
+  "is_internal": false,
+  "body": "گزارش را به تیم محصول بدهید.",
+  "created_at": "2026-08-27T15:00:00+00:00"
+ },
+ {
+  "id": "fc068",
+  "issue_id": "f152",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "ایمیل قبل از ارسال lowercase می‌شود.",
+  "created_at": "2026-09-22T17:00:00+00:00"
+ },
+ {
+  "id": "fc069",
+  "issue_id": "f161",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "در localStorage ذخیره می‌شد نه در پروفایل. اصلاح شد.",
+  "created_at": "2026-07-21T23:00:00+00:00"
+ },
+ {
+  "id": "fc070",
+  "issue_id": "f166",
+  "author_role": "developer",
+  "is_internal": false,
+  "body": "Server returns clamped value now.",
+  "created_at": "2026-09-15T10:00:00+00:00"
+ }
+]

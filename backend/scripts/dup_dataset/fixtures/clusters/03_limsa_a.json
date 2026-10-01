@@ -1,0 +1,110 @@
+[
+ {"id":"c19","project":"Limsa","area":"formatting","note":"Newlines collapse. Done original; fresh support dupe; recurrence.",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"لیمسا خط‌های جدید پیام کاربر را به یک خط تبدیل می‌کند",
+    "d":"متنی که با Enter در چند خط نوشته می‌شود بعد از ارسال در گفتگو با لیمسا پشت‌سرهم و در یک خط نمایش داده می‌شود و خواندن آن سخت است.",
+    "steps":[["در کادر پیام لیمسا دو خط را با Enter بنویسید","نمایش در دو خط","نمایش در یک خط"]],"curl":"/student/api/v1/limsa/sessions/messages","labels":["limsa"],"days":62,
+    "cm":[["developer","هنگام ذخیره \\n حذف می‌شد، پاک‌سازی ورودی خط‌ها را حذف می‌کرد. برطرف شد."],["qa","روی staging تایید شد."]]},
+   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"سوال چند خطی زبان‌آموز تو لیمسا همش می‌چسبه به هم","d":"موسسه میگه بچه‌ها متن‌های چندخطی می‌فرستن ولی بعد از ارسال همه‌اش یه خط میشه.","days":3,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"qa","t":"چند خطی بودن پیام در لیمسا دوباره از بین رفته","d":"پس از ریلیز آخر، شکستن سطر در متن‌های ارسالی دیگر دیده نمی‌شود.","steps":[["پیامی دو خطی بفرستید","دو خط","یک خط"]],"same":["a"],"cat":["symptom"],"sig":["repro","description"],"diff":"medium"},
+   {"k":"2","kind":"duplicate","p":"developer","t":"Limsa strips line breaks from user input","d":"Newline characters are normalised away before the message is stored.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"لیمسا Enter","cat":["short","codeswitch"],"rel":{"a":2,"b":2}},{"q":"line break removed limsa","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c20","project":"Limsa","area":"flashcard","note":"Flashcard output shape; sibling of c21.",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"فلش‌کارت‌ها به‌جای کارت، متن ساده برگردانده می‌شوند",
+    "d":"درخواست ساخت فلش‌کارت از بازه صفحات کتاب جواب را به صورت یک متن طولانی می‌دهد و قالب کارت نمی‌آید.","steps":[["از لیمسا بخواهید برای صفحات ۱۰ تا ۱۵ کتاب فلش‌کارت بسازد","کارت‌ها در قالب جلو و پشت","متن ساده بدون قالب"]],"curl":"/student/api/v1/limsa/sessions/messages","days":75,
+    "cm":[["developer","مدل گاهی JSON را داخل markdown می‌پیچید و parser آن را رد می‌کرد. fallback اضافه شد."]]},
+   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"کارت‌های درس به شکل کارت نیست و فقط نوشته میاد","d":"زبان‌آموز ازش فلش کارت خواسته ولی نوشته‌های پشت سر هم میاد.","days":5,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"qa","t":"خروجی ساخت فلش‌کارت دوباره بدون قالب کارت است","d":"بعد از آپدیت، جواب فلش‌کارت‌ها مثل یک پاراگراف نمایش داده می‌شود.","same":["a","b"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
+   {"k":"2","kind":"hard_negative","p":"qa","t":"خروجی فلش‌کارت پس از ساخت کامل خالی است","d":"فرایند تمام می‌شود ولی هیچ کارتی نمایش داده نمی‌شود.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"hard"}
+  ],
+  "queries":[{"q":"فلش کارت","cat":["short"],"rel":{"a":2,"b":2}},{"q":"flashcards plain text","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c21","project":"Limsa","area":"flashcard","note":"Hard negative sibling: empty flashcard output (a different fault).",
+  "rel_clusters":["c20"],
+  "members":[
+   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"بعد از اتمام ساخت فلش‌کارت هیچ کارتی نمایش داده نمی‌شود",
+    "d":"پیام «ساخت کارت‌ها تمام شد» می‌آید ولی لیست کارت‌ها خالی است.","steps":[["درخواست ساخت ۲۰ فلش‌کارت بدهید","لیست ۲۰ کارت","لیست خالی"]],"days":19}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"support","t":"گفت کارت‌ها آماده شد ولی چیزی ندیدیم","d":"مشتری میگه فلش‌کارت ساخته شده ولی صفحه خالیه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"empty flashcard list","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
+
+ {"id":"c22","project":"Limsa","area":"ui","note":"Cannot select answer text; one cancelled dupe.",
+  "members":[
+   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"امکان انتخاب و کپی متن پاسخ لیمسا وجود ندارد",
+    "d":"روی متن جواب‌ها نمی‌توان انتخاب کرد و گزینه کپی ظاهر نمی‌شود، فقط روی دسکتاپ با دکمه جدا ممکن است.","labels":["limsa"],"days":30},
+   {"k":"b","type":"bug","st":"cancelled","sev":"minor","role":"qa","t":"کپی کردن جواب لیمسا ممکن نیست","d":"با لانگ‌پرس هیچ منویی باز نمی‌شود.","days":27,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"support","t":"نمیشه نوشته‌های لیمسا رو سلکت کرد","d":"زبان‌آموز می‌خواست جمله رو کپی کنه نشد.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  ],
+  "queries":[{"q":"copy text answer","cat":["en2fa","cross_lingual","short"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c23","project":"Limsa","area":"class-info","note":"Wrong class title returned; the support dupe is the Done original's twin.",
+  "members":[
+   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"qa","t":"عنوان کلاس در پاسخ لیمسا اشتباه برگردانده می‌شود",
+    "d":"وقتی زبان‌آموز درباره کلاسش می‌پرسد، لیمسا نام کلاس دیگری را می‌گوید.","curl":"/student/api/v1/limsa/sessions/messages","days":16,
+    "cm":[["developer","کلاس‌ها با index اشتباه از context انتخاب می‌شد؛ در دست اصلاح.",0]]},
+   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"اسم کلاسی که لیمسا میگه مال ما نیست","d":"زبان‌آموز پرسید کلاسم چیه، یه اسم دیگه گفت.","days":4,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"developer","t":"Limsa answers with the wrong class name","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"easy"},
+   {"k":"2","kind":"hard_negative","p":"support","t":"لیمسا ساعت کلاس رو اشتباه میگه","d":"زبان‌آموز ساعت جلسه بعدی رو پرسید و جواب غلط بود.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  ],
+  "queries":[{"q":"عنوان کلاس لیمسا","cat":["short"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c24","project":"Limsa","area":"quiz","note":"Quiz generation from large books fails; repro carries the numbers.",
+  "members":[
+   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"تولید کوییز از کتاب‌های با صفحات زیاد شکست می‌خورد",
+    "d":"برای کتابی بالای ۳۰۰ صفحه درخواست کوییز می‌دهم و بعد از چند ثانیه پیام خطای عمومی می‌آید.","steps":[["کتاب ۳۵۰ صفحه‌ای را انتخاب کنید","کوییز ساخته شود","پیام «خطایی رخ داد»"],["همان کتاب با بازه ۱۰ صفحه","کوییز ساخته شود","ساخته می‌شود"]],"curl":"/student/api/v1/limsa/quiz/generate","days":55,
+    "cm":[["developer","prompt از حد context رد می‌شد. حالا خلاصه‌سازی مرحله‌ای داریم."]]},
+   {"k":"b","type":"bug","st":"new","sev":"critical","role":"developer","t":"Quiz generation times out on large books","d":"Books above ~300 pages end in a 504 from /quiz/generate.","curl":"/student/api/v1/limsa/quiz/generate","days":2,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"recurrence","p":"qa","t":"ساخت آزمون از کتاب حجیم دوباره خطا می‌دهد","d":"کتاب ۴۰۰ صفحه‌ای؛ خطای عمومی و عدم ساخت.","steps":[["درخواست آزمون از کل کتاب","ساخته شود","خطای عمومی نشان داده می‌شود"]],"same":["a","b"],"cat":["symptom"],"sig":["repro"],"diff":"medium"},
+   {"k":"2","kind":"hard_negative","p":"support","t":"سوال‌های کوییز لیمسا خیلی راحته","d":"زبان‌آموز میگه گزینه‌های غلط معلومه غلطن.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  ],
+  "queries":[{"q":"/student/api/v1/limsa/quiz/generate 504","cat":["identifier"],"rel":{"a":2,"b":2}},{"q":"کوییز کتاب بزرگ","cat":["short","translit"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c25","project":"Limsa","area":"quiz","note":"Quiz quality: wrong options too easy. Hard negative sibling of c24.",
+  "rel_clusters":["c24"],
+  "members":[
+   {"k":"a","type":"bug","st":"todo","sev":"major","role":"pm","t":"گزینه‌های غلط کوییز کیفیت پایینی دارند و جواب درست مشخص است",
+    "d":"در بسیاری از سوال‌ها دو گزینه کاملاً بی‌ربط هستند و زبان‌آموز بدون خواندن متن می‌تواند حدس بزند.","labels":["limsa"],"days":50,
+    "cm":[["pm","با تیم محتوا هماهنگ شد، قرار است معیار توزیع distractor را بنویسند."],["developer","یادآوری: ربطی به خطای کتاب‌های حجیم نداره.",0]]}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"گزینه‌های اشتباه آزمون بی‌ربط‌اند","d":"با خواندن فقط صورت سوال پاسخ مشخص می‌شود؛ distractorها ضعیف‌اند.","same":["a"],"cat":["codeswitch"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"distractor quality quiz","cat":["en2fa","cross_lingual","identifier"],"rel":{"a":2}}]},
+
+ {"id":"c26","project":"Limsa","area":"podcast","note":"Task duplicates: podcast / audio content.",
+  "members":[
+   {"k":"a","type":"task","st":"new","sev":"enhancement","role":"pm","t":"ارائه محتوای پادکست برای تمرین شنیداری","d":"زبان‌آموزان بتوانند در لیمسا پادکست کوتاه مرتبط با سطح خود را گوش دهند و سوال‌های فهم مطلب بگیرند.","days":45},
+   {"k":"b","type":"task","st":"new","sev":"enhancement","role":"support","src":"internal","t":"Add listening practice with short podcasts","d":"Support gets asked weekly whether Limsa can play audio episodes.","days":9,"dupe_of":"a"}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"support","t":"چندتا از مشتری‌ها می‌پرسن لیمسا پادکست داره یا نه","d":"می‌خوان برای مهارت شنیداری یه چیزی گوش بدن.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  ],
+  "queries":[{"q":"podcast","cat":["short","translit"],"rel":{"a":2,"b":2}}]},
+
+ {"id":"c27","project":"Limsa","area":"memory","note":"History recall points to wrong earlier messages.",
+  "members":[
+   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"qa","t":"لیمسا هنگام ارجاع به گفتگوی قبلی پیام‌های اشتباه را بازیابی می‌کند",
+    "d":"می‌پرسم «چیزی که دیروز درباره فعل گذشته گفتی چی بود» و جواب مربوط به موضوع دیگری است.","curl":"/student/api/v1/limsa/sessions/messages","days":21,
+    "cm":[["developer","جستجوی برداری تاریخچه ناحیه‌ی زمانی را فیلتر نمی‌کند."]]}
+  ],
+  "drafts":[
+   {"k":"1","kind":"duplicate","p":"qa","t":"Limsa recalls unrelated earlier conversation when asked about yesterday","d":"","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"},
+   {"k":"2","kind":"hard_negative","p":"support","t":"لیمسا یه چیزی که قبلا بهش گفتم یادش نیست","d":"زبان‌آموز میگه اسمش رو گفته بود ولی بعدش ازش پرسید.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  ],
+  "queries":[{"q":"حافظه گفتگو لیمسا","cat":["short","symptom"],"rel":{"a":2}}]}
+]

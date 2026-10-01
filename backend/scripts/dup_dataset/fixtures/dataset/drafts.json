@@ -1,0 +1,3723 @@
+{
+ "drafts": [
+  {
+   "id": "n001",
+   "cluster_id": "c01",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "قلب و لایک پیام‌ها بعد از خروج از گروه پاک میشه",
+   "description": "سلام. یکی از مشتری‌ها میگه توی گروه کلاس بچه‌ها رو پیام‌ها لایک زده بود ولی بعدش که دوباره باز کرد هیچ‌چی نبود.",
+   "reproduction_steps": [],
+   "base_issue": "f001",
+   "same": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n002",
+   "cluster_id": "c01",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Reaction highlight lost when conversation list is re-fetched",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f001",
+   "same": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n003",
+   "cluster_id": "c01",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "برگشت مشکل: ری‌اکشن‌ها بعد از آپدیت اخیر دوباره از بین میرن",
+   "description": "بعد از دیپلوی دیروز، دوباره ری‌اکشن‌های من روی پیام‌های گروه بعد از ریفرش نیست. قبلاً درست شده بود.",
+   "reproduction_steps": [
+    {
+     "description": "ری‌اکشن بزنید و صفحه را ببندید و دوباره باز کنید",
+     "expected_result": "ری‌اکشن باقی بماند",
+     "actual_result": "ری‌اکشن نیست"
+    }
+   ],
+   "base_issue": "f001",
+   "same": [
+    "f001"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro",
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n004",
+   "cluster_id": "c01",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Emoji reaction doesn't persist after page reload (Chat)",
+   "description": "Persian UI, group conversation. Reaction is visible instantly then vanishes on reload.",
+   "reproduction_steps": [
+    {
+     "description": "React to a message in a group",
+     "expected_result": "Reaction stays",
+     "actual_result": "Reaction disappears after reload"
+    }
+   ],
+   "base_issue": "f001",
+   "same": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n005",
+   "cluster_id": "c02",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "شمارنده ری‌اکشن با دو کاربر همزمان اشتباه می‌شود",
+   "description": "هنگام تست با دو دستگاه، هر دو همزمان ری‌اکشن زدند و عدد نمایش‌داده‌شده کمتر از انتظار بود.",
+   "reproduction_steps": [],
+   "base_issue": "f004",
+   "same": [
+    "f004"
+   ],
+   "related": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": "duplicate of c02.a, but related (not same) to c01"
+  },
+  {
+   "id": "n006",
+   "cluster_id": "c02",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "ری‌اکشن روی پیام‌های خصوصی هم‌زمان با ورود به گروه عوض میشه",
+   "description": "مشتری میگه وقتی ری‌اکشن می‌زنه بعضی وقتا ایموجی یهو تغییر می‌کنه.",
+   "reproduction_steps": [],
+   "base_issue": "f004",
+   "same": [],
+   "related": [
+    "f004",
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n007",
+   "cluster_id": "c03",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پین کردن پیام توی گروه فقط برای خود استاد نشون داده میشه",
+   "description": "موسسه میگه بچه‌ها بالای چت چیزی نمی‌بینن.",
+   "reproduction_steps": [],
+   "base_issue": "f005",
+   "same": [
+    "f005",
+    "f007"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n008",
+   "cluster_id": "c03",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Pinned message banner not broadcast to other members",
+   "description": "The socket event for pin is not sent to the group, members see it after a full reload.",
+   "reproduction_steps": [],
+   "base_issue": "f005",
+   "same": [
+    "f005",
+    "f007"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n009",
+   "cluster_id": "c04",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Unread badge stays after sender deletes the message",
+   "description": "Steps: A sends a message, B stays on the list, A deletes it. Expected: badge gone. Actual: badge still shows 1.",
+   "reproduction_steps": [],
+   "base_issue": "f008",
+   "same": [
+    "f008",
+    "f009"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n010",
+   "cluster_id": "c04",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "نشانه پیام جدید با حذف شدن اون پیام نمیره",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f008",
+   "same": [
+    "f008",
+    "f009"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n011",
+   "cluster_id": "c04",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "عدد پیام‌های نخوانده برای گروه‌های بی‌صدا شده هم نمایش داده میشه",
+   "description": "مشتری میگه گروه رو بی‌صدا کرده ولی بازم عدد داره.",
+   "reproduction_steps": [],
+   "base_issue": "f008",
+   "same": [],
+   "related": [
+    "f008"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n012",
+   "cluster_id": "c05",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "آپلود فایل دوباره روی ۹۹ درصد گیر کرد",
+   "description": "فایل حدود ۱۲ مگابایتی؛ نوار پر می‌شود ولی ارسال نمی‌شود و پیام خطا نمی‌آید.",
+   "reproduction_steps": [
+    {
+     "description": "فایل ۱۲ مگابایتی ارسال شود",
+     "expected_result": "ارسال شود",
+     "actual_result": "تا آخر نوار می‌رود و گیر می‌کند"
+    }
+   ],
+   "base_issue": "f010",
+   "same": [
+    "f010"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n013",
+   "cluster_id": "c05",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Large attachment upload hangs before confirm call",
+   "description": "POST attachment/upload returns but the confirm step never completes for files over ~10MB.",
+   "reproduction_steps": [],
+   "base_issue": "f010",
+   "same": [
+    "f010",
+    "f011"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "identifier"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n014",
+   "cluster_id": "c06",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیام خطای نامرتبط موقع آپلود فایل ویدیو با فرمت پشتیبانی‌نشده",
+   "description": "فایل mkv را انتخاب کردم، پیام خطا درباره حجم بود نه فرمت.",
+   "reproduction_steps": [],
+   "base_issue": "f012",
+   "same": [
+    "f012"
+   ],
+   "related": [
+    "f010",
+    "f011"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n015",
+   "cluster_id": "c06",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "فایل pdf بزرگ ارسال نمیشه",
+   "description": "مشتری میگه فایلش بالا میره ولی نمیره.",
+   "reproduction_steps": [],
+   "base_issue": "f012",
+   "same": [],
+   "related": [
+    "f012",
+    "f010",
+    "f011"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n016",
+   "cluster_id": "c07",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "مدام نوشته داره تایپ می‌کنه ولی طرف رفته",
+   "description": "استاد میگه شاگرد صفحه رو بسته ولی هنوز عبارت تایپ نشون داده میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f013",
+   "same": [
+    "f013",
+    "f014"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n017",
+   "cluster_id": "c08",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "نام فرستنده در کادر ریپلای روی فایل‌ها دوباره ناپدید شد",
+   "description": "بعد از آخرین نسخه، ریپلای روی فایل‌های پیوست اسم کسی که فایل را فرستاده نشان داده نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f015",
+   "same": [
+    "f015"
+   ],
+   "related": [
+    "f016"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n018",
+   "cluster_id": "c08",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Quoted media replies miss the sender header",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f015",
+   "same": [
+    "f015",
+    "f016"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n019",
+   "cluster_id": "c09",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیش‌نویس چت قبلی دوباره در گفتگوی بعدی نمایش داده می‌شود",
+   "description": "پس از ریلیز جدید، متن کادر تایپ بین دو مخاطب جابه‌جا می‌شود.",
+   "reproduction_steps": [
+    {
+     "description": "در یک چت چیزی تایپ کنید و ارسال نکنید",
+     "expected_result": "محتوا فقط برای همان چت بماند",
+     "actual_result": "با رفتن به چت دیگر همان محتوا دیده می‌شود"
+    }
+   ],
+   "base_issue": "f017",
+   "same": [
+    "f017",
+    "f018"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n020",
+   "cluster_id": "c09",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Composer text not scoped per conversation",
+   "description": "Unsent composer value is shared across threads; likely a single global state.",
+   "reproduction_steps": [],
+   "base_issue": "f017",
+   "same": [
+    "f017",
+    "f018"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n021",
+   "cluster_id": "c09",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیش‌نویس پیام بعد از بستن اپ پاک میشه",
+   "description": "مشتری میگه چیزی که نوشته بود و نفرستاده بود بعد از بستن برنامه نیست.",
+   "reproduction_steps": [],
+   "base_issue": "f017",
+   "same": [],
+   "related": [
+    "f017"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n022",
+   "cluster_id": "c10",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "متن پیام پاک‌شده هنوز تو لیست چت‌ها هست",
+   "description": "بعد از آپدیت اخیر دوباره پیام‌های حذف‌شده زیر اسم افراد دیده میشن.",
+   "reproduction_steps": [],
+   "base_issue": "f019",
+   "same": [
+    "f019",
+    "f020"
+   ],
+   "related": [
+    "f008",
+    "f009"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n023",
+   "cluster_id": "c11",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Mention autocomplete missing in one-to-one threads",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f021",
+   "same": [
+    "f021",
+    "f022"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n024",
+   "cluster_id": "c11",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "میشه تو چت پیوی هم اسم بقیه رو تگ کرد؟",
+   "description": "مدیر موسسه می‌خواد وسط صحبت یکی رو صدا کنه.",
+   "reproduction_steps": [],
+   "base_issue": "f021",
+   "same": [
+    "f021",
+    "f022"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n025",
+   "cluster_id": "c12",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "نشانه edited روی پیامی که محتوایش عوض نشده",
+   "description": "با باز کردن و بستن ویرایشگر، تگ edited زیر پیام می‌آید.",
+   "reproduction_steps": [],
+   "base_issue": "f023",
+   "same": [
+    "f023"
+   ],
+   "related": [],
+   "cat": [
+    "codeswitch"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n026",
+   "cluster_id": "c12",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "ویرایش پیام تاریخ ویرایش را نمایش نمی‌دهد",
+   "description": "زمان ویرایش در tooltip دیده نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f023",
+   "same": [],
+   "related": [
+    "f023"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n027",
+   "cluster_id": "c13",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Rapid-fire sends drop messages (sequence collision)",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f024",
+   "same": [
+    "f024",
+    "f025"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n028",
+   "cluster_id": "c13",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "ارسال پیام بدون اینترنت خطای نامشخص می‌دهد",
+   "description": "وقتی شبکه قطع است پیام با علامت قرمز مشخص نمی‌شود و در حالت loading می‌ماند.",
+   "reproduction_steps": [],
+   "base_issue": "f024",
+   "same": [],
+   "related": [
+    "f024"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n029",
+   "cluster_id": "c13",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Steps: send 3 messages in <1s. Expected: all delivered. Actual: 1-2 missing, no error UI",
+   "description": "",
+   "reproduction_steps": [
+    {
+     "description": "Send three messages quickly",
+     "expected_result": "All three delivered",
+     "actual_result": "Second message is dropped"
+    }
+   ],
+   "base_issue": "f024",
+   "same": [
+    "f024",
+    "f025"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n030",
+   "cluster_id": "c14",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "اعلان چت برای کاربرای iOS نمیاد وقتی برنامه بسته‌ست",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f026",
+   "same": [
+    "f026",
+    "f027"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial",
+    "codeswitch"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n031",
+   "cluster_id": "c14",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "نوتیفیکیشن روی اندروید صدای پیش‌فرض ندارد",
+   "description": "روی اندروید ۱۴ اعلان بدون صدا می‌آید.",
+   "reproduction_steps": [],
+   "base_issue": "f026",
+   "same": [],
+   "related": [
+    "f026"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n032",
+   "cluster_id": "c15",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Message search is sensitive to ZWNJ",
+   "description": "Query with U+200C returns nothing, same word typed with a space matches.",
+   "reproduction_steps": [],
+   "base_issue": "f028",
+   "same": [
+    "f028"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n033",
+   "cluster_id": "c15",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "جستجوی پیام تو چت گروه خیلی کنده",
+   "description": "مدیر موسسه میگه جستجو چند ثانیه طول می‌کشه.",
+   "reproduction_steps": [],
+   "base_issue": "f028",
+   "same": [],
+   "related": [
+    "f028"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n034",
+   "cluster_id": "c16",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "اعضای گروه کامل نشون داده نمیشن، فقط یه تعداد",
+   "description": "گروه ۳۰ نفره‌ست ولی انگار نصفش دیده میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f029",
+   "same": [
+    "f029"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n035",
+   "cluster_id": "c16",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Group members endpoint ignores page param",
+   "description": "/chat/groups/members returns first page only.",
+   "reproduction_steps": [],
+   "base_issue": "f029",
+   "same": [
+    "f029"
+   ],
+   "related": [],
+   "cat": [
+    "identifier",
+    "en2fa"
+   ],
+   "signal_fields": [
+    "curl",
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n036",
+   "cluster_id": "c17",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیام حذف‌شده توسط استاد برای شاگرد باقی می‌ماند",
+   "description": "استاد پیامی را پاک کرد؛ در اپ زبان‌آموز همچنان دیده می‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f030",
+   "same": [
+    "f030",
+    "f031"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "curl",
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n037",
+   "cluster_id": "c18",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "موقع نوشتن پیام توی گوشی کیبورد روی چت میفته",
+   "description": "با سافاری آیفون نوشته‌ها دیده نمیشن.",
+   "reproduction_steps": [],
+   "base_issue": "f032",
+   "same": [
+    "f032"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n038",
+   "cluster_id": "c18",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "با کلید تب فوکوس از کادر تایپ بیرون می‌رود",
+   "description": "در نسخه دسکتاپ با زدن Tab مکان‌نما کادر را ترک می‌کند.",
+   "reproduction_steps": [],
+   "base_issue": "f032",
+   "same": [],
+   "related": [
+    "f032"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n039",
+   "cluster_id": "c19",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "چند خطی بودن پیام در لیمسا دوباره از بین رفته",
+   "description": "پس از ریلیز آخر، شکستن سطر در متن‌های ارسالی دیگر دیده نمی‌شود.",
+   "reproduction_steps": [
+    {
+     "description": "پیامی دو خطی بفرستید",
+     "expected_result": "دو خط",
+     "actual_result": "یک خط"
+    }
+   ],
+   "base_issue": "f033",
+   "same": [
+    "f033"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro",
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n040",
+   "cluster_id": "c19",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Limsa strips line breaks from user input",
+   "description": "Newline characters are normalised away before the message is stored.",
+   "reproduction_steps": [],
+   "base_issue": "f033",
+   "same": [
+    "f033",
+    "f034"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n041",
+   "cluster_id": "c20",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "خروجی ساخت فلش‌کارت دوباره بدون قالب کارت است",
+   "description": "بعد از آپدیت، جواب فلش‌کارت‌ها مثل یک پاراگراف نمایش داده می‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f035",
+   "same": [
+    "f035",
+    "f036"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n042",
+   "cluster_id": "c20",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "خروجی فلش‌کارت پس از ساخت کامل خالی است",
+   "description": "فرایند تمام می‌شود ولی هیچ کارتی نمایش داده نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f035",
+   "same": [],
+   "related": [
+    "f035"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n043",
+   "cluster_id": "c20",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Flashcard response is not parsed as JSON, falls back to prose",
+   "description": "The model wraps the payload in a fenced block.",
+   "reproduction_steps": [],
+   "base_issue": "f035",
+   "same": [
+    "f035",
+    "f036"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n044",
+   "cluster_id": "c21",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "گفت کارت‌ها آماده شد ولی چیزی ندیدیم",
+   "description": "مشتری میگه فلش‌کارت ساخته شده ولی صفحه خالیه.",
+   "reproduction_steps": [],
+   "base_issue": "f037",
+   "same": [
+    "f037"
+   ],
+   "related": [
+    "f035",
+    "f036"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n045",
+   "cluster_id": "c22",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "نمیشه نوشته‌های لیمسا رو سلکت کرد",
+   "description": "زبان‌آموز می‌خواست جمله رو کپی کنه نشد.",
+   "reproduction_steps": [],
+   "base_issue": "f038",
+   "same": [
+    "f038"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n046",
+   "cluster_id": "c23",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Limsa answers with the wrong class name",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f040",
+   "same": [
+    "f040",
+    "f041"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n047",
+   "cluster_id": "c23",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "لیمسا ساعت کلاس رو اشتباه میگه",
+   "description": "زبان‌آموز ساعت جلسه بعدی رو پرسید و جواب غلط بود.",
+   "reproduction_steps": [],
+   "base_issue": "f040",
+   "same": [],
+   "related": [
+    "f040"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n048",
+   "cluster_id": "c24",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "ساخت آزمون از کتاب حجیم دوباره خطا می‌دهد",
+   "description": "کتاب ۴۰۰ صفحه‌ای؛ خطای عمومی و عدم ساخت.",
+   "reproduction_steps": [
+    {
+     "description": "درخواست آزمون از کل کتاب",
+     "expected_result": "ساخته شود",
+     "actual_result": "خطای عمومی نشان داده می‌شود"
+    }
+   ],
+   "base_issue": "f042",
+   "same": [
+    "f042",
+    "f043"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n049",
+   "cluster_id": "c24",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "سوال‌های کوییز لیمسا خیلی راحته",
+   "description": "زبان‌آموز میگه گزینه‌های غلط معلومه غلطن.",
+   "reproduction_steps": [],
+   "base_issue": "f042",
+   "same": [],
+   "related": [
+    "f042"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n050",
+   "cluster_id": "c25",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "گزینه‌های اشتباه آزمون بی‌ربط‌اند",
+   "description": "با خواندن فقط صورت سوال پاسخ مشخص می‌شود؛ distractorها ضعیف‌اند.",
+   "reproduction_steps": [],
+   "base_issue": "f044",
+   "same": [
+    "f044"
+   ],
+   "related": [
+    "f042",
+    "f043"
+   ],
+   "cat": [
+    "codeswitch"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n051",
+   "cluster_id": "c26",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "چندتا از مشتری‌ها می‌پرسن لیمسا پادکست داره یا نه",
+   "description": "می‌خوان برای مهارت شنیداری یه چیزی گوش بدن.",
+   "reproduction_steps": [],
+   "base_issue": "f045",
+   "same": [
+    "f045",
+    "f046"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n052",
+   "cluster_id": "c26",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "صدای پخش تلفظ لغات در لیمسا قطع و وصل می‌شود",
+   "description": "پخش صوتی لغات گاهی نیمه‌کاره می‌ماند.",
+   "reproduction_steps": [],
+   "base_issue": "f045",
+   "same": [],
+   "related": [
+    "f045"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n053",
+   "cluster_id": "c27",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Limsa recalls unrelated earlier conversation when asked about yesterday",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f047",
+   "same": [
+    "f047"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n054",
+   "cluster_id": "c27",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "لیمسا یه چیزی که قبلا بهش گفتم یادش نیست",
+   "description": "زبان‌آموز میگه اسمش رو گفته بود ولی بعدش ازش پرسید.",
+   "reproduction_steps": [],
+   "base_issue": "f047",
+   "same": [],
+   "related": [
+    "f047"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n055",
+   "cluster_id": "c28",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Let learners remove old Limsa sessions",
+   "description": "No delete action on the history screen.",
+   "reproduction_steps": [],
+   "base_issue": "f048",
+   "same": [
+    "f048",
+    "f049"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n056",
+   "cluster_id": "c28",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "تاریخچه چت لیمسا خیلی دیر باز میشه",
+   "description": "مشتری میگه لیست گفتگوهای قبلی چند ثانیه لود میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f048",
+   "same": [],
+   "related": [
+    "f048"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n057",
+   "cluster_id": "c29",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Limsa says it has no schedule info when asked about the next session",
+   "description": "Schedule exists in the class service; the tool call is skipped.",
+   "reproduction_steps": [],
+   "base_issue": "f050",
+   "same": [
+    "f050",
+    "f051"
+   ],
+   "related": [
+    "f040",
+    "f041"
+   ],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n058",
+   "cluster_id": "c30",
+   "kind": "recurrence",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Trace id missing again in new Limsa worker logs",
+   "description": "After splitting out the worker process its log lines have no request identifier.",
+   "reproduction_steps": [],
+   "base_issue": "f052",
+   "same": [
+    "f052",
+    "f053"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n059",
+   "cluster_id": "c31",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "جواب‌های بلند لیمسا نصفه میمونه",
+   "description": "استاد میگه توضیح گرامر وسط جمله تموم میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f054",
+   "same": [
+    "f054",
+    "f055"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n060",
+   "cluster_id": "c31",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "لیمسا جواب‌ها را دوبار پشت هم می‌فرستد",
+   "description": "یک پاسخ دو بار در گفتگو ظاهر می‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f054",
+   "same": [],
+   "related": [
+    "f054"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n061",
+   "cluster_id": "c32",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "می‌خوام بگم درباره یه موضوع کارت بسازه نه از روی صفحه",
+   "description": "مشتری می‌خواد موضوع بنویسه و کارت بگیره.",
+   "reproduction_steps": [],
+   "base_issue": "f056",
+   "same": [
+    "f056"
+   ],
+   "related": [
+    "f035",
+    "f036"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n062",
+   "cluster_id": "c33",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "لیست کتاب‌های یک زبان‌آموز شامل کتاب‌های نفر دیگر شد",
+   "description": "بعد از اجرای مهاجرت جدید، پاسخ API کتاب‌ها دوباره داده کاربران دیگر را دارد.",
+   "reproduction_steps": [
+    {
+     "description": "با دو حساب مختلف فهرست کتاب را بخوانید",
+     "expected_result": "هر حساب فقط کتاب خودش را ببیند",
+     "actual_result": "کتاب‌های حساب دیگر هم هست"
+    }
+   ],
+   "base_issue": "f057",
+   "same": [
+    "f057"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro",
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n063",
+   "cluster_id": "c33",
+   "kind": "hard_negative",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Books endpoint returns 500 for users without any book",
+   "description": "Empty library triggers a null dereference.",
+   "reproduction_steps": [],
+   "base_issue": "f057",
+   "same": [],
+   "related": [
+    "f057"
+   ],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n064",
+   "cluster_id": "c34",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Daily report: Limsa purchases vs demo sessions",
+   "description": "A daily count to compare how many demos convert.",
+   "reproduction_steps": [],
+   "base_issue": "f058",
+   "same": [
+    "f058"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n065",
+   "cluster_id": "c35",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Free-plan Limsa requests hit our own 429 limiter in the evening",
+   "description": "Busy-hour queue fills and the free tier gets the 'temporarily unavailable' reply.",
+   "reproduction_steps": [],
+   "base_issue": "f059",
+   "same": [
+    "f059"
+   ],
+   "related": [
+    "f054",
+    "f055"
+   ],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "comments"
+   ],
+   "difficulty": "hard",
+   "note": "Only the comments name the real fault; S4 duplicate detection cannot see them."
+  },
+  {
+   "id": "n066",
+   "cluster_id": "c36",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "مبلغ کیف پول توی پنل با چیزی که حسابداری میگه فرق داره",
+   "description": "موسسه میگه شارژ کرده ولی عدد کمتره.",
+   "reproduction_steps": [],
+   "base_issue": "f060",
+   "same": [
+    "f060",
+    "f061"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n067",
+   "cluster_id": "c36",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "موجودی منفی کیف پول به حروف نمایش داده نمی‌شود",
+   "description": "مبلغ منفی در صفحه کاربر به شکل عددی می‌ماند و معادل حروفی ندارد.",
+   "reproduction_steps": [],
+   "base_issue": "f060",
+   "same": [],
+   "related": [
+    "f060"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n068",
+   "cluster_id": "c37",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "مبلغ منفی در کیف پول به‌صورت کلمه نوشته نمی‌شود",
+   "description": "فیلد حروفی برای مقدار کمتر از صفر خالی می‌ماند.",
+   "reproduction_steps": [],
+   "base_issue": "f062",
+   "same": [
+    "f062"
+   ],
+   "related": [
+    "f060",
+    "f061"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n069",
+   "cluster_id": "c38",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Broadcast endpoint accepts an empty audience",
+   "description": "POST broadcast-notification returns 200 with recipients=[] and groups=[].",
+   "reproduction_steps": [],
+   "base_issue": "f063",
+   "same": [
+    "f063",
+    "f064"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "identifier"
+   ],
+   "signal_fields": [
+    "curl",
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n070",
+   "cluster_id": "c38",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "اعلان همگانی به همه گروه‌ها بسیار دیر ارسال می‌شود",
+   "description": "ارسال برای ۵۰۰۰ نفر بیش از ۱۰ دقیقه طول می‌کشد.",
+   "reproduction_steps": [],
+   "base_issue": "f063",
+   "same": [],
+   "related": [
+    "f063"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n071",
+   "cluster_id": "c39",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "اضافه کردن دسته‌جمعی کاربران با اکسل دوباره اثری ندارد",
+   "description": "فایل بارگذاری و موفق اعلام می‌شود ولی عضو جدیدی در کلاس دیده نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f065",
+   "same": [
+    "f065",
+    "f066"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n072",
+   "cluster_id": "c39",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Spreadsheet import drops rows with leading-zero IDs",
+   "description": "Numeric cells lose the zero so validation rejects every row silently.",
+   "reproduction_steps": [],
+   "base_issue": "f065",
+   "same": [
+    "f065"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n073",
+   "cluster_id": "c39",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "فایل اکسل نمونه برای افزودن کاربران قابل دانلود نیست",
+   "description": "لینک «دریافت نمونه» خطای ۴۰۴ می‌دهد.",
+   "reproduction_steps": [],
+   "base_issue": "f065",
+   "same": [],
+   "related": [
+    "f065"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n074",
+   "cluster_id": "c40",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "موقع انتخاب اعضا بیشتر از ده تا کاربر نمیاد",
+   "description": "مدیر موسسه گفت لیست تموم میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f067",
+   "same": [
+    "f067"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n075",
+   "cluster_id": "c41",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "یکی اسمش رو عدد زده ثبت شد",
+   "description": "موقع ثبت‌نام زبان‌آموز، سیستم جلوش رو نگرفت.",
+   "reproduction_steps": [],
+   "base_issue": "f068",
+   "same": [
+    "f068",
+    "f069"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n076",
+   "cluster_id": "c42",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "سقف طول نام آزمون بین ایجاد و ویرایش فرق دارد",
+   "description": "عنوان ۷۰ حرفی ساخته می‌شود ولی بعداً ذخیره نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f070",
+   "same": [
+    "f070"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n077",
+   "cluster_id": "c42",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "با عنوان دو حرفی برای آزمون پیام نامفهوم می‌آید",
+   "description": "پیام خطا درباره فیلد دیگری است.",
+   "reproduction_steps": [],
+   "base_issue": "f070",
+   "same": [],
+   "related": [
+    "f070"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n078",
+   "cluster_id": "c43",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "موقع ساخت آزمون با اسم کوتاه فقط نوشته مقدار نامعتبر",
+   "description": "معلوم نیست مشکل چیه.",
+   "reproduction_steps": [],
+   "base_issue": "f071",
+   "same": [
+    "f071"
+   ],
+   "related": [
+    "f070"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n079",
+   "cluster_id": "c44",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Class members search returns unrelated rows",
+   "description": "The name filter is OR-ed with the national-id filter.",
+   "reproduction_steps": [],
+   "base_issue": "f072",
+   "same": [
+    "f072"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description",
+    "curl"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n080",
+   "cluster_id": "c45",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "وقتی تعداد نفرات کلاس عوض میشه هزینه هر نفر همونه",
+   "description": "حسابداری پرسید چرا محاسبه جدید نیست.",
+   "reproduction_steps": [],
+   "base_issue": "f073",
+   "same": [
+    "f073"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n081",
+   "cluster_id": "c46",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Recipients list empty when reopening the SMS dialog",
+   "description": "After one successful send the second open shows no users until reload.",
+   "reproduction_steps": [],
+   "base_issue": "f074",
+   "same": [
+    "f074",
+    "f075"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n082",
+   "cluster_id": "c47",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Selected group chips overflow the modal and hide the confirm button",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f076",
+   "same": [
+    "f076"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n083",
+   "cluster_id": "c48",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "عدد شرکت‌کننده‌ها بعد از عوض کردن نوع رویداد همون قبلیه",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f077",
+   "same": [
+    "f077"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n084",
+   "cluster_id": "c49",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "ورود به پرتال زبان‌آموز دوباره حلقه شده",
+   "description": "از دیروز هرچی کد رو میزنن برمی‌گرده به صفحه ورود.",
+   "reproduction_steps": [],
+   "base_issue": "f078",
+   "same": [
+    "f078",
+    "f079",
+    "f080"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n085",
+   "cluster_id": "c49",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Login succeeds but user is bounced back to the sign-in page",
+   "description": "Reproduced on Chrome and Safari; no error toast.",
+   "reproduction_steps": [
+    {
+     "description": "Complete OTP verification",
+     "expected_result": "Land on dashboard",
+     "actual_result": "Redirected to sign-in"
+    }
+   ],
+   "base_issue": "f078",
+   "same": [
+    "f078",
+    "f079",
+    "f080"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n086",
+   "cluster_id": "c50",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "زبان‌آموز وسط کلاس یهو از حساب میاد بیرون",
+   "description": "بدون هیچ پیامی صفحه ورود میاد، بعد دوباره وارد میشه.",
+   "reproduction_steps": [],
+   "base_issue": "f081",
+   "same": [
+    "f081",
+    "f082"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n087",
+   "cluster_id": "c51",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Expired session needs a double reload before it recovers",
+   "description": "First reload after expiry shows the error, second one works.",
+   "reproduction_steps": [],
+   "base_issue": "f083",
+   "same": [
+    "f083"
+   ],
+   "related": [
+    "f081",
+    "f082"
+   ],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n088",
+   "cluster_id": "c52",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "pre-payment returns but the client navigates to the class list instead of the gateway",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f084",
+   "same": [
+    "f084",
+    "f086"
+   ],
+   "related": [],
+   "cat": [
+    "codeswitch",
+    "identifier"
+   ],
+   "signal_fields": [
+    "title",
+    "curl"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n089",
+   "cluster_id": "c52",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "بعد از پرداخت موفق وضعیت ثبت‌نام در پرتال دیر به‌روز می‌شود",
+   "description": "پس از بازگشت از درگاه تا پنج دقیقه ثبت‌نام هنوز در انتظار پرداخت است.",
+   "reproduction_steps": [],
+   "base_issue": "f084",
+   "same": [],
+   "related": [
+    "f084"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n090",
+   "cluster_id": "c53",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Exam deep-link from SMS spins forever when the user is signed out",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f087",
+   "same": [
+    "f087",
+    "f088"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n091",
+   "cluster_id": "c53",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "پیامک لینک آزمون با تاخیر زیاد می‌رسد",
+   "description": "بعضی زبان‌آموزان بعد از شروع آزمون پیامک را می‌گیرند.",
+   "reproduction_steps": [],
+   "base_issue": "f087",
+   "same": [],
+   "related": [
+    "f087"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n092",
+   "cluster_id": "c54",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "کلاس جدیدی که هنوز جلسه نداره تو داشبورد ارور میده",
+   "description": "زبان‌آموز عکس خطا فرستاده.",
+   "reproduction_steps": [],
+   "base_issue": "f089",
+   "same": [
+    "f089"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n093",
+   "cluster_id": "c54",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "next-session 404 when no sessions exist",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f089",
+   "same": [
+    "f089"
+   ],
+   "related": [],
+   "cat": [
+    "identifier",
+    "en2fa"
+   ],
+   "signal_fields": [
+    "title",
+    "curl"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n094",
+   "cluster_id": "c55",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Make dashboard practice suggestions follow the last session topic",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f090",
+   "same": [
+    "f090"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n095",
+   "cluster_id": "c56",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "فیلتر بر اساس کسی که ایشو را ثبت کرده",
+   "description": "در لیست فقط assignee دارد.",
+   "reproduction_steps": [],
+   "base_issue": "f091",
+   "same": [
+    "f091",
+    "f092"
+   ],
+   "related": [],
+   "cat": [
+    "codeswitch"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n096",
+   "cluster_id": "c57",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "فیلترهای صفحه ایشوها بعد از رفرش پاک می‌شود",
+   "description": "لینک فیلترشده را برای همکار می‌فرستم و او لیست کامل را می‌بیند.",
+   "reproduction_steps": [],
+   "base_issue": "f093",
+   "same": [
+    "f093"
+   ],
+   "related": [
+    "f091",
+    "f092"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n097",
+   "cluster_id": "c58",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "مرتب‌سازی براساس آخرین بروزرسانی درست کار نمیکنه",
+   "description": "ایشوهایی که امروز تغییر کردن پایین لیستن.",
+   "reproduction_steps": [],
+   "base_issue": "f094",
+   "same": [
+    "f094"
+   ],
+   "related": [],
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n098",
+   "cluster_id": "c59",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "Screenshots attached to an issue are gone after moving it to review",
+   "description": "Attachments list is empty once the status changes.",
+   "reproduction_steps": [],
+   "base_issue": "f095",
+   "same": [
+    "f095"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n099",
+   "cluster_id": "c60",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "ایموجی زدن زیر کامنت‌های ایشو",
+   "description": "به جای نوشتن موافقم بشود روی کامنت واکنش گذاشت.",
+   "reproduction_steps": [],
+   "base_issue": "f096",
+   "same": [
+    "f096"
+   ],
+   "related": [],
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n100",
+   "cluster_id": "c61",
+   "kind": "recurrence",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "online badge lingers after user quits the app",
+   "description": "Heartbeat window looks long again after the last deploy.",
+   "reproduction_steps": [],
+   "base_issue": "f097",
+   "same": [
+    "f097",
+    "f099",
+    "f100"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n101",
+   "cluster_id": "c61",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "آخرین بازدید بعد از بستن برنامه عوض نمیشه",
+   "description": "با دو گوشی تست کردم؛ گوشی دوم هنوز آنلاین میبینه.",
+   "reproduction_steps": [
+    {
+     "description": "اپ را روی گوشی اول ببندید",
+     "expected_result": "وضعیت آفلاین شود",
+     "actual_result": "تا چند دقیقه آنلاین است"
+    }
+   ],
+   "base_issue": "f097",
+   "same": [
+    "f097",
+    "f099",
+    "f100"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n102",
+   "cluster_id": "c61",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "اسم مخاطب توی لیست چت با یه نقطه سبز بی‌دلیل دیده میشه",
+   "description": "حتی وقتی کلا اینترنت نداره.",
+   "reproduction_steps": [],
+   "base_issue": "f097",
+   "same": [],
+   "related": [
+    "f097"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n103",
+   "cluster_id": "c62",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Kick member from class group is a no-op",
+   "description": "API answers 200 but the membership row is untouched.",
+   "reproduction_steps": [],
+   "base_issue": "f101",
+   "same": [
+    "f101",
+    "f102"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n104",
+   "cluster_id": "c62",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "ادمین گروه نمی‌تواند عضو جدید اضافه کند",
+   "description": "دکمه افزودن عضو غیرفعال است.",
+   "reproduction_steps": [],
+   "base_issue": "f101",
+   "same": [],
+   "related": [
+    "f101"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n105",
+   "cluster_id": "c63",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "ویس‌هایی که میفرستن زمانشون کمتر از واقعیت نوشته میشه",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f103",
+   "same": [
+    "f103",
+    "f104"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial",
+    "translit"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n106",
+   "cluster_id": "c64",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "عکس نوشته‌های تخته دوباره تار میشه موقع فرستادن",
+   "description": "زبان‌آموز نمی‌تونه متن عکس رو بخونه.",
+   "reproduction_steps": [],
+   "base_issue": "f105",
+   "same": [
+    "f105"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n107",
+   "cluster_id": "c65",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Rich link cards for URLs in messages",
+   "description": "Fetch OpenGraph tags server-side and attach a preview.",
+   "reproduction_steps": [],
+   "base_issue": "f106",
+   "same": [
+    "f106"
+   ],
+   "related": [
+    "f107"
+   ],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n108",
+   "cluster_id": "c65",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "آدرس‌های بدون پروتکل در پیام لینک نمی‌شوند",
+   "description": "متن شروع‌شده با www باز نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f107",
+   "same": [
+    "f107"
+   ],
+   "related": [
+    "f106"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n109",
+   "cluster_id": "c66",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Time limit for delete-for-everyone",
+   "description": "After N hours only local delete should be allowed.",
+   "reproduction_steps": [],
+   "base_issue": "f108",
+   "same": [
+    "f108"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n110",
+   "cluster_id": "c66",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیامی که پاک کردم هنوز برای طرف مقابل دیده میشه",
+   "description": "فرستنده گفته پیام رو برای همه پاک کرد.",
+   "reproduction_steps": [],
+   "base_issue": "f108",
+   "same": [],
+   "related": [
+    "f108"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n111",
+   "cluster_id": "c67",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "امتیاز تلفظ برای صدای یکسان ثابت نیست",
+   "description": "فایل ضبط‌شده یکسان؛ امتیازها متفاوت.",
+   "reproduction_steps": [],
+   "base_issue": "f109",
+   "same": [
+    "f109",
+    "f110",
+    "f111"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n112",
+   "cluster_id": "c67",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "نمره تلفظ برای جمله‌های کوتاه همیشه صفر است",
+   "description": "برای ورودی کمتر از دو کلمه نمره‌ای محاسبه نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f109",
+   "same": [],
+   "related": [
+    "f109"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n113",
+   "cluster_id": "c68",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "English-only mode lost after history summarisation",
+   "description": "The constraint lives in the first system message which gets trimmed.",
+   "reproduction_steps": [],
+   "base_issue": "f112",
+   "same": [
+    "f112",
+    "f113"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description",
+    "comments"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n114",
+   "cluster_id": "c69",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "میشه لغت‌هایی که یاد گرفته رو دانلود کرد؟",
+   "description": "زبان‌آموز می‌خواد چاپ کنه.",
+   "reproduction_steps": [],
+   "base_issue": "f114",
+   "same": [
+    "f114"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n115",
+   "cluster_id": "c70",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "سهمیه دمو یک پیام زودتر تمام می‌شود",
+   "description": "بعد از ۹ پیام دسترسی بسته می‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f115",
+   "same": [
+    "f115"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n116",
+   "cluster_id": "c70",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "کاربر دمو بعد از خرید هنوز محدودیت داره",
+   "description": "پلن ارتقا یافته ولی همچنان قفل می‌شود.",
+   "reproduction_steps": [],
+   "base_issue": "f115",
+   "same": [],
+   "related": [
+    "f115"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n117",
+   "cluster_id": "c71",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "PDF گواهی دوباره حروف فارسی را از هم جدا می‌کند",
+   "description": "بعد از به‌روزرسانی کتابخانه تولید PDF، نام‌ها دوباره بد چاپ می‌شوند.",
+   "reproduction_steps": [],
+   "base_issue": "f116",
+   "same": [
+    "f116",
+    "f117"
+   ],
+   "related": [],
+   "cat": [
+    "codeswitch"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n118",
+   "cluster_id": "c72",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Enrollment race lets a class exceed its seat limit",
+   "description": "No row lock around the capacity check.",
+   "reproduction_steps": [],
+   "base_issue": "f118",
+   "same": [
+    "f118"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n119",
+   "cluster_id": "c72",
+   "kind": "hard_negative",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "کلاسی که پر شده هنوز برای ثبت‌نام باز نشون داده میشه",
+   "description": "ظرفیت صفر ولی دکمه ثبت‌نام فعال است.",
+   "reproduction_steps": [],
+   "base_issue": "f118",
+   "same": [],
+   "related": [
+    "f118"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n120",
+   "cluster_id": "c72",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "ظرفیت کلاس بعد از ثبت‌نام همزمان دوباره از سقف عبور کرد",
+   "description": "کلاس ۱۲ نفره الان ۱۳ نفر دارد.",
+   "reproduction_steps": [
+    {
+     "description": "برای آخرین صندلی خالی، دو درخواست را در یک لحظه بفرستید",
+     "expected_result": "یکی رد شود",
+     "actual_result": "سیستم هر دو را قبول کرد"
+    }
+   ],
+   "base_issue": "f118",
+   "same": [
+    "f118"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "repro"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n121",
+   "cluster_id": "c73",
+   "kind": "duplicate",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "User export lacks UTF-8 BOM so Excel garbles Persian",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": "f119",
+   "same": [
+    "f119",
+    "f120"
+   ],
+   "related": [],
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "title"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n122",
+   "cluster_id": "c74",
+   "kind": "recurrence",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "عکس تمرین رو از گالری نمیتونن بفرستن، گوشی سامسونگ",
+   "description": "میگه فایل معتبر نیست.",
+   "reproduction_steps": [],
+   "base_issue": "f121",
+   "same": [
+    "f121"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n123",
+   "cluster_id": "c74",
+   "kind": "hard_negative",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "آپلود تمرین PDF بالای ۵ مگابایت متوقف می‌شود",
+   "description": "فقط فایل‌های بزرگ‌تر خطا می‌دهند.",
+   "reproduction_steps": [],
+   "base_issue": "f121",
+   "same": [],
+   "related": [
+    "f121"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n124",
+   "cluster_id": "c75",
+   "kind": "duplicate",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "تم دارک نوشته‌ها محو هستن",
+   "description": "مشتری با گوشی شبانه راحت نمی‌خونه.",
+   "reproduction_steps": [],
+   "base_issue": "f122",
+   "same": [
+    "f122",
+    "f123"
+   ],
+   "related": [],
+   "cat": [
+    "colloquial",
+    "translit"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n125",
+   "cluster_id": "c76",
+   "kind": "recurrence",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "اعلان تلگرام دوباره تکراری شده",
+   "description": "از دیروز به ازای یک نظر جدید، گروه تلگرام دو پیام می‌گیرد.",
+   "reproduction_steps": [],
+   "base_issue": "f124",
+   "same": [
+    "f124",
+    "f125"
+   ],
+   "related": [],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n126",
+   "cluster_id": "c77",
+   "kind": "duplicate",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "خروجی مارک‌دان ایشو ایموجی‌ها را خراب می‌کند",
+   "description": "به جای ایموجی علامت سوال می‌آید.",
+   "reproduction_steps": [],
+   "base_issue": "f126",
+   "same": [
+    "f126"
+   ],
+   "related": [],
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "signal_fields": [
+    "description"
+   ],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n127",
+   "cluster_id": "n01",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "میخوایم بتونیم یه پیام رو برای بعدا زمان‌بندی کنیم که خودش بفرسته",
+   "description": "مدیر موسسه می‌خواد پیام یادآوری کلاس رو شب قبل بنویسه و صبح ارسال بشه.",
+   "reproduction_steps": [],
+   "base_issue": "f001",
+   "same": [],
+   "related": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n128",
+   "cluster_id": "n01",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Support end-to-end encrypted private chats",
+   "description": "Optional E2EE for one-to-one threads, keys stored on device.",
+   "reproduction_steps": [],
+   "base_issue": "f001",
+   "same": [],
+   "related": [
+    "f001",
+    "f002",
+    "f003"
+   ],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n129",
+   "cluster_id": "n02",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "پیام پین‌شده بعد از حذف توسط فرستنده در بالای گروه می‌ماند",
+   "description": "پیام اصلی پاک می‌شود ولی نوار پین هنوز متن آن را دارد.",
+   "reproduction_steps": [],
+   "base_issue": "f005",
+   "same": [],
+   "related": [
+    "f005",
+    "f007"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n130",
+   "cluster_id": "n03",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Screen reader does not announce new incoming messages",
+   "description": "VoiceOver stays silent when a message arrives while the thread is open.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n131",
+   "cluster_id": "n03",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "فونت پیام‌ها برای مسن‌ترها کوچیکه، میشه بزرگترش کرد؟",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n132",
+   "cluster_id": "n04",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Add polls to group chats",
+   "description": "Teacher creates a poll with up to 6 options and sees live counts.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n133",
+   "cluster_id": "n05",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "Limsa: add voice input for questions",
+   "description": "Users ask for a mic button to send a question by speaking instead of typing.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n134",
+   "cluster_id": "n05",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "زبان‌آموزا میگن دوست دارن به جای نوشتن صحبت کنن با لیمسا",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n135",
+   "cluster_id": "n06",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "فلش‌کارت‌ها مرور فاصله‌دار ندارند و همه را هر بار نشان می‌دهد",
+   "description": "کارت‌های حفظ‌شده هم دوباره می‌آیند.",
+   "reproduction_steps": [],
+   "base_issue": "f035",
+   "same": [],
+   "related": [
+    "f035",
+    "f036"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n136",
+   "cluster_id": "n07",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "IELTS speaking mock exam mode",
+   "description": "Three-part timed speaking test with a band-score estimate.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n137",
+   "cluster_id": "n08",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "میشه چند تا کلاس رو با هم آرشیو کرد؟",
+   "description": "الان باید یکی‌یکی بزنیم.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n138",
+   "cluster_id": "n08",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "Audit log for wallet adjustments",
+   "description": "Record who changed a balance, when and why.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n139",
+   "cluster_id": "n09",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 3,
+   "project_name": "Dano",
+   "title": "بازپرداخت به کیف پول بعد از لغو ثبت‌نام انجام نمی‌شود",
+   "description": "زبان‌آموز ثبت‌نام را لغو کرد ولی مبلغ به کیف پول برنگشت.",
+   "reproduction_steps": [],
+   "base_issue": "f060",
+   "same": [],
+   "related": [
+    "f060",
+    "f061"
+   ],
+   "cat": [
+    "symptom"
+   ],
+   "signal_fields": [],
+   "difficulty": "hard",
+   "note": ""
+  },
+  {
+   "id": "n140",
+   "cluster_id": "n10",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "زبان‌آموز میگه نمیتونه شماره موبایلش رو تغییر بده",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n141",
+   "cluster_id": "n10",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Certificate verification page lacks a QR code",
+   "description": "Printed certificates cannot be verified quickly by employers.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n142",
+   "cluster_id": "n11",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 4,
+   "project_name": "StudentPanel",
+   "title": "Support fingerprint / Face ID login after the first OTP",
+   "description": "Avoid sending an SMS on every launch.",
+   "reproduction_steps": [],
+   "base_issue": "f078",
+   "same": [],
+   "related": [
+    "f078",
+    "f079",
+    "f080"
+   ],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n143",
+   "cluster_id": "n12",
+   "kind": "novel",
+   "persona": "developer",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "Slack notifications in addition to Telegram",
+   "description": "Some teams use Slack channels; map project to channel.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n144",
+   "cluster_id": "n12",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "امکان ذخیره فیلترهای پرکاربرد به عنوان view",
+   "description": "مثلاً «ایشوهای بحرانی من».",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "fa2en"
+   ],
+   "signal_fields": [],
+   "difficulty": "easy",
+   "note": ""
+  },
+  {
+   "id": "n145",
+   "cluster_id": "n13",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 5,
+   "project_name": "Releasewatch",
+   "title": "Quiet hours for Telegram notifications",
+   "description": "Do not message the channel between 23:00 and 07:00.",
+   "reproduction_steps": [],
+   "base_issue": "f124",
+   "same": [],
+   "related": [
+    "f124",
+    "f125"
+   ],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n146",
+   "cluster_id": "n14",
+   "kind": "novel",
+   "persona": "support",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "فوروارد کردن پیام به چند چت با هم فقط به یکیش میره",
+   "description": "استاد پیامی رو برای سه گروه فرستاد، فقط اولی رسید.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "colloquial"
+   ],
+   "signal_fields": [],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n147",
+   "cluster_id": "n14",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 1,
+   "project_name": "Chat",
+   "title": "Starred messages disappear when the conversation is archived",
+   "description": "",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "en2fa"
+   ],
+   "signal_fields": [],
+   "difficulty": "medium",
+   "note": ""
+  },
+  {
+   "id": "n148",
+   "cluster_id": "n15",
+   "kind": "novel",
+   "persona": "qa",
+   "project_id": 2,
+   "project_name": "Limsa",
+   "title": "streak روزانه بعد از نیمه‌شب به وقت ایران صفر می‌شود",
+   "description": "استفاده در ساعت ۰۰:۳۰ حساب دیروز نمی‌شود.",
+   "reproduction_steps": [],
+   "base_issue": null,
+   "same": [],
+   "related": [],
+   "cat": [
+    "codeswitch"
+   ],
+   "signal_fields": [],
+   "difficulty": "medium",
+   "note": ""
+  }
+ ]
+}

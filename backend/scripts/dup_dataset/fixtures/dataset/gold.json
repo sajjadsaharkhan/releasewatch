@@ -1,0 +1,1852 @@
+[
+ {
+  "cluster_id": "c01",
+  "project": "Chat",
+  "area": "reactions",
+  "note": "Done original, a fresh support dupe, a fresh English dev dupe; recurrence drafts hit the Done one.",
+  "members": {
+   "a": "f001",
+   "b": "f002",
+   "c": "f003"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f002",
+    "duplicate_of": "f001"
+   },
+   {
+    "issue": "f003",
+    "duplicate_of": "f001"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c02",
+  "project": "Chat",
+  "area": "reactions",
+  "note": "Hard negative for c01: same feature, different fault (two simultaneous reactions). Member b's comments mention reactions disappearing — a comment trap.",
+  "members": {
+   "a": "f004"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c01"
+  ]
+ },
+ {
+  "cluster_id": "c03",
+  "project": "Chat",
+  "area": "pin",
+  "note": "Dupes where one member is cancelled as duplicate (must never be in `same`).",
+  "members": {
+   "a": "f005",
+   "b": "f006",
+   "c": "f007"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f006",
+    "duplicate_of": "f005"
+   },
+   {
+    "issue": "f007",
+    "duplicate_of": "f005"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c04",
+  "project": "Chat",
+  "area": "unread",
+  "note": "Same problem described by symptom vs by cause; a cancelled dupe; a Done sibling with a different cause (c05-style hard negative lives in its own cluster).",
+  "members": {
+   "a": "f008",
+   "b": "f009"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f009",
+    "duplicate_of": "f008"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c05",
+  "project": "Chat",
+  "area": "upload",
+  "note": "Upload stuck at 99% — repro steps carry the signal; the support dupe is nearly empty.",
+  "members": {
+   "a": "f010",
+   "b": "f011"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f011",
+    "duplicate_of": "f010"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c06",
+  "project": "Chat",
+  "area": "upload",
+  "note": "Hard negative for c05: upload failures with a wrong error text for unsupported types.",
+  "members": {
+   "a": "f012"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c05"
+  ]
+ },
+ {
+  "cluster_id": "c07",
+  "project": "Chat",
+  "area": "typing",
+  "note": "Task-type dupes; one real dupe in English.",
+  "members": {
+   "a": "f013",
+   "b": "f014"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f014",
+    "duplicate_of": "f013"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c08",
+  "project": "Chat",
+  "area": "reply",
+  "note": "Reply preview author missing for media.",
+  "members": {
+   "a": "f015",
+   "b": "f016"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f016",
+    "duplicate_of": "f015"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c09",
+  "project": "Chat",
+  "area": "draft",
+  "note": "Draft text leaks between conversations. Repro-heavy original; support dupe is a loose story.",
+  "members": {
+   "a": "f017",
+   "b": "f018"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f018",
+    "duplicate_of": "f017"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c10",
+  "project": "Chat",
+  "area": "chat-list",
+  "note": "Last-message preview stale after delete; sibling of c04 (different symptom).",
+  "members": {
+   "a": "f019",
+   "b": "f020"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f020",
+    "duplicate_of": "f019"
+   }
+  ],
+  "related_clusters": [
+   "c04"
+  ]
+ },
+ {
+  "cluster_id": "c11",
+  "project": "Chat",
+  "area": "mention",
+  "note": "Feature requests (tasks): mention in private chat.",
+  "members": {
+   "a": "f021",
+   "b": "f022"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f022",
+    "duplicate_of": "f021"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c12",
+  "project": "Chat",
+  "area": "edit",
+  "note": "Edit label — two near-identical wordings.",
+  "members": {
+   "a": "f023"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c13",
+  "project": "Chat",
+  "area": "send",
+  "note": "Burst sending; comment on the original discusses an unrelated upload problem (comment trap).",
+  "members": {
+   "a": "f024",
+   "b": "f025"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f025",
+    "duplicate_of": "f024"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c14",
+  "project": "Chat",
+  "area": "push",
+  "note": "Push notifications on iOS background.",
+  "members": {
+   "a": "f026",
+   "b": "f027"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f027",
+    "duplicate_of": "f026"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c15",
+  "project": "Chat",
+  "area": "search",
+  "note": "Message search misses words with half-space (ZWNJ).",
+  "members": {
+   "a": "f028"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c16",
+  "project": "Chat",
+  "area": "members",
+  "note": "Member list limited to first page; Done original + recurrence.",
+  "members": {
+   "a": "f029"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c17",
+  "project": "Chat",
+  "area": "sync",
+  "note": "Cross-portal deletion; description is almost empty, curl path is the only strong signal.",
+  "members": {
+   "a": "f030",
+   "b": "f031"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f031",
+    "duplicate_of": "f030"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c18",
+  "project": "Chat",
+  "area": "mobile",
+  "note": "Keyboard overlaps composer on mobile Safari.",
+  "members": {
+   "a": "f032"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c19",
+  "project": "Limsa",
+  "area": "formatting",
+  "note": "Newlines collapse. Done original; fresh support dupe; recurrence.",
+  "members": {
+   "a": "f033",
+   "b": "f034"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f034",
+    "duplicate_of": "f033"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c20",
+  "project": "Limsa",
+  "area": "flashcard",
+  "note": "Flashcard output shape; sibling of c21.",
+  "members": {
+   "a": "f035",
+   "b": "f036"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f036",
+    "duplicate_of": "f035"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c21",
+  "project": "Limsa",
+  "area": "flashcard",
+  "note": "Hard negative sibling: empty flashcard output (a different fault).",
+  "members": {
+   "a": "f037"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c20"
+  ]
+ },
+ {
+  "cluster_id": "c22",
+  "project": "Limsa",
+  "area": "ui",
+  "note": "Cannot select answer text; one cancelled dupe.",
+  "members": {
+   "a": "f038",
+   "b": "f039"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f039",
+    "duplicate_of": "f038"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c23",
+  "project": "Limsa",
+  "area": "class-info",
+  "note": "Wrong class title returned; the support dupe is the Done original's twin.",
+  "members": {
+   "a": "f040",
+   "b": "f041"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f041",
+    "duplicate_of": "f040"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c24",
+  "project": "Limsa",
+  "area": "quiz",
+  "note": "Quiz generation from large books fails; repro carries the numbers.",
+  "members": {
+   "a": "f042",
+   "b": "f043"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f043",
+    "duplicate_of": "f042"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c25",
+  "project": "Limsa",
+  "area": "quiz",
+  "note": "Quiz quality: wrong options too easy. Hard negative sibling of c24.",
+  "members": {
+   "a": "f044"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c24"
+  ]
+ },
+ {
+  "cluster_id": "c26",
+  "project": "Limsa",
+  "area": "podcast",
+  "note": "Task duplicates: podcast / audio content.",
+  "members": {
+   "a": "f045",
+   "b": "f046"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f046",
+    "duplicate_of": "f045"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c27",
+  "project": "Limsa",
+  "area": "memory",
+  "note": "History recall points to wrong earlier messages.",
+  "members": {
+   "a": "f047"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c28",
+  "project": "Limsa",
+  "area": "sessions",
+  "note": "User cannot delete a conversation (session): a task with a bug-type twin from support.",
+  "members": {
+   "a": "f048",
+   "b": "f049"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f049",
+    "duplicate_of": "f048"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c29",
+  "project": "Limsa",
+  "area": "class-info",
+  "note": "Timetable questions; sibling of c23 (class title).",
+  "members": {
+   "a": "f050",
+   "b": "f051"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f051",
+    "duplicate_of": "f050"
+   }
+  ],
+  "related_clusters": [
+   "c23"
+  ]
+ },
+ {
+  "cluster_id": "c30",
+  "project": "Limsa",
+  "area": "observability",
+  "note": "Developer tasks, Done original; tasks recur in different wording.",
+  "members": {
+   "a": "f052",
+   "b": "f053"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f053",
+    "duplicate_of": "f052"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c31",
+  "project": "Limsa",
+  "area": "latency",
+  "note": "Slow / truncated long answers.",
+  "members": {
+   "a": "f054",
+   "b": "f055"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f055",
+    "duplicate_of": "f054"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c32",
+  "project": "Limsa",
+  "area": "flashcard",
+  "note": "Feature: flashcards by topic; sibling area to c20/c21 but a task.",
+  "members": {
+   "a": "f056"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c20"
+  ]
+ },
+ {
+  "cluster_id": "c33",
+  "project": "Limsa",
+  "area": "books",
+  "note": "API returns another user's books — Done, critical.",
+  "members": {
+   "a": "f057"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c34",
+  "project": "Limsa",
+  "area": "reporting",
+  "note": "Report task; tiny description.",
+  "members": {
+   "a": "f058"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c35",
+  "project": "Limsa",
+  "area": "latency",
+  "note": "COMMENT-ONLY signal: the original is vague; its comments describe the real fault. S4 says duplicate detection ignores comments, so same-problem drafts that rely on them are expected to be missed; search (talk channel) may find them.",
+  "members": {
+   "a": "f059"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c31"
+  ]
+ },
+ {
+  "cluster_id": "c36",
+  "project": "Dano",
+  "area": "wallet",
+  "note": "Wallet balance mismatch; sibling of c37.",
+  "members": {
+   "a": "f060",
+   "b": "f061"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f061",
+    "duplicate_of": "f060"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c37",
+  "project": "Dano",
+  "area": "wallet",
+  "note": "Hard negative for c36: negative balance in words.",
+  "members": {
+   "a": "f062"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c36"
+  ]
+ },
+ {
+  "cluster_id": "c38",
+  "project": "Dano",
+  "area": "notification",
+  "note": "Validation missing on broadcast.",
+  "members": {
+   "a": "f063",
+   "b": "f064"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f064",
+    "duplicate_of": "f063"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c39",
+  "project": "Dano",
+  "area": "import",
+  "note": "Excel import of users.",
+  "members": {
+   "a": "f065",
+   "b": "f066"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f066",
+    "duplicate_of": "f065"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c40",
+  "project": "Dano",
+  "area": "groups",
+  "note": "Cross-project distractor: Chat c16 has the same symptom in another project; project scoping must keep them apart.",
+  "members": {
+   "a": "f067"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c41",
+  "project": "Dano",
+  "area": "validation",
+  "note": "Validation on student name.",
+  "members": {
+   "a": "f068",
+   "b": "f069"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f069",
+    "duplicate_of": "f068"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c42",
+  "project": "Dano",
+  "area": "exam",
+  "note": "Exam title limits differ between screens.",
+  "members": {
+   "a": "f070"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c43",
+  "project": "Dano",
+  "area": "exam",
+  "note": "Confusing error text for 2-char title; hard-neg pair with c42.",
+  "members": {
+   "a": "f071"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c42"
+  ]
+ },
+ {
+  "cluster_id": "c44",
+  "project": "Dano",
+  "area": "search",
+  "note": "Search inside class details shows wrong rows.",
+  "members": {
+   "a": "f072"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c45",
+  "project": "Dano",
+  "area": "billing",
+  "note": "Deduction amount not refreshed after class capacity change.",
+  "members": {
+   "a": "f073"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c46",
+  "project": "Dano",
+  "area": "sms",
+  "note": "Second SMS send has empty recipients.",
+  "members": {
+   "a": "f074",
+   "b": "f075"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f075",
+    "duplicate_of": "f074"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c47",
+  "project": "Dano",
+  "area": "ui",
+  "note": "Layout break with many groups selected.",
+  "members": {
+   "a": "f076"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c48",
+  "project": "Dano",
+  "area": "events",
+  "note": "User count not refreshed after changing event type.",
+  "members": {
+   "a": "f077"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c49",
+  "project": "StudentPanel",
+  "area": "auth",
+  "note": "Cannot log in to the new portal; Done original, support and dev dupes.",
+  "members": {
+   "a": "f078",
+   "b": "f079",
+   "c": "f080"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f079",
+    "duplicate_of": "f078"
+   },
+   {
+    "issue": "f080",
+    "duplicate_of": "f078"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c50",
+  "project": "StudentPanel",
+  "area": "auth",
+  "note": "Intermittent errors while refreshing a token (hard negative sibling: c51).",
+  "members": {
+   "a": "f081",
+   "b": "f082"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f082",
+    "duplicate_of": "f081"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c51",
+  "project": "StudentPanel",
+  "area": "auth",
+  "note": "Refresh needed twice after expiry; hard negative with c50.",
+  "members": {
+   "a": "f083"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c50"
+  ]
+ },
+ {
+  "cluster_id": "c52",
+  "project": "StudentPanel",
+  "area": "payment",
+  "note": "Wrong redirect after choosing Pay; cancelled dupe present.",
+  "members": {
+   "a": "f084",
+   "b": "f085",
+   "c": "f086"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f085",
+    "duplicate_of": "f084"
+   },
+   {
+    "issue": "f086",
+    "duplicate_of": "f084"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c53",
+  "project": "StudentPanel",
+  "area": "exam",
+  "note": "SMS exam link stuck on loading.",
+  "members": {
+   "a": "f087",
+   "b": "f088"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f088",
+    "duplicate_of": "f087"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c54",
+  "project": "StudentPanel",
+  "area": "dashboard",
+  "note": "Dashboard error when a class has no session defined.",
+  "members": {
+   "a": "f089"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c55",
+  "project": "StudentPanel",
+  "area": "dashboard",
+  "note": "Suggestion card not linked to session content (task).",
+  "members": {
+   "a": "f090"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c56",
+  "project": "Releasewatch",
+  "area": "filters",
+  "note": "Reporter filter and URL params are two tasks in one area (hard negative).",
+  "members": {
+   "a": "f091",
+   "b": "f092"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f092",
+    "duplicate_of": "f091"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c57",
+  "project": "Releasewatch",
+  "area": "filters",
+  "note": "Filters in URL — sibling of c56.",
+  "members": {
+   "a": "f093"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c56"
+  ]
+ },
+ {
+  "cluster_id": "c58",
+  "project": "Releasewatch",
+  "area": "list",
+  "note": "Sorting bug.",
+  "members": {
+   "a": "f094"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c59",
+  "project": "Releasewatch",
+  "area": "attachments",
+  "note": "Attachments vanish after a status change (Done original).",
+  "members": {
+   "a": "f095"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c60",
+  "project": "Releasewatch",
+  "area": "comments",
+  "note": "Cross-project distractor for Chat message reactions (c01): reactions on comments are a different feature in another project.",
+  "members": {
+   "a": "f096"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c61",
+  "project": "Chat",
+  "area": "presence",
+  "note": "Larger cluster (4 members, one cancelled) with mixed Persian/English wording.",
+  "members": {
+   "a": "f097",
+   "b": "f098",
+   "c": "f099",
+   "d": "f100"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f098",
+    "duplicate_of": "f097"
+   },
+   {
+    "issue": "f099",
+    "duplicate_of": "f097"
+   },
+   {
+    "issue": "f100",
+    "duplicate_of": "f097"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c62",
+  "project": "Chat",
+  "area": "group-admin",
+  "note": "Cannot remove a member; drafts in transliterated Persian.",
+  "members": {
+   "a": "f101",
+   "b": "f102"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f102",
+    "duplicate_of": "f101"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c63",
+  "project": "Chat",
+  "area": "voice",
+  "note": "Voice message duration; mixed-language description.",
+  "members": {
+   "a": "f103",
+   "b": "f104"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f104",
+    "duplicate_of": "f103"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c64",
+  "project": "Chat",
+  "area": "images",
+  "note": "Image compression quality.",
+  "members": {
+   "a": "f105"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c65",
+  "project": "Chat",
+  "area": "links",
+  "note": "Link preview: a task and a bug in the same area (hard negatives of each other).",
+  "members": {
+   "a": "f106",
+   "b": "f107"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c66",
+  "project": "Chat",
+  "area": "delete",
+  "note": "Delete for everyone window (task) — also has a recurrence-like bug sibling.",
+  "members": {
+   "a": "f108"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c67",
+  "project": "Limsa",
+  "area": "speech",
+  "note": "Pronunciation score inconsistency; trio.",
+  "members": {
+   "a": "f109",
+   "b": "f110",
+   "c": "f111"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f110",
+    "duplicate_of": "f109"
+   },
+   {
+    "issue": "f111",
+    "duplicate_of": "f109"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c68",
+  "project": "Limsa",
+  "area": "language",
+  "note": "Language drift: answers in Persian when asked for English-only.",
+  "members": {
+   "a": "f112",
+   "b": "f113"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f113",
+    "duplicate_of": "f112"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c69",
+  "project": "Limsa",
+  "area": "vocab",
+  "note": "Vocabulary export: task + comment-driven detail.",
+  "members": {
+   "a": "f114"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c70",
+  "project": "Limsa",
+  "area": "demo",
+  "note": "Demo-session limit counter off by one.",
+  "members": {
+   "a": "f115"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c71",
+  "project": "Dano",
+  "area": "certificate",
+  "note": "RTL text in certificate PDF.",
+  "members": {
+   "a": "f116",
+   "b": "f117"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f117",
+    "duplicate_of": "f116"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c72",
+  "project": "Dano",
+  "area": "capacity",
+  "note": "Race on class capacity; Done original with long repro.",
+  "members": {
+   "a": "f118"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c73",
+  "project": "Dano",
+  "area": "export",
+  "note": "CSV encoding garbled in Excel.",
+  "members": {
+   "a": "f119",
+   "b": "f120"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f120",
+    "duplicate_of": "f119"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c74",
+  "project": "StudentPanel",
+  "area": "homework",
+  "note": "Android upload fail; recurrence + comment detail.",
+  "members": {
+   "a": "f121"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c75",
+  "project": "StudentPanel",
+  "area": "theme",
+  "note": "Contrast in dark mode.",
+  "members": {
+   "a": "f122",
+   "b": "f123"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f123",
+    "duplicate_of": "f122"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c76",
+  "project": "Releasewatch",
+  "area": "telegram",
+  "note": "Telegram duplicate notifications; Done original.",
+  "members": {
+   "a": "f124",
+   "b": "f125"
+  },
+  "duplicate_pairs": [
+   {
+    "issue": "f125",
+    "duplicate_of": "f124"
+   }
+  ],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "c77",
+  "project": "Releasewatch",
+  "area": "export",
+  "note": "Export markdown emoji and encoding.",
+  "members": {
+   "a": "f126"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b01",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f127"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b02",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f128"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b03",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f129"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b04",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f130"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b05",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f131"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b06",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f132"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b07",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f133"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b08",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f134"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b09",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f135"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b10",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f136"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b11",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f137"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b12",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f138"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b13",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f139"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b14",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f140"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b15",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f141"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b16",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f142"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b17",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f143"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b18",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f144"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b19",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f145"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b20",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f146"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b21",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f147"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b22",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f148"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b23",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f149"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b24",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f150"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b25",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f151"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b26",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f152"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b27",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f153"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b28",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f154"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b29",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f155"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b30",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f156"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b31",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f157"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b32",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f158"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b33",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f159"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b34",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f160"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b35",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f161"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b36",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f162"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b37",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f163"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b38",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f164"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b39",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f165"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b40",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f166"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b41",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f167"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b42",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f168"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b43",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f169"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b44",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f170"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b45",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f171"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b46",
+  "project": "Dano",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f172"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b47",
+  "project": "StudentPanel",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f173"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b48",
+  "project": "Releasewatch",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f174"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b49",
+  "project": "Chat",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f175"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "b50",
+  "project": "Limsa",
+  "area": "background",
+  "note": "Background distractor: no duplicates, no probes.",
+  "members": {
+   "a": "f176"
+  },
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n01",
+  "project": "Chat",
+  "area": "novel",
+  "note": "No existing issue; drafts must not match anything as 'same'.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c01"
+  ]
+ },
+ {
+  "cluster_id": "n02",
+  "project": "Chat",
+  "area": "novel",
+  "note": "Novel near a known area (pin) but a different faulty behaviour that nobody reported.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c03"
+  ]
+ },
+ {
+  "cluster_id": "n03",
+  "project": "Chat",
+  "area": "novel",
+  "note": "Novel: accessibility.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n04",
+  "project": "Chat",
+  "area": "novel",
+  "note": "Novel: polls.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n05",
+  "project": "Limsa",
+  "area": "novel",
+  "note": "Novel: voice input (mic).",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n06",
+  "project": "Limsa",
+  "area": "novel",
+  "note": "Novel near flashcards: spaced repetition is not reported.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c20"
+  ]
+ },
+ {
+  "cluster_id": "n07",
+  "project": "Limsa",
+  "area": "novel",
+  "note": "Novel: IELTS mode.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n08",
+  "project": "Dano",
+  "area": "novel",
+  "note": "Novel: bulk actions.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n09",
+  "project": "Dano",
+  "area": "novel",
+  "note": "Novel near wallet: refund flow (never reported).",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c36"
+  ]
+ },
+ {
+  "cluster_id": "n10",
+  "project": "StudentPanel",
+  "area": "novel",
+  "note": "Novel: language switch.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n11",
+  "project": "StudentPanel",
+  "area": "novel",
+  "note": "Novel near login: biometrics.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c49"
+  ]
+ },
+ {
+  "cluster_id": "n12",
+  "project": "Releasewatch",
+  "area": "novel",
+  "note": "Novel: Slack integration.",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n13",
+  "project": "Releasewatch",
+  "area": "novel",
+  "note": "Novel near telegram: quiet hours (not reported).",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": [
+   "c76"
+  ]
+ },
+ {
+  "cluster_id": "n14",
+  "project": "Chat",
+  "area": "novel",
+  "note": "Novel: bug on a feature never reported (message forwarding).",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ },
+ {
+  "cluster_id": "n15",
+  "project": "Limsa",
+  "area": "novel",
+  "note": "Novel: bug on a feature never reported (streak).",
+  "members": {},
+  "duplicate_pairs": [],
+  "related_clusters": []
+ }
+]

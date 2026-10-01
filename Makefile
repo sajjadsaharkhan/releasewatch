@@ -1,4 +1,5 @@
-.PHONY: dev dev-build stop migrate migrate-down seed seed-admin db-reset test test-local lint format shell logs \
+.PHONY: dev dev-build stop migrate migrate-down seed seed-admin db-reset \
+	dup-dataset-import dup-dataset-reset dup-dataset-probe test test-local lint format shell logs \
 	e2e e2e-up e2e-down e2e-ui e2e-headed backend-dev-deps embeddings-fetch
 
 # ── Local development ─────────────────────────────────────────────────────────
@@ -41,6 +42,18 @@ db-reset:
 
 seed-admin:
 	docker compose exec api python -m scripts.create_admin
+
+# ── Synthetic duplicate-detection dataset (backend/scripts/dup_dataset) ───────
+# Imports fake issues/comments for trying similar-item suggestions; additive,
+# `make dup-dataset-reset` replaces an earlier import. See that README.
+dup-dataset-import:
+	docker compose exec api python -m scripts.dup_dataset import
+
+dup-dataset-reset:
+	docker compose exec api python -m scripts.dup_dataset import --wipe
+
+dup-dataset-probe:
+	docker compose exec api python -m scripts.dup_dataset probe
 
 # ── Search embeddings (slice 12) ──────────────────────────────────────────────
 

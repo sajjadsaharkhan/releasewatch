@@ -1,0 +1,1974 @@
+{
+ "queries": [
+  {
+   "id": "q001",
+   "q": "ری‌اکشن گروه",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2,
+    "f002": 2,
+    "f003": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q002",
+   "q": "reaction not saved after refresh",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2,
+    "f002": 2,
+    "f003": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q003",
+   "q": "/student/api/v1/chat/conversations/message/reaction",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q004",
+   "q": "ریاکشن گروه ثبت ندشد",
+   "cat": [
+    "typo",
+    "translit"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2,
+    "f002": 2,
+    "f003": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q005",
+   "q": "مشکل reaction در group chat بعد از reload",
+   "cat": [
+    "codeswitch"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2,
+    "f002": 2,
+    "f003": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q006",
+   "q": "لایک پیام‌ها بعد بستن گروه پریده",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f001",
+   "rel": {
+    "f001": 2,
+    "f002": 2,
+    "f003": 2
+   },
+   "cluster_id": "c01"
+  },
+  {
+   "id": "q007",
+   "q": "concurrent reactions counter wrong",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f004",
+   "rel": {
+    "f004": 2
+   },
+   "cluster_id": "c02"
+  },
+  {
+   "id": "q008",
+   "q": "پین پیام",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f005",
+   "rel": {
+    "f005": 2,
+    "f006": 2,
+    "f007": 2
+   },
+   "cluster_id": "c03"
+  },
+  {
+   "id": "q009",
+   "q": "pinned message members can't see",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f005",
+   "rel": {
+    "f005": 2,
+    "f006": 2,
+    "f007": 2
+   },
+   "cluster_id": "c03"
+  },
+  {
+   "id": "q010",
+   "q": "پینن پیام",
+   "cat": [
+    "typo"
+   ],
+   "base_issue": "f005",
+   "rel": {
+    "f005": 2,
+    "f006": 2,
+    "f007": 2
+   },
+   "cluster_id": "c03"
+  },
+  {
+   "id": "q011",
+   "q": "بنر پین‌شده برای شاگرد نیست",
+   "cat": [
+    "symptom",
+    "colloquial"
+   ],
+   "base_issue": "f005",
+   "rel": {
+    "f005": 2,
+    "f006": 2,
+    "f007": 2
+   },
+   "cluster_id": "c03"
+  },
+  {
+   "id": "q012",
+   "q": "badge unread delete",
+   "cat": [
+    "short",
+    "codeswitch"
+   ],
+   "base_issue": "f008",
+   "rel": {
+    "f008": 2,
+    "f009": 2
+   },
+   "cluster_id": "c04"
+  },
+  {
+   "id": "q013",
+   "q": "نقطه قرمز چت بعد از پاک کردن پیام",
+   "cat": [
+    "symptom"
+   ],
+   "base_issue": "f008",
+   "rel": {
+    "f008": 2,
+    "f009": 2
+   },
+   "cluster_id": "c04"
+  },
+  {
+   "id": "q014",
+   "q": "باج unread",
+   "cat": [
+    "translit",
+    "typo"
+   ],
+   "base_issue": "f008",
+   "rel": {
+    "f008": 2,
+    "f009": 2
+   },
+   "cluster_id": "c04"
+  },
+  {
+   "id": "q015",
+   "q": "فایل ۹۹",
+   "cat": [
+    "short",
+    "symptom"
+   ],
+   "base_issue": "f010",
+   "rel": {
+    "f010": 2,
+    "f011": 2
+   },
+   "cluster_id": "c05"
+  },
+  {
+   "id": "q016",
+   "q": "upload progress stuck",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f010",
+   "rel": {
+    "f010": 2,
+    "f011": 2
+   },
+   "cluster_id": "c05"
+  },
+  {
+   "id": "q017",
+   "q": "اپلود فایل سنگین",
+   "cat": [
+    "translit",
+    "typo"
+   ],
+   "base_issue": "f010",
+   "rel": {
+    "f010": 2,
+    "f011": 2
+   },
+   "cluster_id": "c05"
+  },
+  {
+   "id": "q018",
+   "q": "فایل تا آخر میره ولی نمیفرسته",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f010",
+   "rel": {
+    "f010": 2,
+    "f011": 2
+   },
+   "cluster_id": "c05"
+  },
+  {
+   "id": "q019",
+   "q": "wrong error message unsupported file",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f012",
+   "rel": {
+    "f012": 2
+   },
+   "cluster_id": "c06"
+  },
+  {
+   "id": "q020",
+   "q": "typing indicator",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f013",
+   "rel": {
+    "f013": 2,
+    "f014": 2
+   },
+   "cluster_id": "c07"
+  },
+  {
+   "id": "q021",
+   "q": "ایندیکیتور تایپ گیر میکنه",
+   "cat": [
+    "translit",
+    "typo"
+   ],
+   "base_issue": "f013",
+   "rel": {
+    "f013": 2,
+    "f014": 2
+   },
+   "cluster_id": "c07"
+  },
+  {
+   "id": "q022",
+   "q": "ریپلای نام فرستنده",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f015",
+   "rel": {
+    "f015": 2,
+    "f016": 2
+   },
+   "cluster_id": "c08"
+  },
+  {
+   "id": "q023",
+   "q": "پیش‌نویس پیام",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f017",
+   "rel": {
+    "f017": 2,
+    "f018": 2
+   },
+   "cluster_id": "c09"
+  },
+  {
+   "id": "q024",
+   "q": "typed text appears in another chat",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "symptom"
+   ],
+   "base_issue": "f017",
+   "rel": {
+    "f017": 2,
+    "f018": 2
+   },
+   "cluster_id": "c09"
+  },
+  {
+   "id": "q025",
+   "q": "متن نوشته شده تو کادر تایپ میره چت بعدی",
+   "cat": [
+    "symptom",
+    "colloquial"
+   ],
+   "base_issue": "f017",
+   "rel": {
+    "f017": 2,
+    "f018": 2
+   },
+   "cluster_id": "c09"
+  },
+  {
+   "id": "q026",
+   "q": "draft message leaks",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "short"
+   ],
+   "base_issue": "f017",
+   "rel": {
+    "f017": 2,
+    "f018": 2
+   },
+   "cluster_id": "c09"
+  },
+  {
+   "id": "q027",
+   "q": "preview deleted message chat list",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "codeswitch"
+   ],
+   "base_issue": "f019",
+   "rel": {
+    "f019": 2,
+    "f020": 2
+   },
+   "cluster_id": "c10"
+  },
+  {
+   "id": "q028",
+   "q": "منشن پیوی",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f021",
+   "rel": {
+    "f021": 2,
+    "f022": 2
+   },
+   "cluster_id": "c11"
+  },
+  {
+   "id": "q029",
+   "q": "edited label",
+   "cat": [
+    "short",
+    "codeswitch"
+   ],
+   "base_issue": "f023",
+   "rel": {
+    "f023": 2
+   },
+   "cluster_id": "c12"
+  },
+  {
+   "id": "q030",
+   "q": "ویرایش بدون تغییر",
+   "cat": [
+    "symptom"
+   ],
+   "base_issue": "f023",
+   "rel": {
+    "f023": 2
+   },
+   "cluster_id": "c12"
+  },
+  {
+   "id": "q031",
+   "q": "چند پیام سریع گم میشه",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f024",
+   "rel": {
+    "f024": 2,
+    "f025": 2
+   },
+   "cluster_id": "c13"
+  },
+  {
+   "id": "q032",
+   "q": "push notification background iOS",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f026",
+   "rel": {
+    "f026": 2,
+    "f027": 2
+   },
+   "cluster_id": "c14"
+  },
+  {
+   "id": "q033",
+   "q": "اعلان نمیاد",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f026",
+   "rel": {
+    "f026": 2,
+    "f027": 2
+   },
+   "cluster_id": "c14"
+  },
+  {
+   "id": "q034",
+   "q": "نوتیفیکیشن آیفون",
+   "cat": [
+    "translit",
+    "short"
+   ],
+   "base_issue": "f026",
+   "rel": {
+    "f026": 2,
+    "f027": 2
+   },
+   "cluster_id": "c14"
+  },
+  {
+   "id": "q035",
+   "q": "نیم فاصله جستجو",
+   "cat": [
+    "short",
+    "typo"
+   ],
+   "base_issue": "f028",
+   "rel": {
+    "f028": 2
+   },
+   "cluster_id": "c15"
+  },
+  {
+   "id": "q036",
+   "q": "اعضای گروه",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f029",
+   "rel": {
+    "f029": 2
+   },
+   "cluster_id": "c16"
+  },
+  {
+   "id": "q037",
+   "q": "group members pagination",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f029",
+   "rel": {
+    "f029": 2
+   },
+   "cluster_id": "c16"
+  },
+  {
+   "id": "q038",
+   "q": "/student/api/v1/chat/conversations/message/seen",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f030",
+   "rel": {
+    "f030": 2,
+    "f031": 2
+   },
+   "cluster_id": "c17"
+  },
+  {
+   "id": "q039",
+   "q": "keyboard covers input safari",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f032",
+   "rel": {
+    "f032": 2
+   },
+   "cluster_id": "c18"
+  },
+  {
+   "id": "q040",
+   "q": "لیمسا Enter",
+   "cat": [
+    "short",
+    "codeswitch"
+   ],
+   "base_issue": "f033",
+   "rel": {
+    "f033": 2,
+    "f034": 2
+   },
+   "cluster_id": "c19"
+  },
+  {
+   "id": "q041",
+   "q": "line break removed limsa",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f033",
+   "rel": {
+    "f033": 2,
+    "f034": 2
+   },
+   "cluster_id": "c19"
+  },
+  {
+   "id": "q042",
+   "q": "اینتر پیام یه خط میشه",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f033",
+   "rel": {
+    "f033": 2,
+    "f034": 2
+   },
+   "cluster_id": "c19"
+  },
+  {
+   "id": "q043",
+   "q": "newline در پیام لیمسا حذف میشه",
+   "cat": [
+    "codeswitch"
+   ],
+   "base_issue": "f033",
+   "rel": {
+    "f033": 2,
+    "f034": 2
+   },
+   "cluster_id": "c19"
+  },
+  {
+   "id": "q044",
+   "q": "فلش کارت",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f035",
+   "rel": {
+    "f035": 2,
+    "f036": 2
+   },
+   "cluster_id": "c20"
+  },
+  {
+   "id": "q045",
+   "q": "flashcards plain text",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f035",
+   "rel": {
+    "f035": 2,
+    "f036": 2
+   },
+   "cluster_id": "c20"
+  },
+  {
+   "id": "q046",
+   "q": "فلشکارت متن ساده",
+   "cat": [
+    "translit",
+    "typo"
+   ],
+   "base_issue": "f035",
+   "rel": {
+    "f035": 2,
+    "f036": 2
+   },
+   "cluster_id": "c20"
+  },
+  {
+   "id": "q047",
+   "q": "empty flashcard list",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f037",
+   "rel": {
+    "f037": 2
+   },
+   "cluster_id": "c21"
+  },
+  {
+   "id": "q048",
+   "q": "copy text answer",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "short"
+   ],
+   "base_issue": "f038",
+   "rel": {
+    "f038": 2,
+    "f039": 2
+   },
+   "cluster_id": "c22"
+  },
+  {
+   "id": "q049",
+   "q": "عنوان کلاس لیمسا",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f040",
+   "rel": {
+    "f040": 2,
+    "f041": 2
+   },
+   "cluster_id": "c23"
+  },
+  {
+   "id": "q050",
+   "q": "limsa wrong class title",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f040",
+   "rel": {
+    "f040": 2,
+    "f041": 2
+   },
+   "cluster_id": "c23"
+  },
+  {
+   "id": "q051",
+   "q": "/student/api/v1/limsa/quiz/generate 504",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f042",
+   "rel": {
+    "f042": 2,
+    "f043": 2
+   },
+   "cluster_id": "c24"
+  },
+  {
+   "id": "q052",
+   "q": "کوییز کتاب بزرگ",
+   "cat": [
+    "short",
+    "translit"
+   ],
+   "base_issue": "f042",
+   "rel": {
+    "f042": 2,
+    "f043": 2
+   },
+   "cluster_id": "c24"
+  },
+  {
+   "id": "q053",
+   "q": "کوییز کتاب ۳۰۰ صفحه",
+   "cat": [
+    "short",
+    "symptom"
+   ],
+   "base_issue": "f042",
+   "rel": {
+    "f042": 2,
+    "f043": 2
+   },
+   "cluster_id": "c24"
+  },
+  {
+   "id": "q054",
+   "q": "quiz generate 504 big book",
+   "cat": [
+    "identifier",
+    "codeswitch"
+   ],
+   "base_issue": "f042",
+   "rel": {
+    "f042": 2,
+    "f043": 2
+   },
+   "cluster_id": "c24"
+  },
+  {
+   "id": "q055",
+   "q": "distractor quality quiz",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "identifier"
+   ],
+   "base_issue": "f044",
+   "rel": {
+    "f044": 2
+   },
+   "cluster_id": "c25"
+  },
+  {
+   "id": "q056",
+   "q": "podcast",
+   "cat": [
+    "short",
+    "translit"
+   ],
+   "base_issue": "f045",
+   "rel": {
+    "f045": 2,
+    "f046": 2
+   },
+   "cluster_id": "c26"
+  },
+  {
+   "id": "q057",
+   "q": "حافظه گفتگو لیمسا",
+   "cat": [
+    "short",
+    "symptom"
+   ],
+   "base_issue": "f047",
+   "rel": {
+    "f047": 2
+   },
+   "cluster_id": "c27"
+  },
+  {
+   "id": "q058",
+   "q": "حذف سشن",
+   "cat": [
+    "short",
+    "translit"
+   ],
+   "base_issue": "f048",
+   "rel": {
+    "f048": 2,
+    "f049": 2
+   },
+   "cluster_id": "c28"
+  },
+  {
+   "id": "q059",
+   "q": "لیمسا جلسه بعدی",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f050",
+   "rel": {
+    "f050": 2,
+    "f051": 2
+   },
+   "cluster_id": "c29"
+  },
+  {
+   "id": "q060",
+   "q": "request id log",
+   "cat": [
+    "short",
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f052",
+   "rel": {
+    "f052": 2,
+    "f053": 2
+   },
+   "cluster_id": "c30"
+  },
+  {
+   "id": "q061",
+   "q": "شناسه درخواست در لاگ",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f052",
+   "rel": {
+    "f052": 2,
+    "f053": 2
+   },
+   "cluster_id": "c30"
+  },
+  {
+   "id": "q062",
+   "q": "پاسخ نصفه",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f054",
+   "rel": {
+    "f054": 2,
+    "f055": 2
+   },
+   "cluster_id": "c31"
+  },
+  {
+   "id": "q063",
+   "q": "proxy timeout stream limsa",
+   "cat": [
+    "codeswitch",
+    "identifier"
+   ],
+   "base_issue": "f054",
+   "rel": {
+    "f054": 2,
+    "f055": 2
+   },
+   "cluster_id": "c31"
+  },
+  {
+   "id": "q064",
+   "q": "جواب بلند نصفه میشه",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f054",
+   "rel": {
+    "f054": 2,
+    "f055": 2
+   },
+   "cluster_id": "c31"
+  },
+  {
+   "id": "q065",
+   "q": "flashcard by topic",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f056",
+   "rel": {
+    "f056": 2
+   },
+   "cluster_id": "c32"
+  },
+  {
+   "id": "q066",
+   "q": "/student/api/v1/limsa/books",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f057",
+   "rel": {
+    "f057": 2
+   },
+   "cluster_id": "c33"
+  },
+  {
+   "id": "q067",
+   "q": "کتاب کاربر دیگه",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f057",
+   "rel": {
+    "f057": 2
+   },
+   "cluster_id": "c33"
+  },
+  {
+   "id": "q068",
+   "q": "leak books other users",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f057",
+   "rel": {
+    "f057": 2
+   },
+   "cluster_id": "c33"
+  },
+  {
+   "id": "q069",
+   "q": "گزارش خرید دمو",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f058",
+   "rel": {
+    "f058": 2
+   },
+   "cluster_id": "c34"
+  },
+  {
+   "id": "q070",
+   "q": "429 rate limiter free plan",
+   "cat": [
+    "identifier",
+    "codeswitch"
+   ],
+   "base_issue": "f059",
+   "rel": {
+    "f059": 2
+   },
+   "cluster_id": "c35"
+  },
+  {
+   "id": "q071",
+   "q": "سرویس موقتا در دسترس نیست",
+   "cat": [
+    "symptom"
+   ],
+   "base_issue": "f059",
+   "rel": {
+    "f059": 2
+   },
+   "cluster_id": "c35"
+  },
+  {
+   "id": "q072",
+   "q": "کیف پول",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f060",
+   "rel": {
+    "f060": 2,
+    "f061": 2
+   },
+   "cluster_id": "c36"
+  },
+  {
+   "id": "q073",
+   "q": "wallet balance mismatch backoffice",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f060",
+   "rel": {
+    "f060": 2,
+    "f061": 2
+   },
+   "cluster_id": "c36"
+  },
+  {
+   "id": "q074",
+   "q": "موجودی کیف‌پول عدد فرق داره",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f060",
+   "rel": {
+    "f060": 2,
+    "f061": 2
+   },
+   "cluster_id": "c36"
+  },
+  {
+   "id": "q075",
+   "q": "مبلغ منفی به حروف",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f062",
+   "rel": {
+    "f062": 2
+   },
+   "cluster_id": "c37"
+  },
+  {
+   "id": "q076",
+   "q": "/api/v1/admin/broadcast-notification",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f063",
+   "rel": {
+    "f063": 2,
+    "f064": 2
+   },
+   "cluster_id": "c38"
+  },
+  {
+   "id": "q077",
+   "q": "اعلان بدون گیرنده",
+   "cat": [
+    "short",
+    "symptom"
+   ],
+   "base_issue": "f063",
+   "rel": {
+    "f063": 2,
+    "f064": 2
+   },
+   "cluster_id": "c38"
+  },
+  {
+   "id": "q078",
+   "q": "نوتیفیکیشن همگانی بی گیرنده",
+   "cat": [
+    "translit",
+    "symptom"
+   ],
+   "base_issue": "f063",
+   "rel": {
+    "f063": 2,
+    "f064": 2
+   },
+   "cluster_id": "c38"
+  },
+  {
+   "id": "q079",
+   "q": "import excel users",
+   "cat": [
+    "short",
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f065",
+   "rel": {
+    "f065": 2,
+    "f066": 2
+   },
+   "cluster_id": "c39"
+  },
+  {
+   "id": "q080",
+   "q": "آپلود اکسل کاربر",
+   "cat": [
+    "short",
+    "translit"
+   ],
+   "base_issue": "f065",
+   "rel": {
+    "f065": 2,
+    "f066": 2
+   },
+   "cluster_id": "c39"
+  },
+  {
+   "id": "q081",
+   "q": "انتخاب کاربر گروه",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f067",
+   "rel": {
+    "f067": 2
+   },
+   "cluster_id": "c40"
+  },
+  {
+   "id": "q082",
+   "q": "اعتبارسنجی نام کاربر",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f068",
+   "rel": {
+    "f068": 2,
+    "f069": 2
+   },
+   "cluster_id": "c41"
+  },
+  {
+   "id": "q083",
+   "q": "exam title max length",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f070",
+   "rel": {
+    "f070": 2
+   },
+   "cluster_id": "c42"
+  },
+  {
+   "id": "q084",
+   "q": "minimum length error exam",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f071",
+   "rel": {
+    "f071": 2
+   },
+   "cluster_id": "c43"
+  },
+  {
+   "id": "q085",
+   "q": "/api/v1/admin/class/4076/users",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f072",
+   "rel": {
+    "f072": 2
+   },
+   "cluster_id": "c44"
+  },
+  {
+   "id": "q086",
+   "q": "جستجو داخل کلاس نتیجه الکی میده",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f072",
+   "rel": {
+    "f072": 2
+   },
+   "cluster_id": "c44"
+  },
+  {
+   "id": "q087",
+   "q": "هزینه هر نفر ظرفیت",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f073",
+   "rel": {
+    "f073": 2
+   },
+   "cluster_id": "c45"
+  },
+  {
+   "id": "q088",
+   "q": "ارسال پیامک گیرنده",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f074",
+   "rel": {
+    "f074": 2,
+    "f075": 2
+   },
+   "cluster_id": "c46"
+  },
+  {
+   "id": "q089",
+   "q": "چیدمان گروه‌ها",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f076",
+   "rel": {
+    "f076": 2
+   },
+   "cluster_id": "c47"
+  },
+  {
+   "id": "q090",
+   "q": "شرکت کننده رویداد",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f077",
+   "rel": {
+    "f077": 2
+   },
+   "cluster_id": "c48"
+  },
+  {
+   "id": "q091",
+   "q": "ورود پرتال",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f078",
+   "rel": {
+    "f078": 2,
+    "f079": 2,
+    "f080": 2
+   },
+   "cluster_id": "c49"
+  },
+  {
+   "id": "q092",
+   "q": "login loop otp",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "codeswitch"
+   ],
+   "base_issue": "f078",
+   "rel": {
+    "f078": 2,
+    "f079": 2,
+    "f080": 2
+   },
+   "cluster_id": "c49"
+  },
+  {
+   "id": "q093",
+   "q": "ورود بدون خطا برمیگرده صفحه اول",
+   "cat": [
+    "symptom",
+    "colloquial"
+   ],
+   "base_issue": "f078",
+   "rel": {
+    "f078": 2,
+    "f079": 2,
+    "f080": 2
+   },
+   "cluster_id": "c49"
+  },
+  {
+   "id": "q094",
+   "q": "login پرتال جدید کار نمیکنه",
+   "cat": [
+    "codeswitch"
+   ],
+   "base_issue": "f078",
+   "rel": {
+    "f078": 2,
+    "f079": 2,
+    "f080": 2
+   },
+   "cluster_id": "c49"
+  },
+  {
+   "id": "q095",
+   "q": "refresh token 401",
+   "cat": [
+    "identifier",
+    "short"
+   ],
+   "base_issue": "f081",
+   "rel": {
+    "f081": 2,
+    "f082": 2
+   },
+   "cluster_id": "c50"
+  },
+  {
+   "id": "q096",
+   "q": "رفرش دوبار توکن",
+   "cat": [
+    "short",
+    "symptom"
+   ],
+   "base_issue": "f083",
+   "rel": {
+    "f083": 2
+   },
+   "cluster_id": "c51"
+  },
+  {
+   "id": "q097",
+   "q": "پرداخت ثبت نام",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f084",
+   "rel": {
+    "f084": 2,
+    "f085": 2,
+    "f086": 2
+   },
+   "cluster_id": "c52"
+  },
+  {
+   "id": "q098",
+   "q": "payment gateway redirect",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f084",
+   "rel": {
+    "f084": 2,
+    "f085": 2,
+    "f086": 2
+   },
+   "cluster_id": "c52"
+  },
+  {
+   "id": "q099",
+   "q": "لینک پیامک آزمون",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f087",
+   "rel": {
+    "f087": 2,
+    "f088": 2
+   },
+   "cluster_id": "c53"
+  },
+  {
+   "id": "q100",
+   "q": "/student/api/v1/dashboard/next-session",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f089",
+   "rel": {
+    "f089": 2
+   },
+   "cluster_id": "c54"
+  },
+  {
+   "id": "q101",
+   "q": "suggestion dashboard session content",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f090",
+   "rel": {
+    "f090": 2
+   },
+   "cluster_id": "c55"
+  },
+  {
+   "id": "q102",
+   "q": "reporter filter",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f091",
+   "rel": {
+    "f091": 2,
+    "f092": 2
+   },
+   "cluster_id": "c56"
+  },
+  {
+   "id": "q103",
+   "q": "فیلتر کسی که ایشو رو ساخته",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f091",
+   "rel": {
+    "f091": 2,
+    "f092": 2
+   },
+   "cluster_id": "c56"
+  },
+  {
+   "id": "q104",
+   "q": "فیلتر در url",
+   "cat": [
+    "short",
+    "codeswitch"
+   ],
+   "base_issue": "f093",
+   "rel": {
+    "f093": 2
+   },
+   "cluster_id": "c57"
+  },
+  {
+   "id": "q105",
+   "q": "فیلترها تو آدرس صفحه نمیمونه",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f093",
+   "rel": {
+    "f093": 2
+   },
+   "cluster_id": "c57"
+  },
+  {
+   "id": "q106",
+   "q": "sort last update",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f094",
+   "rel": {
+    "f094": 2
+   },
+   "cluster_id": "c58"
+  },
+  {
+   "id": "q107",
+   "q": "مرتب سازی آخرین تغییر",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f094",
+   "rel": {
+    "f094": 2
+   },
+   "cluster_id": "c58"
+  },
+  {
+   "id": "q108",
+   "q": "attachment status change disappear",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f095",
+   "rel": {
+    "f095": 2
+   },
+   "cluster_id": "c59"
+  },
+  {
+   "id": "q109",
+   "q": "پیوست ایشو بعد از استاتوس پرید",
+   "cat": [
+    "colloquial",
+    "codeswitch"
+   ],
+   "base_issue": "f095",
+   "rel": {
+    "f095": 2
+   },
+   "cluster_id": "c59"
+  },
+  {
+   "id": "q110",
+   "q": "comment reactions",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f096",
+   "rel": {
+    "f096": 2
+   },
+   "cluster_id": "c60"
+  },
+  {
+   "id": "q111",
+   "q": "واکنش ایموجی روی کامنت",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f096",
+   "rel": {
+    "f096": 2
+   },
+   "cluster_id": "c60"
+  },
+  {
+   "id": "q112",
+   "q": "آنلاین سبز",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f097",
+   "rel": {
+    "f097": 2,
+    "f099": 2,
+    "f100": 2
+   },
+   "cluster_id": "c61"
+  },
+  {
+   "id": "q113",
+   "q": "last seen",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f097",
+   "rel": {
+    "f097": 2,
+    "f099": 2,
+    "f100": 2
+   },
+   "cluster_id": "c61"
+  },
+  {
+   "id": "q114",
+   "q": "hertbeat timeout presence",
+   "cat": [
+    "typo",
+    "identifier"
+   ],
+   "base_issue": "f097",
+   "rel": {
+    "f097": 2,
+    "f100": 2
+   },
+   "cluster_id": "c61"
+  },
+  {
+   "id": "q115",
+   "q": "آنلاین بودن اشتباه",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f097",
+   "rel": {
+    "f097": 2,
+    "f099": 2,
+    "f100": 2
+   },
+   "cluster_id": "c61"
+  },
+  {
+   "id": "q116",
+   "q": "کیک کردن ممبر از گروپ",
+   "cat": [
+    "translit",
+    "colloquial"
+   ],
+   "base_issue": "f101",
+   "rel": {
+    "f101": 2,
+    "f102": 2
+   },
+   "cluster_id": "c62"
+  },
+  {
+   "id": "q117",
+   "q": "/student/api/v1/chat/groups/members/remove",
+   "cat": [
+    "identifier"
+   ],
+   "base_issue": "f101",
+   "rel": {
+    "f101": 2
+   },
+   "cluster_id": "c62"
+  },
+  {
+   "id": "q118",
+   "q": "voice duration",
+   "cat": [
+    "short",
+    "codeswitch"
+   ],
+   "base_issue": "f103",
+   "rel": {
+    "f103": 2,
+    "f104": 2
+   },
+   "cluster_id": "c63"
+  },
+  {
+   "id": "q119",
+   "q": "تصویر تار",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f105",
+   "rel": {
+    "f105": 2
+   },
+   "cluster_id": "c64"
+  },
+  {
+   "id": "q120",
+   "q": "link preview",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f106",
+   "rel": {
+    "f106": 2,
+    "f107": 1
+   },
+   "cluster_id": "c65"
+  },
+  {
+   "id": "q121",
+   "q": "لینک www کلیک نمیشه",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f107",
+   "rel": {
+    "f107": 2,
+    "f106": 1
+   },
+   "cluster_id": "c65"
+  },
+  {
+   "id": "q122",
+   "q": "حذف برای همه",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f108",
+   "rel": {
+    "f108": 2
+   },
+   "cluster_id": "c66"
+  },
+  {
+   "id": "q123",
+   "q": "نمره تلفظ",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f109",
+   "rel": {
+    "f109": 2,
+    "f110": 2,
+    "f111": 2
+   },
+   "cluster_id": "c67"
+  },
+  {
+   "id": "q124",
+   "q": "scoring nondeterministic temperature",
+   "cat": [
+    "identifier",
+    "en2fa"
+   ],
+   "base_issue": "f109",
+   "rel": {
+    "f109": 2,
+    "f110": 2,
+    "f111": 2
+   },
+   "cluster_id": "c67"
+  },
+  {
+   "id": "q125",
+   "q": "pronunciation score inconsistent",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f109",
+   "rel": {
+    "f109": 2,
+    "f110": 2,
+    "f111": 2
+   },
+   "cluster_id": "c67"
+  },
+  {
+   "id": "q126",
+   "q": "فقط انگلیسی",
+   "cat": [
+    "short",
+    "colloquial"
+   ],
+   "base_issue": "f112",
+   "rel": {
+    "f112": 2,
+    "f113": 2
+   },
+   "cluster_id": "c68"
+  },
+  {
+   "id": "q127",
+   "q": "export vocabulary list",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f114",
+   "rel": {
+    "f114": 2
+   },
+   "cluster_id": "c69"
+  },
+  {
+   "id": "q128",
+   "q": "demo limit",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f115",
+   "rel": {
+    "f115": 2
+   },
+   "cluster_id": "c70"
+  },
+  {
+   "id": "q129",
+   "q": "certificate pdf rtl",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "short"
+   ],
+   "base_issue": "f116",
+   "rel": {
+    "f116": 2,
+    "f117": 2
+   },
+   "cluster_id": "c71"
+  },
+  {
+   "id": "q130",
+   "q": "گواهی پی‌دی‌اف برعکس",
+   "cat": [
+    "translit",
+    "symptom"
+   ],
+   "base_issue": "f116",
+   "rel": {
+    "f116": 2,
+    "f117": 2
+   },
+   "cluster_id": "c71"
+  },
+  {
+   "id": "q131",
+   "q": "ظرفیت کلاس",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f118",
+   "rel": {
+    "f118": 2
+   },
+   "cluster_id": "c72"
+  },
+  {
+   "id": "q132",
+   "q": "csv encoding bom",
+   "cat": [
+    "en2fa",
+    "cross_lingual",
+    "identifier"
+   ],
+   "base_issue": "f119",
+   "rel": {
+    "f119": 2,
+    "f120": 2
+   },
+   "cluster_id": "c73"
+  },
+  {
+   "id": "q133",
+   "q": "خروجی اکسل فارسی خراب",
+   "cat": [
+    "colloquial",
+    "symptom"
+   ],
+   "base_issue": "f119",
+   "rel": {
+    "f119": 2,
+    "f120": 2
+   },
+   "cluster_id": "c73"
+  },
+  {
+   "id": "q134",
+   "q": "upload gallery android",
+   "cat": [
+    "en2fa",
+    "cross_lingual"
+   ],
+   "base_issue": "f121",
+   "rel": {
+    "f121": 2
+   },
+   "cluster_id": "c74"
+  },
+  {
+   "id": "q135",
+   "q": "عکس از گالری آپلود نمیشه اندروید",
+   "cat": [
+    "colloquial",
+    "codeswitch"
+   ],
+   "base_issue": "f121",
+   "rel": {
+    "f121": 2
+   },
+   "cluster_id": "c74"
+  },
+  {
+   "id": "q136",
+   "q": "dark mode contrast",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f122",
+   "rel": {
+    "f122": 2,
+    "f123": 2
+   },
+   "cluster_id": "c75"
+  },
+  {
+   "id": "q137",
+   "q": "telegram duplicate message",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f124",
+   "rel": {
+    "f124": 2,
+    "f125": 2
+   },
+   "cluster_id": "c76"
+  },
+  {
+   "id": "q138",
+   "q": "پیام تلگرام تکراری",
+   "cat": [
+    "fa2en",
+    "cross_lingual"
+   ],
+   "base_issue": "f124",
+   "rel": {
+    "f124": 2,
+    "f125": 2
+   },
+   "cluster_id": "c76"
+  },
+  {
+   "id": "q139",
+   "q": "export md emoji",
+   "cat": [
+    "short"
+   ],
+   "base_issue": "f126",
+   "rel": {
+    "f126": 2
+   },
+   "cluster_id": "c77"
+  }
+ ],
+ "no_match": [
+  {
+   "id": "x001",
+   "q": "ری‌اکشن روی کامنت تکلیف"
+  },
+  {
+   "id": "x002",
+   "q": "پین کردن پیام در پرتال استاد"
+  },
+  {
+   "id": "x003",
+   "q": "امضای دیجیتال گواهی"
+  },
+  {
+   "id": "x004",
+   "q": "voice input mic button for questions"
+  },
+  {
+   "id": "x005",
+   "q": "تم روشن خودکار بر اساس ساعت"
+  },
+  {
+   "id": "x006",
+   "q": "ارسال تکلیف به صورت ویدیو"
+  },
+  {
+   "id": "x007",
+   "q": "support SSO login with Google"
+  },
+  {
+   "id": "x008",
+   "q": "تعطیلات رسمی در تقویم کلاس‌ها"
+  },
+  {
+   "id": "x009",
+   "q": "کد تخفیف هنگام ثبت‌نام"
+  },
+  {
+   "id": "x010",
+   "q": "نمایش رتبه زبان‌آموز در کلاس"
+  },
+  {
+   "id": "x011",
+   "q": "bulk archive classes"
+  },
+  {
+   "id": "x012",
+   "q": "الگوی پیام آماده برای استاد"
+  },
+  {
+   "id": "x013",
+   "q": "reaction on a voice message"
+  },
+  {
+   "id": "x014",
+   "q": "تماس تصویری در گروه کلاسی"
+  },
+  {
+   "id": "x015",
+   "q": "wallet refund after cancelling enrolment"
+  },
+  {
+   "id": "x016",
+   "q": "تلفظ کلمه با صدای مرد و زن"
+  },
+  {
+   "id": "x017",
+   "q": "dark mode for the admin panel"
+  },
+  {
+   "id": "x018",
+   "q": "ارسال پیامک تبریک تولد"
+  },
+  {
+   "id": "x019",
+   "q": "جستجوی صوتی در تاریخچه چت"
+  },
+  {
+   "id": "x020",
+   "q": "webhook برای پایان آزمون"
+  },
+  {
+   "id": "x021",
+   "q": "تقویم میلادی در گزارش مالی"
+  },
+  {
+   "id": "x022",
+   "q": "لیمسا برای کودکان زیر هفت سال"
+  }
+ ]
+}
