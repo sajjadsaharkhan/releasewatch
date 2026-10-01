@@ -692,6 +692,10 @@ Always: `block text-xs font-medium text-muted-foreground mb-1.5`
 The **page never scrolls — `<main>` does.** Anything that must stay put (table headers,
 dialog headers/footers) uses `sticky` or `shrink-0` inside that scroller, not `position: fixed`.
 `min-w-0` on the content column is load-bearing: without it, wide tables blow out the flex row.
+Anything absolutely positioned inside `<main>` — including every `sr-only` label — needs a
+positioned ancestor inside `<main>` (cards and rows carry `relative`). Without one it resolves
+against the page, escapes `<main>`'s overflow, and makes the whole document scroll (seen on
+Workload, 2026-10-01).
 
 ### Page container
 

@@ -24,7 +24,10 @@ import { PIN_ICON, TypeMark } from '../queue/QueueMarks'
 // ranked or scored (PRD non-goal) — the copy only describes.
 
 // Person · In progress · Up next — shared by the rows and their skeletons.
-const ROW_GRID = 'grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]'
+// `relative` is load-bearing: the rows' `sr-only` labels are absolutely
+// positioned, and without a positioned ancestor inside <main> they escape its
+// overflow and make the whole document scroll.
+const ROW_GRID = 'relative grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]'
 
 function ItemLine({ item, index }) {
   return (
