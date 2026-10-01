@@ -171,6 +171,7 @@ backend/
 | `/api/v1/support` | `api/v1/support.py` |
 | `/api/v1/projects/{id}/templates` | `api/v1/support_templates.py` |
 | `/api/v1/settings` | `api/v1/settings.py` |
+| `/api/v1/search`, `/api/v1/features`, `/api/v1/settings/search` | `api/v1/search.py` (engine in `app/search/`) |
 | `/api/v1/telegram/webhook` | `api/v1/telegram.py` |
 | `/ws/dashboard`, `/ws/inbox` | `api/v1/ws.py` |
 | `GET /health` | `main.py` |
@@ -197,6 +198,7 @@ backend/
 | `make e2e-ui` | Same, but keeps the stack up and opens Playwright UI mode |
 | `make e2e-headed` | Same as `make e2e`, headed |
 | `make lint` | ruff (backend) + eslint (frontend) |
+| `make embeddings-fetch` | Download `BAAI/bge-m3` into the `embeddings_models` volume, once, online |
 | `make shell` | Python REPL inside api container |
 | `make logs` | Follow api + worker logs |
 

@@ -21,7 +21,7 @@ celery_app = Celery(
         "app.tasks.notifications",
         "app.tasks.attachments",
         "app.tasks.reports",
-        "app.tasks.search",
+        "app.tasks.search_index",
         "app.tasks.releases",
         "app.tasks.queue",
     ],
@@ -35,7 +35,7 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_track_started=True,
-    # Prevent tasks from running indefinitely (embed_issue overrides these per-task)
+    # Prevent tasks from running indefinitely (search_index jobs override these per-task)
     task_soft_time_limit=300,  # seconds — raises SoftTimeLimitExceeded
     task_time_limit=360,       # seconds — SIGKILL
     # Retry defaults
@@ -43,32 +43,20 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
 )
 
-# ── Worker process init — pre-load embedding model once per fork worker ───────
+# ── Worker start — build the search index if it is empty (engine PRD A.11) ──
 
-@signals.worker_process_init.connect
-def _preload_embedding_model(**kwargs):
-    """Pre-load the fastembed ONNX model into memory before the first task runs.
-
-    Each Celery fork worker is a separate process; without this the model
-    cold-loads inside the first task, which exhausts the soft time limit.
-    Uses a throw-away NullPool engine to avoid event-loop conflicts.
-    """
+@signals.worker_ready.connect
+def _bootstrap_search_index(**kwargs):
+    """Items exist but ``search_items`` is empty (a fresh upgrade from Phase 1,
+    or a restored database): enqueue ``reindex_all`` once."""
     try:
         import asyncio
-        from app.db.session import task_session
-        from app.services.search_service import _load_llm_config, _embed_local, _E5_MODELS
+        from app.tasks.search_index import bootstrap_if_empty
 
-        async def _warm():
-            async with task_session() as db:
-                cfg = await _load_llm_config(db)
-            if cfg.get("provider") == "local":
-                prefix = "query: " if cfg["model"] in _E5_MODELS else ""
-                await _embed_local(cfg["model"], ["warmup"], prefix=prefix)
-                logging.info("Worker process: embedding model '%s' ready.", cfg["model"])
-
-        asyncio.run(_warm())
+        if asyncio.run(bootstrap_if_empty()):
+            logging.info("Search index is empty; reindex_all enqueued.")
     except Exception as exc:
-        logging.warning("Worker process: embedding model pre-load failed: %s", exc)
+        logging.warning("Search index bootstrap check failed: %s", exc)
 
 
 # ── Beat schedule ─────────────────────────────────────────────────────────────

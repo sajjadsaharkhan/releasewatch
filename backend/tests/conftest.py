@@ -20,6 +20,9 @@ os.environ.setdefault("ADMIN_PASSWORD", "")
 # one password per user it creates — the permission matrix alone spent ~160s
 # on it. The cost is stored in each hash, so verification is unaffected.
 os.environ.setdefault("BCRYPT_ROUNDS", "4")
+# Slice 12: embeddings come from the in-process fake (tests/fakes/), reached
+# through ``app.search.embeddings.transport_override`` — never a real model.
+os.environ["SEARCH_EMBEDDING_ENDPOINT"] = "http://fake-embeddings/v1"
 
 # Report caching (app/services/report_service.py) keys Redis by numeric id,
 # and TRUNCATE ... RESTART IDENTITY makes those ids restart at 1 every test —
@@ -58,7 +61,9 @@ from app.db.session import close_engine, get_engine, init_engine  # noqa: E402
 from app.main import app as fastapi_app  # noqa: E402
 from app.tasks.attachments import validate_attachment  # noqa: E402
 from app.tasks.notifications import send_telegram_notification  # noqa: E402
-from app.tasks.search import embed_issue  # noqa: E402
+from app.search import embeddings  # noqa: E402
+from app.tasks import search_index  # noqa: E402
+from tests.fakes.embedding_endpoint import FakeEmbeddings, fake as fake_embedding_endpoint  # noqa: E402
 from tests.factories import Factories  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -314,22 +319,58 @@ async def telegram(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) ->
 
 @pytest.fixture(autouse=True)
 def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
-    """Autouse: embedding + attachment-validation jobs become no-ops.
+    """Autouse: search-index + attachment-validation jobs are recorded, not run.
 
-    Exposed so a test can assert a job *was enqueued* without doing the real
-    (heavy / S3-dependent) work.
+    Exposed so a test can assert a job *was enqueued*; ``search_jobs`` runs the
+    recorded index jobs for tests that search.
     """
-    calls: dict[str, list] = {"embed_issue": [], "validate_attachment": []}
+    calls: dict[str, list] = {"index_item": [], "reindex_all": [], "validate_attachment": []}
 
-    def _fake_embed(args=None, kwargs=None, **_ignored):
-        calls["embed_issue"].append((args, kwargs))
+    def _recorder(name):
+        def _record(args=None, kwargs=None, **options):
+            calls[name].append((args, kwargs, options))
+        return _record
 
-    def _fake_validate(args=None, kwargs=None, **_ignored):
-        calls["validate_attachment"].append((args, kwargs))
-
-    monkeypatch.setattr(embed_issue, "apply_async", _fake_embed)
-    monkeypatch.setattr(validate_attachment, "apply_async", _fake_validate)
+    monkeypatch.setattr(search_index.index_item, "apply_async", _recorder("index_item"))
+    monkeypatch.setattr(search_index.reindex_all, "apply_async", _recorder("reindex_all"))
+    monkeypatch.setattr(validate_attachment, "apply_async", _recorder("validate_attachment"))
     return calls
+
+
+@pytest.fixture(autouse=True)
+def embedding_endpoint() -> Iterator[FakeEmbeddings]:
+    """Autouse: every embedding request reaches the in-process fake (A.12)."""
+    fake_embedding_endpoint.reset()
+    embeddings.transport_override = ASGITransport(app=fake_embedding_endpoint.app)
+    yield fake_embedding_endpoint
+    embeddings.transport_override = None
+
+
+class SearchJobs:
+    """Runs the recorded search jobs by calling their bodies directly — the
+    scheduled-job seam from slice 01."""
+
+    def __init__(self, calls: dict[str, list]):
+        self._calls = calls
+
+    async def run(self) -> list[dict]:
+        """Run every pending ``reindex_all`` and ``index_item``, until none is left."""
+        results = []
+        while self._calls["reindex_all"] or self._calls["index_item"]:
+            if self._calls["reindex_all"]:
+                self._calls["reindex_all"].clear()
+                await search_index.reindex_all_now()
+                continue
+            pending = sorted({args[0] for args, _, _ in self._calls["index_item"]})
+            self._calls["index_item"].clear()
+            for issue_id in pending:
+                results.append(await search_index.index_item_now(issue_id))
+        return results
+
+
+@pytest.fixture
+def search_jobs(background_jobs: dict[str, list]) -> SearchJobs:
+    return SearchJobs(background_jobs)
 
 
 # ── Clock ──────────────────────────────────────────────────────────────────

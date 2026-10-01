@@ -1,5 +1,5 @@
 .PHONY: dev dev-build stop migrate migrate-down seed seed-admin db-reset test test-local lint format shell logs \
-	e2e e2e-up e2e-down e2e-ui e2e-headed backend-dev-deps
+	e2e e2e-up e2e-down e2e-ui e2e-headed backend-dev-deps embeddings-fetch
 
 # ── Local development ─────────────────────────────────────────────────────────
 
@@ -41,6 +41,26 @@ db-reset:
 
 seed-admin:
 	docker compose exec api python -m scripts.create_admin
+
+# ── Search embeddings (slice 12) ──────────────────────────────────────────────
+
+# Fill the embeddings_models volume with BAAI/bge-m3, once, online. Starts the
+# TEI service with HF_HUB_OFFLINE=0 (so it downloads exactly the files it
+# serves), waits until it answers /health, then stops it. Afterwards the
+# service runs offline. Production: add `-f docker-compose.prod.yml` via COMPOSE.
+COMPOSE ?= docker compose
+embeddings-fetch:
+	$(COMPOSE) run -d --rm --no-deps --name rw-embeddings-fetch -e HF_HUB_OFFLINE=0 embeddings
+	@echo "Downloading BAAI/bge-m3 into the embeddings_models volume (≈2.3 GB)..."
+	@for i in $$(seq 1 360); do \
+		docker exec rw-embeddings-fetch curl -sf http://localhost:80/health > /dev/null 2>&1 \
+			&& { docker stop rw-embeddings-fetch > /dev/null; echo "Model ready."; exit 0; }; \
+		docker inspect rw-embeddings-fetch > /dev/null 2>&1 \
+			|| { echo "The fetch container exited — see the logs above."; exit 1; }; \
+		sleep 5; \
+	done; \
+	docker logs --tail 30 rw-embeddings-fetch; docker stop rw-embeddings-fetch > /dev/null; \
+	echo "Timed out after 30 minutes" && exit 1
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { searchApi, teamApi } from '../../lib/api'
 import { TypeIcon } from '../ui/Badge'
-import { PRIORITY } from '../../lib/constants'
+import { PRIORITY, STATUS } from '../../lib/constants'
 import { issueSlug, issueKey } from '../../lib/issueSlug'
 
 
@@ -56,7 +56,7 @@ export function CommandPalette() {
       }
       setSearching(true)
       try {
-        const res = await searchApi.query(q.trim(), activeProjectId, 5)
+        const res = await searchApi.search({ q: q.trim(), scope: 'project', project_id: activeProjectId, mode: 'palette' })
         setIssueResults(res.data.results || [])
       } catch {
         setIssueResults([])
@@ -89,8 +89,11 @@ export function CommandPalette() {
       ).slice(0, 3)
     : []
 
-  // Flat list for keyboard nav
+  // Flat list for keyboard nav. With a query, the first row opens the search
+  // page with it (FR-S05), so Enter does that unless the user arrows down.
+  const searchRow = query.trim() ? [{ type: 'search', data: { q: query.trim() } }] : []
   const flatResults = [
+    ...searchRow,
     ...issueResults.map((i) => ({ type: 'issue', data: i })),
     ...matchedPages.map((p) => ({ type: 'page', data: p })),
     ...matchedTeam.map((u) => ({ type: 'user', data: u })),
@@ -98,7 +101,8 @@ export function CommandPalette() {
 
   function select(item) {
     setCommandPaletteOpen(false)
-    if (item.type === 'issue') navigate(`/issue/${issueSlug(item.data)}`)
+    if (item.type === 'search') navigate(`/search?q=${encodeURIComponent(item.data.q)}`)
+    else if (item.type === 'issue') navigate(`/issue/${issueSlug(item.data)}`)
     else if (item.type === 'page') navigate(item.data.path)
     else if (item.type === 'user') navigate(`/u/${item.data.username}`)
   }
@@ -140,7 +144,7 @@ export function CommandPalette() {
             value={query}
             onChange={handleQueryChange}
             onKeyDown={handleKey}
-            placeholder="Search issues, pages, team…"
+            placeholder="Search items, pages, team…"
             className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
           />
           <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border bg-muted px-1.5 text-xs font-mono text-muted-foreground">
@@ -155,6 +159,27 @@ export function CommandPalette() {
               No results for "{query}"
             </p>
           )}
+
+          {/* Full search */}
+          {searchRow.length > 0 && (() => {
+            const idx = globalIdx++
+            return (
+              <div
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-lg mx-1 transition-colors',
+                  selectedIdx === idx ? 'bg-accent' : 'hover:bg-accent',
+                )}
+                onMouseEnter={() => setSelectedIdx(idx)}
+                onClick={() => select(searchRow[0])}
+              >
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="flex-1 text-sm truncate" dir="auto">
+                  Search for “{query.trim()}”
+                </span>
+                <kbd className="font-mono text-xs text-muted-foreground">↵</kbd>
+              </div>
+            )
+          })()}
 
           {/* Issues */}
           {issueResults.length > 0 && (
@@ -180,7 +205,10 @@ export function CommandPalette() {
                     <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">
                       {issueKey(issue)}
                     </span>
-                    <span className="flex-1 text-sm truncate">{issue.title}</span>
+                    <span className="flex-1 text-sm truncate" dir="auto">{issue.title}</span>
+                    {issue.is_cancelled && (
+                      <span className="text-[11px] text-muted-foreground shrink-0">{STATUS.cancelled.label}</span>
+                    )}
                   </div>
                 )
               })}

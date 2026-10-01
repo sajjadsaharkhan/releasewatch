@@ -73,6 +73,13 @@ class Settings(BaseSettings):
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     REDIS_URL: str = Field("redis://localhost:6379/0", description="Redis connection URL")
+
+    # ── Search engine (slice 12) ──────────────────────────────────────────────
+    SEARCH_EMBEDDING_ENDPOINT: str = Field(
+        "http://embeddings:80/v1",
+        description="Default OpenAI-compatible embedding endpoint (the bundled TEI service). "
+        "Admin can override it in Settings → Search.",
+    )
     REDIS_CACHE_TTL: int = Field(300, description="Default cache TTL in seconds")
 
     # ── AWS S3 / MinIO ─────────────────────────────────────────────────────────

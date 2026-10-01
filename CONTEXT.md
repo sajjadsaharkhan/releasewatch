@@ -166,6 +166,20 @@ The owner's append-only record of human queue changes — reorder, pin, unpin �
 The Team page's CTO/Admin view of everyone's queue at once (`GET /team/workload`, Policy `view_team_overview`, FR-43). One row per active assignable person, in name order: their In progress items, the next three queue items that aren't In progress, and counts of open and pinned items — dormant entries never count. Filterable by role and by project ("working in": people with open queued work there). A row opens the person's board at `/u/:username/work`, where reorder and pin live. It describes; it never ranks or scores people (PRD non-goal).
 _Avoid_: "team overview" for the view itself (that's the Policy action), "load", "capacity", "utilisation" — nothing here measures people.
 
+### Search (slice 12)
+
+**Search engine**:
+The one engine behind every "find the items that mean this" question — the search page and command palette now, similar-item suggestions and triage hints from slice 14 (`app/search/`, engine PRD). It reads items and timelines and writes only its own tables (`search_items`, `search_vectors`, `comment_labels`), all derived and rebuilt by **Reindex all** — never item or timeline columns. Results obey item visibility; for Support, only public comments can match or give a snippet (BR-S06).
+_Avoid_: "semantic search" for the whole thing (it is dense vectors *and* a keyword channel), "LLM search".
+
+**Stage 1**:
+The local, always-on half of the engine: the query is normalized and embedded by the `embeddings` service (TEI + `BAAI/bge-m3`), then four channels — body, title, talk, and a gated trigram keyword channel — are fused by weighted reciprocal rank fusion, and results under a similarity floor are dropped (`app/search/retrieval.py`; constants in `app/search/constants.py`, fixed in code, set by an evaluation run). Vectors of two embedding models are never compared: changing the endpoint or model reindexes everything. **Stage 2** is Jev (slice 13), which may only reorder and cut stage-1 candidates.
+_Avoid_: "the reranker" for stage 1 — nothing in stage 1 reranks.
+
+**Comment label**:
+Whether a comment is used for search, and who decided (`comment_labels.label` + `source`). Without Jev the rule decides (`app/search/comment_rules.py`): `rule_kept`, or `rule_dropped` for short comments and bare agreement or thanks ("موافقم، هر وقت فرصت داشتید انجامش بدید"). Only used comments become **talk** vectors; comments never reach the body text, so they never decide "same problem" (principle S4). Internal notes are labelled and indexed like any comment, with `is_internal`, and filtered at query time.
+_Avoid_: "comment classification" for the rule alone — classification by Jev comes in slice 13.
+
 ## Decisions
 
 Where Phase 2 deliberately departs from the PRD. Each came up while checking the PRD against the code and was decided before building, so the code follows the decision, not the PRD. Moved here from the Phase 2 specs' README after slice 11 so the decisions outlive the specs. Later product overrides (the free workflow, 2026-09-22/23) are noted where they changed a row.

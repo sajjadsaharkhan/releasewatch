@@ -68,8 +68,6 @@ async def submit_report(
     issue = await support_service.submit(db, payload, current_user)
     await db.commit()
 
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue.id,), countdown=0)
     return report_row(await load_report(db, issue.id), current_user)
 
 

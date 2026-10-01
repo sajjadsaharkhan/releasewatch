@@ -1,139 +1,89 @@
-"""Search API — semantic + hybrid search over issues.
+"""Search API (slice 12, engine PRD Appendix A.9).
 
-GET  /search?q=<query>&project_id=<id>&limit=20
-POST /search/reindex        (admin) — enqueue embedding backfill for all issues
+GET  /search                    — stage-1 search; the search page and the command palette
+GET  /features                  — what the UI may show ({jev_enabled})
+GET  /settings/search           — Admin: endpoint, model, index status (FR-S17)
+PUT  /settings/search           — Admin: change the endpoint; a change reindexes (FR-S19)
+POST /settings/search/reindex   — Admin: Reindex all
 """
 
-from __future__ import annotations
-
-import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
-from app.core.redis_client import get_cached, set_cached
-from app.db.models.issue import Issue
+from app.db.models.issue import IssueStatus, IssueType
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.services.authz import sees_internal, visibility_clause
-from app.services.search_service import search as _search
+from app.schemas.settings import SearchSettingsUpdate
+from app.search import admin
+from app.search.retrieval import Filters, search
+from app.tasks import search_index
 
-import hashlib
-import json
-
-logger = logging.getLogger(__name__)
 router = APIRouter()
-
-_CACHE_TTL = 60  # seconds
-
-
-def _cache_key(project_id: int, q: str, scope: str) -> str:
-    """``scope`` keeps Support's filtered results apart from everyone else's."""
-    h = hashlib.sha256(q.lower().encode()).hexdigest()[:16]
-    return f"search:{scope}:{project_id}:{h}"
+features_router = APIRouter()
+settings_router = APIRouter()
 
 
-@router.get("", summary="Semantic + hybrid search over issues")
-async def search_issues(
-    q: str = Query(..., min_length=1, max_length=500, description="Search query"),
-    project_id: int = Query(..., description="Project to search within"),
-    limit: int = Query(20, ge=1, le=50),
+@router.get("", summary="Search items (stage 1)")
+async def search_items(
+    q: str = Query(..., min_length=1, max_length=500),
+    scope: Literal["project", "all"] = Query("project"),
+    project_id: int | None = Query(None, description="Required when scope=project"),
+    type_: list[IssueType] | None = Query(None, alias="type"),
+    status_: list[IssueStatus] | None = Query(None, alias="status"),
+    mode: Literal["page", "palette"] = Query("page"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Run hybrid semantic search (vector + FTS fused with RRF) over issues.
-
-    Falls back to pure full-text search when the LLM embedding model is not
-    configured.  Results include a ``matched_via`` field showing which retrievers
-    surfaced each hit (useful for relevance debugging).
-    """
-    tech = sees_internal(current_user)
-    cache_key = _cache_key(project_id, q, "all" if tech else f"user{current_user.id}")
-    cached = await get_cached(cache_key)
-    if cached is not None:
-        return cached
-
-    result = await _search(
-        db, q, project_id, limit=limit,
-        visible_ids=None if tech else select(Issue.id).where(
-            Issue.deleted_at.is_(None), visibility_clause(current_user),
-        ),
-        include_talk=tech,
+    """``mode=palette`` returns at most 8 results and no comment snippets, and
+    never calls Jev (BR-S05). Results only ever include items the caller may
+    see, matched only through content they may see (BR-S06)."""
+    if scope == "project" and project_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="project_id is required when scope=project",
+        )
+    filters = Filters(
+        project_id=project_id if scope == "project" else None,
+        types=[t.value for t in type_ or []],
+        statuses=[s.value for s in status_ or []],
     )
+    ranked = await search(db, current_user, q, filters=filters, mode=mode)
+    return ranked.as_dict()
 
-    await set_cached(cache_key, result, ttl=_CACHE_TTL)
-    return result
+
+@features_router.get("", summary="Feature flags the UI reads")
+async def features(current_user: User = Depends(get_current_user)) -> dict:
+    return {"jev_enabled": False}
 
 
-@router.post(
-    "/reindex",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Enqueue embedding backfill (admin only)",
-)
-async def reindex(
-    project_id: int | None = Query(None, description="Limit reindex to one project; omit for all"),
+
+@settings_router.get("", summary="Search settings and index status (Admin)")
+async def get_search_settings(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.admin)),
 ) -> dict:
-    """Enqueue embed_issue tasks for every issue that has no embedding or whose
-    embedding was produced by a different model than the currently configured one.
+    return await admin.status_of(db)
 
-    Tasks are staggered with increasing countdowns to avoid hammering the
-    embedding API.
-    """
-    from app.tasks.search import embed_issue
 
-    # Determine current model from settings
-    row = await db.execute(
-        text("SELECT value FROM system_settings WHERE category='llm' AND key='config' AND is_active=true LIMIT 1")
-    )
-    raw = row.scalar_one_or_none()
-    cfg = raw if isinstance(raw, dict) else (json.loads(raw) if isinstance(raw, str) else {})
-    current_model = cfg.get("embeddingModel") or cfg.get("embedding_model", "")
+@settings_router.put("", summary="Change the embedding endpoint (Admin)")
+async def put_search_settings(
+    body: SearchSettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin)),
+) -> dict:
+    changed = await admin.change_endpoint(db, body.embedding_endpoint)
+    await db.commit()
+    reindex_started = search_index.request_reindex_all() if changed else False
+    return {**await admin.status_of(db), "reindex_started": reindex_started}
 
-    # Find issues missing embeddings or with stale model
-    where = "TRUE"
-    params: dict = {}
-    if project_id is not None:
-        where = "i.project_id = :pid"
-        params["pid"] = project_id
 
-    if current_model:
-        stale_q = text(f"""
-            SELECT i.id FROM issues i
-            WHERE {where}
-              AND NOT EXISTS (
-                SELECT 1 FROM issue_embeddings e
-                WHERE e.issue_id = i.id
-                  AND e.model = :model
-                  AND e.field_group = 'core'
-              )
-        """)
-        params["model"] = current_model
-    else:
-        stale_q = text(f"""
-            SELECT i.id FROM issues i
-            WHERE {where}
-              AND NOT EXISTS (
-                SELECT 1 FROM issue_embeddings e WHERE e.issue_id = i.id
-              )
-        """)
-
-    result = await db.execute(stale_q, params)
-    issue_ids = [row[0] for row in result.fetchall()]
-
-    if not issue_ids:
-        return {"enqueued": 0, "message": "All issues are up-to-date"}
-
-    # Stagger tasks in batches of 50; each batch 5 s apart
-    batch_size = 50
-    enqueued = 0
-    for i, iid in enumerate(issue_ids):
-        countdown = (i // batch_size) * 5
-        embed_issue.apply_async((iid,), countdown=countdown)
-        enqueued += 1
-
-    logger.info("reindex: enqueued %d embed_issue tasks (project_id=%s)", enqueued, project_id)
-    return {"enqueued": enqueued, "message": f"Enqueued {enqueued} embedding tasks"}
+@settings_router.post(
+    "/reindex",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Reindex all items (Admin)",
+)
+async def reindex(current_user: User = Depends(require_role(UserRole.admin))) -> dict:
+    return {"reindex_started": search_index.request_reindex_all()}

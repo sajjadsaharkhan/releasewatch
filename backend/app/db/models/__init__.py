@@ -14,7 +14,7 @@ from app.db.models.issue_attachment import IssueAttachment
 from app.db.models.inbox_item import InboxItem
 from app.db.models.system_setting import SystemSetting
 from app.db.models.telegram_integration import TelegramIntegration
-from app.db.models.issue_embedding import IssueEmbedding
+from app.db.models.search import CommentLabel, SearchItem, SearchVector
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.issue_subscriber import IssueSubscriber
 from app.db.models.issue_recurrence import IssueRecurrence
@@ -42,7 +42,9 @@ __all__ = [
     "InboxItem",
     "SystemSetting",
     "TelegramIntegration",
-    "IssueEmbedding",
+    "SearchItem",
+    "SearchVector",
+    "CommentLabel",
     "SupportTemplate",
     "SupportTemplateField",
     "IssueSubscriber",

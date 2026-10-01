@@ -9,17 +9,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      embeddings:
+        condition: service_healthy
     restart: unless-stopped
 
   worker:
     build: ./backend
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,celery,attachments
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,celery,attachments,search
     env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      embeddings:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Search engine embeddings (slice 12): text-embeddings-inference serving
+  # BAAI/bge-m3 on CPU. The model lives in the `embeddings_models` volume and
+  # is never downloaded at startup (HF_HUB_OFFLINE) — fill it once, online,
+  # with `make embeddings-fetch`. The tag is amd64-only; on an arm64 host set
+  # EMBEDDINGS_IMAGE (e.g. a cpu-arm64 tag) or use the dev overlay's fake.
+  embeddings:
+    image: ${EMBEDDINGS_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4}
+    command: --model-id BAAI/bge-m3 --max-batch-tokens 16384
+    environment:
+      HF_HUB_OFFLINE: '1'
+    volumes:
+      - embeddings_models:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:80/health']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     restart: unless-stopped
 
   beat:
@@ -83,3 +107,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  embeddings_models:

@@ -45,7 +45,7 @@ When QA, developers, and product managers work across different tools — spread
 | Database | PostgreSQL 16 + pgvector |
 | Cache / broker | Redis 7 |
 | Task queue | Celery 5 |
-| Embeddings | fastembed + ONNX (`paraphrase-multilingual-MiniLM-L12-v2`) |
+| Embeddings | text-embeddings-inference + `BAAI/bge-m3` (bundled `embeddings` service), pgvector + pg_trgm |
 | Storage | AWS S3 or MinIO |
 | Notifications | python-telegram-bot |
 

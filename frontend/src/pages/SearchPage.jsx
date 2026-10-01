@@ -1,254 +1,256 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { cn } from '../lib/cn'
-import { TypeIcon, PriorityBadge, StatusBadge } from '../components/ui/Badge'
+import { StatusBadge, TypeIcon } from '../components/ui/Badge'
+import { Empty } from '../components/ui/Empty'
+import { Icon } from '../components/ui/Icon'
+import { Segmented } from '../components/ui/Segmented'
+import { useToast } from '../components/ui/Toast'
+import { MultiSelectFilterDropdown } from '../components/common/MultiSelectFilterDropdown'
 import { useApp } from '../hooks/useApp'
-import { searchApi, issuesApi } from '../lib/api'
-import { issueSlug, issueKey, parseIssueSlug } from '../lib/issueSlug'
+import { issuesApi, searchApi } from '../lib/api'
+import { STATUS, TYPE } from '../lib/constants'
+import { issueKey, issueSlug, parseIssueSlug } from '../lib/issueSlug'
 
+const TYPE_OPTIONS = Object.entries(TYPE).map(([value, t]) => ({ value, label: t.label, icon: t.icon }))
+const STATUS_OPTIONS = Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label, icon: s.icon }))
 
-function MatchedVia({ tags }) {
-  if (!tags?.length) return null
-  return (
-    <div className="flex gap-1 flex-wrap">
-      {tags.map((t) => (
-        <span
-          key={t}
-          className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border"
-        >
-          {t}
-        </span>
-      ))}
-    </div>
-  )
+/** `#13`, `BUG-13`, `bug-13` jump straight to the item instead of searching. */
+function parseJump(q) {
+  if (/^#\d+$/.test(q)) return parseInt(q.slice(1), 10)
+  return parseIssueSlug(q.toLowerCase())
 }
 
-function ResultCard({ result, onClick }) {
+function ResultRow({ result, onOpen }) {
+  const cancelled = result.is_cancelled
   return (
     <button
-      onClick={onClick}
-      className="w-full text-left rounded-xl border border-border bg-card p-4 hover:bg-accent/50 transition-colors group"
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        'relative w-full text-left rounded-xl border border-border bg-card p-4 transition-colors group',
+        'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="text-xs text-muted-foreground font-mono inline-flex items-center gap-1">
-              <TypeIcon type={result.type} />
-              {result.key ?? issueKey(result)}
-            </span>
-            <PriorityBadge priority={result.priority} />
-            <StatusBadge status={result.status} />
-          </div>
-          <p className="text-sm font-medium text-foreground leading-snug mb-1 group-hover:text-primary transition-colors">
-            {result.title}
-          </p>
-          {result.snippet && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {result.snippet}
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-3">
-            <MatchedVia tags={result.matched_via} />
-            {result.assignee && (
-              <span className="text-xs text-muted-foreground">→ {result.assignee}</span>
-            )}
-          </div>
-        </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        <span className="inline-flex items-center gap-1 font-mono text-[11.5px] text-muted-foreground">
+          <TypeIcon type={result.type} />
+          {result.key ?? issueKey(result)}
+        </span>
+        <StatusBadge status={result.status} />
+        {result.project && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Icon name="folder" size={12} aria-hidden />
+            {result.project.name}
+          </span>
+        )}
       </div>
+      <p
+        dir="auto"
+        className={cn(
+          'text-sm font-medium leading-snug group-hover:text-primary transition-colors',
+          cancelled ? 'text-muted-foreground line-through decoration-zinc-400' : 'text-foreground',
+        )}
+      >
+        {result.title}
+      </p>
+      {result.snippet && (
+        <p dir="auto" className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          {result.snippet_source === 'comment' && (
+            <span className="inline-flex items-center gap-1 mr-1.5 align-middle text-[11px] font-medium text-foreground/70">
+              <Icon name="message-square" size={11} aria-hidden />
+              Comment:
+            </span>
+          )}
+          {result.snippet}
+        </p>
+      )}
     </button>
   )
 }
 
 export default function SearchPage() {
-  const { activeProjectId } = useApp()
+  const { activeProjectId, projects = [] } = useApp()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { toast } = useToast()
+  const [params, setParams] = useSearchParams()
 
-  const [query, setQuery] = useState(searchParams.get('q') || '')
-  const [results, setResults] = useState([])
+  const q = params.get('q') || ''
+  const scope = params.get('scope') === 'all' ? 'all' : 'project'
+  const types = (params.get('type') || '').split(',').filter(Boolean)
+  const statuses = (params.get('status') || '').split(',').filter(Boolean)
+
+  const [input, setInput] = useState(q)
+  const [data, setData] = useState(null) // { results, less_relevant } once a search ran
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [searched, setSearched] = useState(false)
+  const [showLess, setShowLess] = useState(false)
   const inputRef = useRef(null)
   const debounceRef = useRef(null)
+  const requestRef = useRef(0)
 
-  function parseIssueNumber(q) {
-    if (q.startsWith('#')) {
-      const rest = q.slice(1)
-      if (/^\d+$/.test(rest)) return { num: parseInt(rest, 10), exact: true }
-      return null
-    }
-    const fromSlug = parseIssueSlug(q)
-    if (fromSlug !== null) return { num: fromSlug, exact: true }
-    if (/^\d+$/.test(q)) return { num: parseInt(q, 10), exact: false }
-    return null
+  const activeProject = projects.find((p) => p.id === activeProjectId)
+
+  function update(changes) {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const [k, v] of Object.entries(changes)) {
+        if (v) next.set(k, v)
+        else next.delete(k)
+      }
+      return next
+    }, { replace: true })
   }
 
-  const runSearch = useCallback(
-    async (q) => {
-      if (!q.trim() || !activeProjectId) return
-      setLoading(true)
-      setError(null)
-      try {
-        const parsed = parseIssueNumber(q.trim())
-        if (parsed?.exact) {
-          const res = await issuesApi.getByNumber(parsed.num)
-          const issue = res.data
-          setResults([{
-            issue_id: issue.id,
-            issue_number: issue.issue_number,
-            type: issue.type,
-            key: issue.key,
-            title: issue.title,
-            priority: issue.priority,
-            status: issue.status,
-            snippet: issue.description || null,
-            matched_via: ['#' + issue.issue_number],
-            assignee: issue.assignee_user?.username ?? null,
-          }])
-          setSearched(true)
-          setSearchParams({ q: q.trim() }, { replace: true })
-          return
-        }
-        if (parsed?.exact === false) {
-          const res = await issuesApi.list({ search: q.trim(), project_id: activeProjectId })
-          const items = res.data.items || []
-          const mapped = items.map((issue) => ({
-            issue_id: issue.id,
-            issue_number: issue.issue_number,
-            title: issue.title,
-            priority: issue.priority,
-            status: issue.status,
-            snippet: issue.description || null,
-            matched_via: ['issue number'],
-            assignee: issue.assignee_user?.username ?? null,
-          }))
-          mapped.sort((a, b) => {
-            const exactA = a.issue_number === parsed.num
-            const exactB = b.issue_number === parsed.num
-            if (exactA && !exactB) return -1
-            if (exactB && !exactA) return 1
-            return a.issue_number - b.issue_number
-          })
-          setResults(mapped)
-          setSearched(true)
-          setSearchParams({ q: q.trim() }, { replace: true })
-          return
-        }
-        const res = await searchApi.query(q.trim(), activeProjectId)
-        setResults(res.data.results || [])
-        setSearched(true)
-        setSearchParams({ q: q.trim() }, { replace: true })
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Search failed. Please try again.')
-        setResults([])
-      } finally {
-        setLoading(false)
-      }
-    },
-    [activeProjectId, setSearchParams],
-  )
-
-  // Run search for URL-seeded query on mount
-  useEffect(() => {
-    const q = searchParams.get('q')
-    if (q) runSearch(q)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  function handleInputChange(e) {
-    const val = e.target.value
-    setQuery(val)
-    clearTimeout(debounceRef.current)
-    if (val.trim().length >= 2) {
-      debounceRef.current = setTimeout(() => runSearch(val), 600)
-    } else {
-      setResults([])
-      setSearched(false)
+  const run = useCallback(async () => {
+    const query = q.trim()
+    if (!query) {
+      setData(null)
+      return
     }
+    const jump = parseJump(query)
+    if (jump !== null) {
+      try {
+        const res = await issuesApi.getByNumber(jump)
+        navigate(`/issue/${issueSlug(res.data)}`, { replace: true })
+        return
+      } catch {
+        // Not an item number after all — search for the text.
+      }
+    }
+    if (scope === 'project' && !activeProjectId) return
+    const id = ++requestRef.current
+    setLoading(true)
+    try {
+      const res = await searchApi.search({
+        q: query,
+        scope,
+        project_id: scope === 'project' ? activeProjectId : undefined,
+        type: types.length ? types : undefined,
+        status: statuses.length ? statuses : undefined,
+        mode: 'page',
+      })
+      if (id !== requestRef.current) return
+      setData(res.data)
+      setShowLess(false)
+    } catch (err) {
+      if (id !== requestRef.current) return
+      setData({ results: [], less_relevant: [] })
+      toast.error('Search failed', err.response?.data?.detail)
+    } finally {
+      if (id === requestRef.current) setLoading(false)
+    }
+  }, [q, scope, activeProjectId, params.get('type'), params.get('status')]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { run() }, [run])
+  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => { setInput(q) }, [q])
+
+  function handleChange(e) {
+    const value = e.target.value
+    setInput(value)
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => update({ q: value.trim() }), 400)
   }
 
   function handleKeyDown(e) {
     if (e.key === 'Enter') {
       clearTimeout(debounceRef.current)
-      runSearch(query)
+      update({ q: input.trim() })
     }
   }
 
+  const results = data?.results ?? []
+  const less = data?.less_relevant ?? []
+  const open = (r) => navigate(`/issue/${issueSlug(r)}`)
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Search bar */}
-      <div className="border-b border-border bg-card px-6 py-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Search issues, or jump to #13 / BUG-13…"
-              className={cn(
-                'w-full h-10 rounded-lg border border-border bg-background pl-9 pr-4',
-                'text-sm placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-2 focus:ring-ring',
-              )}
-            />
-            {loading && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          {searched && !loading && (
-            <p className="text-xs text-muted-foreground mt-2">
-              {results.length === 0
-                ? 'No results found'
-                : `${results.length} result${results.length !== 1 ? 's' : ''}`}
-            </p>
-          )}
-        </div>
+    <div className="p-6 space-y-4 max-w-3xl mx-auto">
+      <div>
+        <h1 className="text-xl font-bold">Search</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Finds items by meaning, in Persian, English or both. Jump to an item with #13 or BUG-13.
+        </p>
       </div>
 
-      {/* Results */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-2xl mx-auto space-y-2">
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
+      <div className="relative">
+        <Icon
+          name="search" size={16} aria-hidden
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+        />
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          dir="auto"
+          aria-label="Search"
+          placeholder="Search items, or jump to #13 / BUG-13…"
+          className={cn(
+            'w-full h-10 rounded-lg border border-border bg-background pl-9 pr-9 text-sm',
+            'placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring',
           )}
+        />
+        {loading && (
+          <Icon name="loader-2" size={16} aria-hidden className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
+      </div>
 
-          {!loading && searched && results.length === 0 && !error && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No issues matched your query.</p>
-              <p className="text-xs mt-1">Try different keywords or check the LLM configuration in Settings.</p>
-            </div>
-          )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented
+          value={scope}
+          onValueChange={(v) => update({ scope: v === 'all' ? 'all' : '' })}
+          options={[
+            { value: 'project', label: activeProject ? activeProject.name : 'This project' },
+            { value: 'all', label: 'All projects' },
+          ]}
+        />
+        <MultiSelectFilterDropdown
+          icon="shapes" label="Type" selected={types} options={TYPE_OPTIONS}
+          onChange={(v) => update({ type: v.join(',') })}
+        />
+        <MultiSelectFilterDropdown
+          icon="circle-dot" label="Status" selected={statuses} options={STATUS_OPTIONS}
+          onChange={(v) => update({ status: v.join(',') })}
+        />
+        {data && !loading && results.length > 0 && (
+          <p className="ml-auto text-xs text-muted-foreground" aria-live="polite">
+            {results.length} result{results.length === 1 ? '' : 's'}
+          </p>
+        )}
+      </div>
 
-          {!searched && !loading && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Search className="h-8 w-8 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Type to search across all issues</p>
-              <p className="text-xs mt-1">Searches title, description, labels, environment, steps, and comments</p>
-            </div>
-          )}
+      <div className="space-y-2">
+        {!q && (
+          <Empty
+            icon="search"
+            title="Search across your items"
+            body="Titles, descriptions, steps, and the comments that say something about the problem."
+          />
+        )}
+        {q && data && !loading && results.length === 0 && (
+          <Empty icon="search-x" title="No matches" body="Nothing like this has been reported yet." />
+        )}
+        {results.map((r) => <ResultRow key={r.issue_id} result={r} onOpen={() => open(r)} />)}
 
-          {results.map((r) => (
-            <ResultCard
-              key={r.issue_id}
-              result={r}
-              onClick={() => navigate(`/issue/${issueSlug(r)}`)}
-            />
-          ))}
-        </div>
+        {/* Built for Jev (slice 13): only rendered when the response has items. */}
+        {less.length > 0 && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowLess((v) => !v)}
+              aria-expanded={showLess}
+              className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Icon name={showLess ? 'chevron-down' : 'chevron-right'} size={14} aria-hidden />
+              Less relevant results ({less.length})
+            </button>
+            {showLess && (
+              <div className="mt-2 space-y-2">
+                {less.map((r) => <ResultRow key={r.issue_id} result={r} onOpen={() => open(r)} />)}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

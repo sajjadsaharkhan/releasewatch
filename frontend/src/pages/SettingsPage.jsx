@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Server, CheckCircle, XCircle, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
 import { Tabs } from '../components/ui/Tabs'
@@ -17,7 +17,8 @@ import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, Inv
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
 import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
 import { BacklogCategoriesTab } from '../components/backlog/BacklogCategoriesTab'
-import { teamApi, labelsApi, projectsApi, settingsApi, searchApi } from '../lib/api'
+import { SearchSettingsTab } from '../components/settings'
+import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
 import { GatedButton } from '../components/common'
 import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
 
@@ -29,6 +30,7 @@ const TAB_OPTIONS = [
   { value: 'backlog', label: 'Backlog categories' },
   { value: 'labels', label: 'Labels' },
   { value: 'integrations', label: 'Integrations' },
+  { value: 'search', label: 'Search' },
   { value: 'configuration', label: 'Configuration' },
   { value: 'notifications', label: 'Notifications' },
 ]
@@ -243,9 +245,7 @@ export default function SettingsPage() {
     setConfigLoading(true)
     try {
       const response = await settingsApi.getConfiguration()
-      const { proxy: proxyData, llm: llmData } = response.data
-      setProxy(proxyData)
-      setLlm(llmData)
+      setProxy(response.data.proxy)
     } catch (err) {
       console.error('Failed to fetch configuration:', err)
       // Keep default empty values on error
@@ -265,13 +265,8 @@ export default function SettingsPage() {
 
   // Configuration state
   const [proxy, setProxy] = useState({ enabled: false, http: '', https: '', noProxy: '' })
-  const [llm, setLlm] = useState({ embeddingProvider: 'local', localModel: 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2', baseUrl: '', apiKey: '', embeddingModel: '', embeddingDimension: 384, rerankEnabled: false })
-  const [llmTestStatus, setLlmTestStatus] = useState(null) // null | 'loading' | 'success' | 'error'
-  const [llmTestMessage, setLlmTestMessage] = useState('')
-  const [showApiKey, setShowApiKey] = useState(false)
   const [configSaving, setConfigSaving] = useState(false)
   const [configLoading, setConfigLoading] = useState(true)
-  const [reindexing, setReindexing] = useState(false)
 
   // Member modals state
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -463,33 +458,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function testLlmConnection() {
-    setLlmTestStatus('loading')
-    setLlmTestMessage('')
-
-    try {
-      if (!llm.baseUrl || !llm.apiKey) {
-        throw new Error('Base URL and API key are required')
-      }
-
-      const response = await settingsApi.testLlmConnection({
-        baseUrl: llm.baseUrl,
-        apiKey: llm.apiKey,
-      })
-
-      if (response.data.success) {
-        setLlmTestStatus('success')
-        setLlmTestMessage(response.data.message)
-      } else {
-        setLlmTestStatus('error')
-        setLlmTestMessage(response.data.message)
-      }
-    } catch (err) {
-      setLlmTestStatus('error')
-      setLlmTestMessage(err.response?.data?.detail || err.message || 'Connection failed')
-    }
-  }
-
   async function saveGeneralSettings() {
     setGeneralSaving(true)
     try {
@@ -564,10 +532,7 @@ export default function SettingsPage() {
   async function saveConfiguration() {
     setConfigSaving(true)
     try {
-      await settingsApi.saveConfiguration({
-        proxy,
-        llm,
-      })
+      await settingsApi.saveConfiguration({ proxy })
       toast({
         title: 'Configuration saved',
         body: 'System configuration has been updated successfully.',
@@ -580,18 +545,6 @@ export default function SettingsPage() {
       })
     } finally {
       setConfigSaving(false)
-    }
-  }
-
-  async function triggerReindex() {
-    setReindexing(true)
-    try {
-      const res = await searchApi.reindex()
-      toast({ title: 'Reindex started', body: res.data?.message || 'Embedding tasks enqueued.' })
-    } catch (err) {
-      toast({ title: 'Reindex failed', body: err.response?.data?.detail || 'Could not start reindex.' })
-    } finally {
-      setReindexing(false)
     }
   }
 
@@ -1084,6 +1037,9 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Search (slice 12) */}
+      {activeTab === 'search' && <SearchSettingsTab />}
+
       {/* Configuration */}
       {activeTab === 'configuration' && (
         <div className="space-y-6 max-w-2xl">
@@ -1143,166 +1099,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* LLM / Embedding Configuration */}
-              <div>
-                <SectionTitle>Embedding Configuration</SectionTitle>
-                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
-                      <Server className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">Semantic Search</p>
-                      <p className="text-xs text-muted-foreground">Embedding model for AI-powered issue search</p>
-                    </div>
-                  </div>
-
-                  {/* Provider toggle */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-2">Embedding Provider</label>
-                    <div className="flex rounded-lg border border-border overflow-hidden w-fit">
-                      {[{ v: 'local', label: 'Local (fast)' }, { v: 'api', label: 'External API' }].map(({ v, label }) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setLlm((l) => ({ ...l, embeddingProvider: v }))}
-                          className={cn(
-                            'px-4 py-1.5 text-xs font-medium transition-colors',
-                            llm.embeddingProvider === v
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background text-muted-foreground hover:text-foreground',
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      {llm.embeddingProvider === 'local'
-                        ? 'Runs ONNX model in-process — no API key, ~20 ms per query.'
-                        : 'Uses your configured OpenAI-compatible endpoint.'}
-                    </p>
-                  </div>
-
-                  {/* Local model name */}
-                  {llm.embeddingProvider === 'local' && (
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Local Model</label>
-                      <Input
-                        value={llm.localModel}
-                        onChange={(e) => setLlm((l) => ({ ...l, localModel: e.target.value }))}
-                        placeholder="BAAI/bge-small-en-v1.5"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        fastembed model name — must match the model baked into the Docker image.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* External API fields */}
-                  {llm.embeddingProvider === 'api' && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Base URL</label>
-                        <Input
-                          value={llm.baseUrl}
-                          onChange={(e) => setLlm((l) => ({ ...l, baseUrl: e.target.value }))}
-                          placeholder="https://api.openai.com/v1"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">API endpoint for your LLM provider</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
-                        <div className="relative">
-                          <Input
-                            value={llm.apiKey}
-                            onChange={(e) => setLlm((l) => ({ ...l, apiKey: e.target.value }))}
-                            placeholder="sk-..."
-                            type={showApiKey ? 'text' : 'password'}
-                            className="pr-9"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowApiKey((s) => !s)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Model</label>
-                        <Input
-                          value={llm.embeddingModel}
-                          onChange={(e) => setLlm((l) => ({ ...l, embeddingModel: e.target.value }))}
-                          placeholder="text-embedding-3-small"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Embedding Dimension</label>
-                        <Input
-                          type="number"
-                          value={llm.embeddingDimension ?? 384}
-                          onChange={(e) => setLlm((l) => ({ ...l, embeddingDimension: parseInt(e.target.value, 10) || 384 }))}
-                          placeholder="1536"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          1536 for text-embedding-3-small, 3072 for -large. Changing this requires a reindex.
-                        </p>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex items-center justify-between py-2 border-t border-border">
-                    <div>
-                      <p className="text-sm font-medium">LLM reranker</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Re-rank top search results for higher precision (costs one extra LLM call)</p>
-                    </div>
-                    <Switch
-                      checked={!!llm.rerankEnabled}
-                      onCheckedChange={(v) => setLlm((l) => ({ ...l, rerankEnabled: v }))}
-                    />
-                  </div>
-
-                  {llmTestStatus && llm.embeddingProvider === 'api' && (
-                    <div className={cn(
-                      'flex items-center gap-2 rounded-lg p-3 text-sm',
-                      llmTestStatus === 'success' && 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
-                      llmTestStatus === 'error' && 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
-                      llmTestStatus === 'loading' && 'bg-muted text-muted-foreground'
-                    )}>
-                      {llmTestStatus === 'loading' && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {llmTestStatus === 'success' && <CheckCircle className="h-4 w-4" />}
-                      {llmTestStatus === 'error' && <XCircle className="h-4 w-4" />}
-                      <span>{llmTestMessage}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {llm.embeddingProvider === 'api' && (
-                      <Button
-                        size="sm"
-                        onClick={testLlmConnection}
-                        disabled={llmTestStatus === 'loading' || !llm.baseUrl || !llm.apiKey}
-                      >
-                        {llmTestStatus === 'loading' && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                        Test connection
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={triggerReindex}
-                      disabled={reindexing}
-                      title="Re-embed all issues using the current model settings"
-                    >
-                      {reindexing && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                      Reindex all issues
-                    </Button>
-                  </div>
                 </div>
               </div>
 

@@ -75,10 +75,21 @@ async def test_support_export_has_only_support_items(rig):
 
 
 @pytest.mark.asyncio
-async def test_support_search_finds_nothing_internal(rig):
-    params = {"q": "Checkout", "project_id": rig["project"].id}
+async def test_support_search_finds_nothing_internal(rig, search_jobs):
+    """Slice 12 leak test (BR-S06): a matching internal bug, a matching task, and
+    a support report that matches only through an internal note — none reach Support."""
+    resp = await rig["admin"].post(
+        f"/issues/{rig['support_bug'].id}/timeline",
+        json={"body": "Checkout crashes again for this customer", "is_internal": True},
+    )
+    assert resp.status_code == 201
+    await search_jobs.run()
+
+    params = {"q": "Checkout crashes", "project_id": rig["project"].id}
     qa = (await rig["qa_client"].get("/search", params=params)).json()
-    assert {r["issue_id"] for r in qa["results"]} >= {rig["bug"].id}
+    assert {r["issue_id"] for r in qa["results"]} >= {
+        rig["bug"].id, rig["task"].id, rig["support_bug"].id,
+    }
     support = (await rig["support_client"].get("/search", params=params)).json()
     assert support["results"] == []
 

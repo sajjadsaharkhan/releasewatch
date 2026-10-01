@@ -52,6 +52,7 @@ from app.services.cycle_service import cycle_service
 from app.services.merge_service import lock_original, merge_service
 from app.services.subscriber_service import subscribe
 from app.services.timeline_service import TimelineService
+from app.tasks import search_index
 
 _TRIAGE_VALUES = {s.value for s in TRIAGE_STATUSES}
 
@@ -367,6 +368,7 @@ class TriageService:
         issue.backlog_category_id = default.id
         db.add(issue)
         await db.flush()
+        search_index.enqueue(db, issue.id)
         await TimelineService().create_event(
             db=db, issue_id=issue.id, actor_id=actor.id,
             event_type=TimelineEventType.project_changed, body=None,

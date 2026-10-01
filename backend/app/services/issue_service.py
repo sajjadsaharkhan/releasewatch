@@ -36,6 +36,7 @@ from app.services.backlog_category_service import backlog_category_service
 from app.services.cycle_service import cycle_service
 from app.services.queue_service import queue_service
 from app.services.release_service import release_service
+from app.tasks import search_index
 from app.workflow import Workflow
 
 
@@ -212,6 +213,7 @@ class IssueService:
                 actor=current_user,
             )
 
+        search_index.enqueue(db, issue.id)
         return issue
 
     # ── Transition — the only code that writes issue.status ─────────────────────
@@ -354,6 +356,7 @@ class IssueService:
         if to_status != from_status:
             await self.notify_support(db, issue, to_status, actor, question=question)
 
+        search_index.enqueue(db, issue.id)
         return issue
 
     async def notify_support(
@@ -892,6 +895,7 @@ class IssueService:
 
         # Assignee or priority changes move the item between or within queues.
         await queue_service.sync(db, issue, priority_changed=priority_changed)
+        search_index.enqueue(db, issue.id)
         return issue
 
     # ── Placement rules for PATCH (BR-05, 2026-09-28 categories) ───────────────
@@ -960,6 +964,7 @@ class IssueService:
         issue.deleted_by_id = actor.id if deleted else None
         db.add(issue)
         await queue_service.sync(db, issue)
+        search_index.enqueue(db, issue.id)
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 

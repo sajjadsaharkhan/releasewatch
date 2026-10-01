@@ -319,12 +319,13 @@ export const queueApi = {
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 export const searchApi = {
-  query: (q, projectId, limit = 20) =>
-    api.get('/search', { params: { q, project_id: projectId, limit } }),
-  reindex: (projectId) =>
-    api.post('/search/reindex', null, {
-      params: projectId != null ? { project_id: projectId } : {},
-    }),
+  /** `params`: { q, scope: 'project'|'all', project_id, type, status, mode: 'page'|'palette' }.
+   *  `type` / `status` may be arrays. Response: { results, less_relevant, jev_used }. */
+  search: (params, config) => api.get('/search', { params, paramsSerializer: { indexes: null }, ...config }),
+  features: () => api.get('/features'),
+  settings: () => api.get('/settings/search'),
+  saveSettings: (data) => api.put('/settings/search', data),
+  reindex: () => api.post('/settings/search/reindex'),
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -339,7 +340,6 @@ export const settingsApi = {
   saveGeneral: (data) => api.put('/settings/general', data),
   getConfiguration: () => api.get('/settings/configuration'),
   saveConfiguration: (data) => api.put('/settings/configuration', data),
-  testLlmConnection: (data) => api.post('/settings/configuration/llm/test', data),
 }
 
 // ─── Support intake (slice 05) ────────────────────────────────────────────────

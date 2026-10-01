@@ -26,7 +26,6 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pillow>=10.3",
     "pgvector>=0.3",
-    "fastembed>=0.4",
 ]
 
 [project.optional-dependencies]

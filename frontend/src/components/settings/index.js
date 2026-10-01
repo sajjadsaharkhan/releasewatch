@@ -1,0 +1,1 @@
+export { SearchSettingsTab } from './SearchSettingsTab'

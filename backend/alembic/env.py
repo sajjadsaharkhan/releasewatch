@@ -17,7 +17,11 @@ import app.db.models  # noqa: F401 — side-effect: registers all ORM models
 config = context.config
 
 # Override the URL from our pydantic settings so we only have one source of truth
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# (a caller may pass another database in ``config.attributes["database_url"]`` —
+# the AC-S22 migration test migrates a fresh, empty database that way).
+config.set_main_option(
+    "sqlalchemy.url", config.attributes.get("database_url") or settings.database_url
+)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

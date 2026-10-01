@@ -5,6 +5,8 @@ creates exactly the fixtures the Playwright suite's ``global-setup.ts`` logs
 in as. Later slices extend this only with what their scenarios need. Slice 05
 adds a support template to the product project and a second project with none,
 so the Support report scenario can prove only reportable projects are offered.
+Slice 12 adds one bug and indexes it, so the palette scenario has something
+to find (the E2E stack's embedding endpoint is the fake).
 
 Usage:
     docker compose exec api python -m scripts.seed_e2e
@@ -20,11 +22,15 @@ import app.db.models  # noqa: F401 — registers every model's metadata
 from app.config import settings
 from app.core.auth import get_password_hash
 from app.db.base import Base
+from app.db.models.issue import Issue, IssueStatus, IssueType
 from app.db.models.project import Project
 from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.user import User, UserRole
+from app.tasks.search_index import index_item_now
 
 E2E_PASSWORD = "e2e-password-123"
+#: The searchable bug — e2e/tests/smoke.spec.ts searches for it.
+SEARCH_FIXTURE_TITLE = "Reactions disappear in group chat after refresh"
 
 ROLE_USERS = [
     ("e2e-qa", "E2E QA", UserRole.qa),
@@ -107,7 +113,20 @@ async def seed(session: AsyncSession) -> None:
             template_id=template.id, position=2, label="Class name", field_type="short_text",
         ),
     ])
+    print("Seeding one searchable bug...")
+    bug = Issue(
+        project_id=project.id,
+        type=IssueType.bug,
+        status=IssueStatus.new,
+        title=SEARCH_FIXTURE_TITLE,
+        description="After a page refresh, emoji reactions on group chat messages are gone.",
+        reporter_id=users["e2e-qa"].id,
+    )
+    session.add(bug)
     await session.commit()
+
+    print("Indexing it for search...")
+    await index_item_now(bug.id)
     print("\nE2E seed complete.")
 
 

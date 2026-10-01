@@ -44,6 +44,23 @@ services:
     ports: !override
       - '8082:3000'
 
+  # The fake embedding endpoint (tests/fakes/embedding_endpoint.py) instead of
+  # TEI + bge-m3: no 2 GB model download, runs on any CPU. Search works, with
+  # trigram-hash "similarity" rather than real semantics. To use the real
+  # model in E2E, drop this override and run `make embeddings-fetch`.
+  embeddings:
+    image: releasewatch-embeddings-fake
+    build: ./backend
+    command: uvicorn tests.fakes.embedding_endpoint:app --host 0.0.0.0 --port 80
+    environment: !reset {}
+    volumes: !reset []
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:80/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
   postgres:
     ports: !override
       - '5433:5432'

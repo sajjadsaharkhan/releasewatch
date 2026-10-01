@@ -18,12 +18,9 @@ from app.db.session import get_db
 from app.schemas.auth import TelegramIntegrationResponse
 from app.schemas.settings import (
     ProxyConfig,
-    LLMConfig,
     GeneralConfig,
     GeneralResponse,
     ConfigurationResponse,
-    LLMTestRequest,
-    LLMTestResponse,
     TelegramBotConfigRequest,
 )
 
@@ -277,7 +274,7 @@ async def save_general_settings(
     return {"status": "ok"}
 
 
-# ─── Configuration (Proxy & LLM) ────────────────────────────────────────────────
+# ─── Configuration (Proxy) ──────────────────────────────────────────────────────
 
 
 async def _get_setting(db: AsyncSession, category: str, key: str) -> dict | None:
@@ -323,30 +320,14 @@ async def get_configuration(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get system configuration (proxy and LLM settings)."""
+    """Get system configuration (proxy settings). Search settings: ``/settings/search``."""
     # Get proxy settings
     proxy_value = await _get_setting(db, "proxy", "config")
     proxy_config = ProxyConfig(**proxy_value) if proxy_value else ProxyConfig()
 
-    # Get LLM settings
-    llm_value = await _get_setting(db, "llm", "config")
-    if llm_value:
-        llm_config = LLMConfig(
-            embedding_provider=llm_value.get("embedding_provider", "local"),
-            local_model=llm_value.get("local_model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
-            base_url=llm_value.get("base_url", ""),
-            api_key=llm_value.get("api_key", ""),
-            embedding_model=llm_value.get("embedding_model", ""),
-            embedding_dimension=llm_value.get("embedding_dimension", 384),
-            rerank_enabled=llm_value.get("rerank_enabled", False),
-        )
-    else:
-        llm_config = LLMConfig()
-
     # Return with camelCase aliases for frontend
     return {
         "proxy": proxy_config.model_dump(by_alias=True),
-        "llm": llm_config.model_dump(by_alias=True),
     }
 
 
@@ -370,104 +351,6 @@ async def save_configuration(
         },
     )
 
-    # Save LLM settings
-    await _set_setting(
-        db,
-        "llm",
-        "config",
-        {
-            "embedding_provider": body.llm.embedding_provider,
-            "local_model": body.llm.local_model,
-            "base_url": body.llm.base_url,
-            "api_key": body.llm.api_key,
-            "embedding_model": body.llm.embedding_model,
-            "embedding_dimension": body.llm.embedding_dimension,
-            "rerank_enabled": body.llm.rerank_enabled,
-        },
-    )
-
     return {"status": "ok"}
 
 
-@router.post("/configuration/llm/test")
-async def test_llm_connection(
-    body: LLMTestRequest,
-    current_user: User = Depends(require_role(UserRole.admin)),
-):
-    """Test LLM provider connection (admin only).
-
-    Tries multiple endpoint patterns to accommodate different LLM providers:
-    - /models endpoint (OpenAI-compatible)
-    - /v1/models endpoint (some providers)
-    - Base URL itself (health check endpoints)
-    """
-    headers = {"Authorization": f"Bearer {body.api_key}"}
-    base = body.base_url.rstrip('/')
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Try 1: /models endpoint (most common)
-            try:
-                response = await client.get(f"{base}/models", headers=headers)
-                if response.status_code == 200:
-                    return LLMTestResponse(
-                        success=True,
-                        message="Successfully connected to LLM provider",
-                    )
-                elif response.status_code == 401:
-                    return LLMTestResponse(
-                        success=False,
-                        message="Authentication failed: Invalid API key",
-                    )
-            except Exception:
-                pass  # Try next pattern
-
-            # Try 2: Base URL directly (for providers with health endpoints at root)
-            try:
-                response = await client.get(base, headers=headers)
-                if response.status_code == 200:
-                    return LLMTestResponse(
-                        success=True,
-                        message="Successfully connected to LLM provider (base URL)",
-                    )
-            except Exception:
-                pass  # Try next pattern
-
-            # Try 3: /v1/models if base doesn't already end with /v1
-            if not base.endswith('/v1'):
-                try:
-                    response = await client.get(f"{base}/v1/models", headers=headers)
-                    if response.status_code == 200:
-                        return LLMTestResponse(
-                            success=True,
-                            message="Successfully connected to LLM provider",
-                        )
-                    elif response.status_code == 401:
-                        return LLMTestResponse(
-                            success=False,
-                            message="Authentication failed: Invalid API key",
-                        )
-                except Exception:
-                    pass
-
-            # All attempts failed
-            return LLMTestResponse(
-                success=False,
-                message="Connection failed: Unable to reach any known LLM endpoint",
-            )
-
-    except httpx.ConnectError:
-        return LLMTestResponse(
-            success=False,
-            message="Connection failed: Unable to reach the server",
-        )
-    except httpx.TimeoutException:
-        return LLMTestResponse(
-            success=False,
-            message="Connection failed: Request timed out",
-        )
-    except Exception as e:
-        return LLMTestResponse(
-            success=False,
-            message=f"Connection failed: {str(e)}",
-        )

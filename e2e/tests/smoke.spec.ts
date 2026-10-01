@@ -47,3 +47,27 @@ test.describe('smoke — support', () => {
     expect(consoleErrors, `console errors: ${consoleErrors.join('\n')}`).toEqual([])
   })
 })
+
+// Slice 12 — search. The seeded bug (backend/scripts/seed_e2e.py) is indexed
+// through the fake embedding endpoint the E2E stack runs.
+test.describe('smoke — search', () => {
+  test.use({ storageState: path.join(__dirname, '..', '.auth', 'qa.json') })
+
+  const TITLE = 'Reactions disappear in group chat after refresh'
+
+  test('the command palette finds the item, and Enter opens the search page', async ({ page }) => {
+    await page.goto('/dashboard')
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible()
+
+    await page.keyboard.press('ControlOrMeta+k')
+    const input = page.getByPlaceholder(/search items, pages/i)
+    await expect(input).toBeVisible()
+    await input.fill('reactions group chat')
+    await expect(page.getByText(TITLE)).toBeVisible()
+
+    await input.press('Enter')
+    await expect(page).toHaveURL(/\/search\?q=reactions(\+|%20)group(\+|%20)chat/)
+    await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible()
+    await expect(page.getByRole('button', { name: new RegExp(TITLE) })).toBeVisible()
+  })
+})

@@ -581,8 +581,6 @@ async def create_issue(
         )
     )
     issue = result.scalar_one()
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue.id,), countdown=0)
     enriched = await _build_enriched_responses([issue], db, current_user)
     return enriched[0]
 
@@ -741,8 +739,6 @@ async def update_issue(
         actor=current_user,
     )
     await db.commit()
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue.id,), countdown=10)
     # populate_existing: the session keeps objects across commit, so without it the
     # view-only backlog_category would still be the one loaded before the change.
     result = await db.execute(
@@ -893,9 +889,6 @@ async def report_recurrence(
     issue = await authorize_issue(db, issue_id, current_user, Action.report_recurrence)
     await recurrence_service.report(db, issue, payload, current_user)
     await db.commit()
-
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue_id,), countdown=10)
 
     return await _reload_and_enrich(db, issue_id, current_user)
 

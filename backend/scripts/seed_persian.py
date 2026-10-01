@@ -603,7 +603,7 @@ ISSUES_DATA = [
 
 async def clear_issue_data(db: AsyncSession) -> None:
     print("Clearing issue-related data...")
-    await db.execute(text("TRUNCATE issue_embeddings CASCADE"))
+    await db.execute(text("TRUNCATE search_items, search_vectors, comment_labels CASCADE"))
     await db.execute(text("TRUNCATE inbox_items CASCADE"))
     await db.execute(text("TRUNCATE issue_timeline CASCADE"))
     await db.execute(text("TRUNCATE issue_cycles CASCADE"))

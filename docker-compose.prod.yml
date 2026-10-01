@@ -43,6 +43,9 @@ services:
     build: null
     logging: *default-logging
 
+  embeddings:
+    logging: *default-logging
+
   postgres:
     ports: []   # not exposed in production — access via Docker network only
     volumes:

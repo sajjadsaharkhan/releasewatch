@@ -35,6 +35,7 @@ from app.schemas.timeline import (
 from app.services.authz import authorize, issue_target, load_visible_issue, sees_internal
 from app.services.reaction_service import reaction_service
 from app.services.timeline_service import timeline_service
+from app.tasks import search_index
 
 router = APIRouter()
 
@@ -220,9 +221,6 @@ async def create_comment(
 
         await db.commit()
 
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue_id,), countdown=10)
-
     return _enrich_event(event, current_user.id)
 
 
@@ -250,9 +248,6 @@ async def edit_comment(
     )
     event = result.scalar_one()
 
-    from app.tasks.search import embed_issue
-    embed_issue.apply_async((issue_id,), countdown=10)
-
     return _enrich_event(event, current_user.id)
 
 
@@ -279,6 +274,7 @@ async def delete_comment(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the author or admin can delete this comment")
 
     await db.delete(event)
+    search_index.enqueue(db, issue_id)
     await db.commit()
 
 

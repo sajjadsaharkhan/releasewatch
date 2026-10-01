@@ -1,4 +1,4 @@
-"""Settings schemas — for system configuration (proxy, LLM, etc.)."""
+"""Settings schemas — for system configuration (proxy, general, Telegram)."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,23 +29,6 @@ class ProxyConfig(BaseModel):
     )
 
 
-class LLMConfig(BaseModel):
-    """LLM provider configuration."""
-
-    embedding_provider: str = Field(default="local", alias="embeddingProvider")
-    local_model: str = Field(default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", alias="localModel")
-    base_url: str = Field(default="", alias="baseUrl")
-    api_key: str = Field(default="", alias="apiKey")
-    embedding_model: str = Field(default="", alias="embeddingModel")
-    embedding_dimension: int = Field(default=384, alias="embeddingDimension")
-    rerank_enabled: bool = Field(default=False, alias="rerankEnabled")
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-    )
-
-
 class GeneralResponse(BaseModel):
     """General settings response."""
 
@@ -58,27 +41,8 @@ class ConfigurationResponse(BaseModel):
     """Complete system configuration response."""
 
     proxy: ProxyConfig
-    llm: LLMConfig
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class LLMTestRequest(BaseModel):
-    """Request to test LLM connection."""
-
-    base_url: str = Field(alias="baseUrl")
-    api_key: str = Field(alias="apiKey")
-
-    model_config = ConfigDict(
-        populate_by_name=True,
-    )
-
-
-class LLMTestResponse(BaseModel):
-    """Response from LLM connection test."""
-
-    success: bool
-    message: str
 
 
 class TelegramBotConfigRequest(BaseModel):
@@ -89,3 +53,9 @@ class TelegramBotConfigRequest(BaseModel):
     frontend_url: str | None = Field(None, alias="frontendUrl")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class SearchSettingsUpdate(BaseModel):
+    """Payload for PUT /settings/search (slice 12): the embedding endpoint."""
+
+    embedding_endpoint: str = Field(..., min_length=1, max_length=512)

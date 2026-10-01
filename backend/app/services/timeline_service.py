@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.user import User
+from app.tasks import search_index
 
 
 class TimelineService:
@@ -68,6 +69,8 @@ class TimelineService:
         )
         db.add(event)
         await db.flush()
+        if getattr(event_type, "value", event_type) in search_index.TALK_EVENTS:
+            search_index.enqueue(db, issue_id)
         return event
 
     # ── Listing ───────────────────────────────────────────────────────────────
@@ -190,6 +193,7 @@ class TimelineService:
         }
         db.add(event)
         await db.flush()
+        search_index.enqueue(db, event.issue_id)
         return event
 
 
