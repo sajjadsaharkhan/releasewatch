@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
-from app.search.comment_rules import USED_LABELS
+from app.search.comment_rules import talk_weight
 from app.search.normalize import fold, normalize, strip_markdown
 
 CHARS_PER_TOKEN = 4
@@ -104,18 +104,21 @@ def chunk(text: str) -> list[str]:
 def build_documents(
     item: Any,
     comments: Iterable[Any],
-    labels: Mapping[int, str],
+    labels: Mapping[int, str | tuple[str, float | None]],
 ) -> Documents:
     """``item`` needs ``title``, ``description``, ``reproduction_steps``,
     ``curl_command`` and ``labels``; each comment ``id``, ``body`` and
-    ``is_internal``; ``labels`` maps a comment id to its comment label."""
+    ``is_internal``; ``labels`` maps a comment id to its comment label, or to
+    ``(label, confidence)`` for a Jev label."""
     title = normalize(item.title)
     description = normalize(strip_markdown(item.description))
     body = " ".join(p for p in (title, description, *_steps_text(item.reproduction_steps)) if p)
 
     talk = []
     for c in comments:
-        if labels.get(c.id) not in USED_LABELS:
+        label = labels.get(c.id)
+        label, confidence = label if isinstance(label, tuple) else (label, None)
+        if talk_weight(label, confidence) <= 0:
             continue
         text = normalize(strip_markdown(c.body))
         if text:

@@ -171,7 +171,7 @@ backend/
 | `/api/v1/support` | `api/v1/support.py` |
 | `/api/v1/projects/{id}/templates` | `api/v1/support_templates.py` |
 | `/api/v1/settings` | `api/v1/settings.py` |
-| `/api/v1/search`, `/api/v1/features`, `/api/v1/settings/search` | `api/v1/search.py` (engine in `app/search/`) |
+| `/api/v1/search`, `/api/v1/features`, `/api/v1/settings/search(/reindex, /jev, /jev/test)` | `api/v1/search.py` (engine in `app/search/`, Jev client `app/search/jev.py`) |
 | `/api/v1/telegram/webhook` | `api/v1/telegram.py` |
 | `/ws/dashboard`, `/ws/inbox` | `api/v1/ws.py` |
 | `GET /health` | `main.py` |

@@ -218,3 +218,31 @@ def test_mentions_and_markdown_do_not_count_towards_length():
         rule_label("@someone_with_a_long_username `x` [ok](https://example.com/very/long)")
         == RULE_DROPPED
     )
+
+
+# ── talk weights (slice 13, A.6) ─────────────────────────────────────────────
+
+
+def test_talk_weight_follows_label_and_confidence():
+    from app.search.comment_rules import talk_weight
+
+    assert talk_weight(RULE_KEPT) == 1.0
+    assert talk_weight(RULE_DROPPED) == 0.0
+    assert talk_weight("this_problem", 0.9) == 1.0
+    assert talk_weight("other_problem", 0.9) == 0.5
+    assert talk_weight("process", 0.9) == 0.0
+    assert talk_weight("ack", 0.95) == 0.0
+    # Below 0.6 confidence, any Jev label counts as used, fully.
+    assert talk_weight("ack", 0.4) == 1.0
+    assert talk_weight("other_problem", 0.5) == 1.0
+
+
+def test_build_documents_reads_jev_labels_with_confidence():
+    comments = [
+        _comment(1, "The reaction id is null in the group payload, see the logs"),
+        _comment(2, "Let's schedule this for the next sprint planning meeting please"),
+        _comment(3, "Unsure label but long enough technical text about fan-out"),
+    ]
+    labels = {1: ("this_problem", 0.9), 2: ("process", 0.9), 3: ("process", 0.3)}
+    docs = build_documents(_item(), comments, labels)
+    assert [t.timeline_id for t in docs.talk] == [1, 3]

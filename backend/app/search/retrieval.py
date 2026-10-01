@@ -10,8 +10,11 @@
    internal notes for anyone who may not see them (BR-S06) — and ``keyword``,
    trigram ``word_similarity ≥ T_TRGM``, top 3 only.
 3. Weighted reciprocal rank fusion.
-4. Jev off: drop results whose best dense cosine is under ``T_FLOOR`` unless
-   the (already gated) keyword channel found them, and keep the top 20.
+4. Drop results whose best dense cosine is under ``T_FLOOR`` unless the
+   (already gated) keyword channel found them.
+5. Jev off (or failing): keep the top 20 in local order. Jev on, search page
+   only: Jev reranks the top 15 and splits them at ``T_RELEVANT`` into
+   ``results`` and ``less_relevant`` (slice 13).
 
 Because visibility is applied inside every channel, an item reaches the
 results only if a channel the actor may use matched it (AC-S05). When the
@@ -24,28 +27,31 @@ import json
 import logging
 from dataclasses import dataclass, field
 
-from sqlalchemy import Select, and_, func, not_, select
+from sqlalchemy import Select, and_, case, func, not_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.redis_client import get_redis_raw
 from app.db.models.issue import Issue, IssueStatus, issue_key
 from app.db.models.issue_timeline import IssueTimeline
-from app.db.models.search import SearchItem, SearchVector
+from app.db.models.search import CommentLabel, SearchItem, SearchVector
 from app.db.models.user import User
-from app.search import embeddings
+from app.search import embeddings, jev_settings
 from app.search.constants import (
     CHANNEL_LIMIT,
     FUSION_WEIGHTS,
     HYDRATE_LIMIT,
+    JEV_CANDIDATES,
     KEYWORD_TOP,
     PALETTE_LIMIT,
     QUERY_CACHE_TTL,
     RESULT_LIMIT,
     RRF_K,
     T_FLOOR,
+    T_RELEVANT,
     T_TRGM,
 )
+from app.search.jev import JevItem
 from app.search.normalize import fold, normalize, strip_markdown
 from app.services.authz import sees_internal, visibility_clause
 
@@ -171,9 +177,15 @@ async def _dense_channel(
     actor: User,
     filters: Filters,
 ) -> list[tuple[int, int | None, float]]:
-    dist = SearchVector.embedding.cosine_distance(vector)
+    sim = 1 - SearchVector.embedding.cosine_distance(vector)
+    # Talk comments rank by their label weight (A.6: other_problem counts half);
+    # the floor still judges the raw cosine — a weak label is not a weak match.
+    rank = sim * _talk_weight_sql() if kind == "talk" else sim
     best = (
-        select(SearchVector.issue_id, SearchVector.timeline_id, (1 - dist).label("sim"))
+        select(
+            SearchVector.issue_id, SearchVector.timeline_id,
+            sim.label("sim"), rank.label("rank"),
+        )
         .select_from(SearchVector)
         .join(
             SearchItem,
@@ -184,17 +196,40 @@ async def _dense_channel(
         )
         .where(SearchVector.kind == kind)
         .distinct(SearchVector.issue_id)
-        .order_by(SearchVector.issue_id, dist)
+        .order_by(SearchVector.issue_id, rank.desc())
     )
-    if kind == "talk" and not sees_internal(actor):
-        best = best.where(not_(SearchVector.is_internal))
+    if kind == "talk":
+        best = best.outerjoin(CommentLabel, CommentLabel.timeline_id == SearchVector.timeline_id)
+        if not sees_internal(actor):
+            best = best.where(not_(SearchVector.is_internal))
     best = _scoped(best, actor, model, filters).subquery()
     rows = await db.execute(
         select(best.c.issue_id, best.c.timeline_id, best.c.sim)
-        .order_by(best.c.sim.desc(), best.c.issue_id)
+        .order_by(best.c.rank.desc(), best.c.issue_id)
         .limit(CHANNEL_LIMIT)
     )
     return [(r.issue_id, r.timeline_id, float(r.sim)) for r in rows]
+
+
+def _talk_weight_sql():
+    """``comment_rules.talk_weight`` as SQL over ``comment_labels``. A talk row
+    exists only for a used comment, so a missing label counts fully."""
+    from app.search.comment_rules import (
+        JEV_LABELS,
+        LOW_CONFIDENCE,
+        OTHER_PROBLEM,
+        OTHER_PROBLEM_WEIGHT,
+        RULE_KEPT,
+        THIS_PROBLEM,
+    )
+
+    return case(
+        (CommentLabel.label.is_(None), 1.0),
+        (CommentLabel.label.in_([RULE_KEPT, THIS_PROBLEM]), 1.0),
+        (and_(CommentLabel.label.in_(sorted(JEV_LABELS)), CommentLabel.confidence < LOW_CONFIDENCE), 1.0),
+        (CommentLabel.label == OTHER_PROBLEM, OTHER_PROBLEM_WEIGHT),
+        else_=0.0,
+    )
 
 
 async def _keyword_channel(
@@ -242,9 +277,40 @@ def apply_floor(hits: list[Hit], *, dense_available: bool) -> list[Hit]:
     return [h for h in hits if h.best_dense >= T_FLOOR or "keyword" in h.sims]
 
 
-async def _jev_rerank(hits: list[Hit]) -> tuple[list[Hit], list[Hit], bool]:
-    """Slice 13 hook: Jev reorders and splits the candidates. Off in 12."""
-    return hits, [], False
+async def _jev_rerank(
+    db: AsyncSession, query: str, hits: list[Hit],
+) -> tuple[list[Hit], list[Hit], bool]:
+    """A.8 step 6: Jev judges the top ``JEV_CANDIDATES`` (already floored and
+    visible to the actor) and only reorders and splits them (BR-S04). Any
+    failure — off, no key, timeout, error, malformed — is the Jev-off result
+    unchanged (BR-S02). The payload is the title and a description excerpt;
+    comments, internal or not, never leave."""
+    jev = await jev_settings.client(db)
+    if jev is None or not hits:
+        return hits, [], False
+    top = hits[:JEV_CANDIDATES]
+    rows = {
+        i.id: i for i in (await db.execute(
+            select(Issue.id, Issue.title, Issue.description, Issue.type)
+            .where(Issue.id.in_([h.issue_id for h in top]))
+        )).all()
+    }
+    items = [
+        JevItem(
+            id=h.issue_id, title=rows[h.issue_id].title,
+            description=normalize(strip_markdown(rows[h.issue_id].description)),
+            type=getattr(rows[h.issue_id].type, "value", rows[h.issue_id].type),
+        )
+        for h in top if h.issue_id in rows
+    ]
+    outcome, scores = await jev.rerank(query, items)
+    if not outcome.ok:
+        return hits, [], False
+    judged = [h for h in top if h.issue_id in scores]
+    ordered = sorted(judged, key=lambda h: -scores[h.issue_id])  # stable: ties keep fusion order
+    results = [h for h in ordered if scores[h.issue_id] >= T_RELEVANT]
+    less = [h for h in ordered if scores[h.issue_id] < T_RELEVANT]
+    return results, less, True
 
 
 # ── Hydration ────────────────────────────────────────────────────────────────
@@ -368,8 +434,8 @@ async def search(
 
     less: list[Hit] = []
     jev_used = False
-    if mode == "page":
-        hits, less, jev_used = await _jev_rerank(hits)
+    if mode == "page":  # the palette never calls Jev (BR-S05)
+        hits, less, jev_used = await _jev_rerank(db, query, hits)
     hits = hits[: PALETTE_LIMIT if mode == "palette" else RESULT_LIMIT]
 
     matched = {

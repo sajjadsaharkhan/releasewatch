@@ -80,6 +80,11 @@ class Settings(BaseSettings):
         description="Default OpenAI-compatible embedding endpoint (the bundled TEI service). "
         "Admin can override it in Settings → Search.",
     )
+    JEV_BASE_URL: str = Field(
+        "https://api.typesafe.ai",
+        description="Jev (TypeSafe System One) API base URL. Env only — tests and E2E point it "
+        "at a fake. The key, model and switch are Admin settings (Settings → Search → Jev).",
+    )
     REDIS_CACHE_TTL: int = Field(300, description="Default cache TTL in seconds")
 
     # ── AWS S3 / MinIO ─────────────────────────────────────────────────────────

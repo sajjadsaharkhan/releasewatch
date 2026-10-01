@@ -144,5 +144,7 @@ class EvalIndex:
         hits = hits[:RESULT_LIMIT]
         t2 = time.perf_counter()
         #: Every fused candidate before the floor, for the T_FLOOR sweep.
-        self.last_candidates = [(h.issue_id, round(h.best_dense, 4), "keyword" in h.sims) for h in fused]
+        self.last_candidates = [
+            (h.issue_id, round(h.best_dense, 4), "keyword" in h.sims) for h in fused
+        ]
         return [h.issue_id for h in hits], (t1 - t0) * 1000, (t2 - t1) * 1000

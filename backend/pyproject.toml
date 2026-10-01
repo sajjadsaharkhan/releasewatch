@@ -26,6 +26,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pillow>=10.3",
     "pgvector>=0.3",
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

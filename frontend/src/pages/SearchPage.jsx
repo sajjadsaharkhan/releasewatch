@@ -227,12 +227,15 @@ export default function SearchPage() {
             body="Titles, descriptions, steps, and the comments that say something about the problem."
           />
         )}
-        {q && data && !loading && results.length === 0 && (
+        {q && data && !loading && results.length === 0 && less.length === 0 && (
           <Empty icon="search-x" title="No matches" body="Nothing like this has been reported yet." />
+        )}
+        {q && data && !loading && results.length === 0 && less.length > 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No close matches</p>
         )}
         {results.map((r) => <ResultRow key={r.issue_id} result={r} onOpen={() => open(r)} />)}
 
-        {/* Built for Jev (slice 13): only rendered when the response has items. */}
+        {/* Results the relevance check judged weak (slice 13) — collapsed, never hidden. */}
         {less.length > 0 && (
           <div className="pt-2">
             <button

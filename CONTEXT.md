@@ -176,9 +176,14 @@ _Avoid_: "semantic search" for the whole thing (it is dense vectors *and* a keyw
 The local, always-on half of the engine: the query is normalized and embedded by the `embeddings` service (TEI + `BAAI/bge-m3`), then four channels — body, title, talk, and a gated trigram keyword channel — are fused by weighted reciprocal rank fusion, and results under a similarity floor are dropped (`app/search/retrieval.py`; constants in `app/search/constants.py`, fixed in code, set by an evaluation run). Vectors of two embedding models are never compared: changing the endpoint or model reindexes everything. **Stage 2** is Jev (slice 13), which may only reorder and cut stage-1 candidates.
 _Avoid_: "the reranker" for stage 1 — nothing in stage 1 reranks.
 
+**Jev**:
+TypeSafe's external decision model, stage 2 of the search engine (slice 13). One global switch (Admin, Settings → Search → Jev) with an encrypted, write-only API key and a pinned model; it can be switched on only after a passing **Test connection** with the saved key. With Jev on, the search page sends the top 15 stage-1 candidates for a relevance score, orders by it, and moves those under `T_RELEVANT` into a collapsed "Less relevant results" section; new comments are classified by Jev instead of the rule, and switching Jev on reclassifies the rule's comments once. Jev only reorders, cuts or labels — it never adds an item. Off, unreachable, slow or failing all mean the Jev-off behaviour, with no error (`JevClient` returns an outcome, never raises). The command palette never calls Jev. Users never see the name.
+_Avoid_: "the AI", "LLM" — Jev returns decisions, never generated text.
+
 **Comment label**:
 Whether a comment is used for search, and who decided (`comment_labels.label` + `source`). Without Jev the rule decides (`app/search/comment_rules.py`): `rule_kept`, or `rule_dropped` for short comments and bare agreement or thanks ("موافقم، هر وقت فرصت داشتید انجامش بدید"). Only used comments become **talk** vectors; comments never reach the body text, so they never decide "same problem" (principle S4). Internal notes are labelled and indexed like any comment, with `is_internal`, and filtered at query time.
-_Avoid_: "comment classification" for the rule alone — classification by Jev comes in slice 13.
+With Jev on, Jev labels new comments `this_problem` (weight 1), `other_problem` (weight 0.5), `process` or `ack` (not used); a Jev label under 0.6 confidence counts as used. `rule_dropped` comments never reach Jev. A Jev label stays when Jev is switched off (BR-S14).
+_Avoid_: "comment classification" for the rule alone.
 
 ## Decisions
 

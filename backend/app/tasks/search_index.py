@@ -4,9 +4,11 @@
   title/body/talk vectors whose text changed (hash compare, BR-S17), drop rows
   for comments that are gone or no longer used, and refresh the filter columns.
   A deleted item leaves the index.
-- ``classify_comment(timeline_id)`` — the comment rule (Jev from 13); stores a
-  ``comment_labels`` row. ``index_item`` labels any comment it finds without a
-  current label the same way, so the two can run in either order.
+- ``classify_comment(timeline_id)`` — the rule, then Jev when it is on (slice
+  13); stores a ``comment_labels`` row. ``index_item`` labels any comment it
+  finds without a current label the same way, so the two can run in either order.
+- ``backfill_comment_classification()`` — when Jev is switched on, reclassify
+  once the comments the rule kept, and reindex the items they belong to.
 - ``reindex_all()`` — ask the endpoint which model it serves, record it, and
   enqueue ``index_item`` for every item. Progress = items indexed with that
   model / items, read from counts; the Redis key records the run.
@@ -34,9 +36,11 @@ from app.config import settings
 from app.db.models.issue import Issue, IssueStatus
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.search import CommentLabel, SearchItem, SearchVector
-from app.search import embeddings
-from app.search.comment_rules import rule_label
+from app.search import embeddings, jev_settings
+from app.search.comment_rules import RULE_DROPPED, RULE_KEPT, rule_label
 from app.search.documents import build_documents, content_hash
+from app.search.jev import JevClient
+from app.search.normalize import normalize, strip_markdown
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -114,74 +118,168 @@ def request_reindex_all() -> bool:
 
 # ── Comment labels ───────────────────────────────────────────────────────────
 
-
-async def _label_comments(db: AsyncSession, comments: Iterable[IssueTimeline]) -> dict[int, str]:
-    """The current label of each comment, classifying (by the rule) any comment
-    that has none or whose text changed since it was classified."""
-    comments = list(comments)
-    if not comments:
-        return {}
-    rows = (
-        (
-            await db.execute(
-                select(CommentLabel).where(CommentLabel.timeline_id.in_([c.id for c in comments]))
-            )
-        )
-        .scalars()
-        .all()
-    )
-    existing = {r.timeline_id: r for r in rows}
-    labels: dict[int, str] = {}
-    for c in comments:
-        h = content_hash(c.body or "")
-        row = existing.get(c.id)
-        if row is not None and row.content_hash == h:
-            labels[c.id] = row.label
-            continue
-        labels[c.id] = await _store_rule_label(db, c, h)
-    return labels
+#: Label used for a comment in build_documents: the label, or (label, confidence) for Jev.
+Label = str | tuple[str, float | None]
 
 
-async def _store_rule_label(db: AsyncSession, comment: IssueTimeline, h: str) -> str:
-    label = rule_label(comment.body)
-    stmt = insert(CommentLabel).values(
-        timeline_id=comment.id,
-        issue_id=comment.issue_id,
-        label=label,
-        source="rule",
-        confidence=None,
-        content_hash=h,
-        jev_model=None,
-        classified_at=func.now(),
-    )
+async def _store_label(
+    db: AsyncSession, comment: IssueTimeline, h: str, label: str, *, source: str = "rule",
+    confidence: float | None = None, jev_model: str | None = None,
+) -> None:
+    values = {
+        "label": label, "source": source, "confidence": confidence, "content_hash": h,
+        "jev_model": jev_model, "classified_at": func.now(), "issue_id": comment.issue_id,
+    }
+    stmt = insert(CommentLabel).values(timeline_id=comment.id, **values)
     await db.execute(
-        stmt.on_conflict_do_update(
-            index_elements=[CommentLabel.timeline_id],
-            set_={
-                "label": stmt.excluded.label,
-                "source": "rule",
-                "confidence": None,
-                "content_hash": h,
-                "jev_model": None,
-                "classified_at": func.now(),
-                "issue_id": comment.issue_id,
-            },
-        )
+        stmt.on_conflict_do_update(index_elements=[CommentLabel.timeline_id], set_=values)
     )
+
+
+async def classify(
+    db: AsyncSession, comment: IssueTimeline, issue: Issue | None, jev: JevClient | None,
+) -> Label:
+    """Classify one comment and store it (A.6): the rule first — ``rule_dropped``
+    stays dropped without a Jev call — then Jev when it is on. A failed Jev call
+    stores the rule result with ``source='rule'``, so the backfill retries it."""
+    h = content_hash(comment.body or "")
+    label = rule_label(comment.body)
+    if label != RULE_DROPPED and jev is not None and issue is not None:
+        outcome, result = await jev.classify_comment(
+            issue.title, normalize(strip_markdown(issue.description)),
+            normalize(strip_markdown(comment.body)), background=True,
+        )
+        if outcome.ok and result:
+            jev_label, confidence = result
+            await _store_label(
+                db, comment, h, jev_label, source="jev", confidence=confidence,
+                jev_model=outcome.model or jev.model,
+            )
+            return (jev_label, confidence)
+    await _store_label(db, comment, h, label)
     return label
 
 
-async def classify_comment_now(timeline_id: int) -> str | None:
+async def _label_comments(
+    db: AsyncSession, issue: Issue, comments: Iterable[IssueTimeline],
+) -> dict[int, Label]:
+    """The current label of each comment, classifying any comment that has none
+    or whose text changed since it was classified. A stored label is kept as it
+    is — a Jev label stays when Jev is switched off (BR-S14)."""
+    comments = list(comments)
+    if not comments:
+        return {}
+    rows = (await db.execute(
+        select(CommentLabel).where(CommentLabel.timeline_id.in_([c.id for c in comments]))
+    )).scalars().all()
+    existing = {r.timeline_id: r for r in rows}
+    jev: JevClient | None = None
+    jev_loaded = False
+    labels: dict[int, Label] = {}
+    for c in comments:
+        row = existing.get(c.id)
+        if row is not None and row.content_hash == content_hash(c.body or ""):
+            labels[c.id] = (row.label, row.confidence) if row.source == "jev" else row.label
+            continue
+        if not jev_loaded:
+            jev, jev_loaded = await jev_settings.client(db), True
+        labels[c.id] = await classify(db, c, issue, jev)
+    return labels
+
+
+async def classify_comment_now(timeline_id: int) -> Label | None:
     from app.db.session import task_session
 
     async with task_session() as db:
         comment = await db.get(IssueTimeline, timeline_id)
         if comment is None or _value(comment.event_type) not in TALK_EVENTS:
             return None
-        label = await _store_rule_label(db, comment, content_hash(comment.body or ""))
+        issue = await db.get(Issue, comment.issue_id)
+        label = await classify(db, comment, issue, await jev_settings.client(db))
         await db.commit()
     dispatch(comment.issue_id)
     return label
+
+
+# ── Backfill when Jev is switched on (BR-S14, AC-S17) ─────────────────────────
+
+BACKFILL_KEY = "rw:search:jev_backfill"
+BACKFILL_BATCH = 100
+
+
+def request_backfill() -> None:
+    backfill_comment_classification.apply_async(queue=QUEUE)
+
+
+async def backfill_comment_classification_now(now: datetime | None = None) -> dict:
+    """Reclassify, once, the comments the rule kept (``source='rule'``,
+    ``label='rule_kept'``) — in batches of 100 — and reindex the items whose
+    labels changed. ``rule_dropped`` and Jev labels are never touched, so a
+    second run finds nothing to do. Progress is written to Redis for Settings."""
+    from app.db.session import task_session
+
+    async with task_session() as db:
+        jev = await jev_settings.client(db)
+        if jev is None:
+            return {"skipped": "jev_off"}
+        total = await db.scalar(
+            select(func.count()).select_from(CommentLabel)
+            .where(CommentLabel.source == "rule", CommentLabel.label == RULE_KEPT)
+        )
+    progress = {
+        "started_at": (now or datetime.now(tz=UTC)).isoformat(), "total": total or 0,
+        "done": 0, "failed": 0, "finished_at": None,
+    }
+
+    def _save() -> None:
+        try:
+            _redis().set(BACKFILL_KEY, json.dumps(progress))
+        except redis.RedisError:
+            pass
+
+    _save()
+    last_id = 0
+    touched: set[int] = set()
+    while True:
+        async with task_session() as db:
+            rows = (await db.execute(
+                select(CommentLabel)
+                .where(
+                    CommentLabel.source == "rule", CommentLabel.label == RULE_KEPT,
+                    CommentLabel.timeline_id > last_id,
+                )
+                .order_by(CommentLabel.timeline_id)
+                .limit(BACKFILL_BATCH)
+            )).scalars().all()
+            if not rows:
+                break
+            for row in rows:
+                last_id = row.timeline_id
+                comment = await db.get(IssueTimeline, row.timeline_id)
+                if comment is None:
+                    continue
+                issue = await db.get(Issue, row.issue_id)
+                label = await classify(db, comment, issue, jev)
+                if isinstance(label, tuple):
+                    progress["done"] += 1
+                    touched.add(row.issue_id)
+                else:
+                    progress["failed"] += 1
+            await db.commit()
+        _save()
+    progress["finished_at"] = datetime.now(tz=UTC).isoformat()
+    _save()
+    for issue_id in sorted(touched):
+        dispatch(issue_id)
+    return progress
+
+
+def backfill_progress() -> dict | None:
+    try:
+        raw = _redis().get(BACKFILL_KEY)
+        return json.loads(raw) if raw else None
+    except (redis.RedisError, ValueError):
+        return None
 
 
 # ── index_item ───────────────────────────────────────────────────────────────
@@ -250,7 +348,7 @@ async def index_item_in(db: AsyncSession, issue_id: int) -> dict:
         .scalars()
         .all()
     )
-    labels = await _label_comments(db, comments)
+    labels = await _label_comments(db, issue, comments)
     docs = build_documents(issue, comments, labels)
     wanted = _wanted(docs)
 
@@ -427,6 +525,14 @@ def index_item(self, issue_id: int) -> dict:
     except embeddings.EmbeddingError as exc:
         logger.warning("index_item(%s): %s", issue_id, exc)
         raise self.retry(exc=exc) from exc
+
+
+@celery_app.task(
+    name="app.tasks.search_index.backfill_comment_classification", queue=QUEUE,
+    soft_time_limit=3600, time_limit=3700,
+)
+def backfill_comment_classification() -> dict:
+    return asyncio.run(backfill_comment_classification_now())
 
 
 @celery_app.task(name="app.tasks.search_index.classify_comment", queue=QUEUE)

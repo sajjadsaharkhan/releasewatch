@@ -1,5 +1,9 @@
-"""The comment rule — which comments reach the search index while Jev is off
-(slice 12, engine PRD FR-S16, Appendix A.6).
+"""Comment labels — which comments reach the search index, and at what weight
+(slices 12–13, engine PRD FR-S16, Appendix A.6).
+
+``talk_weight(label, confidence)`` is the one rule for both: 0 means "not used".
+Jev labels (``this_problem``, ``other_problem``, ``process``, ``ack``) come from
+``JevClient.classify_comment``; ``rule_kept`` / ``rule_dropped`` from the rule below.
 
 ``rule_label(text)`` strips mentions and markdown, removes every
 acknowledgement and courtesy phrase below, and keeps the comment only if at
@@ -15,9 +19,25 @@ from app.search.normalize import fold, strip_markdown
 RULE_KEPT = "rule_kept"
 RULE_DROPPED = "rule_dropped"
 
-#: Labels whose comments are used for search (A.6). Slice 13 adds Jev's
-#: ``this_problem`` and ``other_problem``.
-USED_LABELS = frozenset({RULE_KEPT})
+THIS_PROBLEM = "this_problem"
+OTHER_PROBLEM = "other_problem"
+JEV_LABELS = frozenset({THIS_PROBLEM, OTHER_PROBLEM, "process", "ack"})
+
+#: A Jev label below this confidence counts as used, at full weight (A.6).
+LOW_CONFIDENCE = 0.6
+#: Talk-channel weight of a comment about another problem (A.6).
+OTHER_PROBLEM_WEIGHT = 0.5
+
+
+def talk_weight(label: str | None, confidence: float | None = None) -> float:
+    """How much a comment counts in the talk channel; 0 means it is not indexed."""
+    if label in (RULE_KEPT, THIS_PROBLEM):
+        return 1.0
+    if label in JEV_LABELS and confidence is not None and confidence < LOW_CONFIDENCE:
+        return 1.0
+    if label == OTHER_PROBLEM:
+        return OTHER_PROBLEM_WEIGHT
+    return 0.0
 
 #: Fewer letters/digits than this, after removing the phrases below, is dropped.
 MIN_CHARS = 20

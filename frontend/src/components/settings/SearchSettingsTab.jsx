@@ -8,6 +8,7 @@ import { Dialog } from '../ui/Dialog'
 import { Icon } from '../ui/Icon'
 import { Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
+import { JevPanel } from './JevPanel'
 
 const QUERY_KEY = ['search-settings']
 
@@ -88,8 +89,9 @@ export function SearchSettingsTab() {
   const query = useQuery({
     queryKey: QUERY_KEY,
     queryFn: () => searchApi.settings().then((res) => res.data),
-    // Follow a running reindex until it finishes.
-    refetchInterval: (q) => (q.state.data?.index?.in_progress ? 3000 : false),
+    // Follow a running reindex or comment backfill until it finishes.
+    refetchInterval: (q) =>
+      q.state.data?.index?.in_progress || q.state.data?.jev?.backfill?.running ? 3000 : false,
   })
   const data = query.data
 
@@ -229,6 +231,8 @@ export function SearchSettingsTab() {
           </div>
         </div>
       </div>
+
+      {data.jev && <JevPanel jev={data.jev} queryKey={QUERY_KEY} />}
 
       <ConfirmDialog
         open={confirm === 'endpoint'}

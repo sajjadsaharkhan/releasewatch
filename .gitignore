@@ -5,6 +5,7 @@ graphify-out/
 .env.*
 !.env.example
 !.env.production.example
+settings.json
 
 # Python
 __pycache__/

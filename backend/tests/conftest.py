@@ -64,6 +64,7 @@ from app.tasks.notifications import send_telegram_notification  # noqa: E402
 from app.search import embeddings  # noqa: E402
 from app.tasks import search_index  # noqa: E402
 from tests.fakes.embedding_endpoint import FakeEmbeddings, fake as fake_embedding_endpoint  # noqa: E402
+from tests.fakes.jev import FakeJev  # noqa: E402
 from tests.factories import Factories  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -324,7 +325,9 @@ def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
     Exposed so a test can assert a job *was enqueued*; ``search_jobs`` runs the
     recorded index jobs for tests that search.
     """
-    calls: dict[str, list] = {"index_item": [], "reindex_all": [], "validate_attachment": []}
+    calls: dict[str, list] = {
+        "index_item": [], "reindex_all": [], "backfill": [], "validate_attachment": [],
+    }
 
     def _recorder(name):
         def _record(args=None, kwargs=None, **options):
@@ -333,6 +336,9 @@ def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
 
     monkeypatch.setattr(search_index.index_item, "apply_async", _recorder("index_item"))
     monkeypatch.setattr(search_index.reindex_all, "apply_async", _recorder("reindex_all"))
+    monkeypatch.setattr(
+        search_index.backfill_comment_classification, "apply_async", _recorder("backfill"),
+    )
     monkeypatch.setattr(validate_attachment, "apply_async", _recorder("validate_attachment"))
     return calls
 
@@ -354,6 +360,25 @@ def embedding_endpoint(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeEmbeddin
     embeddings.transport_override = None
 
 
+@pytest.fixture(autouse=True)
+def jev(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeJev]:
+    """Autouse: every Jev call reaches the in-process fake (A.12). Jev stays off
+    until a test enables it through the settings API (``enable_jev``)."""
+    from app.search import jev as jev_module
+    from app.search import jev_settings
+
+    fake = FakeJev()
+
+    async def _no_backoff(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(jev_module, "transport_override", fake)
+    monkeypatch.setattr(jev_module, "_sleep", _no_backoff)
+    jev_settings._bust()
+    yield fake
+    jev_settings._bust()
+
+
 class SearchJobs:
     """Runs the recorded search jobs by calling their bodies directly — the
     scheduled-job seam from slice 01."""
@@ -362,9 +387,13 @@ class SearchJobs:
         self._calls = calls
 
     async def run(self) -> list[dict]:
-        """Run every pending ``reindex_all`` and ``index_item``, until none is left."""
+        """Run every pending backfill, ``reindex_all`` and ``index_item``, until none is left."""
         results = []
-        while self._calls["reindex_all"] or self._calls["index_item"]:
+        while self._calls["reindex_all"] or self._calls["index_item"] or self._calls["backfill"]:
+            if self._calls["backfill"]:
+                self._calls["backfill"].clear()
+                await search_index.backfill_comment_classification_now()
+                continue
             if self._calls["reindex_all"]:
                 self._calls["reindex_all"].clear()
                 await search_index.reindex_all_now()

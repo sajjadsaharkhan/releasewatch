@@ -59,3 +59,12 @@ class SearchSettingsUpdate(BaseModel):
     """Payload for PUT /settings/search (slice 12): the embedding endpoint."""
 
     embedding_endpoint: str = Field(..., min_length=1, max_length=512)
+
+
+class JevSettingsUpdate(BaseModel):
+    """Payload for PUT /settings/search/jev (slice 13). Every field optional:
+    ``api_key`` is write-only and never returned."""
+
+    enabled: bool | None = None
+    api_key: str | None = Field(None, max_length=512)
+    model: str | None = Field(None, max_length=64)

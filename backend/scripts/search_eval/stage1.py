@@ -46,21 +46,42 @@ class Scores:
         """Everything ``report`` needs, so systems can be scored one at a time."""
         s = self.system
         return {
-            "system": {"name": s.name, "endpoint": s.endpoint, "model": s.model,
-                       "channels": list(s.channels), "floor": s.floor,
-                       "vectors": len(s.owners), "index_seconds": s.index_seconds},
-            "per_query": self.per_query, "no_match_counts": self.no_match_counts,
-            "embed_ms": self.embed_ms, "retrieval_ms": self.retrieval_ms,
+            "system": {
+                "name": s.name,
+                "endpoint": s.endpoint,
+                "model": s.model,
+                "channels": list(s.channels),
+                "floor": s.floor,
+                "vectors": len(s.owners),
+                "index_seconds": s.index_seconds,
+            },
+            "per_query": self.per_query,
+            "no_match_counts": self.no_match_counts,
+            "embed_ms": self.embed_ms,
+            "retrieval_ms": self.retrieval_ms,
             "candidates": self.candidates,
         }
 
     @classmethod
     def from_json(cls, data: dict) -> "Scores":
         sd = data["system"]
-        system = System(sd["name"], sd["endpoint"], builder=None, channels=tuple(sd["channels"]),
-                        floor=sd["floor"], model=sd["model"], index_seconds=sd["index_seconds"])
-        return cls(system, data["per_query"], data["no_match_counts"],
-                   data["embed_ms"], data["retrieval_ms"], data.get("candidates", {}))
+        system = System(
+            sd["name"],
+            sd["endpoint"],
+            builder=None,
+            channels=tuple(sd["channels"]),
+            floor=sd["floor"],
+            model=sd["model"],
+            index_seconds=sd["index_seconds"],
+        )
+        return cls(
+            system,
+            data["per_query"],
+            data["no_match_counts"],
+            data["embed_ms"],
+            data["retrieval_ms"],
+            data.get("candidates", {}),
+        )
 
 
 async def score(ds: Dataset, system: System, progress=print) -> Scores:
@@ -104,7 +125,8 @@ def floor_sweep(ds: Dataset, scores: Scores) -> list[dict]:
 
     rows = []
     for t in FLOOR_SWEEP:
-        def kept(qid):
+
+        def kept(qid, t=t):
             cands = scores.candidates.get(qid, [])
             return [c[0] for c in cands if c[1] >= t or c[2]][:RESULT_LIMIT]
 
@@ -112,12 +134,16 @@ def floor_sweep(ds: Dataset, scores: Scores) -> list[dict]:
         h5 = [metrics.hit_at(kept(q.id), q.rel, 5) for q in ds.queries]
         empty_real = sum(1 for q in ds.queries if not kept(q.id))
         shown = [len(kept(q.id)) for q in ds.no_match]
-        rows.append({
-            "T": t, "R@5": mean(r5), "Hit@5": mean(h5),
-            "real_empty": empty_real / len(ds.queries),
-            "nm_mean": mean(shown) if shown else 0.0,
-            "nm_zero": sum(1 for n in shown if n == 0),
-        })
+        rows.append(
+            {
+                "T": t,
+                "R@5": mean(r5),
+                "Hit@5": mean(h5),
+                "real_empty": empty_real / len(ds.queries),
+                "nm_mean": mean(shown) if shown else 0.0,
+                "nm_zero": sum(1 for n in shown if n == 0),
+            }
+        )
     return rows
 
 
@@ -219,15 +245,31 @@ def report(ds: Dataset, engine: Scores, baseline: Scores, *, host_note: str) -> 
         f"cosine ≥ T or the keyword channel found it. In effect now: `T_FLOOR = {constants.T_FLOOR}`.",
         "",
         *(
-            [_table(
-                ["T", "Recall@5", "Hit@5", "real queries with 0 results", "no-match: mean shown",
-                 "no-match: 0 shown"],
-                [
-                    [f"{r['T']:.3f}", _fmt(r["R@5"]), _fmt(r["Hit@5"]), f"{r['real_empty']:.1%}",
-                     f"{r['nm_mean']:.2f}", f"{r['nm_zero']}/{len(ds.no_match)}"]
-                    for r in floor_sweep(ds, engine)
-                ],
-            )] if engine.candidates else ["_No candidates saved; re-run the engine phase._"]
+            [
+                _table(
+                    [
+                        "T",
+                        "Recall@5",
+                        "Hit@5",
+                        "real queries with 0 results",
+                        "no-match: mean shown",
+                        "no-match: 0 shown",
+                    ],
+                    [
+                        [
+                            f"{r['T']:.3f}",
+                            _fmt(r["R@5"]),
+                            _fmt(r["Hit@5"]),
+                            f"{r['real_empty']:.1%}",
+                            f"{r['nm_mean']:.2f}",
+                            f"{r['nm_zero']}/{len(ds.no_match)}",
+                        ]
+                        for r in floor_sweep(ds, engine)
+                    ],
+                )
+            ]
+            if engine.candidates
+            else ["_No candidates saved; re-run the engine phase._"]
         ),
         "",
         "## Latency (ms)",

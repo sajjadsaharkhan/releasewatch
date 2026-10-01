@@ -326,6 +326,9 @@ export const searchApi = {
   settings: () => api.get('/settings/search'),
   saveSettings: (data) => api.put('/settings/search', data),
   reindex: () => api.post('/settings/search/reindex'),
+  /** `data`: { enabled?, api_key?, model? } — the key is write-only. */
+  saveJev: (data) => api.put('/settings/search/jev', data),
+  testJev: () => api.post('/settings/search/jev/test'),
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

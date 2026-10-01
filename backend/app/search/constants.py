@@ -37,5 +37,12 @@ HYDRATE_LIMIT = 30
 RESULT_LIMIT = 20
 PALETTE_LIMIT = 8
 
+#: Jev rerank: candidates sent, and the relevance threshold that splits
+#: ``results`` from ``less_relevant`` (FR-S03, A.8 step 6).
+#: Set by: A.8 initial value (PoC demo: same-problem 0.91–0.94, related
+#: 0.52–0.70, junk ≤ 0.44) — set the final value from the stage-2 run.
+JEV_CANDIDATES = 15
+T_RELEVANT = 0.5
+
 #: Query-vector cache lifetime, seconds (A.8 step 1).
 QUERY_CACHE_TTL = 300
