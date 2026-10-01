@@ -16,7 +16,14 @@ PASSWORD_NOTE = "password `dataset-pass-123` unless you passed `--password`"
 
 
 def _keys(mapping: dict, ids: list[str]) -> str:
-    return ", ".join(f"**{mapping[i]['key']}** ({mapping[i]['status']})" for i in ids) or "nothing"
+    def where(i: str) -> str:
+        c = mapping[i].get("container")
+        return f", {c}" if c and mapping[i]["status"] == "done" else ""
+
+    return (
+        ", ".join(f"**{mapping[i]['key']}** ({mapping[i]['status']}{where(i)})" for i in ids)
+        or "nothing"
+    )
 
 
 def _pick(drafts: list[dict], n: int, **match) -> list[dict]:
@@ -90,7 +97,8 @@ def write(dataset: Path = DEFAULT_DATASET) -> Path:
         "",
         "### Recurrence (the original is Done)",
         "",
-        "A Done original means Merge returns it to *To do* with a new production / release-QA cycle.",
+        "Merging into a Done original sends it to *Rejected* with a new cycle (09a, ADR 0004): `production` "
+        "when it shipped (a released version or the Stream), `release_qa` when its release is still in QA.",
         "",
     ]
     for d in _pick(drafts, 3, kind="recurrence"):
