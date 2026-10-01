@@ -1,128 +1,121 @@
 [
- {"id":"c09","project":"Chat","area":"draft","note":"Draft text leaks between conversations. Repro-heavy original; support dupe is a loose story.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"متن نوشته‌شده و ارسال‌نشده با تغییر مخاطب در کادر تایپ می‌ماند",
-    "d":"متنی را در کادر تایپ یک چت می‌نویسم و بدون ارسال به چت دیگر می‌روم؛ همان متن در چت دوم هم هست و می‌توان آن را برای نفر اشتباه فرستاد.",
-    "steps":[["در چت با کاربر X متن «سلام» را بنویسید و ارسال نکنید","متن به‌عنوان پیش‌نویس همان چت بماند","متن نوشته شده است"],["به چت کاربر Y بروید","کادر تایپ خالی باشد","متن «سلام» آنجا هم دیده می‌شود"]],
-    "curl":"/student/api/v1/chat/conversations/draft","labels":["chat"],"days":80,
-    "cm":[["developer","state کادر تایپ به شناسه گفتگو وابسته نبود. حالا به ازای هر گفتگو ذخیره می‌شود."],["qa","تایید شد، ولی روی iOS Safari هم یک بار چک کنید."],["qa","iOS هم درست است."]]},
-   {"k":"b","type":"bug","st":"new","sev":"critical","role":"support","src":"support","t":"یه پیامی که تایپ کرده بودم رفت برای آدم دیگه","d":"مشتری میگه وسط نوشتن پیام برای استادش رفت سراغ یه چت دیگه و دید همون نوشته اونجا هم هست، نزدیک بود برای اشتباهی بفرسته.","days":5,"dupe_of":"a"}
+ {"id": "c09", "project": "Chat", "area": "draft", "note": "Draft text leaks between conversations. Repro-heavy original; support dupe is a loose story.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "critical", "role": "qa", "t": "متن نوشته‌شده و ارسال‌نشده با تغییر مخاطب در کادر تایپ می‌ماند", "d": "متنی را در کادر تایپ یک چت می‌نویسم و بدون ارسال به چت دیگر می‌روم؛ همان متن در چت دوم هم هست و می‌توان آن را برای نفر اشتباه فرستاد.", "steps": [["در چت با کاربر X متن «سلام» را بنویسید و ارسال نکنید", "متن به‌عنوان پیش‌نویس همان چت بماند", "متن نوشته شده است"], ["به چت کاربر Y بروید", "کادر تایپ خالی باشد", "متن «سلام» آنجا هم دیده می‌شود"]], "curl": "/student/api/v1/chat/conversations/draft", "labels": ["chat"], "days": 80, "cm": [["developer", "state کادر تایپ به شناسه گفتگو وابسته نبود. حالا به ازای هر گفتگو ذخیره می‌شود."], ["qa", "تایید شد، ولی روی iOS Safari هم یک بار چک کنید."], ["qa", "iOS هم درست است."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "critical", "role": "support", "src": "support", "t": "یه پیامی که تایپ کرده بودم رفت برای آدم دیگه", "d": "مشتری میگه وسط نوشتن پیام برای استادش رفت سراغ یه چت دیگه و دید همون نوشته اونجا هم هست، نزدیک بود برای اشتباهی بفرسته.", "days": 5, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"پیش‌نویس چت قبلی دوباره در گفتگوی بعدی نمایش داده می‌شود","d":"پس از ریلیز جدید، متن کادر تایپ بین دو مخاطب جابه‌جا می‌شود.","steps":[["در یک چت چیزی تایپ کنید و ارسال نکنید","محتوا فقط برای همان چت بماند","با رفتن به چت دیگر همان محتوا دیده می‌شود"]],"same":["a","b"],"cat":["symptom"],"sig":["repro"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Composer text not scoped per conversation","d":"Unsent composer value is shared across threads; likely a single global state.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"hard"},
-   {"k":"3","kind":"hard_negative","p":"support","t":"پیش‌نویس پیام بعد از بستن اپ پاک میشه","d":"مشتری میگه چیزی که نوشته بود و نفرستاده بود بعد از بستن برنامه نیست.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "پیش‌نویس چت قبلی دوباره در گفتگوی بعدی نمایش داده می‌شود", "d": "پس از ریلیز جدید، متن کادر تایپ بین دو مخاطب جابه‌جا می‌شود.", "steps": [["در یک چت چیزی تایپ کنید و ارسال نکنید", "محتوا فقط برای همان چت بماند", "با رفتن به چت دیگر همان محتوا دیده می‌شود"]], "same": ["a", "b"], "cat": ["symptom"], "sig": ["repro"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Composer text not scoped per conversation", "d": "Unsent composer value is shared across threads; likely a single global state.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "hard"},
+   {"k": "3", "kind": "hard_negative", "p": "support", "t": "پیش‌نویس پیام بعد از بستن اپ پاک میشه", "d": "مشتری میگه چیزی که نوشته بود و نفرستاده بود بعد از بستن برنامه نیست.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"پیش‌نویس پیام","cat":["short"],"rel":{"a":2,"b":2}},{"q":"typed text appears in another chat","cat":["en2fa","cross_lingual","symptom"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c10","project":"Chat","area":"chat-list","note":"Last-message preview stale after delete; sibling of c04 (different symptom).",
-  "rel_clusters":["c04"],
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"آخرین پیام در لیست گفتگوها بعد از حذف پیام اصلاح نمی‌شود",
-    "d":"آخرین پیام یک گفتگو را حذف می‌کنم؛ در لیست گفتگوها همچنان متن پیام حذف‌شده زیر نام مخاطب دیده می‌شود تا وقتی که صفحه رفرش شود.",
-    "curl":"/student/api/v1/chat/conversations/list","days":66,
-    "cm":[["developer","هنگام حذف باید last_message دوباره از دیتابیس خوانده شود. اصلاح شد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"developer","t":"Chat list keeps showing the deleted message as the preview","d":"After deleting the newest message the preview under the contact name still contains its text until a manual reload.","days":4,"dupe_of":"a"}
+  "queries": [
+   {"q": "پیش‌نویس پیام", "cat": ["short"], "rel": {"a": 2, "b": 2}},
+   {"q": "typed text appears in another chat", "cat": ["en2fa", "cross_lingual", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c10", "project": "Chat", "area": "chat-list", "note": "Last-message preview stale after delete; sibling of c04 (different symptom).", "rel_clusters": ["c04"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "آخرین پیام در لیست گفتگوها بعد از حذف پیام اصلاح نمی‌شود", "d": "آخرین پیام یک گفتگو را حذف می‌کنم؛ در لیست گفتگوها همچنان متن پیام حذف‌شده زیر نام مخاطب دیده می‌شود تا وقتی که صفحه رفرش شود.", "curl": "/student/api/v1/chat/conversations/list", "days": 66, "cm": [["developer", "هنگام حذف باید last_message دوباره از دیتابیس خوانده شود. اصلاح شد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Chat list keeps showing the deleted message as the preview", "d": "After deleting the newest message the preview under the contact name still contains its text until a manual reload.", "days": 4, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"support","t":"متن پیام پاک‌شده هنوز تو لیست چت‌ها هست","d":"بعد از آپدیت اخیر دوباره پیام‌های حذف‌شده زیر اسم افراد دیده میشن.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "support", "t": "متن پیام پاک‌شده هنوز تو لیست چت‌ها هست", "d": "بعد از آپدیت اخیر دوباره پیام‌های حذف‌شده زیر اسم افراد دیده میشن.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"preview deleted message chat list","cat":["en2fa","cross_lingual","codeswitch"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c11","project":"Chat","area":"mention","note":"Feature requests (tasks): mention in private chat.",
-  "members":[
-   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"پشتیبانی از منشن کردن کاربران در چت خصوصی",
-    "d":"در چت دو نفره هم امکان زدن @ و انتخاب نام کاربر وجود داشته باشد تا پیام برای او برجسته شود و نوتیفیکیشن جداگانه بگیرد.","days":40,
-    "cm":[["pm","اولویت متوسط، بعد از ریلیز ۳.۲."]]},
-   {"k":"b","type":"task","st":"new","sev":"enhancement","role":"developer","t":"Allow @mentions in direct messages","d":"Mentions only work in groups; DMs should resolve @username too.","days":10,"dupe_of":"a"}
+  "queries": [
+   {"q": "preview deleted message chat list", "cat": ["en2fa", "cross_lingual", "codeswitch"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c11", "project": "Chat", "area": "mention", "note": "Feature requests (tasks): mention in private chat.",
+  "members": [
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "پشتیبانی از منشن کردن کاربران در چت خصوصی", "d": "در چت دو نفره هم امکان زدن @ و انتخاب نام کاربر وجود داشته باشد تا پیام برای او برجسته شود و نوتیفیکیشن جداگانه بگیرد.", "days": 40, "cm": [["pm", "اولویت متوسط، بعد از ریلیز ۳.۲."]]},
+   {"k": "b", "type": "task", "st": "new", "sev": "enhancement", "role": "developer", "t": "Allow @mentions in direct messages", "d": "Mentions only work in groups; DMs should resolve @username too.", "days": 10, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Mention autocomplete missing in one-to-one threads","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"support","t":"میشه تو چت پیوی هم اسم بقیه رو تگ کرد؟","d":"مدیر موسسه می‌خواد وسط صحبت یکی رو صدا کنه.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Mention autocomplete missing in one-to-one threads", "d": "", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "support", "t": "میشه تو چت پیوی هم اسم بقیه رو تگ کرد؟", "d": "مدیر موسسه می‌خواد وسط صحبت یکی رو صدا کنه.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"منشن پیوی","cat":["short","colloquial"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c12","project":"Chat","area":"edit","note":"Edit label — two near-identical wordings.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"برچسب «ویرایش‌شده» بعد از ذخیره بدون تغییر متن هم دیده می‌شود",
-    "d":"پیامی را باز می‌کنم، هیچ تغییری نمی‌دهم و تایید را می‌زنم؛ پیام با برچسب ویرایش‌شده علامت می‌خورد.","steps":[["پیام خود را در حالت ویرایش باز کنید","—","—"],["بدون تغییر دکمه ذخیره را بزنید","برچسب ظاهر نشود","برچسب ویرایش‌شده ظاهر می‌شود"]],"curl":"/student/api/v1/chat/conversations/message/edit","days":28}
+  "queries": [
+   {"q": "منشن پیوی", "cat": ["short", "colloquial"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c12", "project": "Chat", "area": "edit", "note": "Edit label — two near-identical wordings.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "برچسب «ویرایش‌شده» بعد از ذخیره بدون تغییر متن هم دیده می‌شود", "d": "پیامی را باز می‌کنم، هیچ تغییری نمی‌دهم و تایید را می‌زنم؛ پیام با برچسب ویرایش‌شده علامت می‌خورد.", "steps": [["پیام خود را در حالت ویرایش باز کنید", "—", "—"], ["بدون تغییر دکمه ذخیره را بزنید", "برچسب ظاهر نشود", "برچسب ویرایش‌شده ظاهر می‌شود"]], "curl": "/student/api/v1/chat/conversations/message/edit", "days": 28}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"نشانه edited روی پیامی که محتوایش عوض نشده","d":"با باز کردن و بستن ویرایشگر، تگ edited زیر پیام می‌آید.","same":["a"],"cat":["codeswitch"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"ویرایش پیام تاریخ ویرایش را نمایش نمی‌دهد","d":"زمان ویرایش در tooltip دیده نمی‌شود.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "نشانه edited روی پیامی که محتوایش عوض نشده", "d": "با باز کردن و بستن ویرایشگر، تگ edited زیر پیام می‌آید.", "same": ["a"], "cat": ["codeswitch"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "ویرایش پیام تاریخ ویرایش را نمایش نمی‌دهد", "d": "زمان ویرایش در tooltip دیده نمی‌شود.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "hard"}
   ],
-  "queries":[{"q":"edited label","cat":["short","codeswitch"],"rel":{"a":2}},{"q":"ویرایش بدون تغییر","cat":["symptom"],"rel":{"a":2}}]},
-
- {"id":"c13","project":"Chat","area":"send","note":"Burst sending; comment on the original discusses an unrelated upload problem (comment trap).",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"ارسال سریع چند پیام پشت‌سرهم باعث خطا و گم شدن پیام می‌شود",
-    "d":"اگر سه پیام را با فاصله کمتر از یک ثانیه بفرستیم، یکی دو پیام با خطا مواجه می‌شود و در گفتگو دیده نمی‌شود.",
-    "steps":[["سه پیام کوتاه را پشت‌سرهم و سریع ارسال کنید","هر سه ثبت شوند","فقط پیام اول و آخر ثبت می‌شود"]],"curl":"/student/api/v1/chat/conversations/message/send","days":18,
-    "cm":[["developer","ترتیب ارسال و sequence_id تداخل دارد؛ در حال اصلاح."],["developer","اتفاقا آپلود فایل هم همین مشکل ۹۹٪ رو داشت، ربطی نداره ولی یادمون باشه تست بشه.",1]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"بعضی پیام‌ها که پشت هم میفرستم نمیرسه","d":"زبان‌آموز میگه وقتی عجله داره و چند خط جدا جدا می‌نویسه بعضی‌هاش نمی‌ره.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "edited label", "cat": ["short", "codeswitch"], "rel": {"a": 2}},
+   {"q": "ویرایش بدون تغییر", "cat": ["symptom"], "rel": {"a": 2}}
+  ]},
+ {"id": "c13", "project": "Chat", "area": "send", "note": "Burst sending; comment on the original discusses an unrelated upload problem (comment trap).",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "critical", "role": "qa", "t": "ارسال سریع چند پیام پشت‌سرهم باعث خطا و گم شدن پیام می‌شود", "d": "اگر سه پیام را با فاصله کمتر از یک ثانیه بفرستیم، یکی دو پیام با خطا مواجه می‌شود و در گفتگو دیده نمی‌شود.", "steps": [["سه پیام کوتاه را پشت‌سرهم و سریع ارسال کنید", "هر سه ثبت شوند", "فقط پیام اول و آخر ثبت می‌شود"]], "curl": "/student/api/v1/chat/conversations/message/send", "days": 18, "cm": [["developer", "ترتیب ارسال و sequence_id تداخل دارد؛ در حال اصلاح."], ["developer", "اتفاقا آپلود فایل هم همین مشکل ۹۹٪ رو داشت، ربطی نداره ولی یادمون باشه تست بشه.", 1]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "بعضی پیام‌ها که پشت هم میفرستم نمیرسه", "d": "زبان‌آموز میگه وقتی عجله داره و چند خط جدا جدا می‌نویسه بعضی‌هاش نمی‌ره.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Rapid-fire sends drop messages (sequence collision)","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"hard"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"ارسال پیام بدون اینترنت خطای نامشخص می‌دهد","d":"وقتی شبکه قطع است پیام با علامت قرمز مشخص نمی‌شود و در حالت loading می‌ماند.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Rapid-fire sends drop messages (sequence collision)", "d": "", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "hard"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "ارسال پیام بدون اینترنت خطای نامشخص می‌دهد", "d": "وقتی شبکه قطع است پیام با علامت قرمز مشخص نمی‌شود و در حالت loading می‌ماند.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"چند پیام سریع گم میشه","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c14","project":"Chat","area":"push","note":"Push notifications on iOS background.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"critical","role":"qa","t":"نوتیفیکیشن پیام جدید وقتی اپ iOS در پس‌زمینه است نمی‌آید",
-    "d":"روی آیفون وقتی اپ چند دقیقه در پس‌زمینه می‌ماند، پیام‌های جدید پوش نمی‌شوند و فقط با باز کردن اپ دیده می‌شوند.","labels":["ios"],"days":35,
-    "cm":[["developer","token APNs بعد از ۳۰ دقیقه منقضی می‌شود و refresh نمی‌شود."]]},
-   {"k":"b","type":"bug","st":"new","sev":"critical","role":"support","src":"support","t":"گوشی آیفون اعلان پیام نمیده","d":"چند تا مشتری آیفونی میگن تا اپ رو باز نکنن نمی‌فهمن پیام اومده.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "چند پیام سریع گم میشه", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c14", "project": "Chat", "area": "push", "note": "Push notifications on iOS background.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "critical", "role": "qa", "t": "نوتیفیکیشن پیام جدید وقتی اپ iOS در پس‌زمینه است نمی‌آید", "d": "روی آیفون وقتی اپ چند دقیقه در پس‌زمینه می‌ماند، پیام‌های جدید پوش نمی‌شوند و فقط با باز کردن اپ دیده می‌شوند.", "labels": ["ios"], "days": 35, "cm": [["developer", "token APNs بعد از ۳۰ دقیقه منقضی می‌شود و refresh نمی‌شود."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "critical", "role": "support", "src": "support", "t": "گوشی آیفون اعلان پیام نمیده", "d": "چند تا مشتری آیفونی میگن تا اپ رو باز نکنن نمی‌فهمن پیام اومده.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"اعلان چت برای کاربرای iOS نمیاد وقتی برنامه بسته‌ست","d":"","same":["a","b"],"cat":["colloquial","codeswitch"],"sig":["title"],"diff":"easy"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"نوتیفیکیشن روی اندروید صدای پیش‌فرض ندارد","d":"روی اندروید ۱۴ اعلان بدون صدا می‌آید.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "اعلان چت برای کاربرای iOS نمیاد وقتی برنامه بسته‌ست", "d": "", "same": ["a", "b"], "cat": ["colloquial", "codeswitch"], "sig": ["title"], "diff": "easy"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "نوتیفیکیشن روی اندروید صدای پیش‌فرض ندارد", "d": "روی اندروید ۱۴ اعلان بدون صدا می‌آید.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"push notification background iOS","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}},{"q":"اعلان نمیاد","cat":["short","colloquial"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c15","project":"Chat","area":"search","note":"Message search misses words with half-space (ZWNJ).",
-  "members":[
-   {"k":"a","type":"bug","st":"new","sev":"major","role":"qa","t":"جستجوی پیام کلماتی که نیم‌فاصله دارند را پیدا نمی‌کند",
-    "d":"جستجوی «می‌خواهم» نتیجه‌ای ندارد ولی «میخواهم» با فاصله یا بدون نیم‌فاصله پیدا می‌شود. باید هر دو شکل پیدا شوند.","curl":"/student/api/v1/chat/conversations/search","days":15}
+  "queries": [
+   {"q": "push notification background iOS", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}},
+   {"q": "اعلان نمیاد", "cat": ["short", "colloquial"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c15", "project": "Chat", "area": "search", "note": "Message search misses words with half-space (ZWNJ).",
+  "members": [
+   {"k": "a", "type": "bug", "st": "new", "sev": "major", "role": "qa", "t": "جستجوی پیام کلماتی که نیم‌فاصله دارند را پیدا نمی‌کند", "d": "جستجوی «می‌خواهم» نتیجه‌ای ندارد ولی «میخواهم» با فاصله یا بدون نیم‌فاصله پیدا می‌شود. باید هر دو شکل پیدا شوند.", "curl": "/student/api/v1/chat/conversations/search", "days": 15}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Message search is sensitive to ZWNJ","d":"Query with U+200C returns nothing, same word typed with a space matches.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"جستجوی پیام تو چت گروه خیلی کنده","d":"مدیر موسسه میگه جستجو چند ثانیه طول می‌کشه.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Message search is sensitive to ZWNJ", "d": "Query with U+200C returns nothing, same word typed with a space matches.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "جستجوی پیام تو چت گروه خیلی کنده", "d": "مدیر موسسه میگه جستجو چند ثانیه طول می‌کشه.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"نیم فاصله جستجو","cat":["short","typo"],"rel":{"a":2}}]},
-
- {"id":"c16","project":"Chat","area":"members","note":"Member list limited to first page; Done original + recurrence.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"لیست اعضای گروه فقط ۲۰ نفر اول را نشان می‌دهد",
-    "d":"در گروه کلاسی با ۵۰ عضو، صفحه اعضا فقط بیست نفر نمایش می‌دهد و صفحه‌بندی ندارد.","steps":[["گروهی با ۵۰ عضو باز کنید","همه دیده شوند یا صفحه‌بندی باشد","فقط ۲۰ نفر"]],"curl":"/student/api/v1/chat/groups/members","days":90,
-    "cm":[["developer","limit پیش‌فرض ۲۰ بود. صفحه‌بندی اضافه شد."],["qa","درست شد."]]}
+  "queries": [
+   {"q": "نیم فاصله جستجو", "cat": ["short", "typo"], "rel": {"a": 2}}
+  ]},
+ {"id": "c16", "project": "Chat", "area": "members", "note": "Member list limited to first page; Done original + recurrence.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "لیست اعضای گروه فقط ۲۰ نفر اول را نشان می‌دهد", "d": "در گروه کلاسی با ۵۰ عضو، صفحه اعضا فقط بیست نفر نمایش می‌دهد و صفحه‌بندی ندارد.", "steps": [["گروهی با ۵۰ عضو باز کنید", "همه دیده شوند یا صفحه‌بندی باشد", "فقط ۲۰ نفر"]], "curl": "/student/api/v1/chat/groups/members", "days": 90, "cm": [["developer", "limit پیش‌فرض ۲۰ بود. صفحه‌بندی اضافه شد."], ["qa", "درست شد."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"support","t":"اعضای گروه کامل نشون داده نمیشن، فقط یه تعداد","d":"گروه ۳۰ نفره‌ست ولی انگار نصفش دیده میشه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Group members endpoint ignores page param","d":"/chat/groups/members returns first page only.","same":["a"],"cat":["identifier","en2fa"],"sig":["curl","description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "support", "t": "اعضای گروه کامل نشون داده نمیشن، فقط یه تعداد", "d": "گروه ۳۰ نفره‌ست ولی انگار نصفش دیده میشه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Group members endpoint ignores page param", "d": "/chat/groups/members returns first page only.", "same": ["a"], "cat": ["identifier", "en2fa"], "sig": ["curl", "description"], "diff": "hard"}
   ],
-  "queries":[{"q":"اعضای گروه","cat":["short"],"rel":{"a":2}},{"q":"group members pagination","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c17","project":"Chat","area":"sync","note":"Cross-portal deletion; description is almost empty, curl path is the only strong signal.",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"qa","t":"حذف پیام در پرتال استاد در پرتال جدید اعمال نمی‌شود",
-    "d":"","curl":"/student/api/v1/chat/conversations/message/seen","days":12,
-    "cm":[["developer","event حذف از پرتال قدیمی به سرویس چت نمی‌رسد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"developer","t":"Message deleted in teacher portal still visible to students","d":"The legacy portal removes it, the new student portal keeps rendering it.","curl":"/student/api/v1/chat/conversations/message/seen","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "اعضای گروه", "cat": ["short"], "rel": {"a": 2}},
+   {"q": "group members pagination", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c17", "project": "Chat", "area": "sync", "note": "Cross-portal deletion; description is almost empty, curl path is the only strong signal.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "major", "role": "qa", "t": "حذف پیام در پرتال استاد در پرتال جدید اعمال نمی‌شود", "d": "", "curl": "/student/api/v1/chat/conversations/message/seen", "days": 12, "cm": [["developer", "event حذف از پرتال قدیمی به سرویس چت نمی‌رسد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Message deleted in teacher portal still visible to students", "d": "The legacy portal removes it, the new student portal keeps rendering it.", "curl": "/student/api/v1/chat/conversations/message/seen", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"پیام حذف‌شده توسط استاد برای شاگرد باقی می‌ماند","d":"استاد پیامی را پاک کرد؛ در اپ زبان‌آموز همچنان دیده می‌شود.","same":["a","b"],"cat":["symptom"],"sig":["curl","description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "پیام حذف‌شده توسط استاد برای شاگرد باقی می‌ماند", "d": "استاد پیامی را پاک کرد؛ در اپ زبان‌آموز همچنان دیده می‌شود.", "same": ["a", "b"], "cat": ["symptom"], "sig": ["curl", "description"], "diff": "hard"}
   ],
-  "queries":[{"q":"/student/api/v1/chat/conversations/message/seen","cat":["identifier"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c18","project":"Chat","area":"mobile","note":"Keyboard overlaps composer on mobile Safari.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"کیبورد موبایل روی کادر تایپ قرار می‌گیرد و متن دیده نمی‌شود",
-    "d":"در مرورگر Safari آیفون با باز شدن کیبورد، کادر تایپ زیر آن می‌رود و کاربر چیزی که می‌نویسد را نمی‌بیند.","labels":["ios","safari"],"days":26}
+  "queries": [
+   {"q": "/student/api/v1/chat/conversations/message/seen", "cat": ["identifier"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c18", "project": "Chat", "area": "mobile", "note": "Keyboard overlaps composer on mobile Safari.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "کیبورد موبایل روی کادر تایپ قرار می‌گیرد و متن دیده نمی‌شود", "d": "در مرورگر Safari آیفون با باز شدن کیبورد، کادر تایپ زیر آن می‌رود و کاربر چیزی که می‌نویسد را نمی‌بیند.", "labels": ["ios", "safari"], "days": 26}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"موقع نوشتن پیام توی گوشی کیبورد روی چت میفته","d":"با سافاری آیفون نوشته‌ها دیده نمیشن.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"با کلید تب فوکوس از کادر تایپ بیرون می‌رود","d":"در نسخه دسکتاپ با زدن Tab مکان‌نما کادر را ترک می‌کند.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "موقع نوشتن پیام توی گوشی کیبورد روی چت میفته", "d": "با سافاری آیفون نوشته‌ها دیده نمیشن.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "با کلید تب فوکوس از کادر تایپ بیرون می‌رود", "d": "در نسخه دسکتاپ با زدن Tab مکان‌نما کادر را ترک می‌کند.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"keyboard covers input safari","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]}
+  "queries": [
+   {"q": "keyboard covers input safari", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]}
 ]

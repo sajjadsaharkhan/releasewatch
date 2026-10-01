@@ -1,119 +1,123 @@
 [
- {"id":"c61","project":"Chat","area":"presence","note":"Larger cluster (4 members, one cancelled) with mixed Persian/English wording.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"وضعیت online کاربر بعد از خروج از اپ تا چند دقیقه سبز می‌ماند",
-    "d":"کاربر اپ را می‌بندد ولی برای بقیه تا ۵ دقیقه «آنلاین» نمایش داده می‌شود و last seen آپدیت نمی‌شود.","curl":"/student/api/v1/chat/presence","days":77,
-    "cm":[["developer","heartbeat timeout ۵ دقیقه بود. به ۴۵ ثانیه کاهش یافت."]]},
-   {"k":"b","type":"bug","st":"cancelled","sev":"minor","role":"qa","t":"Last seen time is not updated after logout","d":"The timestamp under the contact name stays old.","days":70,"dupe_of":"a"},
-   {"k":"c","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"استاد میگه شاگرد آنلاینه ولی جواب نمیده، فکر کنم آفلاین شده","d":"وضعیت آنلاین بودن درست نیست.","days":4,"dupe_of":"a"},
-   {"k":"d","type":"bug","st":"new","sev":"major","role":"developer","t":"Presence stays 'online' ~5min after app is closed (heartbeat timeout)","d":"Regression suspected: timeout constant is back to 300s.","curl":"/student/api/v1/chat/presence","days":1,"dupe_of":"a"}
+ {"id": "c61", "project": "Chat", "area": "presence", "note": "Larger cluster (4 members, one cancelled) with mixed Persian/English wording.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "وضعیت online کاربر بعد از خروج از اپ تا چند دقیقه سبز می‌ماند", "d": "کاربر اپ را می‌بندد ولی برای بقیه تا ۵ دقیقه «آنلاین» نمایش داده می‌شود و last seen آپدیت نمی‌شود.", "curl": "/student/api/v1/chat/presence", "days": 77, "cm": [["developer", "heartbeat timeout ۵ دقیقه بود. به ۴۵ ثانیه کاهش یافت."]]},
+   {"k": "b", "type": "bug", "st": "cancelled", "sev": "minor", "role": "qa", "t": "Last seen time is not updated after logout", "d": "The timestamp under the contact name stays old.", "days": 70, "dupe_of": "a"},
+   {"k": "c", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "استاد میگه شاگرد آنلاینه ولی جواب نمیده، فکر کنم آفلاین شده", "d": "وضعیت آنلاین بودن درست نیست.", "days": 4, "dupe_of": "a"},
+   {"k": "d", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Presence stays 'online' ~5min after app is closed (heartbeat timeout)", "d": "Regression suspected: timeout constant is back to 300s.", "curl": "/student/api/v1/chat/presence", "days": 1, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"developer","t":"online badge lingers after user quits the app","d":"Heartbeat window looks long again after the last deploy.","same":["a","c","d"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"qa","t":"آخرین بازدید بعد از بستن برنامه عوض نمیشه","d":"با دو گوشی تست کردم؛ گوشی دوم هنوز آنلاین میبینه.","steps":[["اپ را روی گوشی اول ببندید","وضعیت آفلاین شود","تا چند دقیقه آنلاین است"]],"same":["a","c","d"],"cat":["colloquial"],"sig":["repro"],"diff":"medium"},
-   {"k":"3","kind":"hard_negative","p":"support","t":"اسم مخاطب توی لیست چت با یه نقطه سبز بی‌دلیل دیده میشه","d":"حتی وقتی کلا اینترنت نداره.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "developer", "t": "online badge lingers after user quits the app", "d": "Heartbeat window looks long again after the last deploy.", "same": ["a", "c", "d"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "qa", "t": "آخرین بازدید بعد از بستن برنامه عوض نمیشه", "d": "با دو گوشی تست کردم؛ گوشی دوم هنوز آنلاین میبینه.", "steps": [["اپ را روی گوشی اول ببندید", "وضعیت آفلاین شود", "تا چند دقیقه آنلاین است"]], "same": ["a", "c", "d"], "cat": ["colloquial"], "sig": ["repro"], "diff": "medium"},
+   {"k": "3", "kind": "hard_negative", "p": "support", "t": "اسم مخاطب توی لیست چت با یه نقطه سبز بی‌دلیل دیده میشه", "d": "حتی وقتی کلا اینترنت نداره.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"آنلاین سبز","cat":["short","colloquial"],"rel":{"a":2,"c":2,"d":2}},{"q":"last seen","cat":["short"],"rel":{"a":2,"c":2,"d":2}},{"q":"hertbeat timeout presence","cat":["typo","identifier"],"rel":{"a":2,"d":2}}]},
-
- {"id":"c62","project":"Chat","area":"group-admin","note":"Cannot remove a member; drafts in transliterated Persian.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"critical","role":"qa","t":"حذف عضو از گروه توسط ادمین گروه انجام نمی‌شود",
-    "d":"ادمین گروه روی «حذف از گروه» می‌زند، پیام موفقیت می‌آید ولی عضو همچنان در لیست و در گروه فعال است.","steps":[["با حساب ادمین گروه عضوی را حذف کنید","عضو از لیست برود","عضو باقی می‌ماند"]],"curl":"/student/api/v1/chat/groups/members/remove","days":11},
-   {"k":"b","type":"bug","st":"new","sev":"critical","role":"support","src":"support","t":"استاد میخواد یه نفر رو از گروه کلاس دربیاره نمیشه","d":"دکمه حذف رو می‌زنه ولی بچه هنوز تو گروهه.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "آنلاین سبز", "cat": ["short", "colloquial"], "rel": {"a": 2, "c": 2, "d": 2}},
+   {"q": "last seen", "cat": ["short"], "rel": {"a": 2, "c": 2, "d": 2}},
+   {"q": "hertbeat timeout presence", "cat": ["typo", "identifier"], "rel": {"a": 2, "d": 2}}
+  ]},
+ {"id": "c62", "project": "Chat", "area": "group-admin", "note": "Cannot remove a member; drafts in transliterated Persian.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "critical", "role": "qa", "t": "حذف عضو از گروه توسط ادمین گروه انجام نمی‌شود", "d": "ادمین گروه روی «حذف از گروه» می‌زند، پیام موفقیت می‌آید ولی عضو همچنان در لیست و در گروه فعال است.", "steps": [["با حساب ادمین گروه عضوی را حذف کنید", "عضو از لیست برود", "عضو باقی می‌ماند"]], "curl": "/student/api/v1/chat/groups/members/remove", "days": 11},
+   {"k": "b", "type": "bug", "st": "new", "sev": "critical", "role": "support", "src": "support", "t": "استاد میخواد یه نفر رو از گروه کلاس دربیاره نمیشه", "d": "دکمه حذف رو می‌زنه ولی بچه هنوز تو گروهه.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Kick member from class group is a no-op","d":"API answers 200 but the membership row is untouched.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"ادمین گروه نمی‌تواند عضو جدید اضافه کند","d":"دکمه افزودن عضو غیرفعال است.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Kick member from class group is a no-op", "d": "API answers 200 but the membership row is untouched.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "ادمین گروه نمی‌تواند عضو جدید اضافه کند", "d": "دکمه افزودن عضو غیرفعال است.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "hard"}
   ],
-  "queries":[{"q":"کیک کردن ممبر از گروپ","cat":["translit","colloquial"],"rel":{"a":2,"b":2}},{"q":"/student/api/v1/chat/groups/members/remove","cat":["identifier"],"rel":{"a":2}}]},
-
- {"id":"c63","project":"Chat","area":"voice","note":"Voice message duration; mixed-language description.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"مدت زمان voice message بعد از ارسال اشتباه نمایش داده می‌شود",
-    "d":"پیام صوتی ۲۰ ثانیه ضبط شده ولی برای گیرنده 0:05 نشان داده می‌شود. فایل کامل پخش می‌شود ولی duration اشتباهه.","labels":["audio"],"days":16},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"developer","t":"Voice note shows truncated duration in the bubble","d":"Metadata is read before the file is fully buffered.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "کیک کردن ممبر از گروپ", "cat": ["translit", "colloquial"], "rel": {"a": 2, "b": 2}},
+   {"q": "/student/api/v1/chat/groups/members/remove", "cat": ["identifier"], "rel": {"a": 2}}
+  ]},
+ {"id": "c63", "project": "Chat", "area": "voice", "note": "Voice message duration; mixed-language description.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "مدت زمان voice message بعد از ارسال اشتباه نمایش داده می‌شود", "d": "پیام صوتی ۲۰ ثانیه ضبط شده ولی برای گیرنده 0:05 نشان داده می‌شود. فایل کامل پخش می‌شود ولی duration اشتباهه.", "labels": ["audio"], "days": 16},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "developer", "t": "Voice note shows truncated duration in the bubble", "d": "Metadata is read before the file is fully buffered.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"ویس‌هایی که میفرستن زمانشون کمتر از واقعیت نوشته میشه","d":"","same":["a","b"],"cat":["colloquial","translit"],"sig":["title"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "ویس‌هایی که میفرستن زمانشون کمتر از واقعیت نوشته میشه", "d": "", "same": ["a", "b"], "cat": ["colloquial", "translit"], "sig": ["title"], "diff": "easy"}
   ],
-  "queries":[{"q":"voice duration","cat":["short","codeswitch"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c64","project":"Chat","area":"images","note":"Image compression quality.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"minor","role":"qa","t":"تصاویر ارسالی در چت بیش از حد فشرده و تار می‌شوند",
-    "d":"عکس اسلاید کلاس که خوانا بود بعد از ارسال به‌قدری کم‌کیفیت می‌شود که متن آن خوانده نمی‌شود.","days":88,
-    "cm":[["developer","کیفیت JPEG از ۴۰ به ۸۰ رفت و حداکثر ابعاد افزایش یافت."]]}
+  "queries": [
+   {"q": "voice duration", "cat": ["short", "codeswitch"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c64", "project": "Chat", "area": "images", "note": "Image compression quality.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "minor", "role": "qa", "t": "تصاویر ارسالی در چت بیش از حد فشرده و تار می‌شوند", "d": "عکس اسلاید کلاس که خوانا بود بعد از ارسال به‌قدری کم‌کیفیت می‌شود که متن آن خوانده نمی‌شود.", "days": 88, "cm": [["developer", "کیفیت JPEG از ۴۰ به ۸۰ رفت و حداکثر ابعاد افزایش یافت."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"support","t":"عکس نوشته‌های تخته دوباره تار میشه موقع فرستادن","d":"زبان‌آموز نمی‌تونه متن عکس رو بخونه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "support", "t": "عکس نوشته‌های تخته دوباره تار میشه موقع فرستادن", "d": "زبان‌آموز نمی‌تونه متن عکس رو بخونه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"تصویر تار","cat":["short","colloquial"],"rel":{"a":2}}]},
-
- {"id":"c65","project":"Chat","area":"links","note":"Link preview: a task and a bug in the same area (hard negatives of each other).",
-  "members":[
-   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"نمایش پیش‌نمایش لینک در پیام‌ها","d":"وقتی URL در پیام فرستاده می‌شود عنوان و تصویر صفحه به صورت کارت زیر پیام نمایش داده شود.","days":52},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"qa","t":"لینک‌هایی که با پیشوند www شروع می‌شوند کلیک‌پذیر نیستند","d":"فقط آدرس‌هایی که با https شروع شوند به لینک تبدیل می‌شوند.","steps":[["پیام «www.example.com» را بفرستید","متن به لینک تبدیل شود","متن ساده می‌ماند"]],"days":12}
+  "queries": [
+   {"q": "تصویر تار", "cat": ["short", "colloquial"], "rel": {"a": 2}}
+  ]},
+ {"id": "c65", "project": "Chat", "area": "links", "note": "Link preview: a task and a bug in the same area (hard negatives of each other).",
+  "members": [
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "نمایش پیش‌نمایش لینک در پیام‌ها", "d": "وقتی URL در پیام فرستاده می‌شود عنوان و تصویر صفحه به صورت کارت زیر پیام نمایش داده شود.", "days": 52},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "لینک‌هایی که با پیشوند www شروع می‌شوند کلیک‌پذیر نیستند", "d": "فقط آدرس‌هایی که با https شروع شوند به لینک تبدیل می‌شوند.", "steps": [["پیام «www.example.com» را بفرستید", "متن به لینک تبدیل شود", "متن ساده می‌ماند"]], "days": 12}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Rich link cards for URLs in messages","d":"Fetch OpenGraph tags server-side and attach a preview.","same":["a"],"rel":["b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"qa","t":"آدرس‌های بدون پروتکل در پیام لینک نمی‌شوند","d":"متن شروع‌شده با www باز نمی‌شود.","same":["b"],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Rich link cards for URLs in messages", "d": "Fetch OpenGraph tags server-side and attach a preview.", "same": ["a"], "rel": ["b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "qa", "t": "آدرس‌های بدون پروتکل در پیام لینک نمی‌شوند", "d": "متن شروع‌شده با www باز نمی‌شود.", "same": ["b"], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"link preview","cat":["short"],"rel":{"a":2,"b":1}},{"q":"لینک www کلیک نمیشه","cat":["colloquial","symptom"],"rel":{"b":2,"a":1}}]},
-
- {"id":"c66","project":"Chat","area":"delete","note":"Delete for everyone window (task) — also has a recurrence-like bug sibling.",
-  "members":[
-   {"k":"a","type":"task","st":"in_progress","sev":"enhancement","role":"pm","t":"محدودیت زمانی حذف پیام برای همه شرکت‌کنندگان","d":"فرستنده فقط تا ۴۸ ساعت بعد از ارسال بتواند پیام را برای همه حذف کند؛ بعد از آن فقط برای خودش.","days":25,
-    "cm":[["pm","۴۸ ساعت را با تیم محصول نهایی کنید."],["developer","روی گروه‌ها و چت خصوصی یکسان اعمال می‌شود؟",0]]}
+  "queries": [
+   {"q": "link preview", "cat": ["short"], "rel": {"a": 2, "b": 1}},
+   {"q": "لینک www کلیک نمیشه", "cat": ["colloquial", "symptom"], "rel": {"b": 2, "a": 1}}
+  ]},
+ {"id": "c66", "project": "Chat", "area": "delete", "note": "Delete for everyone window (task) — also has a recurrence-like bug sibling.",
+  "members": [
+   {"k": "a", "type": "task", "st": "in_progress", "sev": "enhancement", "role": "pm", "t": "محدودیت زمانی حذف پیام برای همه شرکت‌کنندگان", "d": "فرستنده فقط تا ۴۸ ساعت بعد از ارسال بتواند پیام را برای همه حذف کند؛ بعد از آن فقط برای خودش.", "days": 25, "cm": [["pm", "۴۸ ساعت را با تیم محصول نهایی کنید."], ["developer", "روی گروه‌ها و چت خصوصی یکسان اعمال می‌شود؟", 0]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Time limit for delete-for-everyone","d":"After N hours only local delete should be allowed.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"پیامی که پاک کردم هنوز برای طرف مقابل دیده میشه","d":"فرستنده گفته پیام رو برای همه پاک کرد.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Time limit for delete-for-everyone", "d": "After N hours only local delete should be allowed.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "پیامی که پاک کردم هنوز برای طرف مقابل دیده میشه", "d": "فرستنده گفته پیام رو برای همه پاک کرد.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"حذف برای همه","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c67","project":"Limsa","area":"speech","note":"Pronunciation score inconsistency; trio.",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"qa","t":"نمره تلفظ برای یک جمله تکراری هر بار متفاوت است",
-    "d":"یک جمله را سه بار با همان ضبط می‌فرستم و نمره‌های ۶۵، ۸۲ و ۷۱ می‌گیرم.","steps":[["همان فایل صوتی را سه بار ارسال کنید","نمره تقریباً ثابت","نمره‌ها بین ۶۵ تا ۸۲ نوسان دارد"]],"curl":"/student/api/v1/limsa/pronunciation/score","days":12},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"developer","t":"Pronunciation score is non-deterministic for identical audio","d":"Scores differ between calls; temperature on the scoring prompt is not zero.","days":2,"dupe_of":"a"},
-   {"k":"c","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"زبان‌آموز میگه نمره تلفظش هر بار یه چیزه","d":"با همین جمله چند بار امتحان کرده.","days":1,"dupe_of":"a"}
+  "queries": [
+   {"q": "حذف برای همه", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c67", "project": "Limsa", "area": "speech", "note": "Pronunciation score inconsistency; trio.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "major", "role": "qa", "t": "نمره تلفظ برای یک جمله تکراری هر بار متفاوت است", "d": "یک جمله را سه بار با همان ضبط می‌فرستم و نمره‌های ۶۵، ۸۲ و ۷۱ می‌گیرم.", "steps": [["همان فایل صوتی را سه بار ارسال کنید", "نمره تقریباً ثابت", "نمره‌ها بین ۶۵ تا ۸۲ نوسان دارد"]], "curl": "/student/api/v1/limsa/pronunciation/score", "days": 12},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Pronunciation score is non-deterministic for identical audio", "d": "Scores differ between calls; temperature on the scoring prompt is not zero.", "days": 2, "dupe_of": "a"},
+   {"k": "c", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "زبان‌آموز میگه نمره تلفظش هر بار یه چیزه", "d": "با همین جمله چند بار امتحان کرده.", "days": 1, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"امتیاز تلفظ برای صدای یکسان ثابت نیست","d":"فایل ضبط‌شده یکسان؛ امتیازها متفاوت.","same":["a","b","c"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"نمره تلفظ برای جمله‌های کوتاه همیشه صفر است","d":"برای ورودی کمتر از دو کلمه نمره‌ای محاسبه نمی‌شود.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "امتیاز تلفظ برای صدای یکسان ثابت نیست", "d": "فایل ضبط‌شده یکسان؛ امتیازها متفاوت.", "same": ["a", "b", "c"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "نمره تلفظ برای جمله‌های کوتاه همیشه صفر است", "d": "برای ورودی کمتر از دو کلمه نمره‌ای محاسبه نمی‌شود.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "hard"}
   ],
-  "queries":[{"q":"نمره تلفظ","cat":["short"],"rel":{"a":2,"b":2,"c":2}},{"q":"scoring nondeterministic temperature","cat":["identifier","en2fa"],"rel":{"a":2,"b":2,"c":2}}]},
-
- {"id":"c68","project":"Limsa","area":"language","note":"Language drift: answers in Persian when asked for English-only.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"لیمسا در حالت English-only به فارسی پاسخ می‌دهد",
-    "d":"زبان‌آموز سطح پیشرفته English-only فعال کرده ولی لیمسا بعد از چند پیام دوباره به فارسی توضیح می‌دهد.","days":14,
-    "cm":[["developer","system prompt بعد از خلاصه‌سازی تاریخچه حذف می‌شود."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"با اینکه خواسته بودیم فقط انگلیسی حرف بزنه، فارسی جواب میده","d":"یه زبان‌آموز پیشرفته شاکی بود.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "نمره تلفظ", "cat": ["short"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "scoring nondeterministic temperature", "cat": ["identifier", "en2fa"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"id": "c68", "project": "Limsa", "area": "language", "note": "Language drift: answers in Persian when asked for English-only.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "لیمسا در حالت English-only به فارسی پاسخ می‌دهد", "d": "زبان‌آموز سطح پیشرفته English-only فعال کرده ولی لیمسا بعد از چند پیام دوباره به فارسی توضیح می‌دهد.", "days": 14, "cm": [["developer", "system prompt بعد از خلاصه‌سازی تاریخچه حذف می‌شود."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "با اینکه خواسته بودیم فقط انگلیسی حرف بزنه، فارسی جواب میده", "d": "یه زبان‌آموز پیشرفته شاکی بود.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"English-only mode lost after history summarisation","d":"The constraint lives in the first system message which gets trimmed.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description","comments"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "English-only mode lost after history summarisation", "d": "The constraint lives in the first system message which gets trimmed.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description", "comments"], "diff": "hard"}
   ],
-  "queries":[{"q":"فقط انگلیسی","cat":["short","colloquial"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c69","project":"Limsa","area":"vocab","note":"Vocabulary export: task + comment-driven detail.",
-  "members":[
-   {"k":"a","type":"task","st":"new","sev":"enhancement","role":"pm","t":"خروجی گرفتن از لیست لغات یادگرفته‌شده","d":"کاربر بتواند لغت‌های ذخیره‌شده را به صورت فایل دانلود کند.","days":9,
-    "cm":[["pm","فرمت CSV و PDF هر دو خوب است."],["support","سه موسسه تا الان درخواست کردند.",1]]}
+  "queries": [
+   {"q": "فقط انگلیسی", "cat": ["short", "colloquial"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c69", "project": "Limsa", "area": "vocab", "note": "Vocabulary export: task + comment-driven detail.",
+  "members": [
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "pm", "t": "خروجی گرفتن از لیست لغات یادگرفته‌شده", "d": "کاربر بتواند لغت‌های ذخیره‌شده را به صورت فایل دانلود کند.", "days": 9, "cm": [["pm", "فرمت CSV و PDF هر دو خوب است."], ["support", "سه موسسه تا الان درخواست کردند.", 1]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"میشه لغت‌هایی که یاد گرفته رو دانلود کرد؟","d":"زبان‌آموز می‌خواد چاپ کنه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "میشه لغت‌هایی که یاد گرفته رو دانلود کرد؟", "d": "زبان‌آموز می‌خواد چاپ کنه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"export vocabulary list","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c70","project":"Limsa","area":"demo","note":"Demo-session limit counter off by one.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"شمارنده پیام‌های دموی رایگان یک عدد کم می‌شمارد",
-    "d":"کاربر دمو ۱۰ پیام رایگان دارد ولی بعد از پیام نهم قفل می‌شود.","steps":[["حساب دمو بسازید و ۹ پیام بفرستید","پیام دهم مجاز باشد","پیام «سهمیه تمام شد»"]],"days":69}
+  "queries": [
+   {"q": "export vocabulary list", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c70", "project": "Limsa", "area": "demo", "note": "Demo-session limit counter off by one.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "شمارنده پیام‌های دموی رایگان یک عدد کم می‌شمارد", "d": "کاربر دمو ۱۰ پیام رایگان دارد ولی بعد از پیام نهم قفل می‌شود.", "steps": [["حساب دمو بسازید و ۹ پیام بفرستید", "پیام دهم مجاز باشد", "پیام «سهمیه تمام شد»"]], "days": 69}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"سهمیه دمو یک پیام زودتر تمام می‌شود","d":"بعد از ۹ پیام دسترسی بسته می‌شود.","same":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"کاربر دمو بعد از خرید هنوز محدودیت داره","d":"پلن ارتقا یافته ولی همچنان قفل می‌شود.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "سهمیه دمو یک پیام زودتر تمام می‌شود", "d": "بعد از ۹ پیام دسترسی بسته می‌شود.", "same": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "کاربر دمو بعد از خرید هنوز محدودیت داره", "d": "پلن ارتقا یافته ولی همچنان قفل می‌شود.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"demo limit","cat":["short"],"rel":{"a":2}}]}
+  "queries": [
+   {"q": "demo limit", "cat": ["short"], "rel": {"a": 2}}
+  ]}
 ]

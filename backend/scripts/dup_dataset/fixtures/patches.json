@@ -1,46 +1,154 @@
 [
- {"cluster":"c01","queries":[
-   {"q":"ریاکشن گروه ثبت ندشد","cat":["typo","translit"],"rel":{"a":2,"b":2,"c":2}},
-   {"q":"مشکل reaction در group chat بعد از reload","cat":["codeswitch"],"rel":{"a":2,"b":2,"c":2}},
-   {"q":"لایک پیام‌ها بعد بستن گروه پریده","cat":["colloquial","symptom"],"rel":{"a":2,"b":2,"c":2}}],
-  "drafts":[{"k":"4","kind":"duplicate","p":"qa","t":"Emoji reaction doesn't persist after page reload (Chat)","d":"Persian UI, group conversation. Reaction is visible instantly then vanishes on reload.","steps":[["React to a message in a group","Reaction stays","Reaction disappears after reload"]],"same":["a","b","c"],"cat":["en2fa","cross_lingual"],"sig":["repro"],"diff":"easy"}]},
- {"cluster":"c03","queries":[
-   {"q":"پینن پیام","cat":["typo"],"rel":{"a":2,"b":2,"c":2}},
-   {"q":"بنر پین‌شده برای شاگرد نیست","cat":["symptom","colloquial"],"rel":{"a":2,"b":2,"c":2}}]},
- {"cluster":"c04","queries":[{"q":"باج unread","cat":["translit","typo"],"rel":{"a":2,"b":2}}],
-  "drafts":[{"k":"3","kind":"hard_negative","p":"support","t":"عدد پیام‌های نخوانده برای گروه‌های بی‌صدا شده هم نمایش داده میشه","d":"مشتری میگه گروه رو بی‌صدا کرده ولی بازم عدد داره.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}]},
- {"cluster":"c05","queries":[
-   {"q":"اپلود فایل سنگین","cat":["translit","typo"],"rel":{"a":2,"b":2}},
-   {"q":"فایل تا آخر میره ولی نمیفرسته","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c09","queries":[{"q":"متن نوشته شده تو کادر تایپ میره چت بعدی","cat":["symptom","colloquial"],"rel":{"a":2,"b":2}},{"q":"draft message leaks","cat":["en2fa","cross_lingual","short"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c13","drafts":[{"k":"3","kind":"duplicate","p":"qa","t":"Steps: send 3 messages in <1s. Expected: all delivered. Actual: 1-2 missing, no error UI","d":"","steps":[["Send three messages quickly","All three delivered","Second message is dropped"]],"same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["repro"],"diff":"medium"}]},
- {"cluster":"c14","queries":[{"q":"نوتیفیکیشن آیفون","cat":["translit","short"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c19","queries":[{"q":"اینتر پیام یه خط میشه","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}},{"q":"newline در پیام لیمسا حذف میشه","cat":["codeswitch"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c20","queries":[{"q":"فلشکارت متن ساده","cat":["translit","typo"],"rel":{"a":2,"b":2}}],
-  "drafts":[{"k":"3","kind":"duplicate","p":"developer","t":"Flashcard response is not parsed as JSON, falls back to prose","d":"The model wraps the payload in a fenced block.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"hard"}]},
- {"cluster":"c24","queries":[{"q":"کوییز کتاب ۳۰۰ صفحه","cat":["short","symptom"],"rel":{"a":2,"b":2}},{"q":"quiz generate 504 big book","cat":["identifier","codeswitch"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c26","drafts":[{"k":"2","kind":"hard_negative","p":"qa","t":"صدای پخش تلفظ لغات در لیمسا قطع و وصل می‌شود","d":"پخش صوتی لغات گاهی نیمه‌کاره می‌ماند.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"hard"}]},
- {"cluster":"c31","queries":[{"q":"جواب بلند نصفه میشه","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c36","queries":[{"q":"موجودی کیف‌پول عدد فرق داره","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c38","queries":[{"q":"نوتیفیکیشن همگانی بی گیرنده","cat":["translit","symptom"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c39","queries":[{"q":"آپلود اکسل کاربر","cat":["short","translit"],"rel":{"a":2,"b":2}}],
-  "drafts":[{"k":"3","kind":"hard_negative","p":"qa","t":"فایل اکسل نمونه برای افزودن کاربران قابل دانلود نیست","d":"لینک «دریافت نمونه» خطای ۴۰۴ می‌دهد.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"hard"}]},
- {"cluster":"c49","queries":[{"q":"ورود بدون خطا برمیگرده صفحه اول","cat":["symptom","colloquial"],"rel":{"a":2,"b":2,"c":2}},{"q":"login پرتال جدید کار نمیکنه","cat":["codeswitch"],"rel":{"a":2,"b":2,"c":2}}]},
- {"cluster":"c52","queries":[{"q":"payment gateway redirect","cat":["short"],"rel":{"a":2,"b":2,"c":2}}]},
- {"cluster":"c53","drafts":[{"k":"2","kind":"hard_negative","p":"support","t":"پیامک لینک آزمون با تاخیر زیاد می‌رسد","d":"بعضی زبان‌آموزان بعد از شروع آزمون پیامک را می‌گیرند.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}]},
- {"cluster":"c56","queries":[{"q":"فیلتر کسی که ایشو رو ساخته","cat":["fa2en","cross_lingual"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c57","queries":[{"q":"فیلترها تو آدرس صفحه نمیمونه","cat":["fa2en","cross_lingual"],"rel":{"a":2}}]},
- {"cluster":"c58","queries":[{"q":"مرتب سازی آخرین تغییر","cat":["fa2en","cross_lingual"],"rel":{"a":2}}]},
- {"cluster":"c60","queries":[{"q":"واکنش ایموجی روی کامنت","cat":["fa2en","cross_lingual"],"rel":{"a":2}}]},
- {"cluster":"c30","queries":[{"q":"شناسه درخواست در لاگ","cat":["fa2en","cross_lingual"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c76","queries":[{"q":"پیام تلگرام تکراری","cat":["fa2en","cross_lingual"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c72","drafts":[{"k":"3","kind":"recurrence","p":"qa","t":"ظرفیت کلاس بعد از ثبت‌نام همزمان دوباره از سقف عبور کرد","d":"کلاس ۱۲ نفره الان ۱۳ نفر دارد.","steps":[["برای آخرین صندلی خالی، دو درخواست را در یک لحظه بفرستید","یکی رد شود","سیستم هر دو را قبول کرد"]],"same":["a"],"cat":["symptom"],"sig":["repro"],"diff":"medium"}]},
- {"cluster":"c59","queries":[{"q":"پیوست ایشو بعد از استاتوس پرید","cat":["colloquial","codeswitch"],"rel":{"a":2}}]},
- {"cluster":"c61","queries":[{"q":"آنلاین بودن اشتباه","cat":["short","colloquial"],"rel":{"a":2,"c":2,"d":2}}]},
- {"cluster":"c71","queries":[{"q":"گواهی پی‌دی‌اف برعکس","cat":["translit","symptom"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c74","queries":[{"q":"عکس از گالری آپلود نمیشه اندروید","cat":["colloquial","codeswitch"],"rel":{"a":2}}]},
- {"cluster":"c67","queries":[{"q":"pronunciation score inconsistent","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2,"c":2}}]},
- {"cluster":"c44","queries":[{"q":"جستجو داخل کلاس نتیجه الکی میده","cat":["colloquial","symptom"],"rel":{"a":2}}]},
- {"cluster":"c23","queries":[{"q":"limsa wrong class title","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
- {"cluster":"c33","queries":[{"q":"leak books other users","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]}
+ {"cluster": "c01",
+  "drafts": [
+   {"k": "4", "kind": "duplicate", "p": "qa", "t": "Emoji reaction doesn't persist after page reload (Chat)", "d": "Persian UI, group conversation. Reaction is visible instantly then vanishes on reload.", "steps": [["React to a message in a group", "Reaction stays", "Reaction disappears after reload"]], "same": ["a", "b", "c"], "cat": ["en2fa", "cross_lingual"], "sig": ["repro"], "diff": "easy"}
+  ],
+  "queries": [
+   {"q": "ریاکشن گروه ثبت ندشد", "cat": ["typo", "translit"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "مشکل reaction در group chat بعد از reload", "cat": ["codeswitch"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "لایک پیام‌ها بعد بستن گروه پریده", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"cluster": "c03",
+  "queries": [
+   {"q": "پینن پیام", "cat": ["typo"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "بنر پین‌شده برای شاگرد نیست", "cat": ["symptom", "colloquial"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"cluster": "c04",
+  "drafts": [
+   {"k": "3", "kind": "hard_negative", "p": "support", "t": "عدد پیام‌های نخوانده برای گروه‌های بی‌صدا شده هم نمایش داده میشه", "d": "مشتری میگه گروه رو بی‌صدا کرده ولی بازم عدد داره.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
+  ],
+  "queries": [
+   {"q": "باج unread", "cat": ["translit", "typo"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c05",
+  "queries": [
+   {"q": "اپلود فایل سنگین", "cat": ["translit", "typo"], "rel": {"a": 2, "b": 2}},
+   {"q": "فایل تا آخر میره ولی نمیفرسته", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c09",
+  "queries": [
+   {"q": "متن نوشته شده تو کادر تایپ میره چت بعدی", "cat": ["symptom", "colloquial"], "rel": {"a": 2, "b": 2}},
+   {"q": "draft message leaks", "cat": ["en2fa", "cross_lingual", "short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c13",
+  "drafts": [
+   {"k": "3", "kind": "duplicate", "p": "qa", "t": "Steps: send 3 messages in <1s. Expected: all delivered. Actual: 1-2 missing, no error UI", "d": "", "steps": [["Send three messages quickly", "All three delivered", "Second message is dropped"]], "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["repro"], "diff": "medium"}
+  ]},
+ {"cluster": "c14",
+  "queries": [
+   {"q": "نوتیفیکیشن آیفون", "cat": ["translit", "short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c19",
+  "queries": [
+   {"q": "اینتر پیام یه خط میشه", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}},
+   {"q": "newline در پیام لیمسا حذف میشه", "cat": ["codeswitch"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c20",
+  "drafts": [
+   {"k": "3", "kind": "duplicate", "p": "developer", "t": "Flashcard response is not parsed as JSON, falls back to prose", "d": "The model wraps the payload in a fenced block.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "hard"}
+  ],
+  "queries": [
+   {"q": "فلشکارت متن ساده", "cat": ["translit", "typo"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c24",
+  "queries": [
+   {"q": "کوییز کتاب ۳۰۰ صفحه", "cat": ["short", "symptom"], "rel": {"a": 2, "b": 2}},
+   {"q": "quiz generate 504 big book", "cat": ["identifier", "codeswitch"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c26",
+  "drafts": [
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "صدای پخش تلفظ لغات در لیمسا قطع و وصل می‌شود", "d": "پخش صوتی لغات گاهی نیمه‌کاره می‌ماند.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "hard"}
+  ]},
+ {"cluster": "c31",
+  "queries": [
+   {"q": "جواب بلند نصفه میشه", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c36",
+  "queries": [
+   {"q": "موجودی کیف‌پول عدد فرق داره", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c38",
+  "queries": [
+   {"q": "نوتیفیکیشن همگانی بی گیرنده", "cat": ["translit", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c39",
+  "drafts": [
+   {"k": "3", "kind": "hard_negative", "p": "qa", "t": "فایل اکسل نمونه برای افزودن کاربران قابل دانلود نیست", "d": "لینک «دریافت نمونه» خطای ۴۰۴ می‌دهد.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "hard"}
+  ],
+  "queries": [
+   {"q": "آپلود اکسل کاربر", "cat": ["short", "translit"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c49",
+  "queries": [
+   {"q": "ورود بدون خطا برمیگرده صفحه اول", "cat": ["symptom", "colloquial"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "login پرتال جدید کار نمیکنه", "cat": ["codeswitch"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"cluster": "c52",
+  "queries": [
+   {"q": "payment gateway redirect", "cat": ["short"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"cluster": "c53",
+  "drafts": [
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "پیامک لینک آزمون با تاخیر زیاد می‌رسد", "d": "بعضی زبان‌آموزان بعد از شروع آزمون پیامک را می‌گیرند.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
+  ]},
+ {"cluster": "c56",
+  "queries": [
+   {"q": "فیلتر کسی که ایشو رو ساخته", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c57",
+  "queries": [
+   {"q": "فیلترها تو آدرس صفحه نمیمونه", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c58",
+  "queries": [
+   {"q": "مرتب سازی آخرین تغییر", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c60",
+  "queries": [
+   {"q": "واکنش ایموجی روی کامنت", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c30",
+  "queries": [
+   {"q": "شناسه درخواست در لاگ", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c76",
+  "queries": [
+   {"q": "پیام تلگرام تکراری", "cat": ["fa2en", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c72",
+  "drafts": [
+   {"k": "3", "kind": "recurrence", "p": "qa", "t": "ظرفیت کلاس بعد از ثبت‌نام همزمان دوباره از سقف عبور کرد", "d": "کلاس ۱۲ نفره الان ۱۳ نفر دارد.", "steps": [["برای آخرین صندلی خالی، دو درخواست را در یک لحظه بفرستید", "یکی رد شود", "سیستم هر دو را قبول کرد"]], "same": ["a"], "cat": ["symptom"], "sig": ["repro"], "diff": "medium"}
+  ]},
+ {"cluster": "c59",
+  "queries": [
+   {"q": "پیوست ایشو بعد از استاتوس پرید", "cat": ["colloquial", "codeswitch"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c61",
+  "queries": [
+   {"q": "آنلاین بودن اشتباه", "cat": ["short", "colloquial"], "rel": {"a": 2, "c": 2, "d": 2}}
+  ]},
+ {"cluster": "c71",
+  "queries": [
+   {"q": "گواهی پی‌دی‌اف برعکس", "cat": ["translit", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c74",
+  "queries": [
+   {"q": "عکس از گالری آپلود نمیشه اندروید", "cat": ["colloquial", "codeswitch"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c67",
+  "queries": [
+   {"q": "pronunciation score inconsistent", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"cluster": "c44",
+  "queries": [
+   {"q": "جستجو داخل کلاس نتیجه الکی میده", "cat": ["colloquial", "symptom"], "rel": {"a": 2}}
+  ]},
+ {"cluster": "c23",
+  "queries": [
+   {"q": "limsa wrong class title", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"cluster": "c33",
+  "queries": [
+   {"q": "leak books other users", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]}
 ]

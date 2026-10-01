@@ -1,78 +1,79 @@
 [
- {"id":"c71","project":"Dano","area":"certificate","note":"RTL text in certificate PDF.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"متن فارسی گواهی‌نامه در فایل PDF معکوس چاپ می‌شود",
-    "d":"نام زبان‌آموز و عنوان دوره در PDF گواهی از چپ به راست و با حروف جدا چاپ شده و خوانا نیست.","steps":[["گواهی یک زبان‌آموز را دانلود کنید","متن فارسی راست‌چین و متصل","حروف جدا و معکوس"]],"curl":"/api/v1/admin/certificate/pdf","days":81,
-    "cm":[["developer","فونت بدون shaping استفاده می‌شد. فونت Vazirmatn و reshaper اضافه شد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"گواهی دانلودی اسم بچه‌ها رو برعکس نوشته","d":"چند نفر شاکی بودن.","days":2,"dupe_of":"a"}
+ {"id": "c71", "project": "Dano", "area": "certificate", "note": "RTL text in certificate PDF.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "متن فارسی گواهی‌نامه در فایل PDF معکوس چاپ می‌شود", "d": "نام زبان‌آموز و عنوان دوره در PDF گواهی از چپ به راست و با حروف جدا چاپ شده و خوانا نیست.", "steps": [["گواهی یک زبان‌آموز را دانلود کنید", "متن فارسی راست‌چین و متصل", "حروف جدا و معکوس"]], "curl": "/api/v1/admin/certificate/pdf", "days": 81, "cm": [["developer", "فونت بدون shaping استفاده می‌شد. فونت Vazirmatn و reshaper اضافه شد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "گواهی دانلودی اسم بچه‌ها رو برعکس نوشته", "d": "چند نفر شاکی بودن.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"PDF گواهی دوباره حروف فارسی را از هم جدا می‌کند","d":"بعد از به‌روزرسانی کتابخانه تولید PDF، نام‌ها دوباره بد چاپ می‌شوند.","same":["a","b"],"cat":["codeswitch"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "PDF گواهی دوباره حروف فارسی را از هم جدا می‌کند", "d": "بعد از به‌روزرسانی کتابخانه تولید PDF، نام‌ها دوباره بد چاپ می‌شوند.", "same": ["a", "b"], "cat": ["codeswitch"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"certificate pdf rtl","cat":["en2fa","cross_lingual","short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c72","project":"Dano","area":"capacity","note":"Race on class capacity; Done original with long repro.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"ثبت‌نام هم‌زمان باعث عبور تعداد از ظرفیت کلاس می‌شود",
-    "d":"کلاس با یک جای خالی دو نفر را هم‌زمان می‌پذیرد و ظرفیت ۱۱ از ۱۰ می‌شود.","steps":[["ظرفیت کلاس را روی ۱۰ بگذارید و ۹ نفر ثبت‌نام کنند","—","—"],["دو نفر آخر هم‌زمان ثبت‌نام کنند","فقط یکی بپذیرد","هر دو پذیرفته می‌شوند"]],"curl":"/api/v1/admin/class/enroll","days":95,
-    "cm":[["developer","SELECT ... FOR UPDATE اضافه شد."]]}
+  "queries": [
+   {"q": "certificate pdf rtl", "cat": ["en2fa", "cross_lingual", "short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c72", "project": "Dano", "area": "capacity", "note": "Race on class capacity; Done original with long repro.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "critical", "role": "qa", "t": "ثبت‌نام هم‌زمان باعث عبور تعداد از ظرفیت کلاس می‌شود", "d": "کلاس با یک جای خالی دو نفر را هم‌زمان می‌پذیرد و ظرفیت ۱۱ از ۱۰ می‌شود.", "steps": [["ظرفیت کلاس را روی ۱۰ بگذارید و ۹ نفر ثبت‌نام کنند", "—", "—"], ["دو نفر آخر هم‌زمان ثبت‌نام کنند", "فقط یکی بپذیرد", "هر دو پذیرفته می‌شوند"]], "curl": "/api/v1/admin/class/enroll", "days": 95, "cm": [["developer", "SELECT ... FOR UPDATE اضافه شد."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Enrollment race lets a class exceed its seat limit","d":"No row lock around the capacity check.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"کلاسی که پر شده هنوز برای ثبت‌نام باز نشون داده میشه","d":"ظرفیت صفر ولی دکمه ثبت‌نام فعال است.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Enrollment race lets a class exceed its seat limit", "d": "No row lock around the capacity check.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "کلاسی که پر شده هنوز برای ثبت‌نام باز نشون داده میشه", "d": "ظرفیت صفر ولی دکمه ثبت‌نام فعال است.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"ظرفیت کلاس","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c73","project":"Dano","area":"export","note":"CSV encoding garbled in Excel.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"خروجی CSV لیست کاربران در Excel با حروف نامفهوم باز می‌شود",
-    "d":"فایل خروجی بدون BOM تولید می‌شود و Excel حروف فارسی را به صورت علامت سوال نشان می‌دهد.","curl":"/api/v1/admin/user/export","days":20},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"فایل اکسلی که از پنل میگیریم فارسیش خرابه","d":"اسم‌ها به صورت ؟؟؟ میاد.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "ظرفیت کلاس", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c73", "project": "Dano", "area": "export", "note": "CSV encoding garbled in Excel.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "خروجی CSV لیست کاربران در Excel با حروف نامفهوم باز می‌شود", "d": "فایل خروجی بدون BOM تولید می‌شود و Excel حروف فارسی را به صورت علامت سوال نشان می‌دهد.", "curl": "/api/v1/admin/user/export", "days": 20},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "فایل اکسلی که از پنل میگیریم فارسیش خرابه", "d": "اسم‌ها به صورت ؟؟؟ میاد.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"User export lacks UTF-8 BOM so Excel garbles Persian","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "User export lacks UTF-8 BOM so Excel garbles Persian", "d": "", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"csv encoding bom","cat":["en2fa","cross_lingual","identifier"],"rel":{"a":2,"b":2}},{"q":"خروجی اکسل فارسی خراب","cat":["colloquial","symptom"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c74","project":"StudentPanel","area":"homework","note":"Android upload fail; recurrence + comment detail.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"آپلود تمرین از گالری در اندروید ۱۳ شکست می‌خورد",
-    "d":"انتخاب عکس از گالری پیام «فایل نامعتبر» می‌دهد ولی گرفتن عکس با دوربین مشکلی ندارد.","steps":[["در اندروید ۱۳ تمرین را باز کنید و از گالری عکس انتخاب کنید","آپلود انجام شود","پیام فایل نامعتبر"]],"labels":["android"],"days":66,
-    "cm":[["developer","URI از content:// برمی‌گشت و ما MIME را از پسوند می‌خواندیم."]]}
+  "queries": [
+   {"q": "csv encoding bom", "cat": ["en2fa", "cross_lingual", "identifier"], "rel": {"a": 2, "b": 2}},
+   {"q": "خروجی اکسل فارسی خراب", "cat": ["colloquial", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c74", "project": "StudentPanel", "area": "homework", "note": "Android upload fail; recurrence + comment detail.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "critical", "role": "qa", "t": "آپلود تمرین از گالری در اندروید ۱۳ شکست می‌خورد", "d": "انتخاب عکس از گالری پیام «فایل نامعتبر» می‌دهد ولی گرفتن عکس با دوربین مشکلی ندارد.", "steps": [["در اندروید ۱۳ تمرین را باز کنید و از گالری عکس انتخاب کنید", "آپلود انجام شود", "پیام فایل نامعتبر"]], "labels": ["android"], "days": 66, "cm": [["developer", "URI از content:// برمی‌گشت و ما MIME را از پسوند می‌خواندیم."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"support","t":"عکس تمرین رو از گالری نمیتونن بفرستن، گوشی سامسونگ","d":"میگه فایل معتبر نیست.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"آپلود تمرین PDF بالای ۵ مگابایت متوقف می‌شود","d":"فقط فایل‌های بزرگ‌تر خطا می‌دهند.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "support", "t": "عکس تمرین رو از گالری نمیتونن بفرستن، گوشی سامسونگ", "d": "میگه فایل معتبر نیست.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "آپلود تمرین PDF بالای ۵ مگابایت متوقف می‌شود", "d": "فقط فایل‌های بزرگ‌تر خطا می‌دهند.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"upload gallery android","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c75","project":"StudentPanel","area":"theme","note":"Contrast in dark mode.",
-  "members":[
-   {"k":"a","type":"bug","st":"new","sev":"minor","role":"qa","t":"کنتراست متن‌ها در حالت تیره پرتال کم است","d":"خاکستری روی مشکی در کارت‌های کلاس به سختی دیده می‌شود.","labels":["ui"],"days":10},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"developer","t":"Dark mode secondary text fails WCAG contrast","d":"Muted text on cards measures about 2.4:1.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "upload gallery android", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c75", "project": "StudentPanel", "area": "theme", "note": "Contrast in dark mode.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "کنتراست متن‌ها در حالت تیره پرتال کم است", "d": "خاکستری روی مشکی در کارت‌های کلاس به سختی دیده می‌شود.", "labels": ["ui"], "days": 10},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "developer", "t": "Dark mode secondary text fails WCAG contrast", "d": "Muted text on cards measures about 2.4:1.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"تم دارک نوشته‌ها محو هستن","d":"مشتری با گوشی شبانه راحت نمی‌خونه.","same":["a","b"],"cat":["colloquial","translit"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "تم دارک نوشته‌ها محو هستن", "d": "مشتری با گوشی شبانه راحت نمی‌خونه.", "same": ["a", "b"], "cat": ["colloquial", "translit"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"dark mode contrast","cat":["short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c76","project":"Releasewatch","area":"telegram","note":"Telegram duplicate notifications; Done original.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"developer","t":"Telegram sends the same notification twice for one comment","d":"A single comment produces two messages in the channel, the second a few seconds later.","days":58,
-    "cm":[["developer","Celery task retried after a timeout even though the first send succeeded. Added an idempotency key."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"qa","t":"پیام تلگرام برای هر کامنت دو بار می‌آید","d":"یک بار ارسال و چند ثانیه بعد همان متن دوباره.","days":5,"dupe_of":"a"}
+  "queries": [
+   {"q": "dark mode contrast", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c76", "project": "Releasewatch", "area": "telegram", "note": "Telegram duplicate notifications; Done original.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "developer", "t": "Telegram sends the same notification twice for one comment", "d": "A single comment produces two messages in the channel, the second a few seconds later.", "days": 58, "cm": [["developer", "Celery task retried after a timeout even though the first send succeeded. Added an idempotency key."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "qa", "t": "پیام تلگرام برای هر کامنت دو بار می‌آید", "d": "یک بار ارسال و چند ثانیه بعد همان متن دوباره.", "days": 5, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"اعلان تلگرام دوباره تکراری شده","d":"از دیروز به ازای یک نظر جدید، گروه تلگرام دو پیام می‌گیرد.","same":["a","b"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "اعلان تلگرام دوباره تکراری شده", "d": "از دیروز به ازای یک نظر جدید، گروه تلگرام دو پیام می‌گیرد.", "same": ["a", "b"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"telegram duplicate message","cat":["short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c77","project":"Releasewatch","area":"export","note":"Export markdown emoji and encoding.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"Issue export to Markdown breaks emoji and Persian punctuation","d":"Exported .md shows question marks where the title had emoji.","steps":[["Export an issue whose title has an emoji","Emoji preserved","Replaced by ?"]],"days":24}
+  "queries": [
+   {"q": "telegram duplicate message", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c77", "project": "Releasewatch", "area": "export", "note": "Export markdown emoji and encoding.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "Issue export to Markdown breaks emoji and Persian punctuation", "d": "Exported .md shows question marks where the title had emoji.", "steps": [["Export an issue whose title has an emoji", "Emoji preserved", "Replaced by ?"]], "days": 24}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"خروجی مارک‌دان ایشو ایموجی‌ها را خراب می‌کند","d":"به جای ایموجی علامت سوال می‌آید.","same":["a"],"cat":["fa2en","cross_lingual"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "خروجی مارک‌دان ایشو ایموجی‌ها را خراب می‌کند", "d": "به جای ایموجی علامت سوال می‌آید.", "same": ["a"], "cat": ["fa2en", "cross_lingual"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"export md emoji","cat":["short"],"rel":{"a":2}}]}
+  "queries": [
+   {"q": "export md emoji", "cat": ["short"], "rel": {"a": 2}}
+  ]}
 ]

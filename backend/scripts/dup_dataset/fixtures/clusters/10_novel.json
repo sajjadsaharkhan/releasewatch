@@ -1,69 +1,69 @@
 [
- {"id":"n01","project":"Chat","area":"novel","note":"No existing issue; drafts must not match anything as 'same'.","rel_clusters":["c01"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"support","t":"میخوایم بتونیم یه پیام رو برای بعدا زمان‌بندی کنیم که خودش بفرسته","d":"مدیر موسسه می‌خواد پیام یادآوری کلاس رو شب قبل بنویسه و صبح ارسال بشه.","same":[],"cat":["colloquial"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"developer","t":"Support end-to-end encrypted private chats","d":"Optional E2EE for one-to-one threads, keys stored on device.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"}
+ {"id": "n01", "project": "Chat", "area": "novel", "note": "No existing issue; drafts must not match anything as 'same'.", "rel_clusters": ["c01"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "support", "t": "میخوایم بتونیم یه پیام رو برای بعدا زمان‌بندی کنیم که خودش بفرسته", "d": "مدیر موسسه می‌خواد پیام یادآوری کلاس رو شب قبل بنویسه و صبح ارسال بشه.", "same": [], "cat": ["colloquial"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "developer", "t": "Support end-to-end encrypted private chats", "d": "Optional E2EE for one-to-one threads, keys stored on device.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n02","project":"Chat","area":"novel","note":"Novel near a known area (pin) but a different faulty behaviour that nobody reported.","rel_clusters":["c03"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"پیام پین‌شده بعد از حذف توسط فرستنده در بالای گروه می‌ماند","d":"پیام اصلی پاک می‌شود ولی نوار پین هنوز متن آن را دارد.","same":[],"cat":["symptom"],"sig":[],"diff":"hard"}
+ {"id": "n02", "project": "Chat", "area": "novel", "note": "Novel near a known area (pin) but a different faulty behaviour that nobody reported.", "rel_clusters": ["c03"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "پیام پین‌شده بعد از حذف توسط فرستنده در بالای گروه می‌ماند", "d": "پیام اصلی پاک می‌شود ولی نوار پین هنوز متن آن را دارد.", "same": [], "cat": ["symptom"], "sig": [], "diff": "hard"}
   ]},
- {"id":"n03","project":"Chat","area":"novel","note":"Novel: accessibility.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"Screen reader does not announce new incoming messages","d":"VoiceOver stays silent when a message arrives while the thread is open.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"support","t":"فونت پیام‌ها برای مسن‌ترها کوچیکه، میشه بزرگترش کرد؟","d":"","same":[],"cat":["colloquial"],"sig":[],"diff":"easy"}
+ {"id": "n03", "project": "Chat", "area": "novel", "note": "Novel: accessibility.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "Screen reader does not announce new incoming messages", "d": "VoiceOver stays silent when a message arrives while the thread is open.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "support", "t": "فونت پیام‌ها برای مسن‌ترها کوچیکه، میشه بزرگترش کرد؟", "d": "", "same": [], "cat": ["colloquial"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n04","project":"Chat","area":"novel","note":"Novel: polls.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"developer","t":"Add polls to group chats","d":"Teacher creates a poll with up to 6 options and sees live counts.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"}
+ {"id": "n04", "project": "Chat", "area": "novel", "note": "Novel: polls.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "developer", "t": "Add polls to group chats", "d": "Teacher creates a poll with up to 6 options and sees live counts.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n05","project":"Limsa","area":"novel","note":"Novel: voice input (mic).","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"developer","t":"Limsa: add voice input for questions","d":"Users ask for a mic button to send a question by speaking instead of typing.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"support","t":"زبان‌آموزا میگن دوست دارن به جای نوشتن صحبت کنن با لیمسا","d":"","same":[],"cat":["colloquial"],"sig":[],"diff":"easy"}
+ {"id": "n05", "project": "Limsa", "area": "novel", "note": "Novel: voice input (mic).", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "developer", "t": "Limsa: add voice input for questions", "d": "Users ask for a mic button to send a question by speaking instead of typing.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "support", "t": "زبان‌آموزا میگن دوست دارن به جای نوشتن صحبت کنن با لیمسا", "d": "", "same": [], "cat": ["colloquial"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n06","project":"Limsa","area":"novel","note":"Novel near flashcards: spaced repetition is not reported.","rel_clusters":["c20"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"فلش‌کارت‌ها مرور فاصله‌دار ندارند و همه را هر بار نشان می‌دهد","d":"کارت‌های حفظ‌شده هم دوباره می‌آیند.","same":[],"cat":["symptom"],"sig":[],"diff":"hard"}
+ {"id": "n06", "project": "Limsa", "area": "novel", "note": "Novel near flashcards: spaced repetition is not reported.", "rel_clusters": ["c20"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "فلش‌کارت‌ها مرور فاصله‌دار ندارند و همه را هر بار نشان می‌دهد", "d": "کارت‌های حفظ‌شده هم دوباره می‌آیند.", "same": [], "cat": ["symptom"], "sig": [], "diff": "hard"}
   ]},
- {"id":"n07","project":"Limsa","area":"novel","note":"Novel: IELTS mode.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"developer","t":"IELTS speaking mock exam mode","d":"Three-part timed speaking test with a band-score estimate.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"}
+ {"id": "n07", "project": "Limsa", "area": "novel", "note": "Novel: IELTS mode.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "developer", "t": "IELTS speaking mock exam mode", "d": "Three-part timed speaking test with a band-score estimate.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n08","project":"Dano","area":"novel","note":"Novel: bulk actions.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"support","t":"میشه چند تا کلاس رو با هم آرشیو کرد؟","d":"الان باید یکی‌یکی بزنیم.","same":[],"cat":["colloquial"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"developer","t":"Audit log for wallet adjustments","d":"Record who changed a balance, when and why.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"}
+ {"id": "n08", "project": "Dano", "area": "novel", "note": "Novel: bulk actions.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "support", "t": "میشه چند تا کلاس رو با هم آرشیو کرد؟", "d": "الان باید یکی‌یکی بزنیم.", "same": [], "cat": ["colloquial"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "developer", "t": "Audit log for wallet adjustments", "d": "Record who changed a balance, when and why.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n09","project":"Dano","area":"novel","note":"Novel near wallet: refund flow (never reported).","rel_clusters":["c36"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"بازپرداخت به کیف پول بعد از لغو ثبت‌نام انجام نمی‌شود","d":"زبان‌آموز ثبت‌نام را لغو کرد ولی مبلغ به کیف پول برنگشت.","same":[],"cat":["symptom"],"sig":[],"diff":"hard"}
+ {"id": "n09", "project": "Dano", "area": "novel", "note": "Novel near wallet: refund flow (never reported).", "rel_clusters": ["c36"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "بازپرداخت به کیف پول بعد از لغو ثبت‌نام انجام نمی‌شود", "d": "زبان‌آموز ثبت‌نام را لغو کرد ولی مبلغ به کیف پول برنگشت.", "same": [], "cat": ["symptom"], "sig": [], "diff": "hard"}
   ]},
- {"id":"n10","project":"StudentPanel","area":"novel","note":"Novel: language switch.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"support","t":"زبان‌آموز میگه نمیتونه شماره موبایلش رو تغییر بده","d":"","same":[],"cat":["colloquial"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"qa","t":"Certificate verification page lacks a QR code","d":"Printed certificates cannot be verified quickly by employers.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"}
+ {"id": "n10", "project": "StudentPanel", "area": "novel", "note": "Novel: language switch.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "support", "t": "زبان‌آموز میگه نمیتونه شماره موبایلش رو تغییر بده", "d": "", "same": [], "cat": ["colloquial"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "qa", "t": "Certificate verification page lacks a QR code", "d": "Printed certificates cannot be verified quickly by employers.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n11","project":"StudentPanel","area":"novel","note":"Novel near login: biometrics.","rel_clusters":["c49"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"developer","t":"Support fingerprint / Face ID login after the first OTP","d":"Avoid sending an SMS on every launch.","same":[],"cat":["en2fa"],"sig":[],"diff":"medium"}
+ {"id": "n11", "project": "StudentPanel", "area": "novel", "note": "Novel near login: biometrics.", "rel_clusters": ["c49"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "developer", "t": "Support fingerprint / Face ID login after the first OTP", "d": "Avoid sending an SMS on every launch.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "medium"}
   ]},
- {"id":"n12","project":"Releasewatch","area":"novel","note":"Novel: Slack integration.","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"developer","t":"Slack notifications in addition to Telegram","d":"Some teams use Slack channels; map project to channel.","same":[],"cat":["en2fa"],"sig":[],"diff":"easy"},
-   {"k":"2","kind":"novel","p":"qa","t":"امکان ذخیره فیلترهای پرکاربرد به عنوان view","d":"مثلاً «ایشوهای بحرانی من».","same":[],"cat":["fa2en"],"sig":[],"diff":"easy"}
+ {"id": "n12", "project": "Releasewatch", "area": "novel", "note": "Novel: Slack integration.", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "developer", "t": "Slack notifications in addition to Telegram", "d": "Some teams use Slack channels; map project to channel.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "easy"},
+   {"k": "2", "kind": "novel", "p": "qa", "t": "امکان ذخیره فیلترهای پرکاربرد به عنوان view", "d": "مثلاً «ایشوهای بحرانی من».", "same": [], "cat": ["fa2en"], "sig": [], "diff": "easy"}
   ]},
- {"id":"n13","project":"Releasewatch","area":"novel","note":"Novel near telegram: quiet hours (not reported).","rel_clusters":["c76"],"members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"Quiet hours for Telegram notifications","d":"Do not message the channel between 23:00 and 07:00.","same":[],"cat":["en2fa"],"sig":[],"diff":"medium"}
+ {"id": "n13", "project": "Releasewatch", "area": "novel", "note": "Novel near telegram: quiet hours (not reported).", "rel_clusters": ["c76"], "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "Quiet hours for Telegram notifications", "d": "Do not message the channel between 23:00 and 07:00.", "same": [], "cat": ["en2fa"], "sig": [], "diff": "medium"}
   ]},
- {"id":"n14","project":"Chat","area":"novel","note":"Novel: bug on a feature never reported (message forwarding).","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"support","t":"فوروارد کردن پیام به چند چت با هم فقط به یکیش میره","d":"استاد پیامی رو برای سه گروه فرستاد، فقط اولی رسید.","same":[],"cat":["colloquial"],"sig":[],"diff":"medium"},
-   {"k":"2","kind":"novel","p":"qa","t":"Starred messages disappear when the conversation is archived","d":"","same":[],"cat":["en2fa"],"sig":[],"diff":"medium"}
+ {"id": "n14", "project": "Chat", "area": "novel", "note": "Novel: bug on a feature never reported (message forwarding).", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "support", "t": "فوروارد کردن پیام به چند چت با هم فقط به یکیش میره", "d": "استاد پیامی رو برای سه گروه فرستاد، فقط اولی رسید.", "same": [], "cat": ["colloquial"], "sig": [], "diff": "medium"},
+   {"k": "2", "kind": "novel", "p": "qa", "t": "Starred messages disappear when the conversation is archived", "d": "", "same": [], "cat": ["en2fa"], "sig": [], "diff": "medium"}
   ]},
- {"id":"n15","project":"Limsa","area":"novel","note":"Novel: bug on a feature never reported (streak).","members":[],
-  "drafts":[
-   {"k":"1","kind":"novel","p":"qa","t":"streak روزانه بعد از نیمه‌شب به وقت ایران صفر می‌شود","d":"استفاده در ساعت ۰۰:۳۰ حساب دیروز نمی‌شود.","same":[],"cat":["codeswitch"],"sig":[],"diff":"medium"}
+ {"id": "n15", "project": "Limsa", "area": "novel", "note": "Novel: bug on a feature never reported (streak).", "members": [],
+  "drafts": [
+   {"k": "1", "kind": "novel", "p": "qa", "t": "streak روزانه بعد از نیمه‌شب به وقت ایران صفر می‌شود", "d": "استفاده در ساعت ۰۰:۳۰ حساب دیروز نمی‌شود.", "same": [], "cat": ["codeswitch"], "sig": [], "diff": "medium"}
   ]}
 ]

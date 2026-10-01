@@ -1,119 +1,104 @@
 [
- {"id":"c01","project":"Chat","area":"reactions","note":"Done original, a fresh support dupe, a fresh English dev dupe; recurrence drafts hit the Done one.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"critical","role":"qa","t":"ری‌اکشن پیام‌ها در چت گروهی بعد از رفرش صفحه ذخیره نمی‌شود",
-    "d":"در چت گروهی روی یک پیام ری‌اکشن می‌زنم و ثبت می‌شود، ولی بعد از رفرش صفحه ری‌اکشن از روی پیام پاک شده و فقط تعداد قبلی نمایش داده می‌شود.",
-    "steps":[["وارد یک گروه کلاسی شوید و روی پیام یکی از اعضا ری‌اکشن 👍 بزنید","ری‌اکشن روی پیام بماند","ری‌اکشن نمایش داده می‌شود"],["صفحه را رفرش کنید","ری‌اکشن همچنان دیده شود","ری‌اکشن از روی پیام ناپدید می‌شود"]],
-    "curl":"/student/api/v1/chat/conversations/message/reaction","labels":["chat"],"days":58,
-    "cm":[["developer","مشکل از کش سمت کلاینت بود؛ پاسخ لیست پیام‌ها ری‌اکشن‌های کاربر جاری را برنمی‌گرداند و بعد از رفرش فقط شمارنده می‌ماند. اصلاح شد."],["qa","روی نسخه staging دوباره تست کردم و بعد از رفرش ری‌اکشن‌ها می‌مانند."],["pm","اوکی، ببندیم."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"ایموجی‌هایی که زیر پیام می‌زنیم بعد از دوباره باز کردن گروه نیست","d":"زبان‌آموز میگه توی گروه کلاسش به چند تا پیام لایک و قلب داده بود، وقتی از گروه اومد بیرون و دوباره رفت داخل هیچ‌کدوم نبود.","days":6,"dupe_of":"a",
-    "cm":[["support","دو تا از زبان‌آموزای دیگه همین رو گفتن، فکر کنم عمومیه."]]},
-   {"k":"c","type":"bug","st":"new","sev":"major","role":"developer","t":"Group chat reactions reset after reload","d":"My own reaction is dropped once the message list is fetched again; counters survive, the highlighted state does not.","curl":"/student/api/v1/chat/conversations/messages","days":3,"dupe_of":"a"}
+ {"id": "c01", "project": "Chat", "area": "reactions", "note": "Done original, a fresh support dupe, a fresh English dev dupe; recurrence drafts hit the Done one.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "critical", "role": "qa", "t": "ری‌اکشن پیام‌ها در چت گروهی بعد از رفرش صفحه ذخیره نمی‌شود", "d": "در چت گروهی روی یک پیام ری‌اکشن می‌زنم و ثبت می‌شود، ولی بعد از رفرش صفحه ری‌اکشن از روی پیام پاک شده و فقط تعداد قبلی نمایش داده می‌شود.", "steps": [["وارد یک گروه کلاسی شوید و روی پیام یکی از اعضا ری‌اکشن 👍 بزنید", "ری‌اکشن روی پیام بماند", "ری‌اکشن نمایش داده می‌شود"], ["صفحه را رفرش کنید", "ری‌اکشن همچنان دیده شود", "ری‌اکشن از روی پیام ناپدید می‌شود"]], "curl": "/student/api/v1/chat/conversations/message/reaction", "labels": ["chat"], "days": 58, "cm": [["developer", "مشکل از کش سمت کلاینت بود؛ پاسخ لیست پیام‌ها ری‌اکشن‌های کاربر جاری را برنمی‌گرداند و بعد از رفرش فقط شمارنده می‌ماند. اصلاح شد."], ["qa", "روی نسخه staging دوباره تست کردم و بعد از رفرش ری‌اکشن‌ها می‌مانند."], ["pm", "اوکی، ببندیم."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "ایموجی‌هایی که زیر پیام می‌زنیم بعد از دوباره باز کردن گروه نیست", "d": "زبان‌آموز میگه توی گروه کلاسش به چند تا پیام لایک و قلب داده بود، وقتی از گروه اومد بیرون و دوباره رفت داخل هیچ‌کدوم نبود.", "days": 6, "dupe_of": "a", "cm": [["support", "دو تا از زبان‌آموزای دیگه همین رو گفتن، فکر کنم عمومیه."]]},
+   {"k": "c", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Group chat reactions reset after reload", "d": "My own reaction is dropped once the message list is fetched again; counters survive, the highlighted state does not.", "curl": "/student/api/v1/chat/conversations/messages", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"قلب و لایک پیام‌ها بعد از خروج از گروه پاک میشه","d":"سلام. یکی از مشتری‌ها میگه توی گروه کلاس بچه‌ها رو پیام‌ها لایک زده بود ولی بعدش که دوباره باز کرد هیچ‌چی نبود.","same":["a","b","c"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Reaction highlight lost when conversation list is re-fetched","d":"","same":["a","b","c"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"},
-   {"k":"3","kind":"recurrence","p":"qa","t":"برگشت مشکل: ری‌اکشن‌ها بعد از آپدیت اخیر دوباره از بین میرن","d":"بعد از دیپلوی دیروز، دوباره ری‌اکشن‌های من روی پیام‌های گروه بعد از ریفرش نیست. قبلاً درست شده بود.","steps":[["ری‌اکشن بزنید و صفحه را ببندید و دوباره باز کنید","ری‌اکشن باقی بماند","ری‌اکشن نیست"]],"same":["a"],"cat":["symptom"],"sig":["repro","description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "قلب و لایک پیام‌ها بعد از خروج از گروه پاک میشه", "d": "سلام. یکی از مشتری‌ها میگه توی گروه کلاس بچه‌ها رو پیام‌ها لایک زده بود ولی بعدش که دوباره باز کرد هیچ‌چی نبود.", "same": ["a", "b", "c"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Reaction highlight lost when conversation list is re-fetched", "d": "", "same": ["a", "b", "c"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"},
+   {"k": "3", "kind": "recurrence", "p": "qa", "t": "برگشت مشکل: ری‌اکشن‌ها بعد از آپدیت اخیر دوباره از بین میرن", "d": "بعد از دیپلوی دیروز، دوباره ری‌اکشن‌های من روی پیام‌های گروه بعد از ریفرش نیست. قبلاً درست شده بود.", "steps": [["ری‌اکشن بزنید و صفحه را ببندید و دوباره باز کنید", "ری‌اکشن باقی بماند", "ری‌اکشن نیست"]], "same": ["a"], "cat": ["symptom"], "sig": ["repro", "description"], "diff": "medium"}
   ],
-  "queries":[
-   {"q":"ری‌اکشن گروه","cat":["short"],"rel":{"a":2,"b":2,"c":2}},
-   {"q":"reaction not saved after refresh","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2,"c":2}},
-   {"q":"/student/api/v1/chat/conversations/message/reaction","cat":["identifier"],"rel":{"a":2}}
+  "queries": [
+   {"q": "ری‌اکشن گروه", "cat": ["short"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "reaction not saved after refresh", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "/student/api/v1/chat/conversations/message/reaction", "cat": ["identifier"], "rel": {"a": 2}}
   ]},
-
- {"id":"c02","project":"Chat","area":"reactions","note":"Hard negative for c01: same feature, different fault (two simultaneous reactions). Member b's comments mention reactions disappearing — a comment trap.",
-  "rel_clusters":["c01"],
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"وقتی دو نفر هم‌زمان ری‌اکشن می‌زنند فقط یکی ثبت می‌شود",
-    "d":"اگر دو کاربر در یک ثانیه روی یک پیام ری‌اکشن بزنند، شمارنده فقط ۱ را نشان می‌دهد و یکی از آن‌ها ثبت نمی‌شود.",
-    "steps":[["با دو حساب هم‌زمان روی یک پیام ری‌اکشن بزنید","شمارنده ۲ شود","شمارنده ۱ است"]],"curl":"/student/api/v1/chat/conversations/message/reaction","days":20,
-    "cm":[["developer","به نظر race condition روی آپدیت شمارنده است، باید atomic بشه."],["qa","شبیه باگ ناپدید شدن ری‌اکشن بعد رفرش به نظر میاد ولی اون با این فرق داره، اینجا بعد رفرش هم همون یکی می‌مونه.",1]]}
+ {"id": "c02", "project": "Chat", "area": "reactions", "note": "Hard negative for c01: same feature, different fault (two simultaneous reactions). Member b's comments mention reactions disappearing — a comment trap.", "rel_clusters": ["c01"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "وقتی دو نفر هم‌زمان ری‌اکشن می‌زنند فقط یکی ثبت می‌شود", "d": "اگر دو کاربر در یک ثانیه روی یک پیام ری‌اکشن بزنند، شمارنده فقط ۱ را نشان می‌دهد و یکی از آن‌ها ثبت نمی‌شود.", "steps": [["با دو حساب هم‌زمان روی یک پیام ری‌اکشن بزنید", "شمارنده ۲ شود", "شمارنده ۱ است"]], "curl": "/student/api/v1/chat/conversations/message/reaction", "days": 20, "cm": [["developer", "به نظر race condition روی آپدیت شمارنده است، باید atomic بشه."], ["qa", "شبیه باگ ناپدید شدن ری‌اکشن بعد رفرش به نظر میاد ولی اون با این فرق داره، اینجا بعد رفرش هم همون یکی می‌مونه.", 1]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"شمارنده ری‌اکشن با دو کاربر همزمان اشتباه می‌شود","d":"هنگام تست با دو دستگاه، هر دو همزمان ری‌اکشن زدند و عدد نمایش‌داده‌شده کمتر از انتظار بود.","same":["a"],"rel":[],"cat":["symptom"],"sig":["description"],"diff":"medium","note":"duplicate of c02.a, but related (not same) to c01"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"ری‌اکشن روی پیام‌های خصوصی هم‌زمان با ورود به گروه عوض میشه","d":"مشتری میگه وقتی ری‌اکشن می‌زنه بعضی وقتا ایموجی یهو تغییر می‌کنه.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "شمارنده ری‌اکشن با دو کاربر همزمان اشتباه می‌شود", "d": "هنگام تست با دو دستگاه، هر دو همزمان ری‌اکشن زدند و عدد نمایش‌داده‌شده کمتر از انتظار بود.", "same": ["a"], "rel": [], "cat": ["symptom"], "sig": ["description"], "diff": "medium", "note": "duplicate of c02.a, but related (not same) to c01"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "ری‌اکشن روی پیام‌های خصوصی هم‌زمان با ورود به گروه عوض میشه", "d": "مشتری میگه وقتی ری‌اکشن می‌زنه بعضی وقتا ایموجی یهو تغییر می‌کنه.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"concurrent reactions counter wrong","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c03","project":"Chat","area":"pin","note":"Dupes where one member is cancelled as duplicate (must never be in `same`).",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"developer","t":"پیام پین‌شده برای سایر اعضای گروه نمایش داده نمی‌شود",
-    "d":"استاد یک پیام را در گروه پین می‌کند ولی زبان‌آموزان نوار پین را نمی‌بینند، مگر این‌که اپ را کامل ببندند و دوباره باز کنند.","curl":"/student/api/v1/chat/conversations/message/pin","labels":["chat"],"days":14,
-    "cm":[["developer","پیام socket برای پین به اعضا ارسال نمی‌شود؛ فقط در fetch بعدی لیست می‌آید."],["support","چند تا از موسسه‌ها پرسیدن، لطفا اولویت بدید."]]},
-   {"k":"b","type":"bug","st":"cancelled","sev":"major","role":"qa","t":"نوار پین گروه برای زبان‌آموز ظاهر نمی‌شود","d":"پین استاد در گروه برای شاگردها نشان داده نمی‌شود.","days":12,"dupe_of":"a"},
-   {"k":"c","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"استاد پیامی رو پین کرده ولی زبان‌آموزا نمیبینن","d":"مدیر یکی از موسسه‌ها زنگ زد گفت پین توی گروه‌هاشون کار نمی‌کنه.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "concurrent reactions counter wrong", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c03", "project": "Chat", "area": "pin", "note": "Dupes where one member is cancelled as duplicate (must never be in `same`).",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "major", "role": "developer", "t": "پیام پین‌شده برای سایر اعضای گروه نمایش داده نمی‌شود", "d": "استاد یک پیام را در گروه پین می‌کند ولی زبان‌آموزان نوار پین را نمی‌بینند، مگر این‌که اپ را کامل ببندند و دوباره باز کنند.", "curl": "/student/api/v1/chat/conversations/message/pin", "labels": ["chat"], "days": 14, "cm": [["developer", "پیام socket برای پین به اعضا ارسال نمی‌شود؛ فقط در fetch بعدی لیست می‌آید."], ["support", "چند تا از موسسه‌ها پرسیدن، لطفا اولویت بدید."]]},
+   {"k": "b", "type": "bug", "st": "cancelled", "sev": "major", "role": "qa", "t": "نوار پین گروه برای زبان‌آموز ظاهر نمی‌شود", "d": "پین استاد در گروه برای شاگردها نشان داده نمی‌شود.", "days": 12, "dupe_of": "a"},
+   {"k": "c", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "استاد پیامی رو پین کرده ولی زبان‌آموزا نمیبینن", "d": "مدیر یکی از موسسه‌ها زنگ زد گفت پین توی گروه‌هاشون کار نمی‌کنه.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"پین کردن پیام توی گروه فقط برای خود استاد نشون داده میشه","d":"موسسه میگه بچه‌ها بالای چت چیزی نمی‌بینن.","same":["a","b","c"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Pinned message banner not broadcast to other members","d":"The socket event for pin is not sent to the group, members see it after a full reload.","same":["a","b","c"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "پین کردن پیام توی گروه فقط برای خود استاد نشون داده میشه", "d": "موسسه میگه بچه‌ها بالای چت چیزی نمی‌بینن.", "same": ["a", "b", "c"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Pinned message banner not broadcast to other members", "d": "The socket event for pin is not sent to the group, members see it after a full reload.", "same": ["a", "b", "c"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"پین پیام","cat":["short"],"rel":{"a":2,"b":2,"c":2}},{"q":"pinned message members can't see","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2,"c":2}}]},
-
- {"id":"c04","project":"Chat","area":"unread","note":"Same problem described by symptom vs by cause; a cancelled dupe; a Done sibling with a different cause (c05-style hard negative lives in its own cluster).",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"عدد پیام‌های خوانده‌نشده بعد از حذف پیام درست آپدیت نمی‌شود",
-    "d":"وقتی فرستنده یک پیام خوانده‌نشده را حذف می‌کند، نشان عددی کنار گروه همچنان همان مقدار قبلی را نشان می‌دهد و کم نمی‌شود.",
-    "steps":[["کاربر A یک پیام برای B بفرستد و B آن را نبیند","نشان ۱ دیده شود","نشان ۱ است"],["A پیام را حذف کند","نشان برای B برداشته شود","نشان ۱ باقی می‌ماند"]],"curl":"/student/api/v1/chat/conversations/message/delete","days":9,
-    "cm":[["developer","شمارنده unread در دیتابیس کم می‌شود ولی event به کلاینت نمی‌رسد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"بعد از پاک شدن پیام همچنان یه نقطه قرمز کنار چت میمونه","d":"زبان‌آموز میگه کسی پیامش رو پاک کرد ولی نشونه پیام جدید هنوز هست و وقتی میره داخل چیزی نیست.","days":1,"dupe_of":"a"}
+  "queries": [
+   {"q": "پین پیام", "cat": ["short"], "rel": {"a": 2, "b": 2, "c": 2}},
+   {"q": "pinned message members can't see", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2, "c": 2}}
+  ]},
+ {"id": "c04", "project": "Chat", "area": "unread", "note": "Same problem described by symptom vs by cause; a cancelled dupe; a Done sibling with a different cause (c05-style hard negative lives in its own cluster).",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "critical", "role": "qa", "t": "عدد پیام‌های خوانده‌نشده بعد از حذف پیام درست آپدیت نمی‌شود", "d": "وقتی فرستنده یک پیام خوانده‌نشده را حذف می‌کند، نشان عددی کنار گروه همچنان همان مقدار قبلی را نشان می‌دهد و کم نمی‌شود.", "steps": [["کاربر A یک پیام برای B بفرستد و B آن را نبیند", "نشان ۱ دیده شود", "نشان ۱ است"], ["A پیام را حذف کند", "نشان برای B برداشته شود", "نشان ۱ باقی می‌ماند"]], "curl": "/student/api/v1/chat/conversations/message/delete", "days": 9, "cm": [["developer", "شمارنده unread در دیتابیس کم می‌شود ولی event به کلاینت نمی‌رسد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "بعد از پاک شدن پیام همچنان یه نقطه قرمز کنار چت میمونه", "d": "زبان‌آموز میگه کسی پیامش رو پاک کرد ولی نشونه پیام جدید هنوز هست و وقتی میره داخل چیزی نیست.", "days": 1, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"Unread badge stays after sender deletes the message","d":"Steps: A sends a message, B stays on the list, A deletes it. Expected: badge gone. Actual: badge still shows 1.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["repro"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"support","t":"نشانه پیام جدید با حذف شدن اون پیام نمیره","d":"","same":["a","b"],"cat":["colloquial"],"sig":["title"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "Unread badge stays after sender deletes the message", "d": "Steps: A sends a message, B stays on the list, A deletes it. Expected: badge gone. Actual: badge still shows 1.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["repro"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "support", "t": "نشانه پیام جدید با حذف شدن اون پیام نمیره", "d": "", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["title"], "diff": "easy"}
   ],
-  "queries":[{"q":"badge unread delete","cat":["short","codeswitch"],"rel":{"a":2,"b":2}},{"q":"نقطه قرمز چت بعد از پاک کردن پیام","cat":["symptom"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c05","project":"Chat","area":"upload","note":"Upload stuck at 99% — repro steps carry the signal; the support dupe is nearly empty.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"آپلود فایل در پیام‌رسان روی ۹۹٪ می‌ماند",
-    "d":"آپلود فایل‌های بالای ۱۰ مگابایت تا ۹۹ درصد جلو می‌رود و بعد متوقف می‌شود، پیام هم ارسال نمی‌شود.",
-    "steps":[["یک فایل ۱۵ مگابایتی را در چت انتخاب کنید","آپلود کامل شود","نوار تا ۹۹٪ پر می‌شود و می‌ایستد"],["۲ دقیقه صبر کنید","پیام ارسال شود","هیچ اتفاقی نمی‌افتد و خطایی نیست"]],
-    "curl":"/student/api/v1/chat/conversations/attachment/upload","labels":["chat"],"days":71,
-    "cm":[["developer","timeout پراکسی روی confirm بعد از آپلود بود؛ از 30 ثانیه به 120 ثانیه رفت."],["qa","تایید شد روی فایل ۲۰ مگ."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"ارسال فایل سنگین گیر میکنه","d":"","days":4,"dupe_of":"a"}
+  "queries": [
+   {"q": "badge unread delete", "cat": ["short", "codeswitch"], "rel": {"a": 2, "b": 2}},
+   {"q": "نقطه قرمز چت بعد از پاک کردن پیام", "cat": ["symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c05", "project": "Chat", "area": "upload", "note": "Upload stuck at 99% — repro steps carry the signal; the support dupe is nearly empty.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "آپلود فایل در پیام‌رسان روی ۹۹٪ می‌ماند", "d": "آپلود فایل‌های بالای ۱۰ مگابایت تا ۹۹ درصد جلو می‌رود و بعد متوقف می‌شود، پیام هم ارسال نمی‌شود.", "steps": [["یک فایل ۱۵ مگابایتی را در چت انتخاب کنید", "آپلود کامل شود", "نوار تا ۹۹٪ پر می‌شود و می‌ایستد"], ["۲ دقیقه صبر کنید", "پیام ارسال شود", "هیچ اتفاقی نمی‌افتد و خطایی نیست"]], "curl": "/student/api/v1/chat/conversations/attachment/upload", "labels": ["chat"], "days": 71, "cm": [["developer", "timeout پراکسی روی confirm بعد از آپلود بود؛ از 30 ثانیه به 120 ثانیه رفت."], ["qa", "تایید شد روی فایل ۲۰ مگ."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "ارسال فایل سنگین گیر میکنه", "d": "", "days": 4, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"آپلود فایل دوباره روی ۹۹ درصد گیر کرد","d":"فایل حدود ۱۲ مگابایتی؛ نوار پر می‌شود ولی ارسال نمی‌شود و پیام خطا نمی‌آید.","steps":[["فایل ۱۲ مگابایتی ارسال شود","ارسال شود","تا آخر نوار می‌رود و گیر می‌کند"]],"same":["a"],"cat":["symptom"],"sig":["repro"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Large attachment upload hangs before confirm call","d":"POST attachment/upload returns but the confirm step never completes for files over ~10MB.","same":["a","b"],"cat":["en2fa","cross_lingual","identifier"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "آپلود فایل دوباره روی ۹۹ درصد گیر کرد", "d": "فایل حدود ۱۲ مگابایتی؛ نوار پر می‌شود ولی ارسال نمی‌شود و پیام خطا نمی‌آید.", "steps": [["فایل ۱۲ مگابایتی ارسال شود", "ارسال شود", "تا آخر نوار می‌رود و گیر می‌کند"]], "same": ["a"], "cat": ["symptom"], "sig": ["repro"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Large attachment upload hangs before confirm call", "d": "POST attachment/upload returns but the confirm step never completes for files over ~10MB.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual", "identifier"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"فایل ۹۹","cat":["short","symptom"],"rel":{"a":2,"b":2}},{"q":"upload progress stuck","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c06","project":"Chat","area":"upload","note":"Hard negative for c05: upload failures with a wrong error text for unsupported types.",
-  "rel_clusters":["c05"],
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"پیام خطای اشتباه هنگام ارسال فایل با پسوند exe",
-    "d":"با انتخاب فایل exe پیام «حجم فایل زیاد است» نمایش داده می‌شود در حالی که باید بگوید این فرمت مجاز نیست.",
-    "steps":[["فایل setup.exe را انتخاب کنید","پیام «فرمت مجاز نیست»","پیام «حجم فایل زیاد است»"]],"curl":"/student/api/v1/chat/conversations/attachment/upload","days":33}
+  "queries": [
+   {"q": "فایل ۹۹", "cat": ["short", "symptom"], "rel": {"a": 2, "b": 2}},
+   {"q": "upload progress stuck", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c06", "project": "Chat", "area": "upload", "note": "Hard negative for c05: upload failures with a wrong error text for unsupported types.", "rel_clusters": ["c05"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "پیام خطای اشتباه هنگام ارسال فایل با پسوند exe", "d": "با انتخاب فایل exe پیام «حجم فایل زیاد است» نمایش داده می‌شود در حالی که باید بگوید این فرمت مجاز نیست.", "steps": [["فایل setup.exe را انتخاب کنید", "پیام «فرمت مجاز نیست»", "پیام «حجم فایل زیاد است»"]], "curl": "/student/api/v1/chat/conversations/attachment/upload", "days": 33}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"پیام خطای نامرتبط موقع آپلود فایل ویدیو با فرمت پشتیبانی‌نشده","d":"فایل mkv را انتخاب کردم، پیام خطا درباره حجم بود نه فرمت.","same":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"فایل pdf بزرگ ارسال نمیشه","d":"مشتری میگه فایلش بالا میره ولی نمیره.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "پیام خطای نامرتبط موقع آپلود فایل ویدیو با فرمت پشتیبانی‌نشده", "d": "فایل mkv را انتخاب کردم، پیام خطا درباره حجم بود نه فرمت.", "same": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "فایل pdf بزرگ ارسال نمیشه", "d": "مشتری میگه فایلش بالا میره ولی نمیره.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"wrong error message unsupported file","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c07","project":"Chat","area":"typing","note":"Task-type dupes; one real dupe in English.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"developer","t":"نشانگر «در حال تایپ…» بعد از ترک صفحه باقی می‌ماند",
-    "d":"اگر کاربر وسط تایپ کردن صفحه چت را ببندد، برای طرف مقابل تا چند دقیقه نوشته «در حال تایپ» نمایش داده می‌شود.","curl":"/student/api/v1/chat/conversations/typing","days":22,
-    "cm":[["developer","باید timeout سمت سرور اضافه شود؛ الان فقط با ارسال event توقف می‌گیرد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"qa","t":"Typing indicator remains after the other user leaves the screen","d":"User B closes the chat while typing; user A still sees the indicator for minutes.","days":5,"dupe_of":"a"}
+  "queries": [
+   {"q": "wrong error message unsupported file", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c07", "project": "Chat", "area": "typing", "note": "Task-type dupes; one real dupe in English.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "developer", "t": "نشانگر «در حال تایپ…» بعد از ترک صفحه باقی می‌ماند", "d": "اگر کاربر وسط تایپ کردن صفحه چت را ببندد، برای طرف مقابل تا چند دقیقه نوشته «در حال تایپ» نمایش داده می‌شود.", "curl": "/student/api/v1/chat/conversations/typing", "days": 22, "cm": [["developer", "باید timeout سمت سرور اضافه شود؛ الان فقط با ارسال event توقف می‌گیرد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "Typing indicator remains after the other user leaves the screen", "d": "User B closes the chat while typing; user A still sees the indicator for minutes.", "days": 5, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"مدام نوشته داره تایپ می‌کنه ولی طرف رفته","d":"استاد میگه شاگرد صفحه رو بسته ولی هنوز عبارت تایپ نشون داده میشه.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "مدام نوشته داره تایپ می‌کنه ولی طرف رفته", "d": "استاد میگه شاگرد صفحه رو بسته ولی هنوز عبارت تایپ نشون داده میشه.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"typing indicator","cat":["short"],"rel":{"a":2,"b":2}},{"q":"ایندیکیتور تایپ گیر میکنه","cat":["translit","typo"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c08","project":"Chat","area":"reply","note":"Reply preview author missing for media.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"minor","role":"qa","t":"پیش‌نمایش ریپلای روی تصویر نام فرستنده را نشان نمی‌دهد",
-    "d":"وقتی روی پیام تصویری ریپلای می‌کنیم کادر پیش‌نمایش فقط عکس کوچک را نشان می‌دهد و نام نویسنده اصلی نیست.",
-    "steps":[["روی یک پیام تصویری ریپلای کنید","نام فرستنده دیده شود","فقط تصویر کوچک است"]],"days":47,
-    "cm":[["developer","در کامپوننت reply هنگام نبودن متن، header هم رندر نمی‌شد. اصلاح شد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"qa","t":"Reply quote has no author label for voice messages","d":"Quoting a voice note shows a play icon but not who sent it.","days":8,"dupe_of":"a"}
+  "queries": [
+   {"q": "typing indicator", "cat": ["short"], "rel": {"a": 2, "b": 2}},
+   {"q": "ایندیکیتور تایپ گیر میکنه", "cat": ["translit", "typo"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c08", "project": "Chat", "area": "reply", "note": "Reply preview author missing for media.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "minor", "role": "qa", "t": "پیش‌نمایش ریپلای روی تصویر نام فرستنده را نشان نمی‌دهد", "d": "وقتی روی پیام تصویری ریپلای می‌کنیم کادر پیش‌نمایش فقط عکس کوچک را نشان می‌دهد و نام نویسنده اصلی نیست.", "steps": [["روی یک پیام تصویری ریپلای کنید", "نام فرستنده دیده شود", "فقط تصویر کوچک است"]], "days": 47, "cm": [["developer", "در کامپوننت reply هنگام نبودن متن، header هم رندر نمی‌شد. اصلاح شد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "Reply quote has no author label for voice messages", "d": "Quoting a voice note shows a play icon but not who sent it.", "days": 8, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"نام فرستنده در کادر ریپلای روی فایل‌ها دوباره ناپدید شد","d":"بعد از آخرین نسخه، ریپلای روی فایل‌های پیوست اسم کسی که فایل را فرستاده نشان داده نمی‌شود.","same":["a"],"rel":["b"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Quoted media replies miss the sender header","d":"","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "نام فرستنده در کادر ریپلای روی فایل‌ها دوباره ناپدید شد", "d": "بعد از آخرین نسخه، ریپلای روی فایل‌های پیوست اسم کسی که فایل را فرستاده نشان داده نمی‌شود.", "same": ["a"], "rel": ["b"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Quoted media replies miss the sender header", "d": "", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"ریپلای نام فرستنده","cat":["short"],"rel":{"a":2,"b":2}}]}
+  "queries": [
+   {"q": "ریپلای نام فرستنده", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]}
 ]

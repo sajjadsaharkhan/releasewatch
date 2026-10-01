@@ -1,91 +1,92 @@
 [
- {"id":"c28","project":"Limsa","area":"sessions","note":"User cannot delete a conversation (session): a task with a bug-type twin from support.",
-  "members":[
-   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"امکان حذف گفتگوهای قدیمی لیمسا توسط زبان‌آموز","d":"کاربر بتواند یک گفتگوی قدیمی را از تاریخچه پاک کند تا لیست شلوغ نشود و محتوای خصوصی نماند.","days":38,
-    "cm":[["developer","soft delete کافی است؛ حذف از index جستجو هم لازم است."]]},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"support","src":"support","t":"گزینه‌ای برای پاک کردن چت‌های قبلی لیمسا نیست","d":"زبان‌آموز میگه نمی‌خواد گفتگوهای قدیمیش بمونه ولی دکمه‌ای براش پیدا نکرد.","days":7,"dupe_of":"a"}
+ {"id": "c28", "project": "Limsa", "area": "sessions", "note": "User cannot delete a conversation (session): a task with a bug-type twin from support.",
+  "members": [
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "امکان حذف گفتگوهای قدیمی لیمسا توسط زبان‌آموز", "d": "کاربر بتواند یک گفتگوی قدیمی را از تاریخچه پاک کند تا لیست شلوغ نشود و محتوای خصوصی نماند.", "days": 38, "cm": [["developer", "soft delete کافی است؛ حذف از index جستجو هم لازم است."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "support", "src": "support", "t": "گزینه‌ای برای پاک کردن چت‌های قبلی لیمسا نیست", "d": "زبان‌آموز میگه نمی‌خواد گفتگوهای قدیمیش بمونه ولی دکمه‌ای براش پیدا نکرد.", "days": 7, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Let learners remove old Limsa sessions","d":"No delete action on the history screen.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"support","t":"تاریخچه چت لیمسا خیلی دیر باز میشه","d":"مشتری میگه لیست گفتگوهای قبلی چند ثانیه لود میشه.","same":[],"rel":["a"],"cat":["colloquial"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Let learners remove old Limsa sessions", "d": "No delete action on the history screen.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "support", "t": "تاریخچه چت لیمسا خیلی دیر باز میشه", "d": "مشتری میگه لیست گفتگوهای قبلی چند ثانیه لود میشه.", "same": [], "rel": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"حذف سشن","cat":["short","translit"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c29","project":"Limsa","area":"class-info","note":"Timetable questions; sibling of c23 (class title).",
-  "rel_clusters":["c23"],
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"لیمسا به سوال‌های مربوط به زمان‌بندی جلسات پاسخ نمی‌دهد",
-    "d":"پرسیدن «جلسه بعدی کی است» یا «ساعت کلاس چنده» با جواب «اطلاعاتی ندارم» روبه‌رو می‌شود، در حالی که زمان‌بندی در سیستم موجود است.","curl":"/student/api/v1/limsa/sessions/messages","days":24},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"از لیمسا ساعت کلاس رو میپرسیم میگه نمیدونم","d":"چند نفر از زبان‌آموزا همین رو گفتن.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "حذف سشن", "cat": ["short", "translit"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c29", "project": "Limsa", "area": "class-info", "note": "Timetable questions; sibling of c23 (class title).", "rel_clusters": ["c23"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "لیمسا به سوال‌های مربوط به زمان‌بندی جلسات پاسخ نمی‌دهد", "d": "پرسیدن «جلسه بعدی کی است» یا «ساعت کلاس چنده» با جواب «اطلاعاتی ندارم» روبه‌رو می‌شود، در حالی که زمان‌بندی در سیستم موجود است.", "curl": "/student/api/v1/limsa/sessions/messages", "days": 24},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "از لیمسا ساعت کلاس رو میپرسیم میگه نمیدونم", "d": "چند نفر از زبان‌آموزا همین رو گفتن.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"Limsa says it has no schedule info when asked about the next session","d":"Schedule exists in the class service; the tool call is skipped.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "Limsa says it has no schedule info when asked about the next session", "d": "Schedule exists in the class service; the tool call is skipped.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"لیمسا جلسه بعدی","cat":["short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c30","project":"Limsa","area":"observability","note":"Developer tasks, Done original; tasks recur in different wording.",
-  "members":[
-   {"k":"a","type":"task","st":"done","sev":"enhancement","role":"developer","t":"اضافه کردن request-id به لاگ‌های سرویس لیمسا","d":"هر درخواست یک شناسه یکتا بگیرد و در همه لاگ‌ها چاپ شود تا بتوان یک گفتگو را دنبال کرد.","days":60,
-    "cm":[["developer","با middleware اضافه شد و در هدر پاسخ هم برمی‌گردد."]]},
-   {"k":"b","type":"task","st":"new","sev":"enhancement","role":"developer","t":"Propagate correlation id from gateway into Limsa logs","d":"Gateway sets X-Correlation-Id but the downstream log lines do not carry it.","days":6,"dupe_of":"a"}
+  "queries": [
+   {"q": "لیمسا جلسه بعدی", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c30", "project": "Limsa", "area": "observability", "note": "Developer tasks, Done original; tasks recur in different wording.",
+  "members": [
+   {"k": "a", "type": "task", "st": "done", "sev": "enhancement", "role": "developer", "t": "اضافه کردن request-id به لاگ‌های سرویس لیمسا", "d": "هر درخواست یک شناسه یکتا بگیرد و در همه لاگ‌ها چاپ شود تا بتوان یک گفتگو را دنبال کرد.", "days": 60, "cm": [["developer", "با middleware اضافه شد و در هدر پاسخ هم برمی‌گردد."]]},
+   {"k": "b", "type": "task", "st": "new", "sev": "enhancement", "role": "developer", "t": "Propagate correlation id from gateway into Limsa logs", "d": "Gateway sets X-Correlation-Id but the downstream log lines do not carry it.", "days": 6, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"developer","t":"Trace id missing again in new Limsa worker logs","d":"After splitting out the worker process its log lines have no request identifier.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "developer", "t": "Trace id missing again in new Limsa worker logs", "d": "After splitting out the worker process its log lines have no request identifier.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"request id log","cat":["short","en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c31","project":"Limsa","area":"latency","note":"Slow / truncated long answers.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"پاسخ‌های طولانی لیمسا بعد از چند ده ثانیه قطع می‌شوند",
-    "d":"درخواست‌هایی که جواب بلند می‌خواهند مثل توضیح یک مبحث گرامری در چند پاراگراف، وسط جمله قطع می‌شوند.","steps":[["از لیمسا بخواهید زمان‌های انگلیسی را مفصل توضیح دهد","پاسخ کامل","پاسخ وسط جمله قطع می‌شود"]],"curl":"/student/api/v1/limsa/sessions/messages","days":13,
-    "cm":[["developer","gateway بعد از ۶۰ ثانیه stream را می‌بندد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"developer","t":"Streaming answers cut off mid-sentence","d":"Anything longer than about a minute of generation is closed by the proxy.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "request id log", "cat": ["short", "en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c31", "project": "Limsa", "area": "latency", "note": "Slow / truncated long answers.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "پاسخ‌های طولانی لیمسا بعد از چند ده ثانیه قطع می‌شوند", "d": "درخواست‌هایی که جواب بلند می‌خواهند مثل توضیح یک مبحث گرامری در چند پاراگراف، وسط جمله قطع می‌شوند.", "steps": [["از لیمسا بخواهید زمان‌های انگلیسی را مفصل توضیح دهد", "پاسخ کامل", "پاسخ وسط جمله قطع می‌شود"]], "curl": "/student/api/v1/limsa/sessions/messages", "days": 13, "cm": [["developer", "gateway بعد از ۶۰ ثانیه stream را می‌بندد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "developer", "t": "Streaming answers cut off mid-sentence", "d": "Anything longer than about a minute of generation is closed by the proxy.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"جواب‌های بلند لیمسا نصفه میمونه","d":"استاد میگه توضیح گرامر وسط جمله تموم میشه.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"لیمسا جواب‌ها را دوبار پشت هم می‌فرستد","d":"یک پاسخ دو بار در گفتگو ظاهر می‌شود.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "جواب‌های بلند لیمسا نصفه میمونه", "d": "استاد میگه توضیح گرامر وسط جمله تموم میشه.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "لیمسا جواب‌ها را دوبار پشت هم می‌فرستد", "d": "یک پاسخ دو بار در گفتگو ظاهر می‌شود.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"پاسخ نصفه","cat":["short","colloquial"],"rel":{"a":2,"b":2}},{"q":"proxy timeout stream limsa","cat":["codeswitch","identifier"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c32","project":"Limsa","area":"flashcard","note":"Feature: flashcards by topic; sibling area to c20/c21 but a task.",
-  "rel_clusters":["c20"],
-  "members":[
-   {"k":"a","type":"task","st":"todo","sev":"enhancement","role":"pm","t":"ساخت فلش‌کارت بر اساس موضوع به‌جای صفحات کتاب","d":"کاربر بتواند بنویسد «برای مبحث تایم‌ها فلش‌کارت بساز» و بدون انتخاب صفحه کارت بگیرد.","days":29}
+  "queries": [
+   {"q": "پاسخ نصفه", "cat": ["short", "colloquial"], "rel": {"a": 2, "b": 2}},
+   {"q": "proxy timeout stream limsa", "cat": ["codeswitch", "identifier"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c32", "project": "Limsa", "area": "flashcard", "note": "Feature: flashcards by topic; sibling area to c20/c21 but a task.", "rel_clusters": ["c20"],
+  "members": [
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "ساخت فلش‌کارت بر اساس موضوع به‌جای صفحات کتاب", "d": "کاربر بتواند بنویسد «برای مبحث تایم‌ها فلش‌کارت بساز» و بدون انتخاب صفحه کارت بگیرد.", "days": 29}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"می‌خوام بگم درباره یه موضوع کارت بسازه نه از روی صفحه","d":"مشتری می‌خواد موضوع بنویسه و کارت بگیره.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "می‌خوام بگم درباره یه موضوع کارت بسازه نه از روی صفحه", "d": "مشتری می‌خواد موضوع بنویسه و کارت بگیره.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"flashcard by topic","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c33","project":"Limsa","area":"books","note":"API returns another user's books — Done, critical.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"blocker","role":"qa","t":"سرویس دریافت کتاب‌های کاربر، کتاب‌های کاربر دیگر را هم برمی‌گرداند",
-    "d":"در پاسخ لیست کتاب‌ها شناسه‌ای از کتاب‌های متعلق به زبان‌آموزان دیگر هم وجود دارد.","steps":[["با زبان‌آموز A لیست کتاب‌ها را بگیرید","فقط کتاب‌های A","کتاب‌های یک کاربر دیگر هم وجود دارد"]],"curl":"/student/api/v1/limsa/books","labels":["limsa","security"],"days":85,
-    "cm":[["developer","فیلتر user_id در query جا افتاده بود. با hotfix اصلاح شد."],["cto","بررسی کنید قبلاً چه داده‌ای نشت کرده."]]}
+  "queries": [
+   {"q": "flashcard by topic", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c33", "project": "Limsa", "area": "books", "note": "API returns another user's books — Done, critical.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "blocker", "role": "qa", "t": "سرویس دریافت کتاب‌های کاربر، کتاب‌های کاربر دیگر را هم برمی‌گرداند", "d": "در پاسخ لیست کتاب‌ها شناسه‌ای از کتاب‌های متعلق به زبان‌آموزان دیگر هم وجود دارد.", "steps": [["با زبان‌آموز A لیست کتاب‌ها را بگیرید", "فقط کتاب‌های A", "کتاب‌های یک کاربر دیگر هم وجود دارد"]], "curl": "/student/api/v1/limsa/books", "labels": ["limsa", "security"], "days": 85, "cm": [["developer", "فیلتر user_id در query جا افتاده بود. با hotfix اصلاح شد."], ["cto", "بررسی کنید قبلاً چه داده‌ای نشت کرده."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"لیست کتاب‌های یک زبان‌آموز شامل کتاب‌های نفر دیگر شد","d":"بعد از اجرای مهاجرت جدید، پاسخ API کتاب‌ها دوباره داده کاربران دیگر را دارد.","steps":[["با دو حساب مختلف فهرست کتاب را بخوانید","هر حساب فقط کتاب خودش را ببیند","کتاب‌های حساب دیگر هم هست"]],"same":["a"],"cat":["symptom"],"sig":["repro","description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"developer","t":"Books endpoint returns 500 for users without any book","d":"Empty library triggers a null dereference.","same":[],"rel":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "لیست کتاب‌های یک زبان‌آموز شامل کتاب‌های نفر دیگر شد", "d": "بعد از اجرای مهاجرت جدید، پاسخ API کتاب‌ها دوباره داده کاربران دیگر را دارد.", "steps": [["با دو حساب مختلف فهرست کتاب را بخوانید", "هر حساب فقط کتاب خودش را ببیند", "کتاب‌های حساب دیگر هم هست"]], "same": ["a"], "cat": ["symptom"], "sig": ["repro", "description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "developer", "t": "Books endpoint returns 500 for users without any book", "d": "Empty library triggers a null dereference.", "same": [], "rel": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"/student/api/v1/limsa/books","cat":["identifier"],"rel":{"a":2}},{"q":"کتاب کاربر دیگه","cat":["colloquial","symptom"],"rel":{"a":2}}]},
-
- {"id":"c34","project":"Limsa","area":"reporting","note":"Report task; tiny description.",
-  "members":[
-   {"k":"a","type":"task","st":"new","sev":"enhancement","role":"cto","t":"گزارش روزانه تعداد خریدها و دموهای لیمسا","d":"","days":11}
+  "queries": [
+   {"q": "/student/api/v1/limsa/books", "cat": ["identifier"], "rel": {"a": 2}},
+   {"q": "کتاب کاربر دیگه", "cat": ["colloquial", "symptom"], "rel": {"a": 2}}
+  ]},
+ {"id": "c34", "project": "Limsa", "area": "reporting", "note": "Report task; tiny description.",
+  "members": [
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "cto", "t": "گزارش روزانه تعداد خریدها و دموهای لیمسا", "d": "", "days": 11}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Daily report: Limsa purchases vs demo sessions","d":"A daily count to compare how many demos convert.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Daily report: Limsa purchases vs demo sessions", "d": "A daily count to compare how many demos convert.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"گزارش خرید دمو","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c35","project":"Limsa","area":"latency","note":"COMMENT-ONLY signal: the original is vague; its comments describe the real fault. S4 says duplicate detection ignores comments, so same-problem drafts that rely on them are expected to be missed; search (talk channel) may find them.",
-  "rel_clusters":["c31"],
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"مشکل در پاسخ‌دهی لیمسا در ساعات شلوغ","d":"در بعضی ساعات پاسخ‌ها خوب نیست. جزئیات در کامنت‌ها.","days":17,
-    "cm":[["developer","در ساعت ۲۰ تا ۲۲ صف درخواست‌های مدل پر می‌شود و لیمسا با پیام «سرویس موقتا در دسترس نیست» پاسخ می‌دهد، حدود ۱۵٪ درخواست‌ها."],["qa","فقط برای کاربران پلن رایگان رخ می‌دهد؛ پلن پولی صف جدا دارد."],["developer","rate limiter خود ما قبل از ارائه‌دهنده مدل جواب ۴۲۹ می‌دهد، نه خود ارائه‌دهنده."]]}
+  "queries": [
+   {"q": "گزارش خرید دمو", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c35", "project": "Limsa", "area": "latency", "note": "COMMENT-ONLY signal: the original is vague; its comments describe the real fault. S4 says duplicate detection ignores comments, so same-problem drafts that rely on them are expected to be missed; search (talk channel) may find them.", "rel_clusters": ["c31"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "مشکل در پاسخ‌دهی لیمسا در ساعات شلوغ", "d": "در بعضی ساعات پاسخ‌ها خوب نیست. جزئیات در کامنت‌ها.", "days": 17, "cm": [["developer", "در ساعت ۲۰ تا ۲۲ صف درخواست‌های مدل پر می‌شود و لیمسا با پیام «سرویس موقتا در دسترس نیست» پاسخ می‌دهد، حدود ۱۵٪ درخواست‌ها."], ["qa", "فقط برای کاربران پلن رایگان رخ می‌دهد؛ پلن پولی صف جدا دارد."], ["developer", "rate limiter خود ما قبل از ارائه‌دهنده مدل جواب ۴۲۹ می‌دهد، نه خود ارائه‌دهنده."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Free-plan Limsa requests hit our own 429 limiter in the evening","d":"Busy-hour queue fills and the free tier gets the 'temporarily unavailable' reply.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["comments"],"diff":"hard","note":"Only the comments name the real fault; S4 duplicate detection cannot see them."}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Free-plan Limsa requests hit our own 429 limiter in the evening", "d": "Busy-hour queue fills and the free tier gets the 'temporarily unavailable' reply.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["comments"], "diff": "hard", "note": "Only the comments name the real fault; S4 duplicate detection cannot see them."}
   ],
-  "queries":[{"q":"429 rate limiter free plan","cat":["identifier","codeswitch"],"rel":{"a":2}},{"q":"سرویس موقتا در دسترس نیست","cat":["symptom"],"rel":{"a":2}}]}
+  "queries": [
+   {"q": "429 rate limiter free plan", "cat": ["identifier", "codeswitch"], "rel": {"a": 2}},
+   {"q": "سرویس موقتا در دسترس نیست", "cat": ["symptom"], "rel": {"a": 2}}
+  ]}
 ]

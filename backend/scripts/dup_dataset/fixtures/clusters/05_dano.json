@@ -1,142 +1,143 @@
 [
- {"id":"c36","project":"Dano","area":"wallet","note":"Wallet balance mismatch; sibling of c37.",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"critical","role":"qa","t":"موجودی کیف پول در پنل مدیریت با بک‌آفیس برابر نیست",
-    "d":"برای چند زبان‌آموز مبلغ نمایش‌داده‌شده در صفحه کاربر پنل ادمین با عدد همان کاربر در بک‌آفیس مالی تفاوت دارد.","steps":[["کاربری را که شارژ اخیر داشته باز کنید","هر دو سیستم یک عدد نشان دهند","پنل ۲۵۰ هزار و بک‌آفیس ۳۰۰ هزار تومان"]],"curl":"/api/v1/admin/user/wallet","days":13,
-    "cm":[["developer","پنل از cache ده دقیقه‌ای می‌خواند و پس از شارژ آن را باطل نمی‌کند."],["pm","برای مالی حساس است، اولویت بالا."]]},
-   {"k":"b","type":"bug","st":"new","sev":"critical","role":"developer","t":"Admin panel shows a stale wallet amount after top-up","d":"The figure differs from the finance back office for several minutes after a charge.","days":2,"dupe_of":"a"}
+ {"id": "c36", "project": "Dano", "area": "wallet", "note": "Wallet balance mismatch; sibling of c37.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "critical", "role": "qa", "t": "موجودی کیف پول در پنل مدیریت با بک‌آفیس برابر نیست", "d": "برای چند زبان‌آموز مبلغ نمایش‌داده‌شده در صفحه کاربر پنل ادمین با عدد همان کاربر در بک‌آفیس مالی تفاوت دارد.", "steps": [["کاربری را که شارژ اخیر داشته باز کنید", "هر دو سیستم یک عدد نشان دهند", "پنل ۲۵۰ هزار و بک‌آفیس ۳۰۰ هزار تومان"]], "curl": "/api/v1/admin/user/wallet", "days": 13, "cm": [["developer", "پنل از cache ده دقیقه‌ای می‌خواند و پس از شارژ آن را باطل نمی‌کند."], ["pm", "برای مالی حساس است، اولویت بالا."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "critical", "role": "developer", "t": "Admin panel shows a stale wallet amount after top-up", "d": "The figure differs from the finance back office for several minutes after a charge.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"مبلغ کیف پول توی پنل با چیزی که حسابداری میگه فرق داره","d":"موسسه میگه شارژ کرده ولی عدد کمتره.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"easy"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"موجودی منفی کیف پول به حروف نمایش داده نمی‌شود","d":"مبلغ منفی در صفحه کاربر به شکل عددی می‌ماند و معادل حروفی ندارد.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "مبلغ کیف پول توی پنل با چیزی که حسابداری میگه فرق داره", "d": "موسسه میگه شارژ کرده ولی عدد کمتره.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "موجودی منفی کیف پول به حروف نمایش داده نمی‌شود", "d": "مبلغ منفی در صفحه کاربر به شکل عددی می‌ماند و معادل حروفی ندارد.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "hard"}
   ],
-  "queries":[{"q":"کیف پول","cat":["short"],"rel":{"a":2,"b":2}},{"q":"wallet balance mismatch backoffice","cat":["en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c37","project":"Dano","area":"wallet","note":"Hard negative for c36: negative balance in words.",
-  "rel_clusters":["c36"],
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"موجودی منفی کیف پول معادل حروفی ندارد","d":"برای کاربری با بدهی، عدد منفی نمایش داده می‌شود ولی فیلد «به حروف» خالی است.","days":23}
+  "queries": [
+   {"q": "کیف پول", "cat": ["short"], "rel": {"a": 2, "b": 2}},
+   {"q": "wallet balance mismatch backoffice", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c37", "project": "Dano", "area": "wallet", "note": "Hard negative for c36: negative balance in words.", "rel_clusters": ["c36"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "موجودی منفی کیف پول معادل حروفی ندارد", "d": "برای کاربری با بدهی، عدد منفی نمایش داده می‌شود ولی فیلد «به حروف» خالی است.", "days": 23}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"مبلغ منفی در کیف پول به‌صورت کلمه نوشته نمی‌شود","d":"فیلد حروفی برای مقدار کمتر از صفر خالی می‌ماند.","same":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "مبلغ منفی در کیف پول به‌صورت کلمه نوشته نمی‌شود", "d": "فیلد حروفی برای مقدار کمتر از صفر خالی می‌ماند.", "same": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"مبلغ منفی به حروف","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c38","project":"Dano","area":"notification","note":"Validation missing on broadcast.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"ارسال اعلان همگانی بدون انتخاب گیرنده با موفقیت ثبت می‌شود",
-    "d":"اگر نه کاربری و نه گروهی انتخاب شود و دکمه ارسال زده شود، پیام موفقیت می‌آید ولی چیزی ارسال نمی‌شود.","steps":[["فرم اعلان همگانی را بدون گیرنده پر کنید","خطای اعتبارسنجی","پیام «با موفقیت ارسال شد»"]],"curl":"/api/v1/admin/broadcast-notification","days":18},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"پیام اطلاع‌رسانی زدیم گفت ارسال شد ولی کسی نگرفت","d":"مدیر موسسه میگه هیچ گیرنده‌ای انتخاب نکرده بود و سیستم اجازه داد.","days":4,"dupe_of":"a"}
+  "queries": [
+   {"q": "مبلغ منفی به حروف", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c38", "project": "Dano", "area": "notification", "note": "Validation missing on broadcast.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "ارسال اعلان همگانی بدون انتخاب گیرنده با موفقیت ثبت می‌شود", "d": "اگر نه کاربری و نه گروهی انتخاب شود و دکمه ارسال زده شود، پیام موفقیت می‌آید ولی چیزی ارسال نمی‌شود.", "steps": [["فرم اعلان همگانی را بدون گیرنده پر کنید", "خطای اعتبارسنجی", "پیام «با موفقیت ارسال شد»"]], "curl": "/api/v1/admin/broadcast-notification", "days": 18},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "پیام اطلاع‌رسانی زدیم گفت ارسال شد ولی کسی نگرفت", "d": "مدیر موسسه میگه هیچ گیرنده‌ای انتخاب نکرده بود و سیستم اجازه داد.", "days": 4, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Broadcast endpoint accepts an empty audience","d":"POST broadcast-notification returns 200 with recipients=[] and groups=[].","same":["a","b"],"cat":["en2fa","cross_lingual","identifier"],"sig":["curl","description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"اعلان همگانی به همه گروه‌ها بسیار دیر ارسال می‌شود","d":"ارسال برای ۵۰۰۰ نفر بیش از ۱۰ دقیقه طول می‌کشد.","same":[],"rel":["a"],"cat":["symptom"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Broadcast endpoint accepts an empty audience", "d": "POST broadcast-notification returns 200 with recipients=[] and groups=[].", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual", "identifier"], "sig": ["curl", "description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "اعلان همگانی به همه گروه‌ها بسیار دیر ارسال می‌شود", "d": "ارسال برای ۵۰۰۰ نفر بیش از ۱۰ دقیقه طول می‌کشد.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"/api/v1/admin/broadcast-notification","cat":["identifier"],"rel":{"a":2,"b":2}},{"q":"اعلان بدون گیرنده","cat":["short","symptom"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c39","project":"Dano","area":"import","note":"Excel import of users.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"گزینه افزودن کاربران از طریق فایل اکسل کار نمی‌کند",
-    "d":"بعد از انتخاب فایل xlsx و تایید، پیام موفقیت می‌آید ولی کاربری به کلاس اضافه نمی‌شود.","steps":[["فایل نمونه با ۵ کاربر را بارگذاری کنید","۵ کاربر اضافه شوند","هیچ کاربری اضافه نمی‌شود"]],"curl":"/api/v1/admin/class/users/import","days":72,
-    "cm":[["developer","ستون کد ملی با فرمت عددی خوانده می‌شد و صفر ابتدایی حذف و رد می‌شد. اصلاح شد."]]},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"آپلود اکسل اعضای کلاس انجام میشه ولی لیست عوض نمیشه","d":"مدیر آموزشی فایل رو فرستاد و گفت موفق بود ولی اسم‌ها نیومد.","days":5,"dupe_of":"a"}
+  "queries": [
+   {"q": "/api/v1/admin/broadcast-notification", "cat": ["identifier"], "rel": {"a": 2, "b": 2}},
+   {"q": "اعلان بدون گیرنده", "cat": ["short", "symptom"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c39", "project": "Dano", "area": "import", "note": "Excel import of users.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "گزینه افزودن کاربران از طریق فایل اکسل کار نمی‌کند", "d": "بعد از انتخاب فایل xlsx و تایید، پیام موفقیت می‌آید ولی کاربری به کلاس اضافه نمی‌شود.", "steps": [["فایل نمونه با ۵ کاربر را بارگذاری کنید", "۵ کاربر اضافه شوند", "هیچ کاربری اضافه نمی‌شود"]], "curl": "/api/v1/admin/class/users/import", "days": 72, "cm": [["developer", "ستون کد ملی با فرمت عددی خوانده می‌شد و صفر ابتدایی حذف و رد می‌شد. اصلاح شد."]]},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "آپلود اکسل اعضای کلاس انجام میشه ولی لیست عوض نمیشه", "d": "مدیر آموزشی فایل رو فرستاد و گفت موفق بود ولی اسم‌ها نیومد.", "days": 5, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"qa","t":"اضافه کردن دسته‌جمعی کاربران با اکسل دوباره اثری ندارد","d":"فایل بارگذاری و موفق اعلام می‌شود ولی عضو جدیدی در کلاس دیده نمی‌شود.","same":["a","b"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"duplicate","p":"developer","t":"Spreadsheet import drops rows with leading-zero IDs","d":"Numeric cells lose the zero so validation rejects every row silently.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "qa", "t": "اضافه کردن دسته‌جمعی کاربران با اکسل دوباره اثری ندارد", "d": "فایل بارگذاری و موفق اعلام می‌شود ولی عضو جدیدی در کلاس دیده نمی‌شود.", "same": ["a", "b"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "duplicate", "p": "developer", "t": "Spreadsheet import drops rows with leading-zero IDs", "d": "Numeric cells lose the zero so validation rejects every row silently.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "hard"}
   ],
-  "queries":[{"q":"import excel users","cat":["short","en2fa","cross_lingual"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c40","project":"Dano","area":"groups","note":"Cross-project distractor: Chat c16 has the same symptom in another project; project scoping must keep them apart.",
-  "members":[
-   {"k":"a","type":"bug","st":"done","sev":"major","role":"qa","t":"هنگام تعیین اعضای گروه فقط ده کاربر نمایش داده می‌شود",
-    "d":"در پنجره انتخاب اعضا لیست بعد از ۱۰ نفر ادامه پیدا نمی‌کند و scroll هم دوباره بار نمی‌گیرد.","steps":[["پنجره افزودن عضو را باز کنید","همه کاربران قابل انتخاب باشند","فقط ۱۰ نفر اول"]],"curl":"/api/v1/admin/user","days":64,
-    "cm":[["developer","pageSize ثابت بود و lazy load اضافه نشده بود."]]}
+  "queries": [
+   {"q": "import excel users", "cat": ["short", "en2fa", "cross_lingual"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c40", "project": "Dano", "area": "groups", "note": "Cross-project distractor: Chat c16 has the same symptom in another project; project scoping must keep them apart.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "done", "sev": "major", "role": "qa", "t": "هنگام تعیین اعضای گروه فقط ده کاربر نمایش داده می‌شود", "d": "در پنجره انتخاب اعضا لیست بعد از ۱۰ نفر ادامه پیدا نمی‌کند و scroll هم دوباره بار نمی‌گیرد.", "steps": [["پنجره افزودن عضو را باز کنید", "همه کاربران قابل انتخاب باشند", "فقط ۱۰ نفر اول"]], "curl": "/api/v1/admin/user", "days": 64, "cm": [["developer", "pageSize ثابت بود و lazy load اضافه نشده بود."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"recurrence","p":"support","t":"موقع انتخاب اعضا بیشتر از ده تا کاربر نمیاد","d":"مدیر موسسه گفت لیست تموم میشه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "recurrence", "p": "support", "t": "موقع انتخاب اعضا بیشتر از ده تا کاربر نمیاد", "d": "مدیر موسسه گفت لیست تموم میشه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"انتخاب کاربر گروه","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c41","project":"Dano","area":"validation","note":"Validation on student name.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"در فیلد نام و نام‌خانوادگی زبان‌آموز عدد هم پذیرفته می‌شود",
-    "d":"می‌توان ۱۲۳ را به‌عنوان نام ثبت کرد و هیچ خطایی نمی‌آید.","curl":"/api/v1/admin/user","days":34},
-   {"k":"b","type":"bug","st":"new","sev":"minor","role":"developer","t":"Name field has no character validation","d":"Digits and symbols are stored as given.","days":3,"dupe_of":"a"}
+  "queries": [
+   {"q": "انتخاب کاربر گروه", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c41", "project": "Dano", "area": "validation", "note": "Validation on student name.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "در فیلد نام و نام‌خانوادگی زبان‌آموز عدد هم پذیرفته می‌شود", "d": "می‌توان ۱۲۳ را به‌عنوان نام ثبت کرد و هیچ خطایی نمی‌آید.", "curl": "/api/v1/admin/user", "days": 34},
+   {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "developer", "t": "Name field has no character validation", "d": "Digits and symbols are stored as given.", "days": 3, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"یکی اسمش رو عدد زده ثبت شد","d":"موقع ثبت‌نام زبان‌آموز، سیستم جلوش رو نگرفت.","same":["a","b"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "یکی اسمش رو عدد زده ثبت شد", "d": "موقع ثبت‌نام زبان‌آموز، سیستم جلوش رو نگرفت.", "same": ["a", "b"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"اعتبارسنجی نام کاربر","cat":["short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c42","project":"Dano","area":"exam","note":"Exam title limits differ between screens.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"محدودیت تعداد کاراکتر عنوان آزمون در صفحه ساخت و ویرایش یکسان نیست",
-    "d":"هنگام ساخت آزمون تا ۸۰ کاراکتر مجاز است و هنگام ویرایش ۶۰ کاراکتر، بنابراین بعضی آزمون‌ها قابل ویرایش نیستند.","days":31}
+  "queries": [
+   {"q": "اعتبارسنجی نام کاربر", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c42", "project": "Dano", "area": "exam", "note": "Exam title limits differ between screens.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "محدودیت تعداد کاراکتر عنوان آزمون در صفحه ساخت و ویرایش یکسان نیست", "d": "هنگام ساخت آزمون تا ۸۰ کاراکتر مجاز است و هنگام ویرایش ۶۰ کاراکتر، بنابراین بعضی آزمون‌ها قابل ویرایش نیستند.", "days": 31}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"سقف طول نام آزمون بین ایجاد و ویرایش فرق دارد","d":"عنوان ۷۰ حرفی ساخته می‌شود ولی بعداً ذخیره نمی‌شود.","same":["a"],"cat":["symptom"],"sig":["description"],"diff":"medium"},
-   {"k":"2","kind":"hard_negative","p":"qa","t":"با عنوان دو حرفی برای آزمون پیام نامفهوم می‌آید","d":"پیام خطا درباره فیلد دیگری است.","same":[],"rel":["a"],"cat":["symptom"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "سقف طول نام آزمون بین ایجاد و ویرایش فرق دارد", "d": "عنوان ۷۰ حرفی ساخته می‌شود ولی بعداً ذخیره نمی‌شود.", "same": ["a"], "cat": ["symptom"], "sig": ["description"], "diff": "medium"},
+   {"k": "2", "kind": "hard_negative", "p": "qa", "t": "با عنوان دو حرفی برای آزمون پیام نامفهوم می‌آید", "d": "پیام خطا درباره فیلد دیگری است.", "same": [], "rel": ["a"], "cat": ["symptom"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"exam title max length","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c43","project":"Dano","area":"exam","note":"Confusing error text for 2-char title; hard-neg pair with c42.",
-  "rel_clusters":["c42"],
-  "members":[
-   {"k":"a","type":"bug","st":"new","sev":"minor","role":"qa","t":"پیام خطای نامفهوم برای عنوان آزمون دو کاراکتری","d":"با وارد کردن «ab» پیام «مقدار نامعتبر است» نمایش داده می‌شود، بدون ذکر حداقل طول.","days":14}
+  "queries": [
+   {"q": "exam title max length", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c43", "project": "Dano", "area": "exam", "note": "Confusing error text for 2-char title; hard-neg pair with c42.", "rel_clusters": ["c42"],
+  "members": [
+   {"k": "a", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "پیام خطای نامفهوم برای عنوان آزمون دو کاراکتری", "d": "با وارد کردن «ab» پیام «مقدار نامعتبر است» نمایش داده می‌شود، بدون ذکر حداقل طول.", "days": 14}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"موقع ساخت آزمون با اسم کوتاه فقط نوشته مقدار نامعتبر","d":"معلوم نیست مشکل چیه.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"easy"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "موقع ساخت آزمون با اسم کوتاه فقط نوشته مقدار نامعتبر", "d": "معلوم نیست مشکل چیه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}
   ],
-  "queries":[{"q":"minimum length error exam","cat":["en2fa","cross_lingual"],"rel":{"a":2}}]},
-
- {"id":"c44","project":"Dano","area":"search","note":"Search inside class details shows wrong rows.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"جستجو در جزئیات کلاس نتایج نادرست برمی‌گرداند",
-    "d":"با جستجوی یک نام، ردیف‌هایی که ربطی به عبارت ندارند هم نمایش داده می‌شوند و ترتیب پایدار نیست.","curl":"/api/v1/admin/class/{id}/users","days":21,
-    "cm":[["developer","فیلتر روی نام و کد ملی با OR ترکیب شده بود."]]}
+  "queries": [
+   {"q": "minimum length error exam", "cat": ["en2fa", "cross_lingual"], "rel": {"a": 2}}
+  ]},
+ {"id": "c44", "project": "Dano", "area": "search", "note": "Search inside class details shows wrong rows.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "جستجو در جزئیات کلاس نتایج نادرست برمی‌گرداند", "d": "با جستجوی یک نام، ردیف‌هایی که ربطی به عبارت ندارند هم نمایش داده می‌شوند و ترتیب پایدار نیست.", "curl": "/api/v1/admin/class/{id}/users", "days": 21, "cm": [["developer", "فیلتر روی نام و کد ملی با OR ترکیب شده بود."]]}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Class members search returns unrelated rows","d":"The name filter is OR-ed with the national-id filter.","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["description","curl"],"diff":"hard"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Class members search returns unrelated rows", "d": "The name filter is OR-ed with the national-id filter.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description", "curl"], "diff": "hard"}
   ],
-  "queries":[{"q":"/api/v1/admin/class/4076/users","cat":["identifier"],"rel":{"a":2}}]},
-
- {"id":"c45","project":"Dano","area":"billing","note":"Deduction amount not refreshed after class capacity change.",
-  "members":[
-   {"k":"a","type":"bug","st":"in_progress","sev":"major","role":"qa","t":"مبلغ کسر هزینه بعد از تغییر ظرفیت کلاس به‌روزرسانی نمی‌شود",
-    "d":"ظرفیت کلاس از ۱۰ به ۸ نفر کاهش می‌یابد ولی مبلغ تقسیم‌شده برای هر نفر همان عدد قبلی می‌ماند.","steps":[["ظرفیت کلاس را تغییر دهید","مبلغ هر نفر دوباره محاسبه شود","مبلغ قبلی می‌ماند"]],"days":9}
+  "queries": [
+   {"q": "/api/v1/admin/class/4076/users", "cat": ["identifier"], "rel": {"a": 2}}
+  ]},
+ {"id": "c45", "project": "Dano", "area": "billing", "note": "Deduction amount not refreshed after class capacity change.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "major", "role": "qa", "t": "مبلغ کسر هزینه بعد از تغییر ظرفیت کلاس به‌روزرسانی نمی‌شود", "d": "ظرفیت کلاس از ۱۰ به ۸ نفر کاهش می‌یابد ولی مبلغ تقسیم‌شده برای هر نفر همان عدد قبلی می‌ماند.", "steps": [["ظرفیت کلاس را تغییر دهید", "مبلغ هر نفر دوباره محاسبه شود", "مبلغ قبلی می‌ماند"]], "days": 9}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"وقتی تعداد نفرات کلاس عوض میشه هزینه هر نفر همونه","d":"حسابداری پرسید چرا محاسبه جدید نیست.","same":["a"],"cat":["colloquial"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "وقتی تعداد نفرات کلاس عوض میشه هزینه هر نفر همونه", "d": "حسابداری پرسید چرا محاسبه جدید نیست.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"هزینه هر نفر ظرفیت","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c46","project":"Dano","area":"sms","note":"Second SMS send has empty recipients.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"major","role":"qa","t":"در ارسال دوم پیامک لیست کاربران نمایش داده نمی‌شود",
-    "d":"بعد از یک ارسال پیامک موفق، اگر دوباره فرم را باز کنیم لیست گیرندگان خالی است و باید صفحه رفرش شود.","days":19},
-   {"k":"b","type":"bug","st":"new","sev":"major","role":"support","src":"support","t":"بار دوم که پیامک می‌فرستیم اسم‌ها نمیاد","d":"مدیر موسسه گفت باید هر بار صفحه رو ببنده و دوباره بیاد.","days":2,"dupe_of":"a"}
+  "queries": [
+   {"q": "هزینه هر نفر ظرفیت", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c46", "project": "Dano", "area": "sms", "note": "Second SMS send has empty recipients.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "qa", "t": "در ارسال دوم پیامک لیست کاربران نمایش داده نمی‌شود", "d": "بعد از یک ارسال پیامک موفق، اگر دوباره فرم را باز کنیم لیست گیرندگان خالی است و باید صفحه رفرش شود.", "days": 19},
+   {"k": "b", "type": "bug", "st": "new", "sev": "major", "role": "support", "src": "support", "t": "بار دوم که پیامک می‌فرستیم اسم‌ها نمیاد", "d": "مدیر موسسه گفت باید هر بار صفحه رو ببنده و دوباره بیاد.", "days": 2, "dupe_of": "a"}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"qa","t":"Recipients list empty when reopening the SMS dialog","d":"After one successful send the second open shows no users until reload.","same":["a","b"],"cat":["en2fa","cross_lingual"],"sig":["description"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "qa", "t": "Recipients list empty when reopening the SMS dialog", "d": "After one successful send the second open shows no users until reload.", "same": ["a", "b"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "medium"}
   ],
-  "queries":[{"q":"ارسال پیامک گیرنده","cat":["short"],"rel":{"a":2,"b":2}}]},
-
- {"id":"c47","project":"Dano","area":"ui","note":"Layout break with many groups selected.",
-  "members":[
-   {"k":"a","type":"bug","st":"todo","sev":"minor","role":"qa","t":"چیدمان فرم با انتخاب تعداد زیاد گروه به‌هم می‌ریزد","d":"وقتی بیش از ۱۵ گروه انتخاب شود، تگ‌ها از کادر بیرون می‌زنند و دکمه تایید زیر آن‌ها گم می‌شود.","days":27}
+  "queries": [
+   {"q": "ارسال پیامک گیرنده", "cat": ["short"], "rel": {"a": 2, "b": 2}}
+  ]},
+ {"id": "c47", "project": "Dano", "area": "ui", "note": "Layout break with many groups selected.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "todo", "sev": "minor", "role": "qa", "t": "چیدمان فرم با انتخاب تعداد زیاد گروه به‌هم می‌ریزد", "d": "وقتی بیش از ۱۵ گروه انتخاب شود، تگ‌ها از کادر بیرون می‌زنند و دکمه تایید زیر آن‌ها گم می‌شود.", "days": 27}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"developer","t":"Selected group chips overflow the modal and hide the confirm button","d":"","same":["a"],"cat":["en2fa","cross_lingual"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "developer", "t": "Selected group chips overflow the modal and hide the confirm button", "d": "", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"چیدمان گروه‌ها","cat":["short"],"rel":{"a":2}}]},
-
- {"id":"c48","project":"Dano","area":"events","note":"User count not refreshed after changing event type.",
-  "members":[
-   {"k":"a","type":"bug","st":"new","sev":"minor","role":"qa","t":"تعداد کاربران بعد از تغییر نوع رویداد به‌روز نمی‌شود","d":"از «کلاس» به «آزمون» که تغییر می‌کند عدد شرکت‌کنندگان در لیست رویدادها قدیمی می‌ماند.","days":8}
+  "queries": [
+   {"q": "چیدمان گروه‌ها", "cat": ["short"], "rel": {"a": 2}}
+  ]},
+ {"id": "c48", "project": "Dano", "area": "events", "note": "User count not refreshed after changing event type.",
+  "members": [
+   {"k": "a", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "تعداد کاربران بعد از تغییر نوع رویداد به‌روز نمی‌شود", "d": "از «کلاس» به «آزمون» که تغییر می‌کند عدد شرکت‌کنندگان در لیست رویدادها قدیمی می‌ماند.", "days": 8}
   ],
-  "drafts":[
-   {"k":"1","kind":"duplicate","p":"support","t":"عدد شرکت‌کننده‌ها بعد از عوض کردن نوع رویداد همون قبلیه","d":"","same":["a"],"cat":["colloquial"],"sig":["title"],"diff":"medium"}
+  "drafts": [
+   {"k": "1", "kind": "duplicate", "p": "support", "t": "عدد شرکت‌کننده‌ها بعد از عوض کردن نوع رویداد همون قبلیه", "d": "", "same": ["a"], "cat": ["colloquial"], "sig": ["title"], "diff": "medium"}
   ],
-  "queries":[{"q":"شرکت کننده رویداد","cat":["short"],"rel":{"a":2}}]}
+  "queries": [
+   {"q": "شرکت کننده رویداد", "cat": ["short"], "rel": {"a": 2}}
+  ]}
 ]
