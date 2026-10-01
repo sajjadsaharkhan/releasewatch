@@ -382,13 +382,19 @@ Admin see `Tabs` — **Members · Workload** — under the Team title; everyone 
 grid, unchanged. Above the list: `FilterDropdown`s **Role** (All roles + the five tech roles) and
 **Working in** (All projects + each project — people with open queued work there), "Clear filters"
 when either is set, and a muted "Open someone’s board to reorder or pin." on the right. Filters live
-in the URL (`?role=`, `?project=`). One bordered `rounded-xl` card per person, in name order — never
-sorted by load. Three columns from `lg` (stacked below): the person (avatar, name linking to the
-board, `RoleBadge`, "**n** open · pin **n** pinned", the pin icon yellow when any are pinned), **In
-progress**, and **Up next** (up to three, numbered, a yellow pin or `lock` in place of the number for
-pinned items). Each item line: `TypeMark`, title (link to the item), key (xl+), `ProjectChip` (sm+),
-`PriorityGlyph`. Empty columns say "Nothing in progress" / "Queue is empty" in muted italics.
-Clicking anywhere else on the card opens `/u/:username/work`. Loading is three skeleton cards;
+in the URL (`?role=`, `?project=`). Chosen from prototype variant C, 2026-10-01 (without its load
+strip; the prototype lives on branch `prototype/workload-row`). A **card grid** (1 / 2 from `md` / 3
+from `xl`), one card per person in name order — never sorted by load:
+- **Header:** avatar, name (links to the board, truncates) with the `RoleBadge` on the same line, and
+  under it "**n** open · pin **n** pinned" (the pin yellow when any are pinned).
+- **Now:** an indigo label with a dot that pings while anything is In progress (still under reduced
+  motion), then the items on a thin indigo rail: `TypeMark`, title (link), `BlockerBadge`,
+  `PriorityGlyph`. Indigo is In progress's own hue (`STATUS.in_progress`).
+- **Up next:** up to three, numbered, a yellow pin or `lock` in place of the number for pinned
+  items; `DueTag` when due soon or overdue.
+- **Footer:** "+n more in queue" / "That’s the whole queue" / "Nothing assigned", and "Open board →".
+
+Item titles carry key, title and project in their `title` tooltip. Clicking anywhere else on the card opens `/u/:username/work`. Loading is three skeleton cards;
 filtered-to-nothing is "No one matches these filters."; a failed load toasts "Failed to load
 workload". The copy describes and never ranks people (no "busiest", no scores).
 

@@ -14,92 +14,123 @@ import { Icon } from '../ui/Icon'
 import { Tooltip } from '../ui/Tooltip'
 import { useToast } from '../ui/Toast'
 import { FilterDropdown } from '../common/FilterDropdown'
-import { PriorityGlyph, ProjectChip } from '../common/WorkItemCard'
-import { PIN_ICON, TypeMark } from '../queue/QueueMarks'
+import { PriorityGlyph } from '../common/WorkItemCard'
+import { BlockerBadge, DueTag, PIN_ICON, TypeMark } from '../queue/QueueMarks'
 
-// The Team page's Workload view (slice 11, FR-43) — CTO and Admin only. One row
-// per active assignable person, in name order: what they have In progress, the
-// next three items in their queue, and open/pinned counts. A row opens their
-// board (/u/:username/work), where reorder and pin live. People are never
-// ranked or scored (PRD non-goal) — the copy only describes.
+// The Team page's Workload view (slice 11, FR-43) — CTO and Admin only. A card
+// per active assignable person, in name order (chosen from prototype variant C,
+// 2026-10-01): header with open/pinned counts, what they have In progress
+// ("Now"), the next three queue items, and how much more is waiting. A card
+// opens their board (/u/:username/work), where reorder and pin live. People are
+// never ranked or scored (PRD non-goal) — the copy only describes.
 
-// Person · In progress · Up next — shared by the rows and their skeletons.
-// `relative` is load-bearing: the rows' `sr-only` labels are absolutely
+// `relative` is load-bearing: the cards' `sr-only` labels are absolutely
 // positioned, and without a positioned ancestor inside <main> they escape its
 // overflow and make the whole document scroll.
-const ROW_GRID = 'relative grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]'
+const CARD = 'relative flex flex-col rounded-xl border border-border bg-card shadow-sm'
+const LABEL = 'mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide'
 
-function ItemLine({ item, index }) {
+function ItemLink({ item, className }) {
   return (
-    <li className="flex min-w-0 items-center gap-2">
-      {index !== undefined && (
-        item.pinned ? (
-          <Tooltip content={item.pin_locked ? 'Pinned by a CTO or Admin — locked' : 'Pinned'}>
-            <span className={cn('flex w-4 shrink-0 justify-center', PIN_ICON)}>
-              <Icon name={item.pin_locked ? 'lock' : 'pin'} size={12} fill={item.pin_locked ? 'none' : 'currentColor'} aria-label={item.pin_locked ? 'Pinned, locked' : 'Pinned'} />
-            </span>
-          </Tooltip>
-        ) : (
-          <span className="w-4 shrink-0 text-center text-xs font-semibold tabular-nums text-zinc-400 dark:text-zinc-500">
-            {index + 1}
-          </span>
-        )
-      )}
-      <TypeMark type={item.type} />
-      <Link
-        to={`/issue/${issueSlug(item)}`}
-        onClick={(e) => e.stopPropagation()}
-        className="min-w-0 truncate rounded text-[13px] text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        title={item.title}
-      >
-        {item.title}
-      </Link>
-      <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground xl:inline">{item.key}</span>
-      <ProjectChip project={item.project} className="ml-auto hidden max-w-[9rem] shrink-0 sm:inline-flex" />
-      <PriorityGlyph priority={item.priority} />
-    </li>
+    <Link
+      to={`/issue/${issueSlug(item)}`}
+      onClick={(e) => e.stopPropagation()}
+      title={`${item.key} · ${item.title} · ${item.project.name}`}
+      className={cn('min-w-0 truncate rounded text-[13px] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', className)}
+    >
+      {item.title}
+    </Link>
   )
 }
 
-function ItemList({ title, items, empty, numbered = false, testId }) {
+function PinOrNumber({ item, n }) {
+  if (!item.pinned) {
+    return <span className="w-4 shrink-0 text-center text-xs font-semibold tabular-nums text-zinc-400 dark:text-zinc-500">{n}</span>
+  }
   return (
-    <div className="min-w-0" data-testid={testId}>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
-      {items.length === 0 ? (
-        <p className="text-[13px] italic text-muted-foreground">{empty}</p>
-      ) : (
-        <ul className="space-y-1.5">
-          {items.map((item, i) => <ItemLine key={item.id} item={item} index={numbered ? i : undefined} />)}
+    <Tooltip content={item.pin_locked ? 'Pinned by a CTO or Admin — locked' : 'Pinned'}>
+      <span className={cn('flex w-4 shrink-0 justify-center', PIN_ICON)}>
+        <Icon name={item.pin_locked ? 'lock' : 'pin'} size={12} fill={item.pin_locked ? 'none' : 'currentColor'} aria-label={item.pin_locked ? 'Pinned, locked' : 'Pinned'} />
+      </span>
+    </Tooltip>
+  )
+}
+
+function NowList({ items }) {
+  const busy = items.length > 0
+  return (
+    <div className="px-4 pt-3" data-testid="workload-in-progress">
+      <p className={cn(LABEL, 'text-indigo-600 dark:text-indigo-400')}>
+        <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+          {busy && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-60 motion-reduce:hidden" />}
+          <span className={cn('relative inline-flex h-1.5 w-1.5 rounded-full', busy ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600')} />
+        </span>
+        Now
+      </p>
+      {busy ? (
+        <ul className="space-y-1.5 border-l-2 border-indigo-200 pl-2.5 dark:border-indigo-900">
+          {items.map((item) => (
+            <li key={item.id} className="relative flex min-w-0 items-center gap-1.5">
+              <TypeMark type={item.type} />
+              <ItemLink item={item} className="font-medium text-foreground" />
+              <BlockerBadge item={item} />
+              <PriorityGlyph priority={item.priority} className="ml-auto" />
+            </li>
+          ))}
         </ul>
-      )}
+      ) : <p className="text-[12.5px] italic text-muted-foreground">Nothing in progress</p>}
     </div>
   )
 }
 
-function PersonRow({ row }) {
+function NextList({ items }) {
+  return (
+    <div className="flex-1 px-4 pb-3 pt-3" data-testid="workload-next">
+      <p className={cn(LABEL, 'text-muted-foreground')}>Up next</p>
+      {items.length > 0 ? (
+        <ul className="space-y-1.5">
+          {items.map((item, i) => (
+            <li key={item.id} className="relative flex min-w-0 items-center gap-1.5">
+              <PinOrNumber item={item} n={i + 1} />
+              <TypeMark type={item.type} />
+              <ItemLink item={item} className="text-foreground/90" />
+              {item.due_state !== 'none' && <span className="shrink-0 whitespace-nowrap"><DueTag item={item} /></span>}
+              <PriorityGlyph priority={item.priority} className="ml-auto" />
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-[12.5px] italic text-muted-foreground">Queue is empty</p>}
+    </div>
+  )
+}
+
+function PersonCard({ row }) {
   const navigate = useNavigate()
   const { user, counts } = row
   const board = `/u/${user.username}/work`
+  const more = Math.max(0, counts.open - row.in_progress.length - row.next.length)
   return (
     <li
       data-testid="workload-row"
       data-user-id={user.id}
       onClick={() => navigate(board)}
-      className={cn(ROW_GRID, 'cursor-pointer shadow-sm transition-[border-color,box-shadow] hover:border-zinc-300 hover:shadow dark:hover:border-zinc-700')}
+      className={cn(CARD, 'cursor-pointer transition-[border-color,box-shadow] hover:border-zinc-300 hover:shadow dark:hover:border-zinc-700')}
     >
-      <div className="flex min-w-0 items-start gap-3">
+      <div className="flex items-center gap-3 px-4 pt-4">
         <Avatar user={user} size={36} />
-        <div className="min-w-0 space-y-1.5">
-          <Link
-            to={board}
-            onClick={(e) => e.stopPropagation()}
-            className="block truncate rounded text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`Open ${user.name}’s board`}
-          >
-            {user.name}
-          </Link>
-          <RoleBadge role={user.role} />
-          <p className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="workload-counts">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <Link
+              to={board}
+              onClick={(e) => e.stopPropagation()}
+              className="min-w-0 truncate rounded text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Open ${user.name}’s board`}
+            >
+              {user.name}
+            </Link>
+            <RoleBadge role={user.role} className="shrink-0" />
+          </div>
+          <p className="flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground" data-testid="workload-counts">
             <span><span className="font-semibold tabular-nums text-foreground">{counts.open}</span> open</span>
             <span aria-hidden="true">·</span>
             <span className="inline-flex items-center gap-1">
@@ -109,32 +140,42 @@ function PersonRow({ row }) {
           </p>
         </div>
       </div>
-      <ItemList title="In progress" items={row.in_progress} empty="Nothing in progress" testId="workload-in-progress" />
-      <ItemList title="Up next" items={row.next} empty="Queue is empty" numbered testId="workload-next" />
+      <NowList items={row.in_progress} />
+      <NextList items={row.next} />
+      <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
+        <span>{more > 0 ? `+${more} more in queue` : counts.open > 0 ? 'That’s the whole queue' : 'Nothing assigned'}</span>
+        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+          Open board <Icon name="arrow-right" size={12} aria-hidden="true" />
+        </span>
+      </div>
     </li>
   )
 }
 
-function RowSkeleton() {
+const BAR = 'rounded bg-zinc-200 animate-pulse dark:bg-zinc-700'
+
+function CardSkeleton() {
   return (
-    <li className={ROW_GRID}>
-      <div className="flex gap-3">
-        <div className="h-9 w-9 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-700" />
+    <li className={cn(CARD, 'gap-4 p-4')}>
+      <div className="flex items-center gap-3">
+        <div className={cn(BAR, 'h-9 w-9 rounded-full')} />
         <div className="space-y-2">
-          <div className="h-3.5 w-28 rounded bg-zinc-200 animate-pulse dark:bg-zinc-700" />
-          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse dark:bg-zinc-700" />
+          <div className={cn(BAR, 'h-3.5 w-28')} />
+          <div className={cn(BAR, 'h-3 w-20')} />
         </div>
       </div>
       {[0, 1].map((k) => (
         <div key={k} className="space-y-2">
-          <div className="h-2.5 w-20 rounded bg-zinc-200 animate-pulse dark:bg-zinc-700" />
-          <div className="h-3 w-full rounded bg-zinc-200 animate-pulse dark:bg-zinc-700" />
-          <div className="h-3 w-2/3 rounded bg-zinc-200 animate-pulse dark:bg-zinc-700" />
+          <div className={cn(BAR, 'h-2.5 w-16')} />
+          <div className={cn(BAR, 'h-3 w-full')} />
+          <div className={cn(BAR, 'h-3 w-2/3')} />
         </div>
       ))}
     </li>
   )
 }
+
+const GRID = 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3'
 
 /** `role` / `project` are URL-backed filters owned by the page. */
 export function WorkloadView({ role, project, onFilter }) {
@@ -174,16 +215,16 @@ export function WorkloadView({ role, project, onFilter }) {
       </div>
 
       {rows === null ? (
-        <ul className="space-y-3" aria-busy="true">
-          {[0, 1, 2].map((k) => <RowSkeleton key={k} />)}
+        <ul className={GRID} aria-busy="true">
+          {[0, 1, 2].map((k) => <CardSkeleton key={k} />)}
         </ul>
       ) : rows.length === 0 ? (
         filtered
           ? <p className="py-12 text-center text-sm text-muted-foreground">No one matches these filters.</p>
           : <Empty icon="users" title="No one to show" body="Active team members who can be assigned work appear here." />
       ) : (
-        <ul className="space-y-3">
-          {rows.map((row) => <PersonRow key={row.user.id} row={row} />)}
+        <ul className={GRID}>
+          {rows.map((row) => <PersonCard key={row.user.id} row={row} />)}
         </ul>
       )}
     </div>
