@@ -326,7 +326,8 @@ def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
     recorded index jobs for tests that search.
     """
     calls: dict[str, list] = {
-        "index_item": [], "reindex_all": [], "backfill": [], "validate_attachment": [],
+        "index_item": [], "reindex_all": [], "backfill": [], "hints": [],
+        "validate_attachment": [],
     }
 
     def _recorder(name):
@@ -338,6 +339,9 @@ def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
     monkeypatch.setattr(search_index.reindex_all, "apply_async", _recorder("reindex_all"))
     monkeypatch.setattr(
         search_index.backfill_comment_classification, "apply_async", _recorder("backfill"),
+    )
+    monkeypatch.setattr(
+        search_index.compute_duplicate_hints, "apply_async", _recorder("hints"),
     )
     monkeypatch.setattr(validate_attachment, "apply_async", _recorder("validate_attachment"))
     return calls
@@ -387,9 +391,11 @@ class SearchJobs:
         self._calls = calls
 
     async def run(self) -> list[dict]:
-        """Run every pending backfill, ``reindex_all`` and ``index_item``, until none is left."""
+        """Run every pending backfill, ``reindex_all``, ``index_item`` and
+        ``compute_duplicate_hints``, until none is left. Hints run after the
+        index jobs of the same round, the way the debounced queue orders them."""
         results = []
-        while self._calls["reindex_all"] or self._calls["index_item"] or self._calls["backfill"]:
+        while any(self._calls[k] for k in ("reindex_all", "index_item", "backfill", "hints")):
             if self._calls["backfill"]:
                 self._calls["backfill"].clear()
                 await search_index.backfill_comment_classification_now()
@@ -402,6 +408,10 @@ class SearchJobs:
             self._calls["index_item"].clear()
             for issue_id in pending:
                 results.append(await search_index.index_item_now(issue_id))
+            pending_hints = sorted({args[0] for args, _, _ in self._calls["hints"]})
+            self._calls["hints"].clear()
+            for issue_id in pending_hints:
+                results.append(await search_index.compute_duplicate_hints_now(issue_id))
         return results
 
 

@@ -214,6 +214,9 @@ class IssueService:
             )
 
         search_index.enqueue(db, issue.id)
+        if issue_type_value(data.type) == IssueType.bug.value:
+            # A filed bug enters New: look for possible duplicates (slice 14).
+            search_index.enqueue_hints(db, issue.id)
         return issue
 
     # ── Transition — the only code that writes issue.status ─────────────────────
@@ -357,6 +360,13 @@ class IssueService:
             await self.notify_support(db, issue, to_status, actor, question=question)
 
         search_index.enqueue(db, issue.id)
+        if (
+            to_status == IssueStatus.new
+            and from_status != IssueStatus.new
+            and issue_type_value(issue.type) == IssueType.bug.value
+        ):
+            # Back in New (e.g. a Needs-info answer): hints may have changed.
+            search_index.enqueue_hints(db, issue.id)
         return issue
 
     async def notify_support(
@@ -679,17 +689,20 @@ class IssueService:
             issue.is_tech_debt = payload["is_tech_debt"]
 
         # ── Title ─────────────────────────────────────────────────────────────
+        text_edited = False
         if "title" in payload and payload["title"] != issue.title:
             events_to_emit.append((
                 TimelineEventType.title_changed,
                 {"from": issue.title, "to": payload["title"]},
             ))
             issue.title = payload["title"]
+            text_edited = True
 
         # ── Description ───────────────────────────────────────────────────────
         if "description" in payload and payload["description"] != issue.description:
             events_to_emit.append((TimelineEventType.description_changed, {}))
             issue.description = payload["description"]
+            text_edited = True
 
         # ── Priority ──────────────────────────────────────────────────────────
         if "priority" in payload:
@@ -896,6 +909,13 @@ class IssueService:
         # Assignee or priority changes move the item between or within queues.
         await queue_service.sync(db, issue, priority_changed=priority_changed)
         search_index.enqueue(db, issue.id)
+        if (
+            text_edited
+            and issue_type_value(issue.type) == IssueType.bug.value
+            and getattr(issue.status, "value", issue.status) == IssueStatus.new.value
+        ):
+            # A New bug's draft changed: its duplicate hints may have too (14).
+            search_index.enqueue_hints(db, issue.id)
         return issue
 
     # ── Placement rules for PATCH (BR-05, 2026-09-28 categories) ───────────────

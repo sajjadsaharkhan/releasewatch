@@ -20,6 +20,10 @@ Because visibility is applied inside every channel, an item reaches the
 results only if a channel the actor may use matched it (AC-S05). When the
 embedding service is down, only the keyword channel answers — search still
 works, with lower quality (principle S1).
+
+``same_problem_candidates`` (slice 14) is the stage-1 half of the
+similar-item surfaces: the same dense machinery over ``body`` and ``title``
+only, with an unwritten report's draft as the query.
 """
 
 import hashlib
@@ -47,6 +51,7 @@ from app.search.constants import (
     QUERY_CACHE_TTL,
     RESULT_LIMIT,
     RRF_K,
+    SIMILAR_CANDIDATES,
     T_FLOOR,
     T_RELEVANT,
     T_TRGM,
@@ -66,6 +71,12 @@ class Filters:
     project_id: int | None = None
     types: list[str] = field(default_factory=list)
     statuses: list[str] = field(default_factory=list)
+    #: Same-problem candidate rules (slice 14): ``sources`` narrows to e.g.
+    #: support items; ``exclude_statuses`` drops e.g. cancelled ones where an
+    #: allow-list is the wrong shape; ``exclude_issue_id`` drops the draft itself.
+    sources: list[str] = field(default_factory=list)
+    exclude_statuses: list[str] = field(default_factory=list)
+    exclude_issue_id: int | None = None
 
 
 @dataclass
@@ -114,8 +125,14 @@ def _cache_key(endpoint: str, model: str, q: str) -> str:
 async def _query_vector(db: AsyncSession, q: str) -> tuple[list[float] | None, str | None]:
     """``(vector, model)``; ``(None, last known model)`` when the service fails."""
     config = await embeddings.load_config(db)
-    redis = await get_redis_raw()
-    if config.embed_model:
+    try:
+        redis = await get_redis_raw()
+    except RuntimeError:
+        # A Celery worker has no app lifespan, so the async client is never
+        # initialised there (slice 14's hint job is the first worker caller).
+        # The cache is an optimisation: embed without it.
+        redis = None
+    if redis is not None and config.embed_model:
         try:
             cached = await redis.get(_cache_key(config.endpoint, config.embed_model, q))
             if cached:
@@ -140,32 +157,42 @@ async def _query_vector(db: AsyncSession, q: str) -> tuple[list[float] | None, s
 
         request_reindex_all()
     vector = result.vectors[0]
-    try:
-        await redis.set(
-            _cache_key(config.endpoint, result.model, q),
-            json.dumps(vector),
-            ex=QUERY_CACHE_TTL,
-        )
-    except Exception:  # noqa: BLE001
-        pass
+    if redis is not None:
+        try:
+            await redis.set(
+                _cache_key(config.endpoint, result.model, q),
+                json.dumps(vector),
+                ex=QUERY_CACHE_TTL,
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return vector, result.model
 
 
 # ── Channels ─────────────────────────────────────────────────────────────────
 
 
-def _scoped(stmt: Select, actor: User, model: str, filters: Filters) -> Select:
+def _scoped(stmt: Select, actor: User | None, model: str, filters: Filters) -> Select:
     stmt = stmt.join(Issue, Issue.id == SearchItem.issue_id).where(
         Issue.deleted_at.is_(None),
-        visibility_clause(actor),
         SearchItem.embed_model == model,
     )
+    # ``actor=None`` is the hint job, whose candidates are tech-only data anyway
+    # (FR-S13); every request-path caller passes the actor (BR-S07–S09).
+    if actor is not None:
+        stmt = stmt.where(visibility_clause(actor))
     if filters.project_id is not None:
         stmt = stmt.where(SearchItem.project_id == filters.project_id)
     if filters.types:
         stmt = stmt.where(SearchItem.type.in_(filters.types))
     if filters.statuses:
         stmt = stmt.where(SearchItem.status.in_(filters.statuses))
+    if filters.sources:
+        stmt = stmt.where(SearchItem.source.in_(filters.sources))
+    if filters.exclude_statuses:
+        stmt = stmt.where(SearchItem.status.not_in(filters.exclude_statuses))
+    if filters.exclude_issue_id is not None:
+        stmt = stmt.where(SearchItem.issue_id != filters.exclude_issue_id)
     return stmt
 
 
@@ -174,7 +201,7 @@ async def _dense_channel(
     kind: str,
     vector: list[float],
     model: str,
-    actor: User,
+    actor: User | None,
     filters: Filters,
 ) -> list[tuple[int, int | None, float]]:
     sim = 1 - SearchVector.embedding.cosine_distance(vector)
@@ -311,6 +338,35 @@ async def _jev_rerank(
     results = [h for h in ordered if scores[h.issue_id] >= T_RELEVANT]
     less = [h for h in ordered if scores[h.issue_id] < T_RELEVANT]
     return results, less, True
+
+
+# ── Same-problem candidates (slice 14, A.5, FR-S08–S10) ─────────────────────
+
+
+async def same_problem_candidates(
+    db: AsyncSession,
+    actor: User | None,
+    draft: str,
+    *,
+    filters: Filters,
+    k: int = SIMILAR_CANDIDATES,
+) -> list[Hit]:
+    """Stage-1 candidates for a report being written: the ``body`` and ``title``
+    channels only — comments never decide "same problem" (S4) — with the draft
+    as the query, fused, filtered by the consumer's rule (BR-S07–S09) and what
+    ``actor`` may see. No floor and no keyword channel: Jev judges the
+    candidates, so stage 1 only narrows. Returns at most ``k`` hits, best first."""
+    q = normalize(draft)
+    if not q:
+        return []
+    vector, model = await _query_vector(db, q)
+    if vector is None or model is None:
+        return []  # the embedding service is down: no panel, no error (S1)
+    channels: dict[str, list[tuple[int, float]]] = {}
+    for kind in ("body", "title"):
+        rows = await _dense_channel(db, kind, vector, model, actor, filters)
+        channels[kind] = [(issue_id, sim) for issue_id, _, sim in rows]
+    return fuse(channels)[:k]
 
 
 # ── Hydration ────────────────────────────────────────────────────────────────

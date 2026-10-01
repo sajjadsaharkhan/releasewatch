@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi, projectsApi, releasesApi, inboxApi } from '../lib/api'
+import { authApi, projectsApi, releasesApi, inboxApi, searchApi } from '../lib/api'
 import { isSupport } from '../lib/roles'
 
 const AppContext = createContext(null)
@@ -38,6 +38,10 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+
+  // Feature flags from GET /features — which panels the UI may show (slice 14:
+  // the similar-items surfaces exist only while `jev_enabled`).
+  const [features, setFeatures] = useState({ jev_enabled: false })
 
   // Inbox state
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
@@ -101,7 +105,6 @@ export function AppProvider({ children }) {
         setProjectsLoading(false)
         return
       }
-
       try {
         const response = await projectsApi.list()
         const projectsList = response.data || []
@@ -124,6 +127,18 @@ export function AppProvider({ children }) {
     }
 
     fetchProjects()
+  }, [isAuthenticated])
+
+  // Feature flags on login (slice 14). A failure keeps every panel hidden —
+  // the flags only ever turn surfaces on, never break a page.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setFeatures({ jev_enabled: false })
+      return
+    }
+    searchApi.features()
+      .then((res) => setFeatures({ jev_enabled: Boolean(res.data?.jev_enabled) }))
+      .catch(() => setFeatures({ jev_enabled: false }))
   }, [isAuthenticated])
 
   // Fetch releases when active project changes
@@ -280,6 +295,9 @@ export function AppProvider({ children }) {
     authLoading,
     login,
     logout,
+    // Feature flags (GET /features) — e.g. `jev_enabled` gates the
+    // similar-items panels (slice 14)
+    features,
     // Inbox
     inboxUnreadCount,
     setInboxUnreadCount,

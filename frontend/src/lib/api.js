@@ -142,6 +142,11 @@ export const issuesApi = {
   // 'accept' {priority, assignee_id?, release_id?} · 'needs_info' {comment} ·
   // 'duplicate' {duplicate_of_id, comment?} · 'reject' {reason, comment?}.
   triage: (id, data) => api.post(`/issues/${id}/triage`, data),
+  /** Stored possible duplicates of a New bug (slice 14): { hints: [{ candidate_id,
+   *  confidence, merge_effect, candidate: { id, key, type, title, status, container } }] }. */
+  duplicateHints: (id) => api.get(`/issues/${id}/duplicate-hints`),
+  dismissDuplicateHint: (id, candidateId) =>
+    api.post(`/issues/${id}/duplicate-hints/${candidateId}/dismiss`),
   // Move a New / Needs info bug with no release to another project (FR-20).
   move: (id, projectId) => api.post(`/issues/${id}/move`, { project_id: projectId }),
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),
@@ -322,6 +327,10 @@ export const searchApi = {
   /** `params`: { q, scope: 'project'|'all', project_id, type, status, mode: 'page'|'palette' }.
    *  `type` / `status` may be arrays. Response: { results, less_relevant, jev_used }. */
   search: (params, config) => api.get('/search', { params, paramsSerializer: { indexes: null }, ...config }),
+  /** Same-problem suggestions while writing a report (slice 14).
+   *  `data`: { context: 'support'|'tech', project_id, title, description?, template_id?, values? }.
+   *  204 (Jev off or failing) resolves with `status: 204` and no data — hide the panel. */
+  similar: (data, config) => api.post('/search/similar', data, config),
   features: () => api.get('/features'),
   settings: () => api.get('/settings/search'),
   saveSettings: (data) => api.put('/settings/search', data),

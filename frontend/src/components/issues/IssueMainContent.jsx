@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import { RoleBadge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -10,8 +10,11 @@ import { AttachmentsSection } from './AttachmentsSection'
 import { CycleHistorySection } from './CycleHistorySection'
 import { IssueTimeline } from './IssueTimeline'
 import { NeedsInfoQuestion } from './NeedsInfoQuestion'
+import { DuplicateHintsPanel } from '../triage/DuplicateHintsPanel'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
+import { isTech } from '../../lib/roles'
+import { useApp } from '../../hooks/useApp'
 import { ContainerBadge } from '../common/ContainerBadge'
 
 const TABS = ['activity', 'attachments', 'cycles']
@@ -46,6 +49,8 @@ export function IssueMainContent({
   }
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
+  const navigate = useNavigate()
+  const { user } = useApp()
 
   const reporter = issue.reporter_user
   const bug = isBug(issue)
@@ -97,6 +102,16 @@ export function IssueMainContent({
         <span>·</span>
         <ContainerBadge item={issue} />
       </div>
+
+      {/* Possible duplicates of a New bug — tech users only (FR-S13). Merging
+          happens in triage, so "Merge into this" goes there with this item
+          ready to select. */}
+      {isTech(user?.role) && (
+        <DuplicateHintsPanel
+          issue={issue}
+          onMerge={() => navigate('/triage', { state: { selectIssueId: issue.id } })}
+        />
+      )}
 
       <NeedsInfoQuestion issue={issue} comments={comments} />
 

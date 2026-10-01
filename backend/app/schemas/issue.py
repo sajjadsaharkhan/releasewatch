@@ -303,6 +303,9 @@ class IssueResponse(IssueBase):
     #: ``production`` — and the comment that says why (09a).
     reject_reason: str | None = None
     reject_comment_id: int | None = None
+    #: Stored possible duplicates of a New bug — the triage row's marker (14).
+    #: 0 while Jev is disabled or the item isn't a candidate for hints.
+    possible_duplicates_count: int = 0
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int
@@ -348,6 +351,37 @@ class IssueListResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class DuplicateHintCandidate(BaseModel):
+    """The item a hint points at, as the triage pane and item page render it."""
+
+    id: int
+    key: str
+    type: str
+    title: str
+    status: str
+    issue_number: int
+    container: dict | None = None
+
+
+class DuplicateHintEntry(BaseModel):
+    """One stored possible duplicate (slice 14, FR-S13).
+
+    ``merge_effect`` is what the Duplicate outcome would do to the candidate —
+    ``unchanged`` | ``stays_cancelled`` | ``returns_release_qa`` |
+    ``returns_production`` — computed with the merge's own reason function
+    (BR-49), so the sentence and the merge never disagree.
+    """
+
+    candidate_id: int
+    confidence: float
+    merge_effect: str
+    candidate: DuplicateHintCandidate
+
+
+class DuplicateHintsResponse(BaseModel):
+    hints: list[DuplicateHintEntry] = Field(default_factory=list)
 
 
 class BulkMoveRequest(BaseModel):

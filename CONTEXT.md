@@ -185,6 +185,10 @@ Whether a comment is used for search, and who decided (`comment_labels.label` + 
 With Jev on, Jev labels new comments `this_problem` (weight 1), `other_problem` (weight 0.5), `process` or `ack` (not used); a Jev label under 0.6 confidence counts as used. `rule_dropped` comments never reach Jev. A Jev label stays when Jev is switched off (BR-S14).
 _Avoid_: "comment classification" for the rule alone.
 
+**Duplicate hint**:
+A stored possible duplicate of a New bug (`duplicate_hints`, slice 14): what `compute_duplicate_hints` found — stage-1 body/title candidates of the project, Jev judging each `same`/`related`/`unrelated`, at most three `same` verdicts at `T_SAME`. Tech-only, shown in the triage queue and on the item page while the item is New; each hint says what merging will do, computed with the merge's own reason function so hint and merge never disagree. A **dismissal** ("Not a duplicate", `duplicate_dismissals`) outlives every recomputation. With Jev off, stored hints are hidden, not deleted. The form panels (Support's **Similar reports** with record-recurrence, the create form's **Possibly the same**) are the live, un-stored version of the same judgment.
+_Avoid_: "AI-detected duplicate" — stage 1 narrows, Jev decides, a human merges.
+
 ## Decisions
 
 Where Phase 2 deliberately departs from the PRD. Each came up while checking the PRD against the code and was decided before building, so the code follows the decision, not the PRD. Moved here from the Phase 2 specs' README after slice 11 so the decisions outlive the specs. Later product overrides (the free workflow, 2026-09-22/23) are noted where they changed a row.

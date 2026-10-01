@@ -11,6 +11,7 @@ import { DatePicker } from '../ui/DatePicker'
 import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
+import { SimilarItemsPanel } from './SimilarItemsPanel'
 import { BacklogCategoryPicker, ContainerPicker, ProjectSwitcher } from '../common'
 import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TECH_DEBT, TYPE, isOpenRelease } from '../../lib/constants'
 import { ENVIRONMENT } from './DescriptionSection'
@@ -258,9 +259,11 @@ export function NewIssueModal({ open, onClose, onCreated }) {
   return (
     <Dialog open={open} onClose={onClose} title={isTask ? 'New Task' : 'New Bug'} size="xl">
       <div className="flex flex-col max-h-[calc(90vh-60px)]">
-        {/* Scrollable content area */}
+        {/* Scrollable content area — the form plus the Possibly-the-same panel
+            beside it on wide screens, below it on narrow ones (slice 14). */}
         <div className="flex-1 overflow-y-auto px-5 scrollbar-thin">
-          <div className="py-5 space-y-5">
+          <div className="grid items-start gap-5 py-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <div className="min-w-0 space-y-5">
             {dataLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-muted-foreground text-sm">Loading…</div>
@@ -525,6 +528,17 @@ export function NewIssueModal({ open, onClose, onCreated }) {
             </div>
               </>
             )}
+            </div>
+
+            {/* Possibly the same (slice 14) — nothing while Jev is off or no
+                suggestion came back, so the column simply stays empty. */}
+            <div className="lg:sticky lg:top-0">
+              <SimilarItemsPanel
+                projectId={form.projectId || null}
+                title={form.title}
+                description={form.description}
+              />
+            </div>
           </div>
         </div>
 

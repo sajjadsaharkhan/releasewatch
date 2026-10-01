@@ -101,6 +101,16 @@ def chunk(text: str) -> list[str]:
     return [c for c in chunks if c]
 
 
+def body_text(item: Any) -> str:
+    """The body rule as one string: title + description + reproduction steps,
+    normalized (principle S4 — comments are never part of it). This is the
+    draft text of an unwritten report for ``same_problem_candidates`` (14) and
+    the chunk input of ``build_documents``."""
+    title = normalize(item.title)
+    description = normalize(strip_markdown(item.description))
+    return " ".join(p for p in (title, description, *_steps_text(item.reproduction_steps)) if p)
+
+
 def build_documents(
     item: Any,
     comments: Iterable[Any],
@@ -111,8 +121,7 @@ def build_documents(
     ``is_internal``; ``labels`` maps a comment id to its comment label, or to
     ``(label, confidence)`` for a Jev label."""
     title = normalize(item.title)
-    description = normalize(strip_markdown(item.description))
-    body = " ".join(p for p in (title, description, *_steps_text(item.reproduction_steps)) if p)
+    body = body_text(item)
 
     talk = []
     for c in comments:

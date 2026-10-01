@@ -8,7 +8,18 @@ items and their timelines by ``reindex_all``. Written only by
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -101,5 +112,56 @@ class CommentLabel(Base):
     content_hash: Mapped[str] = mapped_column(String(32), nullable=False)
     jev_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     classified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DuplicateHint(Base):
+    """A stored possible duplicate of a New bug (slice 14, A.4, FR-S12).
+
+    Written only by ``compute_duplicate_hints`` — replaced wholesale on each
+    computation, never more than ``DUPLICATE_HINT_LIMIT`` rows. A dismissed
+    pair is never stored again (BR-S12): dismissals live on in their own table.
+    """
+
+    __tablename__ = "duplicate_hints"
+    __table_args__ = (
+        UniqueConstraint("issue_id", "candidate_id", name="uq_duplicate_hints_pair"),
+        Index("ix_duplicate_hints_issue", "issue_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False
+    )
+    candidate_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    jev_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DuplicateDismissal(Base):
+    """A triage lead's "Not a duplicate" — forever (slice 14, BR-S12, AC-S12).
+
+    Never deleted by jobs, so a reindex or recomputation cannot bring the pair
+    back. ``PK (issue_id, candidate_id)``: one dismissal per pair.
+    """
+
+    __tablename__ = "duplicate_dismissals"
+
+    issue_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True
+    )
+    candidate_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True
+    )
+    dismissed_by_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    dismissed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

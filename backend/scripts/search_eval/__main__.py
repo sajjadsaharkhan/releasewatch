@@ -10,8 +10,9 @@ On a host that can't hold both models at once, score them one at a time:
 ``--phase engine --state DIR``, swap the services, ``--phase baseline --state DIR``,
 then ``--phase report --state DIR``.
 
-``stage2 --part search|comments`` (slice 13) needs ``JEV_API_KEY`` in the
-environment; ``--part search`` reuses the engine candidates saved by stage1.
+``stage2 --part search|comments|similar`` (slices 13–14) needs ``JEV_API_KEY``
+in the environment; ``--part search`` reuses the engine candidates saved by
+stage1, ``--part similar`` embeds the corpus itself (body+title channels).
 """
 
 import argparse
@@ -102,6 +103,13 @@ async def _stage2(args) -> None:
         run = await stage2.run_search(ds, engine, jev)
         stage2.save(Path(args.state) / "stage2-search.json", run)
         out.write_text(stage2.search_report(ds, run))
+    elif args.part == "similar":
+        if not ds.drafts:
+            raise SystemExit("The dataset has no drafts.json (dataset spec §4.2)")
+        run = await stage2.run_similar(ds, await _engine_endpoint(args.endpoint), jev)
+        if args.state:
+            stage2.save(Path(args.state) / "stage2-similar.json", run)
+        out.write_text(stage2.similar_report(ds, run))
     else:
         gold = json.loads((Path(args.dataset) / "comments_labelled.json").read_text())
         run = await stage2.run_comments(ds, gold, jev)
@@ -130,11 +138,14 @@ def main() -> None:
     s1.add_argument("--out", help="Report path (default: ./search-eval-stage1-<date>.md)")
     s1.add_argument("--host", help="Where this ran, for the report (default: this machine)")
     s2 = sub.add_parser(
-        "stage2", help="Jev on: rerank + T_RELEVANT sweep (Q4), comment labels (Q5)"
+        "stage2",
+        help="Jev on: rerank + T_RELEVANT sweep (Q4), comment labels (Q5), "
+        "same-problem drafts + T_SAME sweep (Q3)",
     )
-    s2.add_argument("--part", choices=["search", "comments"], required=True)
+    s2.add_argument("--part", choices=["search", "comments", "similar"], required=True)
     s2.add_argument("--dataset", required=True)
     s2.add_argument("--state", help="The stage1 --state DIR (search reads engine.json from it)")
+    s2.add_argument("--endpoint", help="Engine embedding endpoint (similar; default: configured)")
     s2.add_argument("--model", help="Jev model (default: the pinned jev-1.13.0)")
     s2.add_argument("--out", help="Report path")
     args = parser.parse_args()

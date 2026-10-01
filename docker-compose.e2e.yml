@@ -20,6 +20,8 @@ services:
       SECRET_KEY: e2e-fixed-secret-key-not-for-production
       TELEGRAM_BOT_TOKEN: ''
       ENVIRONMENT: test
+      # Slice 14: the fake Jev below instead of api.typesafe.ai (A.12).
+      JEV_BASE_URL: http://jev:80
 
   worker:
     environment:
@@ -27,6 +29,7 @@ services:
       SECRET_KEY: e2e-fixed-secret-key-not-for-production
       TELEGRAM_BOT_TOKEN: ''
       ENVIRONMENT: test
+      JEV_BASE_URL: http://jev:80
 
   beat:
     environment:
@@ -54,6 +57,25 @@ services:
     command: uvicorn tests.fakes.embedding_endpoint:app --host 0.0.0.0 --port 80
     environment: !reset {}
     volumes: !reset []
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:80/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  # The fake Jev (tests/fakes/jev_endpoint.py): every same-problem question is
+  # answered "same", which is all the slice-14 scenarios script (A.12). Same
+  # image as the fake embeddings (a full backend image, so tests.fakes is a
+  # package in it) with the one file mounted and a different command — no
+  # second image to build. The switch and key live in the DB; seed_e2e.py
+  # turns them on against this URL.
+  jev:
+    image: releasewatch-embeddings-fake
+    command: uvicorn tests.fakes.jev_endpoint:app --host 0.0.0.0 --port 80
+    environment: !reset {}
+    volumes:
+      - ./backend/tests/fakes/jev_endpoint.py:/app/tests/fakes/jev_endpoint.py:ro
     healthcheck:
       test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:80/health')"]
       interval: 5s

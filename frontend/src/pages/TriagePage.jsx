@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
@@ -10,7 +11,8 @@ import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown
 import { MediaPreview } from '../components/common/MediaPreview'
 import { SourceBadge } from '../components/common/SourceBadge'
 import { ReportedCount } from '../components/common/ReportedCount'
-import { TriageOutcomePanel } from '../components/triage'
+import { PossibleDuplicates } from '../components/common/PossibleDuplicates'
+import { TriageOutcomePanel, DuplicateHintsPanel } from '../components/triage'
 import { issuesApi, teamApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { relTime, fullTime } from '../lib/relTime'
@@ -61,6 +63,11 @@ export default function TriagePage() {
   const [tab, setTab] = useState('new')
   const [sort, setSort] = useState('oldest')
   const [selectedId, setSelectedId] = useState(null)
+  // A duplicate hint's "Merge into this" → the Duplicate outcome with the
+  // candidate preselected (slice 14, FR-S14).
+  const [preset, setPreset] = useState(null)
+  const location = useLocation()
+  const navigate = useNavigate()
   const { toast } = useToast()
   const { activeProjectId, projects } = useApp()
 
@@ -92,6 +99,15 @@ export default function TriagePage() {
   useEffect(() => {
     if (!queue.some(i => i.id === selectedId)) setSelectedId(queue[0]?.id ?? null)
   }, [queue, selectedId])
+
+  // "Merge into this" on an item page's hints sends the reader here with the
+  // item to select (slice 14); consume the hint once so it doesn't stick.
+  useEffect(() => {
+    const wanted = location.state?.selectIssueId
+    if (wanted == null) return
+    if (issues.some(i => i.id === wanted)) setSelectedId(wanted)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.state, issues, navigate, location.pathname])
 
   useEffect(() => {
     if (!selected) { setAttachments([]); return }
@@ -182,6 +198,7 @@ export default function TriagePage() {
                       <span className="font-mono text-[11px] text-muted-foreground">{issueKey(i)}</span>
                       <SourceBadge source={i.source} />
                       <ReportedCount count={i.recurrence_count} />
+                      <PossibleDuplicates count={i.possible_duplicates_count} />
                       <span className="ml-auto text-[11px] text-muted-foreground" title={fullTime(i.created_at)}>
                         filed {relTime(i.created_at)}
                       </span>
@@ -268,11 +285,18 @@ export default function TriagePage() {
                 </div>
               )}
 
+            <DuplicateHintsPanel
+              issue={selected}
+              onMerge={(candidate) => setPreset({ issueId: selected.id, candidate })}
+              onDismissed={() => loadQueue()}
+            />
+
             <TriageOutcomePanel
               issue={selected}
               assignable={assignable}
               onDone={handleDone}
               toast={toast}
+              presetOriginal={preset?.issueId === selected.id ? preset.candidate : null}
             />
           </div>
         )}

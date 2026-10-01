@@ -1,6 +1,7 @@
 """Search API (slice 12, engine PRD Appendix A.9).
 
 GET  /search                    — stage-1 search; the search page and the command palette
+POST /search/similar            — same-problem suggestions while writing a report (slice 14)
 GET  /features                  — what the UI may show ({jev_enabled})
 GET  /settings/search           — Admin: endpoint, model, index status, Jev (FR-S17)
 PUT  /settings/search           — Admin: change the endpoint; a change reindexes (FR-S19)
@@ -11,16 +12,20 @@ POST /settings/search/jev/test  — Admin: Test connection with the saved key
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
 from app.db.models.issue import IssueStatus, IssueType
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
+from app.policy import Action, is_tech
+from app.schemas.search import SimilarItemsRequest
 from app.schemas.settings import JevSettingsUpdate, SearchSettingsUpdate
 from app.search import admin, jev_settings
 from app.search.retrieval import Filters, search
+from app.search.similar import suggest
+from app.services.authz import authorize
 from app.tasks import search_index
 
 router = APIRouter()
@@ -54,6 +59,32 @@ async def search_items(
     )
     ranked = await search(db, current_user, q, filters=filters, mode=mode)
     return ranked.as_dict()
+
+
+@router.post(
+    "/similar",
+    response_model=None,
+    summary="Same-problem suggestions while writing a report (slice 14)",
+    responses={200: {"description": "Suggestions"}, 204: {"description": "No panel"}},
+)
+async def similar_items(
+    body: SimilarItemsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict | Response:
+    """``context=support`` is the Support form's panel (Support and Admin);
+    ``context=tech`` is the create form's (every tech role — a Support caller
+    gets 403). Jev off or failing answers 204: the UI hides the panel, never
+    errors (BR-S02). Suggestions only ever include items the caller may see."""
+    if body.context == "support":
+        authorize(current_user, Action.submit_support_report)
+    elif not is_tech(current_user.role):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tech roles only")
+
+    items = await suggest(db, current_user, body)
+    if items is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return {"items": items}
 
 
 @features_router.get("", summary="Feature flags the UI reads")

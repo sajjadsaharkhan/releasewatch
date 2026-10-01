@@ -52,6 +52,7 @@ class Action(str, Enum):
     reject = "reject"
     flag_tech_debt = "flag_tech_debt"
     triage = "triage"
+    view_duplicate_hints = "view_duplicate_hints"
     report_recurrence = "report_recurrence"
     submit_support_report = "submit_support_report"
     manage_templates = "manage_templates"
@@ -153,6 +154,8 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.comment_internal: _T,
     Action.report_recurrence: ALL_ROLES,
     Action.triage: _T,
+    # 14: triage merge hints are tech-only; Support never sees them (FR-S13).
+    Action.view_duplicate_hints: _T,
     TRANSITION_PREFIX: _T,  # every transition:<to>, verification included
     Action.flag_tech_debt: _T,
     Action.view_backlog: _T,  # the backlog and Technical debt pages (slice 08)

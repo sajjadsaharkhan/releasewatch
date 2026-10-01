@@ -98,3 +98,62 @@ test('needs info round-trip, then accept onto the board', async ({ browser }) =>
   await supportCtx.close()
   await leadCtx.close()
 })
+
+// Key screen (docs/phase-2/14-similar-item-suggestions.md): a New bug gets a
+// stored possible-duplicate hint, the lead merges from the hint into a Done
+// Stream bug, and the merge returns it as a production cycle (PRD BR-49/AC-50).
+// The fake Jev answers "same" for everything, so the seeded items are the
+// candidates; the compute job runs on the worker after its 10 s debounce.
+test('possible duplicate hint merges into the Done Stream bug', async ({ browser }) => {
+  const title = `Reactions in group chat lost again ${Date.now()}`
+
+  const leadCtx = await browser.newContext({ storageState: auth('qa') })
+  const lead = await leadCtx.newPage()
+  await lead.goto('/inbox')
+
+  // ── 1. The seeded Done Stream bug, and a new bug filed through the API ────
+  const streamBug = (await api(lead, 'GET', '/issues?search='
+    + encodeURIComponent('Reaction state on group messages'))).items[0]
+  expect(streamBug, 'the seeded Done Stream bug exists').toBeTruthy()
+  const dup = await api(lead, 'POST', '/issues', {
+    project_id: streamBug.project_id,
+    title,
+    description: 'After a refresh the reaction state on group messages is gone.',
+  })
+
+  // ── 2. The worker computes the hint after its debounce ────────────────────
+  const hintsCount = () => lead.evaluate(async (id) => {
+    const res = await fetch(`/api/v1/issues/${id}/duplicate-hints`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('rw:token')}` },
+    })
+    return res.ok ? (await res.json()).hints.length : -1
+  }, dup.id)
+  await expect.poll(hintsCount, { timeout: 45_000 }).toBeGreaterThan(0)
+
+  // ── 3. The queue row is marked, the detail pane shows the hint ────────────
+  await lead.goto('/triage')
+  const row = lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })
+  await expect(row.getByText(/×\d/)).toBeVisible() // the possible-duplicates marker
+  await row.click()
+  const detail = lead.getByTestId('triage-detail')
+  const hints = detail.getByTestId('duplicate-hints')
+  await expect(hints).toBeVisible()
+  const hintRow = hints.locator('li').filter({ hasText: streamBug.key })
+  await expect(hintRow).toBeVisible()
+  await expect(hintRow.getByText('Done → back to To do (production)')).toBeVisible()
+
+  // ── 4. "Merge into this" preselects the Duplicate outcome ────────────────
+  await hintRow.getByRole('button', { name: 'Merge into this' }).click()
+  await expect(detail.getByRole('button', { name: `Merge into ${streamBug.key}` })).toBeVisible()
+  await detail.getByRole('button', { name: `Merge into ${streamBug.key}` }).click()
+
+  // ── 5. The Done Stream bug returns: Rejected, production cycle (AC-50) ────
+  await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
+  const after = await api(lead, 'GET', `/issues/${streamBug.id}`)
+  expect(after.status).toBe('rejected')
+  expect(after.reject_reason).toBe('production')
+  const cycles = await api(lead, 'GET', `/issues/${streamBug.id}/cycles`)
+  expect(cycles.at(-1).start_reason).toBe('production')
+
+  await leadCtx.close()
+})

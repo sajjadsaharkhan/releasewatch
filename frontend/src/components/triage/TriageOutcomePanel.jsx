@@ -36,8 +36,10 @@ function FieldLabel({ children, required, htmlFor }) {
  * The four triage outcomes for one New / Needs info bug (slice 06, FR-18).
  * Each outcome opens a small form asking for exactly its inputs; `onDone`
  * receives the updated item so the page can drop it from the queue.
+ * `presetOriginal` (slice 14) opens the Duplicate outcome with that item
+ * already chosen — what a duplicate hint's **Merge into this** passes.
  */
-export function TriageOutcomePanel({ issue, assignable, onDone, toast }) {
+export function TriageOutcomePanel({ issue, assignable, onDone, toast, presetOriginal }) {
   const [outcome, setOutcome] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -62,6 +64,13 @@ export function TriageOutcomePanel({ issue, assignable, onDone, toast }) {
     setOriginal(null)
     setSuggestion(null)
   }, [issue.id])
+
+  // A hint's "Merge into this": the Duplicate form, preselected (FR-S14).
+  useEffect(() => {
+    if (!presetOriginal) return
+    setOutcome('duplicate')
+    setOriginal(presetOriginal)
+  }, [presetOriginal])
 
   function choose(next) {
     setOutcome(o => (o === next ? null : next))

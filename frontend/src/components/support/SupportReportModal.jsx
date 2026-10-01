@@ -9,6 +9,7 @@ import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { CommentComposer } from '../issues/CommentComposer'
 import { AttachmentsSection } from '../issues/AttachmentsSection'
 import { FieldShell, TemplateFields, checkFieldValue, isBlank } from './TemplateFields'
+import { SimilarReportsPanel } from './SimilarReportsPanel'
 import { supportApi } from '../../lib/api'
 import { issueSlug } from '../../lib/issueSlug'
 import { useToast } from '../../hooks/useToast'
@@ -89,6 +90,12 @@ export function SupportReportModal({ open, onClose, onSubmitted, initialDescript
   const dirty = Boolean(
     title.trim() || description.trim() || pendingAttachments.length ||
     Object.values(values).some((v) => !isBlank(v))
+  )
+  // The same completeness submitting needs (FR-S10): the recurrence button is
+  // disabled until the required fields are filled.
+  const complete = Boolean(
+    template && !isBlank(title) &&
+    (template.fields ?? []).every((f) => !checkFieldValue(f, values[f.id]))
   )
 
   function requestClose() {
@@ -261,8 +268,17 @@ export function SupportReportModal({ open, onClose, onSubmitted, initialDescript
                         }}
                       />
                     </FieldShell>
-                    {/* Similar reports (slice 14) appear here, right under the title. */}
-                    <div data-slot="similar-reports" />
+                    {/* Similar reports (slice 14) — same problem, already reported. */}
+                    <SimilarReportsPanel
+                      projectId={projectId}
+                      template={template}
+                      title={title.trim()}
+                      values={values}
+                      description={description}
+                      complete={complete}
+                      pendingAttachments={pendingAttachments}
+                      onRecorded={reset}
+                    />
 
                     <TemplateFields
                       fields={template.fields}

@@ -44,5 +44,16 @@ PALETTE_LIMIT = 8
 JEV_CANDIDATES = 15
 T_RELEVANT = 0.5
 
+#: Same-problem suggestions (slice 14, A.7 judge): candidates sent to Jev, and
+#: the confidence a ``same`` / ``related`` verdict needs to be shown.
+#: Set by: PoC ``bench_jev`` policies — set the final values from the stage-2
+#: ``--part similar`` run (Q3: same-problem precision ≥ 0.80).
+SIMILAR_CANDIDATES = 10
+T_SAME = 0.7
+T_RELATED = 0.6
+#: Suggestions returned to a form, and stored hints per New item (A.4/A.5).
+SIMILAR_LIMIT = 5
+DUPLICATE_HINT_LIMIT = 3
+
 #: Query-vector cache lifetime, seconds (A.8 step 1).
 QUERY_CACHE_TTL = 300

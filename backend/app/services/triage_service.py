@@ -369,6 +369,7 @@ class TriageService:
         db.add(issue)
         await db.flush()
         search_index.enqueue(db, issue.id)
+        search_index.enqueue_hints(db, issue.id)  # a New bug's candidates are per project (14)
         await TimelineService().create_event(
             db=db, issue_id=issue.id, actor_id=actor.id,
             event_type=TimelineEventType.project_changed, body=None,

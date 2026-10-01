@@ -716,9 +716,23 @@ Workload, 2026-10-01).
 ```
 
 Width is chosen by content type: `max-w-7xl` dashboards and analytics · `max-w-6xl`
-releases, contributions · `max-w-5xl` team and settings (ten tabs need the width). Full-bleed (no
+releases, contributions · `max-w-5xl` team and settings (settings is two-column — see
+Settings nav below). Full-bleed (no
 `max-w`) for the dense list pages — Issues, Triage, Deleted — where table width
 is the point.
+
+### Settings nav — `SettingsNav.jsx` (`components/settings`)
+
+Settings is navigated by **guided sections** (chosen from a `?variant=` prototype round,
+2026-10-01), not a flat ten-tab row. `SettingsSideNav` is a sticky `w-52` left column
+(`hidden` below `lg`; under `lg` the page falls back to the horizontal `Tabs` row) grouping
+the ten tabs into **Workspace** (General, Team, Projects), **Workflow** (Support intake,
+Backlog categories, Labels) and **System** (Integrations, Search, Configuration,
+Notifications) — items styled like `NavItem`. `SETTINGS_TAB_META` carries each tab's icon
+and one-line description. `SettingsSectionHeader` renders the content column's header
+band — icon chip (`h-10 w-10 rounded-xl bg-muted`), title, description, and an optional
+`action` slot (Team's "Add member", Projects' "New project"). Per-tab section titles that
+duplicated this header were folded into it; the `?tab=` deep-link contract is unchanged.
 
 ### Spacing scale
 
@@ -776,7 +790,7 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Card` | `Card` · `CardHeader` · `CardTitle` · `CardDesc` · `CardBody` |
 | `Input` / `Textarea` | `error` flips border and ring to destructive |
 | `Select` / `SelectItem` | portaled, checkmark on selection |
-| `Dropdown` | `DropdownItem` (`icon`, `destructive`) · `DropdownSep` · `DropdownLabel`; `align`, `width` |
+| `Dropdown` | `DropdownItem` (`icon`, `destructive`) · `DropdownSep` · `DropdownLabel`; `align`, `width` (a **px number** — a class string like `w-full` becomes `NaN` in the placement math and the menu lands in the viewport corner) |
 | `Dialog` | `size`: `sm` · `md` · `lg` · `xl` · `full` |
 | `Sheet` | Right-side drawer |
 | `Tabs` | Underline style, optional `icon` and `badge` per option; `role="tablist"`/`tab`. Labels never wrap — a row that doesn't fit scrolls sideways and keeps the active tab in view |

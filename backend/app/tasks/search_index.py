@@ -9,13 +9,17 @@
   finds without a current label the same way, so the two can run in either order.
 - ``backfill_comment_classification()`` — when Jev is switched on, reclassify
   once the comments the rule kept, and reindex the items they belong to.
+- ``compute_duplicate_hints(issue_id)`` — slice 14: when a bug enters New, its
+  title or description changes while New, or it moves project during triage.
+  Replaces the stored hints wholesale (``app/search/duplicate_hints.py``).
 - ``reindex_all()`` — ask the endpoint which model it serves, record it, and
   enqueue ``index_item`` for every item. Progress = items indexed with that
   model / items, read from counts; the Redis key records the run.
 
-Writers call ``enqueue(db, issue_id)``: the job is sent only after ``db``
-commits (a rolled-back change never reindexes), debounced per item — one
-``SETNX`` guard and a 10 s countdown, so a burst of edits is one job.
+Writers call ``enqueue(db, issue_id)`` — and ``enqueue_hints(db, issue_id)``
+for the hint triggers — the jobs are sent only after ``db`` commits (a
+rolled-back change never reindexes), debounced per item — one ``SETNX`` guard
+and a 10 s countdown, so a burst of edits is one job.
 
 Tests call the ``*_now`` bodies directly (the scheduled-job seam from 01).
 """
@@ -60,6 +64,7 @@ _REINDEX_GUARD_KEY = "rw:search:reindex:pending"
 TALK_EVENTS = (TimelineEventType.comment.value, TimelineEventType.recurrence.value)
 
 _PENDING = "search_index_pending"
+_PENDING_HINTS = "search_duplicate_hints_pending"
 #: Advisory-lock namespace for per-item index runs.
 _LOCK_NS = 12_001
 
@@ -81,11 +86,20 @@ def enqueue(db: AsyncSession | Session, issue_id: int) -> None:
     session.info.setdefault(_PENDING, set()).add(issue_id)
 
 
+def enqueue_hints(db: AsyncSession | Session, issue_id: int) -> None:
+    """Recompute ``issue_id``'s duplicate hints once ``db`` commits (A.5)."""
+    session = db.sync_session if isinstance(db, AsyncSession) else db
+    session.info.setdefault(_PENDING_HINTS, set()).add(issue_id)
+
+
 @event.listens_for(Session, "after_commit")
 def _send_after_commit(session: Session) -> None:
     pending = session.info.pop(_PENDING, None)
     for issue_id in sorted(pending or ()):
         dispatch(issue_id)
+    pending_hints = session.info.pop(_PENDING_HINTS, None)
+    for issue_id in sorted(pending_hints or ()):
+        dispatch_hints(issue_id)
 
 
 @event.listens_for(Session, "after_soft_rollback")
@@ -93,6 +107,7 @@ def _forget_after_rollback(session: Session, previous_transaction) -> None:
     # Only the outermost rollback discards the work; a savepoint's does not.
     if previous_transaction.parent is None:
         session.info.pop(_PENDING, None)
+        session.info.pop(_PENDING_HINTS, None)
 
 
 def dispatch(issue_id: int) -> None:
@@ -103,6 +118,20 @@ def dispatch(issue_id: int) -> None:
     except redis.RedisError:
         logger.warning("search: debounce guard unavailable; enqueueing %s anyway", issue_id)
     index_item.apply_async((issue_id,), countdown=DEBOUNCE_SECONDS, queue=QUEUE)
+
+
+#: The hint job's own guard key: recomputing can run while an index job waits.
+_HINT_GUARD_KEY = "rw:search:hints:pending:{}"
+
+
+def dispatch_hints(issue_id: int) -> None:
+    """Send ``compute_duplicate_hints`` unless one is already waiting."""
+    try:
+        if not _redis().set(_HINT_GUARD_KEY.format(issue_id), "1", nx=True, ex=_GUARD_TTL):
+            return
+    except redis.RedisError:
+        logger.warning("search: hint debounce guard unavailable; enqueueing %s anyway", issue_id)
+    compute_duplicate_hints.apply_async((issue_id,), countdown=DEBOUNCE_SECONDS, queue=QUEUE)
 
 
 def request_reindex_all() -> bool:
@@ -450,6 +479,23 @@ async def index_item_now(issue_id: int) -> dict:
     return result
 
 
+# ── compute_duplicate_hints (slice 14) ───────────────────────────────────────
+
+
+async def compute_duplicate_hints_now(issue_id: int) -> dict:
+    from app.db.session import task_session
+    from app.search import duplicate_hints
+
+    try:
+        _redis().delete(_HINT_GUARD_KEY.format(issue_id))
+    except redis.RedisError:
+        pass
+    async with task_session() as db:
+        result = await duplicate_hints.compute_in(db, issue_id)
+        await db.commit()
+    return result
+
+
 # ── reindex_all ──────────────────────────────────────────────────────────────
 
 
@@ -538,6 +584,14 @@ def backfill_comment_classification() -> dict:
 @celery_app.task(name="app.tasks.search_index.classify_comment", queue=QUEUE)
 def classify_comment(timeline_id: int) -> str | None:
     return asyncio.run(classify_comment_now(timeline_id))
+
+
+@celery_app.task(
+    name="app.tasks.search_index.compute_duplicate_hints", queue=QUEUE,
+    soft_time_limit=60, time_limit=90,
+)
+def compute_duplicate_hints(issue_id: int) -> dict:
+    return asyncio.run(compute_duplicate_hints_now(issue_id))
 
 
 @celery_app.task(

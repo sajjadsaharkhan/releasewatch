@@ -16,6 +16,22 @@ class Query:
 
 
 @dataclass
+class Draft:
+    """A new-issue draft (dataset spec §4.2): someone writing a report."""
+
+    id: str
+    kind: str  # duplicate | recurrence | hard_negative | novel
+    persona: str
+    project_id: int | None
+    title: str
+    description: str
+    #: Gold: the issues that are truly the same problem / merely related.
+    same: list[str] = field(default_factory=list)
+    related: list[str] = field(default_factory=list)
+    cats: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Dataset:
     path: Path
     #: Engine-shaped items (``build_documents`` input), by corpus id.
@@ -24,6 +40,7 @@ class Dataset:
     comments: dict[str, list[SimpleNamespace]]
     queries: list[Query]
     no_match: list[Query]
+    drafts: list[Draft] = field(default_factory=list)
 
 
 def _item(raw: dict) -> SimpleNamespace:
@@ -71,4 +88,25 @@ def load(path: str | Path) -> Dataset:
         for q in raw.get("queries", [])
     ]
     no_match = [Query(id=q["id"], q=q["q"], cats=["no_match"]) for q in raw.get("no_match", [])]
-    return Dataset(path=root, items=items, comments=comments, queries=queries, no_match=no_match)
+
+    drafts: list[Draft] = []
+    drafts_file = root / "drafts.json"
+    if drafts_file.exists():
+        for d in json.loads(drafts_file.read_text()).get("drafts", []):
+            drafts.append(
+                Draft(
+                    id=d["id"],
+                    kind=d["kind"],
+                    persona=d.get("persona") or "",
+                    project_id=d.get("project_id"),
+                    title=d.get("title") or "",
+                    description=d.get("description") or "",
+                    same=[str(i) for i in d.get("same") or []],
+                    related=[str(i) for i in d.get("related") or []],
+                    cats=list(d.get("cat") or []),
+                )
+            )
+    return Dataset(
+        path=root, items=items, comments=comments, queries=queries,
+        no_match=no_match, drafts=drafts,
+    )

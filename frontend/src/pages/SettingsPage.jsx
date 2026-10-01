@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Trash2, Plus, Send, UserPlus, Pencil, Power, PowerOff, Globe, Loader2, ChevronDown, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Trash2, Plus, UserPlus, Pencil, Power, PowerOff, Globe, Loader2, Eye, EyeOff, Save, Bot, Wifi, WifiOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
 import { Tabs } from '../components/ui/Tabs'
@@ -9,7 +9,8 @@ import { Input } from '../components/ui/Input'
 import { Switch } from '../components/ui/Switch'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
-import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
+import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
+import { Select, SelectItem } from '../components/ui/Select'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { ROLE } from '../lib/constants'
@@ -17,7 +18,7 @@ import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, Inv
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
 import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
 import { BacklogCategoriesTab } from '../components/backlog/BacklogCategoriesTab'
-import { SearchSettingsTab } from '../components/settings'
+import { SearchSettingsTab, SettingsSideNav, SettingsSectionHeader } from '../components/settings'
 import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
 import { GatedButton } from '../components/common'
 import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
@@ -89,10 +90,6 @@ const NOTIFICATION_ROLES = [
   { key: 'subscriber', label: 'Subscriber' },
 ]
 
-function SectionTitle({ children }) {
-  return <h3 className="text-sm font-semibold mb-4">{children}</h3>
-}
-
 function FieldRow({ label, description, children }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
@@ -122,7 +119,11 @@ export default function SettingsPage() {
     }, { replace: true })
   }
   function openSupportIntake(projectId) {
-    setSearchParams({ tab: 'support', project: String(projectId) })
+    setSearchParams((prev) => {
+      prev.set('tab', 'support')
+      prev.set('project', String(projectId))
+      return prev
+    }, { replace: true })
   }
   const [general, setGeneral] = useState({ workspace: 'Releasewatch', timezone: 'UTC' })
   const [generalLoading, setGeneralLoading] = useState(true)
@@ -548,14 +549,29 @@ export default function SettingsPage() {
     }
   }
 
-  const selectedTimezone = TIMEZONES.find(tz => tz.value === general.timezone) || TIMEZONES[0]
+  // The section header carries the tab's primary action where there is one.
+  const headerAction = activeTab === 'team' ? (
+    <GatedButton
+      size="sm"
+      allowed={canManageUsersAndProjects(currentUser?.role)}
+      reason={ONLY_ADMINS_MANAGE_USERS}
+      onClick={handleInviteModalOpen}
+    >
+      <UserPlus className="h-3.5 w-3.5" /> Add member
+    </GatedButton>
+  ) : activeTab === 'projects' ? (
+    <GatedButton
+      size="sm"
+      allowed={canManageUsersAndProjects(currentUser?.role)}
+      reason={ONLY_ADMINS_MANAGE_PROJECTS}
+      onClick={() => setCreateProjectOpen(true)}
+    >
+      <Plus className="h-3.5 w-3.5" /> New project
+    </GatedButton>
+  ) : null
 
-  return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5">
-      <h1 className="text-xl font-bold">Settings</h1>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} />
-
+  const tabContent = (
+    <>
       {/* General */}
       {activeTab === 'general' && (
         <div className="max-w-md space-y-4">
@@ -565,34 +581,22 @@ export default function SettingsPage() {
             </div>
           ) : (
             <>
-            <SectionTitle>Workspace</SectionTitle>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Workspace name</label>
               <Input value={general.workspace} onChange={(e) => setGeneral((g) => ({ ...g, workspace: e.target.value }))} />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Timezone</label>
-              <Dropdown
-                width="w-full"
-                trigger={
-                  <button className="flex h-9 w-full items-center justify-between rounded-[var(--radius)] border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <span>{selectedTimezone.label} ({selectedTimezone.offset})</span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                }
-              >
+              <Select value={general.timezone} onChange={(tz) => setGeneral((g) => ({ ...g, timezone: tz }))}>
                 {TIMEZONES.map((tz) => (
-                  <DropdownItem
-                    key={tz.value}
-                    onClick={() => setGeneral((g) => ({ ...g, timezone: tz.value }))}
-                  >
+                  <SelectItem key={tz.value} value={tz.value}>
                     <span className="flex items-center justify-between gap-8">
                       <span>{tz.label}</span>
-                      <span className="text-muted-foreground font-mono text-xs">{tz.offset}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{tz.offset}</span>
                     </span>
-                  </DropdownItem>
+                  </SelectItem>
                 ))}
-              </Dropdown>
+              </Select>
             </div>
 
             <Button onClick={saveGeneralSettings} disabled={generalSaving}>
@@ -607,17 +611,6 @@ export default function SettingsPage() {
       {/* Team */}
       {activeTab === 'team' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <SectionTitle>Team Members</SectionTitle>
-            <GatedButton
-              size="sm"
-              allowed={canManageUsersAndProjects(currentUser?.role)}
-              reason={ONLY_ADMINS_MANAGE_USERS}
-              onClick={handleInviteModalOpen}
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Add member
-            </GatedButton>
-          </div>
           {teamLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -703,17 +696,6 @@ export default function SettingsPage() {
       {/* Projects */}
       {activeTab === 'projects' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <SectionTitle>Projects</SectionTitle>
-            <GatedButton
-              size="sm"
-              allowed={canManageUsersAndProjects(currentUser?.role)}
-              reason={ONLY_ADMINS_MANAGE_PROJECTS}
-              onClick={() => setCreateProjectOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5" /> New project
-            </GatedButton>
-          </div>
           {(() => {
             // AC-23 — a project whose lead is unset or deactivated has no triage owner.
             const leaderless = projects.filter((p) => !p.archived && p.needs_triage_lead)
@@ -817,7 +799,6 @@ export default function SettingsPage() {
       {/* Labels */}
       {activeTab === 'labels' && (
         <div>
-          <SectionTitle>Labels</SectionTitle>
           {labelsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -870,169 +851,165 @@ export default function SettingsPage() {
 
       {/* Integrations */}
       {activeTab === 'integrations' && (
-        <div className="space-y-6 max-w-2xl">
-          {/* Telegram */}
-          <div>
-            <SectionTitle>Telegram Bot</SectionTitle>
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              {telegramLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  {/* Bot identity card — shown only when token is set */}
-                  {telegramIntegration.botTokenSet && (
-                    <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
-                      {/* Bot name row */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30 shrink-0">
-                          <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">
-                            {telegramIntegration.botFirstName || telegramIntegration.botUsername}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono">{telegramIntegration.botUsername}</p>
-                          {telegramIntegration.botId && (
-                            <p className="text-xs text-muted-foreground">ID: {telegramIntegration.botId}</p>
-                          )}
-                        </div>
+        <div className="max-w-2xl">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            {telegramLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* Bot identity card — shown only when token is set */}
+                {telegramIntegration.botTokenSet && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+                    {/* Bot name row */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                        <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
-
-                      {/* Connectivity status */}
-                      {telegramIntegration.connectivityOk === true && (
-                        <div className="flex items-start gap-2">
-                          <Wifi className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-medium text-green-600 dark:text-green-400">Connected to Telegram</p>
-                            {telegramIntegration.viaProxy ? (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <ShieldCheck className="h-3 w-3" />
-                                via proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
-                              </p>
-                            ) : (
-                              <p className="text-xs text-muted-foreground mt-0.5">Direct connection</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {telegramIntegration.connectivityOk === false && (
-                        <div className="flex items-start gap-2">
-                          <WifiOff className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-medium text-red-600 dark:text-red-400">Cannot reach Telegram</p>
-                            {telegramIntegration.connectivityError && (
-                              <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">
-                                {telegramIntegration.connectivityError}
-                              </p>
-                            )}
-                            {telegramIntegration.viaProxy && telegramIntegration.proxyUrlPreview && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Stats row */}
-                      <div className="flex items-center gap-4 pt-1 border-t border-border">
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">{telegramIntegration.connectedCount}</span> team members connected
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">
+                          {telegramIntegration.botFirstName || telegramIntegration.botUsername}
                         </p>
-                        {telegramIntegration.botTokenPreview && (
-                          <p className="text-xs text-muted-foreground font-mono ml-auto">
-                            {telegramIntegration.botTokenPreview}
-                          </p>
+                        <p className="text-xs text-muted-foreground font-mono">{telegramIntegration.botUsername}</p>
+                        {telegramIntegration.botId && (
+                          <p className="text-xs text-muted-foreground">ID: {telegramIntegration.botId}</p>
                         )}
                       </div>
                     </div>
-                  )}
 
-                  {/* No token yet placeholder */}
-                  {!telegramIntegration.botTokenSet && (
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted shrink-0">
-                        <Bot className="h-5 w-5" />
+                    {/* Connectivity status */}
+                    {telegramIntegration.connectivityOk === true && (
+                      <div className="flex items-start gap-2">
+                        <Wifi className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium text-green-600 dark:text-green-400">Connected to Telegram</p>
+                          {telegramIntegration.viaProxy ? (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <ShieldCheck className="h-3 w-3" />
+                              via proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Direct connection</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">No bot configured</p>
-                        <p className="text-xs">Enter a token from @BotFather to activate the bot.</p>
+                    )}
+                    {telegramIntegration.connectivityOk === false && (
+                      <div className="flex items-start gap-2">
+                        <WifiOff className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium text-red-600 dark:text-red-400">Cannot reach Telegram</p>
+                          {telegramIntegration.connectivityError && (
+                            <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">
+                              {telegramIntegration.connectivityError}
+                            </p>
+                          )}
+                          {telegramIntegration.viaProxy && telegramIntegration.proxyUrlPreview && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Proxy: <span className="font-mono">{telegramIntegration.proxyUrlPreview}</span>
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Token input */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                      {telegramIntegration.botTokenSet ? 'Replace bot token' : 'Bot token'}
-                    </label>
-                    <div className="relative">
-                      <Input
-                        value={botTokenInput}
-                        onChange={(e) => setBotTokenInput(e.target.value)}
-                        placeholder={telegramIntegration.botTokenSet ? 'Enter new token to replace current' : '1234567890:ABCDef...'}
-                        type={showBotToken ? 'text' : 'password'}
-                        className="font-mono text-xs pr-9"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowBotToken((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showBotToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                    {/* Stats row */}
+                    <div className="flex items-center gap-4 pt-1 border-t border-border">
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">{telegramIntegration.connectedCount}</span> team members connected
+                      </p>
+                      {telegramIntegration.botTokenPreview && (
+                        <p className="text-xs text-muted-foreground font-mono ml-auto">
+                          {telegramIntegration.botTokenPreview}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Get your token from <span className="font-mono">@BotFather</span> on Telegram.
-                    </p>
                   </div>
+                )}
 
-                  {/* Frontend URL input */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                      Frontend URL <span className="text-muted-foreground/60">— for notification links</span>
-                    </label>
+                {/* No token yet placeholder */}
+                {!telegramIntegration.botTokenSet && (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted shrink-0">
+                      <Bot className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">No bot configured</p>
+                      <p className="text-xs">Enter a token from @BotFather to activate the bot.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Token input */}
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    {telegramIntegration.botTokenSet ? 'Replace bot token' : 'Bot token'}
+                  </label>
+                  <div className="relative">
                     <Input
-                      value={frontendUrlInput}
-                      onChange={(e) => setFrontendUrlInput(e.target.value)}
-                      placeholder="http://192.168.1.10:5173"
-                      className="font-mono text-xs"
+                      value={botTokenInput}
+                      onChange={(e) => setBotTokenInput(e.target.value)}
+                      placeholder={telegramIntegration.botTokenSet ? 'Enter new token to replace current' : '1234567890:ABCDef...'}
+                      type={showBotToken ? 'text' : 'password'}
+                      className="font-mono text-xs pr-9"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Base URL of this app reachable from your phone. Used to build clickable issue links in Telegram messages.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Restart backend after changing token.</p>
-                    <Button
-                      size="sm"
-                      onClick={saveTelegramConfig}
-                      disabled={telegramSaving || (!botTokenInput.trim() && !frontendUrlInput.trim())}
+                    <button
+                      type="button"
+                      onClick={() => setShowBotToken((s) => !s)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {telegramSaving
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                      Save
-                    </Button>
+                      {showBotToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get your token from <span className="font-mono">@BotFather</span> on Telegram.
+                  </p>
+                </div>
 
-                  {telegramIntegration.botTokenSet && telegramIntegration.connectivityOk && (
-                    <div className="rounded-lg bg-muted p-3">
-                      <p className="text-xs font-semibold mb-2">How team members connect</p>
-                      <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                        <li>Open Telegram and find <code className="font-mono">{telegramIntegration.botUsername}</code></li>
-                        <li>Go to Profile → Telegram tab to get your integration token</li>
-                        <li>Send <code className="font-mono">/integration &lt;your-token&gt;</code> to the bot</li>
-                        <li>Account links automatically — notifications start immediately</li>
-                      </ol>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                {/* Frontend URL input */}
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Frontend URL <span className="text-muted-foreground/60">— for notification links</span>
+                  </label>
+                  <Input
+                    value={frontendUrlInput}
+                    onChange={(e) => setFrontendUrlInput(e.target.value)}
+                    placeholder="http://192.168.1.10:5173"
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Base URL of this app reachable from your phone. Used to build clickable issue links in Telegram messages.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Restart backend after changing token.</p>
+                  <Button
+                    size="sm"
+                    onClick={saveTelegramConfig}
+                    disabled={telegramSaving || (!botTokenInput.trim() && !frontendUrlInput.trim())}
+                  >
+                    {telegramSaving
+                      ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                    Save
+                  </Button>
+                </div>
+
+                {telegramIntegration.botTokenSet && telegramIntegration.connectivityOk && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold mb-2">How team members connect</p>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Open Telegram and find <code className="font-mono">{telegramIntegration.botUsername}</code></li>
+                      <li>Go to Profile → Telegram tab to get your integration token</li>
+                      <li>Send <code className="font-mono">/integration &lt;your-token&gt;</code> to the bot</li>
+                      <li>Account links automatically — notifications start immediately</li>
+                    </ol>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1050,56 +1027,53 @@ export default function SettingsPage() {
           ) : (
             <>
               {/* HTTP Proxy */}
-              <div>
-                <SectionTitle>HTTP Proxy</SectionTitle>
-                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Proxy Configuration</p>
+                    <p className="text-xs text-muted-foreground">Configure HTTP proxy for outgoing requests</p>
+                  </div>
+                </div>
+                <FieldRow
+                  label="Enable proxy"
+                  description="Route all external requests through proxy"
+                >
+                  <Switch
+                    checked={proxy.enabled}
+                    onCheckedChange={(checked) => setProxy((p) => ({ ...p, enabled: checked }))}
+                  />
+                </FieldRow>
+                {proxy.enabled && (
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTP Proxy URL</label>
+                      <Input
+                        value={proxy.http}
+                        onChange={(e) => setProxy((p) => ({ ...p, http: e.target.value }))}
+                        placeholder="http://proxy.example.com:8080"
+                      />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">Proxy Configuration</p>
-                      <p className="text-xs text-muted-foreground">Configure HTTP proxy for outgoing requests</p>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTPS Proxy URL</label>
+                      <Input
+                        value={proxy.https}
+                        onChange={(e) => setProxy((p) => ({ ...p, https: e.target.value }))}
+                        placeholder="http://proxy.example.com:8080"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">No Proxy (comma-separated)</label>
+                      <Input
+                        value={proxy.noProxy}
+                        onChange={(e) => setProxy((p) => ({ ...p, noProxy: e.target.value }))}
+                        placeholder="localhost,127.0.0.1,.internal.com"
+                      />
                     </div>
                   </div>
-                  <FieldRow
-                    label="Enable proxy"
-                    description="Route all external requests through proxy"
-                  >
-                    <Switch
-                      checked={proxy.enabled}
-                      onCheckedChange={(checked) => setProxy((p) => ({ ...p, enabled: checked }))}
-                    />
-                  </FieldRow>
-                  {proxy.enabled && (
-                    <div className="space-y-3 pt-2">
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTP Proxy URL</label>
-                        <Input
-                          value={proxy.http}
-                          onChange={(e) => setProxy((p) => ({ ...p, http: e.target.value }))}
-                          placeholder="http://proxy.example.com:8080"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">HTTPS Proxy URL</label>
-                        <Input
-                          value={proxy.https}
-                          onChange={(e) => setProxy((p) => ({ ...p, https: e.target.value }))}
-                          placeholder="http://proxy.example.com:8080"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">No Proxy (comma-separated)</label>
-                        <Input
-                          value={proxy.noProxy}
-                          onChange={(e) => setProxy((p) => ({ ...p, noProxy: e.target.value }))}
-                          placeholder="localhost,127.0.0.1,.internal.com"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
               {/* Save button at the bottom */}
@@ -1120,7 +1094,6 @@ export default function SettingsPage() {
       {/* Notifications */}
       {activeTab === 'notifications' && (
         <div>
-          <SectionTitle>Notification Matrix</SectionTitle>
           <p className="text-xs text-muted-foreground mb-4">
             Configure which roles receive a Telegram notification for each event. Roles are resolved per-issue: Reporter/Assignee match the issue's reporter and assignee; Triage Lead matches the project's designated triage lead; CTO matches team role; Subscriber matches anyone subscribed to the item (its reporter, and reporters of duplicates merged into it). Support users only ever receive the three Support events.
           </p>
@@ -1169,6 +1142,22 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+    </>
+  )
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <h1 className="text-xl font-bold">Settings</h1>
+      <div className="flex items-start gap-8">
+        <SettingsSideNav activeTab={activeTab} onSelect={setActiveTab} />
+        <div className="min-w-0 flex-1">
+          <div className="mb-4 lg:hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} options={TAB_OPTIONS} />
+          </div>
+          <SettingsSectionHeader tab={activeTab} action={headerAction} />
+          <div className="mt-5">{tabContent}</div>
+        </div>
+      </div>
 
       {/* Member modals */}
       <InviteUserModal

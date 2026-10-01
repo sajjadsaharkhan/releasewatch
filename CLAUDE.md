@@ -163,6 +163,7 @@ backend/
 | `/api/v1/projects` | `api/v1/projects.py` |
 | `/api/v1/releases` | `api/v1/releases.py` |
 | `/api/v1/issues` | `api/v1/issues.py` |
+| `/api/v1/issues/{id}/duplicate-hints(/{candidate}/dismiss)` | `api/v1/issues.py` (hints in `app/search/duplicate_hints.py`) |
 | `/api/v1/issues/{id}/timeline` | `api/v1/timeline.py` |
 | `/api/v1/issues/{id}/attachments` | `api/v1/attachments.py` |
 | `/api/v1/inbox` | `api/v1/inbox.py` |
@@ -171,7 +172,7 @@ backend/
 | `/api/v1/support` | `api/v1/support.py` |
 | `/api/v1/projects/{id}/templates` | `api/v1/support_templates.py` |
 | `/api/v1/settings` | `api/v1/settings.py` |
-| `/api/v1/search`, `/api/v1/features`, `/api/v1/settings/search(/reindex, /jev, /jev/test)` | `api/v1/search.py` (engine in `app/search/`, Jev client `app/search/jev.py`) |
+| `/api/v1/search`, `/api/v1/search/similar`, `/api/v1/features`, `/api/v1/settings/search(/reindex, /jev, /jev/test)` | `api/v1/search.py` (engine in `app/search/`, Jev client `app/search/jev.py`, suggestions `app/search/similar.py`) |
 | `/api/v1/telegram/webhook` | `api/v1/telegram.py` |
 | `/ws/dashboard`, `/ws/inbox` | `api/v1/ws.py` |
 | `GET /health` | `main.py` |

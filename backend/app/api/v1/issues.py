@@ -35,7 +35,7 @@ import csv
 import io
 from datetime import UTC
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func, or_, select
 from sqlalchemy import delete as sa_delete
@@ -50,14 +50,17 @@ from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseKind
+from app.db.models.search import DuplicateHint
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.policy import Action, Target, item_actions, transition
+from app.search import duplicate_hints, jev_settings
 from app.schemas.issue import (
     BlockedAction,
     BlockedTransition,
     BulkMoveRequest,
     BulkMoveResponse,
+    DuplicateHintsResponse,
     FixRequest,
     IssueCreate,
     IssueCycleResponse,
@@ -302,6 +305,17 @@ async def _build_enriched_responses(
         rows = await db.execute(select(IssueCycle).where(IssueCycle.id.in_(cycle_ids)))
         cycles = {c.id: c for c in rows.scalars().all()}
 
+    # Possible-duplicate markers on triage rows (slice 14) — zero while Jev is
+    # off, and one grouped count query only while it is on.
+    duplicates: dict[int, int] = {}
+    if issues and await jev_settings.is_enabled(db):
+        rows = await db.execute(
+            select(DuplicateHint.issue_id, func.count())
+            .where(DuplicateHint.issue_id.in_([i.id for i in issues]))
+            .group_by(DuplicateHint.issue_id)
+        )
+        duplicates = {issue_id: count for issue_id, count in rows.all()}
+
     responses = []
     for issue in issues:
         resp = IssueResponse.model_validate(issue)
@@ -326,6 +340,7 @@ async def _build_enriched_responses(
             "project_slug": issue.project.slug if issue.project else None,
             "project_color": issue.project.color if issue.project else None,
             **_workflow_fields(issue, current_user),
+            "possible_duplicates_count": duplicates.get(issue.id, 0),
         })
         responses.append(enriched)
     return responses
@@ -891,6 +906,50 @@ async def report_recurrence(
     await db.commit()
 
     return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.get(
+    "/{issue_id}/duplicate-hints",
+    response_model=DuplicateHintsResponse,
+    summary="Possible duplicates of a New item",
+)
+async def get_duplicate_hints(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DuplicateHintsResponse:
+    """Stored triage hints for a New bug (slice 14, FR-S12–S15). Tech only —
+    Support gets 403 on items they can see and 404 on items they can't (FR-S13).
+    ``[]`` unless the item is New and Jev is enabled: hidden, never deleted
+    (BR-S03). Each hint says what merging will do, computed the way the merge
+    itself does (BR-49)."""
+    issue = await authorize_issue(db, issue_id, current_user, Action.view_duplicate_hints)
+    if (
+        issue_type_value(issue.type) != IssueType.bug.value
+        or getattr(issue.status, "value", issue.status) != IssueStatus.new.value
+        or not await jev_settings.is_enabled(db)
+    ):
+        return DuplicateHintsResponse(hints=[])
+    return DuplicateHintsResponse(hints=await duplicate_hints.hydrate(db, issue_id))
+
+
+@router.post(
+    "/{issue_id}/duplicate-hints/{candidate_id}/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Dismiss a possible duplicate for good",
+)
+async def dismiss_duplicate_hint(
+    issue_id: int,
+    candidate_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """"Not a duplicate": the pair is never suggested again, whatever future
+    recomputations find (BR-S12, AC-S12). Tech only."""
+    await authorize_issue(db, issue_id, current_user, Action.view_duplicate_hints)
+    await duplicate_hints.dismiss(db, issue_id, candidate_id, current_user.id)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{issue_id}/fix", response_model=IssueResponse, summary="Mark issue as fixed")
