@@ -70,6 +70,7 @@ class EvalIndex:
         self.sys = system
         self.conn: asyncpg.Connection | None = None
         self.table = f"eval_kw_{system.name}"
+        self.last_candidates: list[tuple[str, float, bool]] = []
 
     async def build(self) -> None:
         start = time.perf_counter()
@@ -138,9 +139,10 @@ class EvalIndex:
             )
             channels["keyword"] = [(r["issue_id"], float(r["ws"])) for r in rows]
 
-        hits = fuse(channels)
-        if self.sys.floor:
-            hits = apply_floor(hits, dense_available=True)
+        fused = fuse(channels)
+        hits = apply_floor(fused, dense_available=True) if self.sys.floor else fused
         hits = hits[:RESULT_LIMIT]
         t2 = time.perf_counter()
+        #: Every fused candidate before the floor, for the T_FLOOR sweep.
+        self.last_candidates = [(h.issue_id, round(h.best_dense, 4), "keyword" in h.sims) for h in fused]
         return [h.issue_id for h in hits], (t1 - t0) * 1000, (t2 - t1) * 1000

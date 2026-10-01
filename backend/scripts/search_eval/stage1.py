@@ -28,6 +28,9 @@ class Scores:
     no_match_counts: list[int] = field(default_factory=list)
     embed_ms: list[float] = field(default_factory=list)
     retrieval_ms: list[float] = field(default_factory=list)
+    #: Per query / no-match query: fused candidates before the floor, as
+    #: (issue_id, best dense cosine, found by keyword) — for the T_FLOOR sweep.
+    candidates: dict[str, list] = field(default_factory=dict)
 
     def aggregate(self, queries: list[Query]) -> dict[str, float]:
         rows = [self.per_query[q.id] for q in queries if q.id in self.per_query]
@@ -38,6 +41,26 @@ class Scores:
     @property
     def total_ms(self) -> list[float]:
         return [a + b for a, b in zip(self.embed_ms, self.retrieval_ms, strict=True)]
+
+    def to_json(self) -> dict:
+        """Everything ``report`` needs, so systems can be scored one at a time."""
+        s = self.system
+        return {
+            "system": {"name": s.name, "endpoint": s.endpoint, "model": s.model,
+                       "channels": list(s.channels), "floor": s.floor,
+                       "vectors": len(s.owners), "index_seconds": s.index_seconds},
+            "per_query": self.per_query, "no_match_counts": self.no_match_counts,
+            "embed_ms": self.embed_ms, "retrieval_ms": self.retrieval_ms,
+            "candidates": self.candidates,
+        }
+
+    @classmethod
+    def from_json(cls, data: dict) -> "Scores":
+        sd = data["system"]
+        system = System(sd["name"], sd["endpoint"], builder=None, channels=tuple(sd["channels"]),
+                        floor=sd["floor"], model=sd["model"], index_seconds=sd["index_seconds"])
+        return cls(system, data["per_query"], data["no_match_counts"],
+                   data["embed_ms"], data["retrieval_ms"], data.get("candidates", {}))
 
 
 async def score(ds: Dataset, system: System, progress=print) -> Scores:
@@ -51,6 +74,7 @@ async def score(ds: Dataset, system: System, progress=print) -> Scores:
     try:
         for q in ds.queries:
             ranked, e_ms, r_ms = await index.search(q.q)
+            out.candidates[q.id] = index.last_candidates
             out.embed_ms.append(e_ms)
             out.retrieval_ms.append(r_ms)
             out.per_query[q.id] = {
@@ -63,10 +87,38 @@ async def score(ds: Dataset, system: System, progress=print) -> Scores:
             }
         for q in ds.no_match:
             ranked, _, _ = await index.search(q.q)
+            out.candidates[q.id] = index.last_candidates
             out.no_match_counts.append(len(ranked))
     finally:
         await index.close()
     return out
+
+
+FLOOR_SWEEP = [round(0.30 + 0.025 * i, 3) for i in range(17)]  # 0.30 … 0.70
+
+
+def floor_sweep(ds: Dataset, scores: Scores) -> list[dict]:
+    """Re-apply the engine's floor rule (best dense cosine ≥ T, or found by the
+    keyword channel) to the saved pre-floor candidates, for each T."""
+    from app.search.constants import RESULT_LIMIT
+
+    rows = []
+    for t in FLOOR_SWEEP:
+        def kept(qid):
+            cands = scores.candidates.get(qid, [])
+            return [c[0] for c in cands if c[1] >= t or c[2]][:RESULT_LIMIT]
+
+        r5 = [metrics.recall_at(kept(q.id), q.rel, 5) for q in ds.queries]
+        h5 = [metrics.hit_at(kept(q.id), q.rel, 5) for q in ds.queries]
+        empty_real = sum(1 for q in ds.queries if not kept(q.id))
+        shown = [len(kept(q.id)) for q in ds.no_match]
+        rows.append({
+            "T": t, "R@5": mean(r5), "Hit@5": mean(h5),
+            "real_empty": empty_real / len(ds.queries),
+            "nm_mean": mean(shown) if shown else 0.0,
+            "nm_zero": sum(1 for n in shown if n == 0),
+        })
+    return rows
 
 
 def _fmt(x: float) -> str:
@@ -159,6 +211,23 @@ def report(ds: Dataset, engine: Scores, baseline: Scores, *, host_note: str) -> 
                 ]
                 for s in (engine, baseline)
             ],
+        ),
+        "",
+        "## T_FLOOR sweep (engine, Jev off)",
+        "",
+        "The floor rule re-applied to the saved candidates: a result stays if its best dense "
+        f"cosine ≥ T or the keyword channel found it. In effect now: `T_FLOOR = {constants.T_FLOOR}`.",
+        "",
+        *(
+            [_table(
+                ["T", "Recall@5", "Hit@5", "real queries with 0 results", "no-match: mean shown",
+                 "no-match: 0 shown"],
+                [
+                    [f"{r['T']:.3f}", _fmt(r["R@5"]), _fmt(r["Hit@5"]), f"{r['real_empty']:.1%}",
+                     f"{r['nm_mean']:.2f}", f"{r['nm_zero']}/{len(ds.no_match)}"]
+                    for r in floor_sweep(ds, engine)
+                ],
+            )] if engine.candidates else ["_No candidates saved; re-run the engine phase._"]
         ),
         "",
         "## Latency (ms)",

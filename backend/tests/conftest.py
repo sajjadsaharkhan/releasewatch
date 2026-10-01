@@ -338,8 +338,16 @@ def background_jobs(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
 
 
 @pytest.fixture(autouse=True)
-def embedding_endpoint() -> Iterator[FakeEmbeddings]:
-    """Autouse: every embedding request reaches the in-process fake (A.12)."""
+def embedding_endpoint(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeEmbeddings]:
+    """Autouse: every embedding request reaches the in-process fake (A.12).
+
+    The fake's trigram-hash cosines run lower than bge-m3's (related text scores
+    ~0.4, unrelated ≤ 0.15), so tests use a floor on the fake's scale instead of
+    the tuned production ``T_FLOOR``.
+    """
+    from app.search import retrieval
+
+    monkeypatch.setattr(retrieval, "T_FLOOR", 0.35)
     fake_embedding_endpoint.reset()
     embeddings.transport_override = ASGITransport(app=fake_embedding_endpoint.app)
     yield fake_embedding_endpoint

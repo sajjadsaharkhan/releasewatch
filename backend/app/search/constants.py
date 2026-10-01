@@ -6,7 +6,8 @@ set it; a run that changes one updates its comment and checks its report into
 """
 
 #: Weighted reciprocal rank fusion, one weight per channel.
-#: Set by: A.8 initial values — not yet tuned (no stage-1 run on the dataset).
+#: Set by: A.8 initial values — kept by the stage-1 run 2026-10-01 (Recall@5 0.833,
+#: Q1 passed by +27 points); not tuned further.
 FUSION_WEIGHTS = {"body": 1.0, "title": 0.6, "talk": 0.3, "keyword": 0.4}
 
 #: RRF constant k. Set by: A.8 initial value.
@@ -14,12 +15,15 @@ RRF_K = 60
 
 #: Results whose best dense cosine is below this are dropped when Jev is off
 #: (FR-S04) — unless the gated keyword channel found them.
-#: Set by: A.8 placeholder — tune on the stage-1 run.
-T_FLOOR = 0.35
+#: Set by: stage-1 run 2026-10-01 (docs/phase-2/eval/stage1-2026-10-01.md) — the
+#: knee of the sweep: Recall@5 0.833 → 0.822, no-match results 20 → 11 per query,
+#: 0.5 % of real queries left empty. bge-m3 cosines are high for unrelated text,
+#: so no floor separates cleanly; Jev (slice 13) is what removes the rest.
+T_FLOOR = 0.55
 
 #: Trigram ``word_similarity(query, keyword_text)`` gate for the keyword
 #: channel; ungated trigram ranks every Persian document (A.8).
-#: Set by: A.8 placeholder — tune on the stage-1 run.
+#: Set by: A.8 value, kept by the stage-1 run 2026-10-01 (identifier queries R@5 0.774).
 T_TRGM = 0.6
 
 #: The keyword channel contributes at most this many items (A.8).
