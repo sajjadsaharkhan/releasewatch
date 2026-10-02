@@ -30,6 +30,7 @@ from statistics import mean
 from app.search import constants
 from app.search.comment_rules import RULE_KEPT, rule_label, talk_weight
 from app.search.constants import DUPLICATE_HINT_LIMIT, SIMILAR_CANDIDATES
+from app.search.embeddings import EmbeddingError
 from app.search.jev import JevClient, JevItem
 from app.search.normalize import normalize, strip_markdown
 
@@ -258,7 +259,17 @@ async def run_similar(ds: Dataset, endpoint: str, jev: JevClient, progress=print
 
     async def one(d: Draft) -> dict:
         text = " ".join(p for p in (d.title, d.description) if p)
-        ids, _, _ = await index.search(text)
+        # Embedding every draft at once outruns a CPU-only server: take turns, and
+        # retry a timeout instead of losing the whole (paid) run.
+        for attempt in range(3):
+            try:
+                async with sem:
+                    ids, _, _ = await index.search(text)
+                break
+            except EmbeddingError:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(3 * (attempt + 1))
         cands = [i for i in ids if _candidate_ok(ds, i)][:SIMILAR_CANDIDATES]
         if not cands:
             return {"id": d.id, "kind": d.kind, "stage1": [], "verdicts": {}}

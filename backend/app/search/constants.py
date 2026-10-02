@@ -50,7 +50,9 @@ T_RELEVANT = 0.5
 #: (docs/phase-2/eval/duplicate-threshold-2026-10-02.md, ``python -m
 #: scripts.dup_dataset sweep``): the lowest value at which a shown hint is right
 #: 92% of the time (precision 0.925, recall 0.805 on 148 drafts). Re-check it
-#: with ``search_eval stage2 --part similar`` on real text.
+#: with ``search_eval stage2 --part similar`` on real text — done 2026-10-02 on 252
+#: production drafts: precision 0.930, recall 0.835 on duplicates, no hints on
+#: hard negatives or novel drafts (docs/phase-2/eval/stage2-similar-2026-10-02.md).
 #: ``T_RELATED`` is still the PoC ``bench_jev`` value, not swept.
 SIMILAR_CANDIDATES = 10
 T_SAME = 0.74
