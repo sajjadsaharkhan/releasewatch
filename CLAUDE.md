@@ -27,7 +27,7 @@ releasewatch/
 cp .env.example .env          # fill in your values
 make dev                      # docker compose up with hot reload
 make migrate                  # run alembic migrations
-make seed                     # populate with sample data
+make seed                     # populate with sample data + the dd-* duplicate dataset
 ```
 
 ## Frontend (`frontend/`)
@@ -192,7 +192,7 @@ backend/
 | `make dev` | Start full stack with hot reload |
 | `make migrate` | Run pending Alembic migrations |
 | `make migrate-new` | Generate a new migration from model changes |
-| `make seed` | Populate DB with sample data |
+| `make seed` | Populate DB with sample data + the duplicate-detection dataset (`dd-*` projects; `make seed-lite` skips it) |
 | `make test` | Run pytest suite (inside the api container) |
 | `make test-local` | Run pytest from a local venv against the compose Postgres/Redis |
 | `make e2e` | Bring up an isolated E2E stack, seed it, run the Playwright suite headless, tear down |

@@ -86,7 +86,7 @@ This starts: `api`, `worker`, `beat`, `frontend`, `postgres`, `redis`.
 
 ```sh
 make migrate      # apply all Alembic migrations
-make seed         # populate with sample data
+make seed         # populate with sample data + the dd-* duplicate dataset (make seed-lite skips it)
 make seed-admin   # create an admin user
 ```
 

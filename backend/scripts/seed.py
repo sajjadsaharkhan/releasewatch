@@ -3,6 +3,11 @@
 Usage:
     python -m scripts.seed           # from backend/ directory
     docker compose exec api python -m scripts.seed
+    docker compose exec api python -m scripts.seed --no-dup-dataset   # skip the dd-* dataset
+
+After the sample data it imports the synthetic duplicate-detection dataset
+(``scripts/dup_dataset``, users ``dd-*`` / ``dataset-pass-123``). Indexing it takes a
+few minutes against the real embedding model.
 """
 
 import asyncio
@@ -232,13 +237,27 @@ async def seed(session: AsyncSession) -> None:
     print("\nSeed complete.")
 
 
-async def main() -> None:
+async def main(with_dup_dataset: bool = True) -> int:
     engine = create_async_engine(settings.database_url, echo=False)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
         await seed(session)
     await engine.dispose()
+    if not with_dup_dataset:
+        return 0
+    # The synthetic duplicate-detection dataset (scripts/dup_dataset): five dd-* projects
+    # with releases, ~180 issues, search index and triage hints. --wipe replaces an
+    # earlier copy, so re-seeding never stacks two.
+    from scripts.dup_dataset import importer
+
+    print("\nImporting the duplicate-detection dataset (dd-* projects)...")
+    return await importer.run(
+        importer.DEFAULT_DATASET, "dataset-pass-123", wipe=True, index=True, shift=True,
+        base_url="http://localhost:8000",
+    )
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+
+    sys.exit(asyncio.run(main(with_dup_dataset="--no-dup-dataset" not in sys.argv[1:])))

@@ -28,6 +28,9 @@ depends on.
 
 ## Run it
 
+`make seed` (and `make db-reset`) already import it after the regular sample data;
+`make seed-lite` / `python -m scripts.seed --no-dup-dataset` skips it. On its own:
+
 ```sh
 make dup-dataset-import        # users, projects, issues, comments, search index, hints
 make dup-dataset-probe         # drives GET /search and POST /search/similar, writes probe_report.md
