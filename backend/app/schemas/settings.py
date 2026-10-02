@@ -56,9 +56,13 @@ class TelegramBotConfigRequest(BaseModel):
 
 
 class SearchSettingsUpdate(BaseModel):
-    """Payload for PUT /settings/search (slice 12): the embedding endpoint."""
+    """Payload for PUT /settings/search (slice 12): the embedding endpoint, and
+    optionally the requested model and API key. ``None`` keeps the saved value,
+    ``""`` clears it; ``api_key`` is write-only and never returned."""
 
     embedding_endpoint: str = Field(..., min_length=1, max_length=512)
+    embedding_model: str | None = Field(None, max_length=128)
+    api_key: str | None = Field(None, max_length=512)
 
 
 class JevSettingsUpdate(BaseModel):

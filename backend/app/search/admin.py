@@ -1,10 +1,11 @@
-"""Settings → Search (slice 12, FR-S17, FR-S19): endpoint, model, index status.
+"""Settings → Search (slice 12, FR-S17, FR-S19): endpoint, model, API key, index status.
 
 Index progress comes from counts — items indexed with the current model out
 of all live items — plus the last ``reindex_all`` run recorded in Redis.
 """
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from fastapi import status
@@ -37,7 +38,7 @@ async def _last_run() -> dict | None:
 async def status_of(db: AsyncSession) -> dict:
     config = await embeddings.load_config(db)
     try:
-        reported = await embeddings.probe(config.endpoint, timeout=3.0)
+        reported = await embeddings.probe(config.endpoint, timeout=3.0, **config.request_args())
         service = {"reachable": True, "model": reported, "error": None}
     except embeddings.EmbeddingError as exc:
         service = {"reachable": False, "model": None, "error": str(exc)}
@@ -64,6 +65,11 @@ async def status_of(db: AsyncSession) -> dict:
         "embedding_endpoint": config.endpoint,
         "default_endpoint": embeddings.default_endpoint(),
         "is_default_endpoint": config.is_default,
+        # The model name requested from the service; "" lets the service choose.
+        "embedding_model": config.model,
+        # The key itself never leaves.
+        "has_key": config.has_key,
+        "key_last4": config.key_last4,
         # The model the index holds — what search compares against (BR-S16).
         "embed_model": config.embed_model,
         "service": service,
@@ -77,10 +83,17 @@ async def status_of(db: AsyncSession) -> dict:
     }
 
 
-async def change_endpoint(db: AsyncSession, endpoint: str) -> bool:
-    """Save a new endpoint. The new endpoint must answer with 1024-dim vectors;
-    a different endpoint or model starts a full reindex (FR-S19). Returns whether
-    a reindex started."""
+async def change_config(
+    db: AsyncSession,
+    endpoint: str,
+    *,
+    model: str | None = None,
+    api_key: str | None = None,
+) -> bool:
+    """Save a new endpoint, requested model and/or API key. The result must answer
+    with 1024-dim vectors; a different endpoint or reported model starts a full
+    reindex (FR-S19). ``model``/``api_key`` None keep the saved value, "" clears
+    it. Returns whether a reindex started."""
     endpoint = endpoint.strip().rstrip("/")
     if not endpoint.startswith(("http://", "https://")):
         raise DomainError(
@@ -89,18 +102,25 @@ async def change_endpoint(db: AsyncSession, endpoint: str) -> bool:
             "invalid_embedding_endpoint",
         )
     current = await embeddings.load_config(db)
+    candidate = replace(
+        current,
+        model=current.model if model is None else model.strip(),
+        api_key=current.api_key if api_key is None else (api_key.strip() or None),
+    )
     try:
-        model = await embeddings.probe(endpoint)
+        reported = await embeddings.probe(endpoint, **candidate.request_args())
     except embeddings.EmbeddingError as exc:
         raise DomainError(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             f"The embedding endpoint did not answer correctly: {exc}",
             "embedding_endpoint_unreachable",
         ) from exc
-    changed = endpoint != current.endpoint or model != current.embed_model
+    changed = endpoint != current.endpoint or reported != current.embed_model
     # Record the new model now: from here on search reads only its rows, so
     # the old model's vectors are never compared with the new one's (BR-S16).
-    await embeddings.save_config(db, endpoint=endpoint, embed_model=model)
+    await embeddings.save_config(
+        db, endpoint=endpoint, embed_model=reported, model=model, api_key=api_key
+    )
     return changed
 
 

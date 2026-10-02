@@ -110,8 +110,8 @@ async def test_ac_s20_api_never_returns_key(factories, client_for):
     assert "api_key" not in jev_block and "api_key_encrypted" not in jev_block
 
 
-@pytest.mark.parametrize("role", ["cto", "developer", "support"])
-async def test_jev_settings_are_admin_only(factories, client_for, role):
+@pytest.mark.parametrize("role", ["pm", "developer", "support"])
+async def test_jev_settings_are_admin_and_cto_only(factories, client_for, role):
     client = await client_for(await factories.user(role=role))
     assert (await client.put("/settings/search/jev", json={"enabled": False})).status_code == 403
     assert (await client.post("/settings/search/jev/test")).status_code == 403

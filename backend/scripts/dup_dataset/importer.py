@@ -252,7 +252,7 @@ async def _preflight() -> None:
         cfg = await embeddings.load_config(db)
         jev = await jev_settings.load(db)
     try:
-        model = await embeddings.probe(cfg.endpoint)
+        model = await embeddings.probe(cfg.endpoint, **cfg.request_args())
         warn = (
             "  ← a fake/test model: search numbers will mean nothing"
             if "fake" in model.lower()

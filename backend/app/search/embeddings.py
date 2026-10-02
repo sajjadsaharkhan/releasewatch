@@ -5,15 +5,25 @@ The only code that knows where embeddings come from. Any OpenAI-compatible
 text-embeddings-inference service running ``BAAI/bge-m3``.
 
 The endpoint lives in ``system_settings`` (category ``search``, key
-``config``: ``{embedding_endpoint, embed_model}``); without a row, the
-``SEARCH_EMBEDDING_ENDPOINT`` setting applies. ``embed_model`` is whatever
-the service last *reported* — never typed by a person — so a model swapped
-behind the same endpoint is noticed and reindexed (BR-S16).
+``config``: ``{embedding_endpoint, embedding_model, api_key_encrypted,
+embed_model}``); without a saved endpoint, ``SEARCH_EMBEDDING_ENDPOINT``
+applies. All of it is set in Settings → Search. ``embedding_model`` is the name a person typed and *requests* (OpenAI
+needs it; the bundled TEI service ignores it). ``embed_model`` is whatever the
+service last *reported* — never typed — so a model swapped behind the same
+endpoint is noticed and reindexed (BR-S16).
+
+The API key is encrypted with Fernet under a key derived from ``SECRET_KEY``
+and is never returned by any API. A typed model also sends ``dimensions`` so
+OpenAI's ``text-embedding-3-*`` answer with the index's 1024 dimensions.
 """
 
+import base64
 from dataclasses import dataclass
 
 import httpx
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import attributes
@@ -21,6 +31,8 @@ from sqlalchemy.orm import attributes
 from app.config import settings
 from app.db.models.search import EMBEDDING_DIM
 from app.db.models.system_setting import SystemSetting
+
+_HKDF_INFO = b"releasewatch/embedding-api-key/v1"
 
 #: Texts per request (A.5).
 BATCH_SIZE = 32
@@ -48,10 +60,45 @@ class SearchConfig:
     embed_model: str | None
     #: True when the endpoint is the installation default (no saved override).
     is_default: bool
+    #: The model name requested from the service ("" = let the service choose).
+    model: str = ""
+    api_key: str | None = None
+
+    @property
+    def has_key(self) -> bool:
+        return bool(self.api_key)
+
+    @property
+    def key_last4(self) -> str | None:
+        return self.api_key[-4:] if self.api_key else None
+
+    def request_args(self) -> dict:
+        """Keyword arguments for ``embed``/``probe`` that carry this config."""
+        return {
+            "model": self.model or None,
+            "api_key": self.api_key,
+            "dimensions": EMBEDDING_DIM if self.model else None,
+        }
 
 
 def default_endpoint() -> str:
     return settings.SEARCH_EMBEDDING_ENDPOINT.rstrip("/")
+
+
+def _fernet() -> Fernet:
+    key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=_HKDF_INFO).derive(
+        settings.SECRET_KEY.encode()
+    )
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def _decrypt(token: str | None) -> str | None:
+    if not token:
+        return None
+    try:
+        return _fernet().decrypt(token.encode()).decode()
+    except InvalidToken:
+        return None  # SECRET_KEY rotated: treat as no saved key
 
 
 async def _setting_row(db: AsyncSession) -> SystemSetting | None:
@@ -72,6 +119,8 @@ async def load_config(db: AsyncSession) -> SearchConfig:
         endpoint=saved or default_endpoint(),
         embed_model=value.get("embed_model") or None,
         is_default=not saved,
+        model=(value.get("embedding_model") or "").strip(),
+        api_key=_decrypt(value.get("api_key_encrypted")),
     )
 
 
@@ -80,9 +129,12 @@ async def save_config(
     *,
     endpoint: str | None = None,
     embed_model: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
 ) -> SearchConfig:
-    """Update the saved endpoint and/or the reported model. An endpoint equal to
-    the default is stored as "no override"."""
+    """Update the saved endpoint, requested model, API key and/or the reported
+    model. An endpoint equal to the default is stored as "no override"; an empty
+    ``model`` or ``api_key`` clears the saved value."""
     row = await _setting_row(db)
     value = dict((row.value if row else None) or {})
     if endpoint is not None:
@@ -90,6 +142,12 @@ async def save_config(
         value["embedding_endpoint"] = "" if endpoint == default_endpoint() else endpoint
     if embed_model is not None:
         value["embed_model"] = embed_model
+    if model is not None:
+        value["embedding_model"] = model.strip()
+    if api_key is not None:
+        value["api_key_encrypted"] = (
+            _fernet().encrypt(api_key.strip().encode()).decode() if api_key.strip() else ""
+        )
     if row is None:
         db.add(SystemSetting(category="search", key="config", value=value, is_active=True))
     else:
@@ -110,15 +168,19 @@ async def embed(
     model: str | None = None,
     timeout: float = TIMEOUT,
     dim: int | None = EMBEDDING_DIM,
+    api_key: str | None = None,
+    dimensions: int | None = None,
 ) -> Embedded:
     """Embed ``texts`` in batches of ``BATCH_SIZE``. Raises ``EmbeddingError``
     on any failure, and when a batch reports a different model than the first.
     ``dim=None`` skips the size check — only the evaluation harness does that
-    (its MiniLM baseline is 384-dim and never reaches the index)."""
+    (its MiniLM baseline is 384-dim and never reaches the index). ``api_key`` goes
+    out as a Bearer token; ``dimensions`` asks the service to shorten its vectors."""
     if not texts:
         return Embedded(model=model or "", vectors=[])
     vectors: list[list[float]] = []
     reported: str | None = None
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     try:
         async with _client(timeout) as client:
             for start in range(0, len(texts), BATCH_SIZE):
@@ -126,7 +188,11 @@ async def embed(
                 payload: dict = {"input": batch}
                 if model:
                     payload["model"] = model
-                resp = await client.post(f"{endpoint.rstrip('/')}/embeddings", json=payload)
+                if dimensions:
+                    payload["dimensions"] = dimensions
+                resp = await client.post(
+                    f"{endpoint.rstrip('/')}/embeddings", json=payload, headers=headers
+                )
                 resp.raise_for_status()
                 body = resp.json()
                 batch_model = str(body.get("model") or model or "")
@@ -152,6 +218,7 @@ async def embed(
     return Embedded(model=reported, vectors=vectors)
 
 
-async def probe(endpoint: str, *, timeout: float = 5.0) -> str:
-    """The model an endpoint serves, by embedding one word. Raises ``EmbeddingError``."""
-    return (await embed(endpoint, ["ping"], timeout=timeout)).model
+async def probe(endpoint: str, *, timeout: float = 5.0, **request: object) -> str:
+    """The model an endpoint serves, by embedding one word. ``request`` is
+    ``SearchConfig.request_args()``. Raises ``EmbeddingError``."""
+    return (await embed(endpoint, ["ping"], timeout=timeout, **request)).model

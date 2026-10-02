@@ -96,21 +96,23 @@ async def features(
 
 
 
-@settings_router.get("", summary="Search settings and index status (Admin)")
+@settings_router.get("", summary="Search settings and index status (Admin, CTO)")
 async def get_search_settings(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> dict:
     return await admin.status_of(db)
 
 
-@settings_router.put("", summary="Change the embedding endpoint (Admin)")
+@settings_router.put("", summary="Change the embedding endpoint, model and API key (Admin, CTO)")
 async def put_search_settings(
     body: SearchSettingsUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> dict:
-    changed = await admin.change_endpoint(db, body.embedding_endpoint)
+    changed = await admin.change_config(
+        db, body.embedding_endpoint, model=body.embedding_model, api_key=body.api_key
+    )
     await db.commit()
     reindex_started = search_index.request_reindex_all() if changed else False
     return {**await admin.status_of(db), "reindex_started": reindex_started}
@@ -119,17 +121,17 @@ async def put_search_settings(
 @settings_router.post(
     "/reindex",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Reindex all items (Admin)",
+    summary="Reindex all items (Admin, CTO)",
 )
-async def reindex(current_user: User = Depends(require_role(UserRole.admin))) -> dict:
+async def reindex(current_user: User = Depends(require_role(UserRole.admin, UserRole.cto))) -> dict:
     return {"reindex_started": search_index.request_reindex_all()}
 
 
-@settings_router.put("/jev", summary="Jev switch, key and model (Admin)")
+@settings_router.put("/jev", summary="Jev switch, key and model (Admin, CTO)")
 async def put_jev_settings(
     body: JevSettingsUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> dict:
     """409 ``jev_test_required`` when switching on without a passing test with the
     saved key. Saving a new key switches Jev off and clears the test."""
@@ -142,10 +144,10 @@ async def put_jev_settings(
     return await admin.jev_status(db)
 
 
-@settings_router.post("/jev/test", summary="Test the Jev connection with the saved key (Admin)")
+@settings_router.post("/jev/test", summary="Test the Jev connection with the saved key (Admin, CTO)")
 async def test_jev_connection(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> dict:
     result = await admin.test_jev(db)
     await db.commit()

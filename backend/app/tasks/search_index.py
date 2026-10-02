@@ -421,7 +421,9 @@ async def index_item_in(db: AsyncSession, issue_id: int) -> dict:
     to_embed = [w for w in wanted if not reusable(w)]
     model = config.embed_model
     if to_embed:
-        result = await embeddings.embed(config.endpoint, [w["text"] for w in to_embed])
+        result = await embeddings.embed(
+            config.endpoint, [w["text"] for w in to_embed], **config.request_args()
+        )
         if result.model != config.embed_model:
             # The service now serves another model: never keep vectors of two
             # models side by side (BR-S16) — embed this item fully, record the
@@ -436,7 +438,9 @@ async def index_item_in(db: AsyncSession, issue_id: int) -> dict:
             await embeddings.save_config(db, embed_model=result.model)
             if len(to_embed) != len(wanted):
                 to_embed = wanted
-                result = await embeddings.embed(config.endpoint, [w["text"] for w in to_embed])
+                result = await embeddings.embed(
+                    config.endpoint, [w["text"] for w in to_embed], **config.request_args()
+                )
         model = result.model
         for w, vec in zip(to_embed, result.vectors, strict=True):
             w["embedding"] = vec
@@ -528,7 +532,7 @@ async def reindex_all_now(now: datetime | None = None) -> dict:
         pass
     async with task_session() as db:
         config = await embeddings.load_config(db)
-        model = await embeddings.probe(config.endpoint)
+        model = await embeddings.probe(config.endpoint, **config.request_args())
         await embeddings.save_config(db, embed_model=model)
         ids = (
             (

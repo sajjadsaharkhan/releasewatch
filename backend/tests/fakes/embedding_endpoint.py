@@ -44,6 +44,9 @@ class FakeEmbeddings:
         self.app = FastAPI()
         #: Every text embedded, per request, in order.
         self.requests: list[list[str]] = []
+        #: The Authorization header and JSON body of every request, in order.
+        self.auth: list[str | None] = []
+        self.payloads: list[dict] = []
         #: When set, every request answers 503.
         self.fail = False
         #: Overrides the vector size, to test the dimension check.
@@ -57,6 +60,8 @@ class FakeEmbeddings:
 
     def reset(self) -> None:
         self.requests.clear()
+        self.auth.clear()
+        self.payloads.clear()
         self.fail = False
         self.dim = None
 
@@ -69,6 +74,8 @@ class FakeEmbeddings:
         body = await request.json()
         texts = body["input"] if isinstance(body["input"], list) else [body["input"]]
         self.requests.append(list(texts))
+        self.auth.append(request.headers.get("authorization"))
+        self.payloads.append(body)
         host = (request.headers.get("host") or "fake").split(":")[0]
         data = []
         for i, t in enumerate(texts):

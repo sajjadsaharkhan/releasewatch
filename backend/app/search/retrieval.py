@@ -140,7 +140,7 @@ async def _query_vector(db: AsyncSession, q: str) -> tuple[list[float] | None, s
         except Exception:  # noqa: BLE001 — a cache miss is never an error
             pass
     try:
-        result = await embeddings.embed(config.endpoint, [q])
+        result = await embeddings.embed(config.endpoint, [q], **config.request_args())
     except embeddings.EmbeddingError as exc:
         logger.warning("search: query embedding failed, keyword channel only: %s", exc)
         return None, config.embed_model

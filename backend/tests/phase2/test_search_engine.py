@@ -524,8 +524,59 @@ async def test_saving_the_same_endpoint_does_not_reindex(
     assert resp.json()["is_default_endpoint"] is True
 
 
-@pytest.mark.parametrize("role", ["cto", "pm", "developer", "qa", "support"])
-async def test_ac_s21_search_settings_admin_only(factories, client_for, role):
+async def test_api_key_and_model_are_sent_stored_encrypted_and_never_returned(
+    factories, project, corpus, embedding_endpoint, background_jobs
+):
+    secret = "sk-test-1234567890abcd"
+    resp = await factories.admin_client.put(
+        "/settings/search",
+        json={
+            "embedding_endpoint": "http://fake-embeddings/v1",
+            "embedding_model": "text-embedding-3-small",
+            "api_key": secret,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["embedding_model"] == "text-embedding-3-small"
+    assert body["has_key"] is True and body["key_last4"] == "abcd"
+    assert secret not in resp.text
+
+    # The probe carried the key, the typed model and the index's dimensions.
+    assert embedding_endpoint.auth[-1] == f"Bearer {secret}"
+    assert embedding_endpoint.payloads[-1]["model"] == "text-embedding-3-small"
+    assert embedding_endpoint.payloads[-1]["dimensions"] == 1024
+
+    # A later PUT that omits the key and model keeps both.
+    resp = await factories.admin_client.put(
+        "/settings/search", json={"embedding_endpoint": "http://fake-embeddings/v1"}
+    )
+    assert resp.json()["has_key"] is True
+    assert resp.json()["embedding_model"] == "text-embedding-3-small"
+    assert secret not in (await factories.admin_client.get("/settings/search")).text
+
+    # An empty key clears it; no key means no Authorization header.
+    resp = await factories.admin_client.put(
+        "/settings/search",
+        json={"embedding_endpoint": "http://fake-embeddings/v1", "api_key": "", "embedding_model": ""},
+    )
+    assert resp.json()["has_key"] is False and resp.json()["embedding_model"] == ""
+    assert embedding_endpoint.auth[-1] is None
+    assert "dimensions" not in embedding_endpoint.payloads[-1]
+
+
+async def test_cto_can_open_and_change_search_settings(factories, client_for, background_jobs):
+    cto = await client_for(await factories.user(role="cto"))
+    assert (await cto.get("/settings/search")).status_code == 200
+    resp = await cto.put(
+        "/settings/search", json={"embedding_endpoint": "http://fake-embeddings/v1"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert (await cto.post("/settings/search/reindex")).status_code == 202
+
+
+@pytest.mark.parametrize("role", ["pm", "developer", "qa", "support"])
+async def test_ac_s21_search_settings_admin_and_cto_only(factories, client_for, role):
     client = await client_for(await factories.user(role=role))
     assert (await client.get("/settings/search")).status_code == 403
     assert (

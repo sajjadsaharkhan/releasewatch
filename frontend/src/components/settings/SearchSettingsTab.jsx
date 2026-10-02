@@ -79,11 +79,13 @@ function IndexProgress({ index }) {
   )
 }
 
-/** Settings → Search (slice 12, FR-S17/FR-S19). Admin only — the page is behind AdminRoute. */
+/** Settings → Search (slice 12, FR-S17/FR-S19). Admin and CTO — the page is behind AdminRoute. */
 export function SearchSettingsTab() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [endpoint, setEndpoint] = useState('')
+  const [embeddingModel, setEmbeddingModel] = useState('')
+  const [apiKey, setApiKey] = useState('') // write-only: blank = keep the saved key
   const [confirm, setConfirm] = useState(null) // 'endpoint' | 'reindex' | null
 
   const query = useQuery({
@@ -99,21 +101,25 @@ export function SearchSettingsTab() {
     if (data) setEndpoint(data.embedding_endpoint)
   }, [data?.embedding_endpoint]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (data) setEmbeddingModel(data.embedding_model || '')
+  }, [data?.embedding_model]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
     if (query.isError) toast.error('Failed to load search settings')
   }, [query.isError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveEndpoint = useMutation({
-    mutationFn: (value) => searchApi.saveSettings({ embedding_endpoint: value }).then((res) => res.data),
+    mutationFn: (payload) => searchApi.saveSettings(payload).then((res) => res.data),
     onSuccess: (body) => {
       queryClient.setQueryData(QUERY_KEY, body)
+      setApiKey('')
       setConfirm(null)
       toast(body.reindex_started
-        ? { title: 'Endpoint saved', body: 'A full reindex has started.' }
-        : { title: 'Endpoint saved', body: 'Same model as before — no reindex needed.' })
+        ? { title: 'Embedding settings saved', body: 'A full reindex has started.' }
+        : { title: 'Embedding settings saved', body: 'Same model as before — no reindex needed.' })
     },
     onError: (err) => {
       setConfirm(null)
-      toast.error('Endpoint not saved', err.response?.data?.detail || 'Could not save the endpoint.')
+      toast.error('Settings not saved', err.response?.data?.detail || 'Could not save the embedding settings.')
     },
   })
 
@@ -143,7 +149,16 @@ export function SearchSettingsTab() {
   if (!data) return null
 
   const trimmed = endpoint.trim().replace(/\/+$/, '')
+  const trimmedModel = embeddingModel.trim()
+  const trimmedKey = apiKey.trim()
   const dirty = trimmed !== data.embedding_endpoint
+    || trimmedModel !== (data.embedding_model || '')
+    || trimmedKey !== ''
+  const payload = {
+    embedding_endpoint: trimmed,
+    embedding_model: trimmedModel,
+    ...(trimmedKey ? { api_key: trimmedKey } : {}),
+  }
   const { service } = data
   const modelMismatch = service.reachable && data.embed_model && service.model !== data.embed_model
 
@@ -158,39 +173,73 @@ export function SearchSettingsTab() {
             </div>
             <div>
               <p className="text-sm font-semibold">Embedding service</p>
-              <p className="text-xs text-muted-foreground">Search runs locally: embeddings plus a keyword index.</p>
+              <p className="text-xs text-muted-foreground">Embeddings plus a keyword index. Bundled by default, or any OpenAI-compatible API.</p>
             </div>
           </div>
 
           <div className="divide-y divide-border pt-4">
             <Row
-              label="Embedding endpoint"
+              label="Base URL"
               hint={data.is_default_endpoint
-                ? 'The bundled embeddings service. Any OpenAI-compatible /embeddings endpoint works.'
+                ? 'The bundled embeddings service. Any OpenAI-compatible endpoint works, e.g. https://api.openai.com/v1.'
                 : `Default: ${data.default_endpoint}`}
             >
               <form
-                className="flex flex-wrap items-center gap-2"
+                className="space-y-2"
                 onSubmit={(e) => { e.preventDefault(); if (dirty && trimmed) setConfirm('endpoint') }}
               >
                 <Input
                   value={endpoint}
                   onChange={(e) => setEndpoint(e.target.value)}
-                  className="font-mono text-xs flex-1 min-w-[220px]"
-                  aria-label="Embedding endpoint"
+                  className="font-mono text-xs"
+                  aria-label="Embedding base URL"
                   spellCheck={false}
                 />
-                <Button type="submit" size="sm" disabled={!dirty || !trimmed}>Save</Button>
+                <Input
+                  value={embeddingModel}
+                  onChange={(e) => setEmbeddingModel(e.target.value)}
+                  placeholder="Model name, e.g. text-embedding-3-small"
+                  className="font-mono text-xs"
+                  aria-label="Embedding model name"
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={data.has_key ? `Saved ••••${data.key_last4} — type to replace` : 'API key (optional)'}
+                  className="font-mono text-xs"
+                  aria-label="Embedding API key"
+                  autoComplete="new-password"
+                  spellCheck={false}
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="submit" size="sm" disabled={!dirty || !trimmed}>Save</Button>
+                  {!data.is_default_endpoint && (
+                    <button
+                      type="button"
+                      onClick={() => { setEndpoint(data.default_endpoint) }}
+                      className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    >
+                      Use the default URL
+                    </button>
+                  )}
+                  {data.has_key && (
+                    <button
+                      type="button"
+                      onClick={() => saveEndpoint.mutate({ embedding_endpoint: data.embedding_endpoint, api_key: '' })}
+                      className="text-xs text-red-600 dark:text-red-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    >
+                      Remove saved key
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A model name makes the service answer with 1024-dimension vectors, which is what the index stores.
+                  The key is stored encrypted and never shown again.
+                </p>
               </form>
-              {!data.is_default_endpoint && (
-                <button
-                  type="button"
-                  onClick={() => { setEndpoint(data.default_endpoint) }}
-                  className="mt-1.5 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                >
-                  Use the default
-                </button>
-              )}
             </Row>
 
             <Row label="Model">
@@ -236,11 +285,11 @@ export function SearchSettingsTab() {
 
       <ConfirmDialog
         open={confirm === 'endpoint'}
-        title="Change the embedding endpoint?"
-        body="Every item is reindexed with the new endpoint's model. Search may be incomplete until the reindex finishes."
-        confirmLabel="Change and reindex"
+        title="Change the embedding settings?"
+        body="If the model changes, every item is reindexed with it. Search may be incomplete until the reindex finishes."
+        confirmLabel="Save"
         loading={saveEndpoint.isPending}
-        onConfirm={() => saveEndpoint.mutate(trimmed)}
+        onConfirm={() => saveEndpoint.mutate(payload)}
         onClose={() => setConfirm(null)}
       />
       <ConfirmDialog
