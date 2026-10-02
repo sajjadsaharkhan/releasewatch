@@ -631,11 +631,22 @@ whose tooltip gives the reason. Without `manage_backlog` the handles and checkbo
 with Policy's reason as the tooltip. The page follows the topbar project switcher. **Technical
 debt** (`pages/TechDebtPage.jsx`, `/tech-debt`) is a full-bleed table with `MultiSelectFilterDropdown`
 projects, Status (Open / Done / Cancelled / All) and Assignee filters in the URL, and a Placement
-column (release version or a "Backlog" chip). New Task has a Technical debt `Switch` and, when the
-project has more than Default, an optional `BacklogCategoryPicker`, and starts in the backlog;
+column (release version or a "Backlog" chip). New Task has a Technical debt `Switch` and starts in the backlog;
 Triage's Accept shows the same optional picker; the item sidebar has Category (the project's
 categories) and (tasks) Tech debt rows. Placement everywhere — New issue, triage Accept, the
 sidebar's Placement row, the bulk bar — is one `ContainerPicker` (08a).
+
+**New issue** (`components/issues/NewIssueModal`, "Quick capture", chosen from a prototype
+2026-10-02): a `max-w-2xl` dialog with its own header — Bug / Task tabs and a close button —
+instead of `Dialog`'s title bar. Order: borderless 18px title (autofocused), the description
+composer, a **possibly-the-same** panel, one property box (Project, Place in, **Backlog
+category** — shown whenever Place in is Backlog, Priority, Assignee, Due date), the task's
+Technical debt box, then a drawer that starts open (Environment, Release blocker, Steps, cURL,
+Labels, Attachments). ⌘/Ctrl+Enter creates. The panel is collapsed by default: a summary row
+(count + top similarity %, amber from 90%) opens horizontal candidate cards — `SimilarityRing`,
+type/key/status, band, title — with **Open** and a local **Not the same** (no Merge; that is
+triage). It renders nothing while Jev is off. `ContainerPicker colorize` tints its icons like
+`ContainerBadge` (Stream sky, Backlog zinc, a Release by lifecycle).
 
 `Select` and `Dropdown` open upward when there's no room below. `Select` and `Dropdown` are
 `position: fixed` portals, so both follow their trigger when the page scrolls or resizes
