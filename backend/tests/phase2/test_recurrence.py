@@ -186,7 +186,7 @@ async def test_already_subscribed_reporter_is_not_duplicated(factories, rig):
 async def test_ac_11_recurrence_on_cancelled_notifies_lead_stays_cancelled(factories, rig, telegram):
     bug = await support_report(factories, rig)
     await rig["lead_client"].post(
-        f"/issues/{bug.id}/triage", json={"outcome": "reject", "reason": "cannot_reproduce"},
+        f"/issues/{bug.id}/triage", json={"outcome": "reject", "comment": "Cannot reproduce."},
     )
     await telegram.link_telegram(rig["lead"])
 
@@ -194,7 +194,7 @@ async def test_ac_11_recurrence_on_cancelled_notifies_lead_stays_cancelled(facto
     assert resp.status_code == 201, resp.text
     after = resp.json()
     assert after["status"] == "cancelled"
-    assert after["cancel_reason"] == "cannot_reproduce"
+    assert after["cancel_reason"] is None
     assert after["recurrence_count"] == 2
     assert "recurrence_on_cancelled" in await inbox_types(rig["lead_client"])
     assert "recurrence_on_cancelled" in [t for t, _ in telegram.sent_to(rig["lead"])]
@@ -208,7 +208,7 @@ async def test_recurrence_on_cancelled_without_lead_goes_to_admins(factories, ri
 
     bug = await support_report(factories, rig)
     await rig["lead_client"].post(
-        f"/issues/{bug.id}/triage", json={"outcome": "reject", "reason": "expected_behavior"},
+        f"/issues/{bug.id}/triage", json={"outcome": "reject", "comment": "Expected behavior."},
     )
     # BR-15 forbids clearing the lead through the API; simulate a deactivated lead.
     await db_session.execute(update(Project).where(Project.id == rig["project"].id).values(triage_lead_id=None))
@@ -247,7 +247,7 @@ async def test_open_and_cancelled_bugs_allow_recurrence_in_actions(factories, ri
     bug = await support_report(factories, rig)
     assert "report_recurrence" in (await get(rig["support_client"], bug.id))["allowed_actions"]
     await rig["lead_client"].post(
-        f"/issues/{bug.id}/triage", json={"outcome": "reject", "reason": "user_error"},
+        f"/issues/{bug.id}/triage", json={"outcome": "reject", "comment": "User error."},
     )
     assert "report_recurrence" in (await get(rig["support_client"], bug.id))["allowed_actions"]
 

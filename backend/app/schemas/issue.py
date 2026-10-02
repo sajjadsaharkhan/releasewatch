@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, computed_field, field_validator, model_validator
 
 from app.db.models.issue import (
     ISSUE_TYPE_KEY_PREFIX,
@@ -207,15 +207,19 @@ class DuplicateOutcome(BaseModel):
 
 
 class RejectOutcome(BaseModel):
-    """Reject → cancelled with one of the three reject reasons (FR-18)."""
+    """Reject → cancelled. The triager's comment is the explanation (no
+    structured reason is stored); it is required and posted publicly."""
 
     outcome: Literal["reject"]
-    reason: Literal[
-        IssueCancelReason.user_error,
-        IssueCancelReason.expected_behavior,
-        IssueCancelReason.cannot_reproduce,
-    ]
-    comment: str | None = None
+    comment: str = Field(min_length=1)
+
+    @field_validator("comment")
+    @classmethod
+    def _comment_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("A rejection needs a comment saying why.")
+        return v
 
 
 class TriageRequest(RootModel):

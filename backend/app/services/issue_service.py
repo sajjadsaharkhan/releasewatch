@@ -237,8 +237,8 @@ class IssueService:
     ) -> Issue:
         """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
 
-        ``question`` is the Needs info triage outcome's comment, carried into
-        the Support notice.
+        ``question`` is the Needs info triage outcome's comment — or a Reject's,
+        which stands in for its missing reason — carried into the Support notice.
 
         Asks ``Workflow`` first. On success: sets the status-support columns
         (``started_at``, ``completed_at``, ``cancelled_at``,
@@ -392,6 +392,9 @@ class IssueService:
             trigger = InboxEventType.support_cancelled
             raw = getattr(issue.cancel_reason, "value", issue.cancel_reason)
             label = CANCEL_REASON_LABELS.get(IssueCancelReason(raw)) if raw else None
+            # A Reject outcome stores no reason; its comment is what Support reads.
+            if label is None and question:
+                label = question.strip()[:200]
             meta = {"reason": raw, "reason_label": label or "No reason given"}
             # A Duplicate outcome is a merge, not a dead end: say where it went.
             if raw == IssueCancelReason.duplicate.value and issue.parent_issue_id:

@@ -320,19 +320,19 @@ class TriageService:
     async def _reject(
         self, db: AsyncSession, issue: Issue, outcome: RejectOutcome, actor: User,
     ) -> Issue:
+        # The comment is the whole explanation: no structured reason is stored.
         timeline = TimelineService()
-        if outcome.comment:
-            await timeline.create_event(
-                db=db, issue_id=issue.id, actor_id=actor.id,
-                event_type=TimelineEventType.comment, body=outcome.comment, meta=None,
-            )
+        await timeline.create_event(
+            db=db, issue_id=issue.id, actor_id=actor.id,
+            event_type=TimelineEventType.comment, body=outcome.comment, meta=None,
+        )
         await timeline.create_event(
             db=db, issue_id=issue.id, actor_id=actor.id,
             event_type=TimelineEventType.triaged, body=None,
-            meta={"outcome": "reject", "reason": outcome.reason.value},
+            meta={"outcome": "reject"},
         )
         return await issue_service.transition(
-            db, issue, to=IssueStatus.cancelled, actor=actor, cancel_reason=outcome.reason.value,
+            db, issue, to=IssueStatus.cancelled, actor=actor, question=outcome.comment,
         )
 
     # ── Move project (FR-20) ──────────────────────────────────────────────────

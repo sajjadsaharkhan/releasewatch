@@ -183,7 +183,7 @@ async def test_triage_only_from_new_or_needs_info(factories, rig):
     for body in (
         {"outcome": "accept", "priority": "low"},
         {"outcome": "needs_info", "comment": "More?"},
-        {"outcome": "reject", "reason": "user_error"},
+        {"outcome": "reject", "comment": "No."},
     ):
         resp = await triage(rig["lead_client"], bug.id, **body)
         assert resp.status_code == 409 and resp.json()["code"] == "not_in_triage", body
@@ -305,29 +305,29 @@ async def test_reject_cancels_with_reason_and_tells_support(factories, rig, tele
     bug = await support_report(factories, rig)
     await telegram.link_telegram(rig["support"])
     resp = await triage(
-        rig["lead_client"], bug.id, outcome="reject", reason="cannot_reproduce",
-        comment="Tried on three devices.",
+        rig["lead_client"], bug.id, outcome="reject", comment="Tried on three devices.",
     )
     assert resp.status_code == 200
-    assert resp.json()["status"] == "cancelled" and resp.json()["cancel_reason"] == "cannot_reproduce"
+    assert resp.json()["status"] == "cancelled" and resp.json()["cancel_reason"] is None
 
     events = await timeline(rig["support_client"], bug.id)
     assert "Tried on three devices." in [e["body"] for e in events]
     assert triaged_events(await timeline(rig["admin"], bug.id)) == [
-        {"outcome": "reject", "reason": "cannot_reproduce"},
+        {"outcome": "reject"},
     ]
     items = await inbox(rig["support_client"])
     assert [i["type"] for i in items] == ["support_cancelled"]
-    assert items[0]["meta"]["reason_label"] == "Cannot reproduce"
+    # No structured reason is stored: Support reads the triager's comment.
+    assert items[0]["meta"]["reason_label"] == "Tried on three devices."
     sent = telegram.sent_to(rig["support"])
     assert [t for t, _ in sent] == ["support_cancelled"]
-    assert sent[0][1]["cancel_reason"] == "Cannot reproduce"
+    assert sent[0][1]["cancel_reason"] == "Tried on three devices."
 
 
 @pytest.mark.asyncio
-async def test_reject_requires_a_reject_reason(factories, rig):
+async def test_reject_requires_a_comment(factories, rig):
     bug = await support_report(factories, rig)
-    for body in ({}, {"reason": "duplicate"}, {"reason": "wont_fix"}, {"reason": "no_longer_needed"}):
+    for body in ({}, {"comment": ""}, {"comment": "   "}):
         resp = await triage(rig["lead_client"], bug.id, outcome="reject", **body)
         assert resp.status_code == 422, body
 
@@ -538,14 +538,14 @@ async def test_ac_52_merge_into_open_item_starts_no_cycle(factories, rig, status
 @pytest.mark.asyncio
 async def test_ac_53_merge_into_cancelled_stays_cancelled_notifies_lead(factories, rig, telegram):
     b = await factories.issue(project_id=rig["project"].id)
-    await triage(rig["lead_client"], b.id, outcome="reject", reason="expected_behavior")
+    await triage(rig["lead_client"], b.id, outcome="reject", comment="Expected behavior.")
     await telegram.link_telegram(rig["lead"])
 
     a = await factories.issue(project_id=rig["project"].id, client=rig["qa_client"])
     assert (await triage(rig["admin"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
     assert after["status"] == "cancelled"
-    assert after["cancel_reason"] == "expected_behavior"
+    assert after["cancel_reason"] is None
     assert after["recurrence_count"] == 2
     assert "recurrence_on_cancelled" in await inbox_types(rig["lead_client"])
     assert "recurrence_on_cancelled" in [t for t, _ in telegram.sent_to(rig["lead"])]
@@ -693,7 +693,7 @@ async def test_support_subscriber_gets_only_the_three_events_and_mentions(factor
 
     # The third event, on a second report.
     rejected = await support_report(factories, rig)
-    await triage(rig["lead_client"], rejected.id, outcome="reject", reason="user_error")
+    await triage(rig["lead_client"], rejected.id, outcome="reject", comment="User error.")
     assert set(await inbox_types(rig["support_client"])) == {
         "support_needs_info", "support_cancelled", "support_done", "mention",
     }

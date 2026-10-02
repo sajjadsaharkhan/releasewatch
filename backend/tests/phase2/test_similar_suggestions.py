@@ -126,7 +126,7 @@ async def reaction_world(factories, rig, search_jobs):
     cancelled = await factories.support_report(
         rig["support_client"], template=rig["template"], title=REACTION_VARIANT,
     )
-    await triage(rig["lead_client"], cancelled.id, outcome="reject", reason="user_error")
+    await triage(rig["lead_client"], cancelled.id, outcome="reject", comment="User error.")
     internal = await factories.issue(
         project_id=rig["project"].id, title=REACTION_VARIANT,
     )

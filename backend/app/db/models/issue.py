@@ -149,13 +149,6 @@ CANCEL_REASON_LABELS = {
     IssueCancelReason.no_longer_needed: "No longer needed",
 }
 
-#: The reasons the Reject triage outcome accepts (FR-18, slice 06).
-REJECT_REASONS = (
-    IssueCancelReason.user_error,
-    IssueCancelReason.expected_behavior,
-    IssueCancelReason.cannot_reproduce,
-)
-
 #: Cancel reasons valid for a bug (BR-13) — excludes the task-only reason.
 BUG_CANCEL_REASONS = tuple(r for r in IssueCancelReason if r != IssueCancelReason.no_longer_needed)
 

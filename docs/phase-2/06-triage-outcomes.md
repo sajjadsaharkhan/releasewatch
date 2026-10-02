@@ -33,7 +33,7 @@ Each project's **triage queue** lists its New and Needs info bugs. A triager (an
 13d. As a triager, I want merging into an In review, open, or Cancelled original to leave its status unchanged (a Cancelled original notifies its triage lead, as a recurrence does). (BR-49, AC-52, AC-53)
 13e. As a Support reporter of the merged duplicate, I want the original's future Done notification, including after a regression cycle. (AC-54)
 14. As a triager, I want to be stopped from pointing at an item that is itself a duplicate, with its original suggested instead, so that duplicate chains never form. (AC-21)
-15. As a triager, I want to **Reject** a bug with reason User error, Expected behavior, or Cannot reproduce, so that the reporter learns why. (FR-18)
+15. As a triager, I want to **Reject** a bug with a comment saying why, so that the reporter learns why. (FR-18; amended 2026-10-02: the structured reason was dropped — the comment is the reason)
 16. As a Support reporter, I want a Telegram message when my report is cancelled, with the reason, so that I can tell the customer. (§13)
 17. As a Support reporter, I want a Telegram message when my report is Done, so that I can tell the customer it's fixed. (§13)
 18. As a Support reporter, I want no other status messages, so that the ones I get are worth reading. (§13)
@@ -63,7 +63,7 @@ Each project's **triage queue** lists its New and Needs info bugs. A triager (an
 | `accept` | `priority` | `assignee_id`, `release_id` (omitted = hotfix path) | → todo |
 | `needs_info` | `comment` | — | Public comment, → needs_info, notify subscribers |
 | `duplicate` | `duplicate_of_id` | `comment` | → cancelled(duplicate), `parent_issue_id` set, original `recurrence_count += 1`, subscribe the duplicate's subscribers to the original with reason `duplicate`, add the merge comment to the original, then apply **merge effects** (below) |
-| `reject` | `reason` ∈ {user_error, expected_behavior, cannot_reproduce} | `comment` | → cancelled(reason) |
+| `reject` | `comment` (required) | — | → cancelled, no `cancel_reason` (amended 2026-10-02; the comment is posted publicly and is what Support is told) |
 
 - Allowed only from `new` or `needs_info`. Otherwise 409 `code: not_in_triage`.
 - Policy action `triage`: tech roles.
@@ -114,7 +114,7 @@ Telegram templates: add `support_needs_info` (includes the comment body), `suppo
 
 ### Frontend
 
-- Rework `TriagePage`: a per-project queue with New and Needs info tabs. Each row shows source, age, and recurrence count. A detail pane has four outcome buttons, and each opens a small form with exactly the required inputs (priority select, assignee picker, release picker, comment box, duplicate search-picker restricted to the same project, reject reason select). Add a "Move to project" action.
+- Rework `TriagePage`: a per-project queue with New and Needs info tabs. Each row shows source, age, and recurrence count. A detail pane has four outcome buttons, and each opens a small form with exactly the required inputs (priority select, assignee picker, release picker, comment box, duplicate search-picker restricted to the same project, a required reject comment). Add a "Move to project" action.
 - On 409 `duplicate_of_duplicate`, offer "Use <suggested key> instead".
 - Needs info items show the triager's question pinned at the top of the item page for Support.
 
