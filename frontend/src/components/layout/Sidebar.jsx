@@ -14,6 +14,8 @@ const ADMIN_ROLES = ['admin', 'cto']
 export function Sidebar() {
   const { activeProjectId, projects, switchProject, inboxUnreadCount, user } = useApp()
   const [issuesOpen, setIssuesOpen] = useState(true)
+  const [planningOpen, setPlanningOpen] = useState(true)
+  const [deliveryOpen, setDeliveryOpen] = useState(true)
   const [reportsOpen, setReportsOpen] = useState(true)
 
   const isAdmin = ADMIN_ROLES.includes(user?.role)
@@ -48,9 +50,10 @@ export function Sidebar() {
           <>
           <NavItem to="/dashboard" icon="layout-dashboard" label="Dashboard" />
           <NavItem to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
+          <NavItem to="/my-work" icon="list-todo" label="My Work" />
           <NavItem to="/search" icon="search" label="Search" />
 
-          {/* Issues section */}
+          {/* Issues section — everything that comes in: all items, then triage */}
           <div className="pt-1">
             <button
               onClick={() => setIssuesOpen((o) => !o)}
@@ -63,17 +66,42 @@ export function Sidebar() {
               <div className="mt-0.5 space-y-0.5">
                 <NavItem to="/issues" icon="list" label="All Issues" />
                 <NavItem to="/triage" icon="filter" label="Triage" />
-                <NavItem to={backlogPath} icon="list-ordered" label="Backlog" />
-                <NavItem to="/my-work" icon="list-todo" label="My Work" />
               </div>
             )}
           </div>
 
-          {/* Releases */}
-          <div className="pt-1 space-y-0.5">
-            <NavItem to={streamPath} icon="waves" label="Stream" />
-            <NavItem to={releasesPath} icon="tag" label="Releases" />
-            <NavItem to="/tech-debt" icon="construction" label="Technical debt" />
+          {/* Planning section — work not yet scheduled */}
+          <div className="pt-1">
+            <button
+              onClick={() => setPlanningOpen((o) => !o)}
+              className="flex w-full items-center gap-1 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {planningOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Planning
+            </button>
+            {planningOpen && (
+              <div className="mt-0.5 space-y-0.5">
+                <NavItem to={backlogPath} icon="list-ordered" label="Backlog" />
+                <NavItem to="/tech-debt" icon="construction" label="Technical debt" />
+              </div>
+            )}
+          </div>
+
+          {/* Delivery section — the containers work ships in */}
+          <div className="pt-1">
+            <button
+              onClick={() => setDeliveryOpen((o) => !o)}
+              className="flex w-full items-center gap-1 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {deliveryOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Delivery
+            </button>
+            {deliveryOpen && (
+              <div className="mt-0.5 space-y-0.5">
+                <NavItem to={streamPath} icon="waves" label="Stream" />
+                <NavItem to={releasesPath} icon="tag" label="Releases" />
+              </div>
+            )}
           </div>
 
           {/* Reports section — admin/cto only */}
