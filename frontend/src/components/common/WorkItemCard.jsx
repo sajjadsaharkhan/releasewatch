@@ -13,6 +13,8 @@ import { Tooltip } from '../ui/Tooltip'
 import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
 import { CycleBadge } from './CycleBadge'
+import { LabelChip } from './LabelChip'
+import { Assignee, BlockerPill, InlineLabels, PlacementChip } from './WorkItemMeta'
 
 // Slice 10 (FR-42, P3): one card for every board and the personal queue. By
 // default it shows only the title, the project and a priority glyph; compact
@@ -21,7 +23,7 @@ import { CycleBadge } from './CycleBadge'
 // `IssueResponse` on the Stream and release boards — `normalize` maps both.
 
 const HOVER_WIDTH = 320
-const HOVER_HEIGHT = 230
+const HOVER_HEIGHT = 290
 const DUE_SOON_DAYS = 2
 
 /** `none` | `soon` (≤ 2 days away) | `overdue` — the server's rule, for payloads without it. */
@@ -43,7 +45,10 @@ function normalize(i) {
     dueState: i.due_state ?? dueStateOf(i.due_date),
     container: i.container !== undefined
       ? i.container
-      : i.container_kind ? { kind: i.container_kind, name: i.release_version } : null,
+      : i.container_kind
+        ? { kind: i.container_kind, name: i.release_version, status: i.release_status }
+        : null,
+    labels: (i.labels_detail ?? i.labels ?? []).map((l) => (typeof l === 'string' ? { name: l, color: '#6366f1' } : l)),
     reporter: i.reporter ?? i.reporter_user ?? null,
     assignee: i.assignee ?? i.assignee_user ?? null,
   }
@@ -208,10 +213,24 @@ function HoverDetails({ item }) {
         <HoverRow icon={item.container?.kind === 'stream' ? 'waves' : item.container ? 'package' : 'inbox'}>
           {item.project?.name}{' · '}{item.container ? item.container.name : 'Backlog'}
         </HoverRow>
+        <HoverRow icon="user-check">
+          {item.assignee ? (
+            <span className="inline-flex items-center gap-1">
+              Assigned to <Avatar user={item.assignee} size={14} /> {item.assignee.name}
+            </span>
+          ) : 'Unassigned'}
+        </HoverRow>
         {item.reporter && (
           <HoverRow icon="user-pen">
             <span className="inline-flex items-center gap-1">
               Reported by <Avatar user={item.reporter} size={14} /> {item.reporter.name}
+            </span>
+          </HoverRow>
+        )}
+        {item.labels.length > 0 && (
+          <HoverRow icon="tag">
+            <span className="flex flex-wrap gap-1">
+              {item.labels.map((l) => <LabelChip key={l.name} label={l} />)}
             </span>
           </HoverRow>
         )}
@@ -299,14 +318,22 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
         className="w-full rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
         {...buttonProps}
       >
-        <div className="mb-2 line-clamp-2 text-[12.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+        {(item.container || item.is_release_blocker) && (
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <PlacementChip placement={item.container} className="border-transparent bg-transparent px-0" />
+            {item.is_release_blocker && <BlockerPill />}
+          </div>
+        )}
+        <div className="mb-1.5 line-clamp-2 text-[12.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
           {item.title}
         </div>
+        <InlineLabels labels={item.labels} className="mb-2" />
         <div className="flex items-center gap-2">
           <ProjectChip project={item.project} className="flex-1" />
           <span className="flex shrink-0 items-center gap-1.5">
             <Markers item={item} />
             <PriorityGlyph priority={item.priority} />
+            <Assignee user={item.assignee} />
           </span>
         </div>
       </button>

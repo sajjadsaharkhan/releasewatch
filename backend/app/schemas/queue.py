@@ -20,6 +20,13 @@ class CardContainer(BaseModel):
     #: ``stream`` | ``release``
     kind: str
     name: str
+    #: The release's lifecycle status; ``None`` for the Stream.
+    status: str | None = None
+
+
+class CardLabel(BaseModel):
+    name: str
+    color: str
 
 
 class WorkItemCard(BaseModel):
@@ -58,6 +65,7 @@ class WorkItemCard(BaseModel):
 
     # Hover
     container: CardContainer | None = None
+    labels: list[CardLabel] = Field(default_factory=list)
     reporter: UserSummary | None = None
     assignee: UserSummary | None = None
     created_at: datetime

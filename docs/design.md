@@ -305,11 +305,22 @@ One card everywhere (P3): the Stream board, release boards, and My Work's Kanban
 `QueueItemRow` (below). It reads the slim `WorkItemCard` API shape and the full
 `IssueResponse` alike.
 
-**By default** a card shows three things: the title (two lines), the project chip (a 2px-radius
-square in the project's colour + name, muted), and the **priority glyph** — `PRIORITY[p].icon` in
-`PRIORITY[p].text`: Critical `chevrons-up` red, High `chevron-up` orange, Medium `equal` amber,
-Low `chevron-down` blue, unrated `minus` zinc; tooltip and screen-reader text "High priority". No
-key, no labels, no avatar.
+**By default** a card shows, top to bottom (`WorkItemMeta.jsx` holds the extra pieces):
+
+1. **Eyebrow** — only when it has something to say: the **placement** (`PlacementChip`, plain text
+   with no pill: sky `waves` "Stream", or `package` + the release's mono name + its lifecycle-status
+   icon, long names truncate, full name and status in the tooltip) on the left, and the red
+   **Blocker** pill (`BlockerPill`, release blockers only) on the right. Backlog items are not on a
+   board, so they have no placement.
+2. The title (two lines).
+3. **Labels** — up to three as colour dot + name on one line, the rest as "+N". Nothing when none.
+4. The bottom row: the project chip (a 2px-radius square in the project's colour + name, muted),
+   the markers below, the **priority glyph** — `PRIORITY[p].icon` in `PRIORITY[p].text`: Critical
+   `chevrons-up` red, High `chevron-up` orange, Medium `equal` amber, Low `chevron-down` blue,
+   unrated `minus` zinc; tooltip and screen-reader text "High priority" — and the **assignee**
+   avatar (18px; a dashed empty avatar when unassigned). No key.
+
+Chosen from three prototypes on 2026-10-02 (branch `prototype/card-meta`, variant B).
 
 **Markers**, right-aligned before the glyph, appear only when they matter, in this order:
 
@@ -330,7 +341,7 @@ server on queue/board payloads; for `IssueResponse` the card derives it with the
 portaled 320px card (the §7 overlay rules, `Escape` closes, hidden while dragging): key + status,
 title, then one icon row per fact — pin (and who may unpin), where it came back from with the
 Reject comment (fetched lazily, react-query `['timeline-event', id, commentId]`), cycle, reports,
-technical debt, full due date, project · container (Stream / release / Backlog), reporter, and age.
+technical debt, full due date, project · container (Stream / release / Backlog), assignee, reporter, labels, and age.
 
 **My Work** (`/my-work`, `MyWorkPage`; CTO/Admin also at `/u/:username/work`, linked from the
 profile's **Work queue** button). Chosen from prototype variant D, 2026-10-01. Header: `text-xl

@@ -585,7 +585,7 @@ async def test_ac_43_card_default_fields_only(factories, rig):
     assert card["cycle_number"] == 1
     assert card["reject_reason"] is None
     # Hover fields.
-    assert card["container"] == {"kind": "stream", "name": "Stream"}
+    assert card["container"] == {"kind": "stream", "name": "Stream", "status": None}
 
 
 @pytest.mark.asyncio
@@ -686,7 +686,10 @@ async def test_card_carries_release_blocker_and_cycle_count(factories, client_fo
     card = (await _queue(rig["dev_client"]))["groups"]["rest"][0]["issue"]
     assert card["is_release_blocker"] is True
     assert card["cycle_count"] == 2
-    assert card["container"] == {"kind": "release", "name": release.version}
+    assert card["container"] == {
+        "kind": "release", "name": release.version,
+        "status": getattr(release.status, "value", release.status),
+    }
 
     plain = await _task(factories, rig)
     rest = (await _queue(rig["dev_client"]))["groups"]["rest"]

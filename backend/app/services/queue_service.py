@@ -24,6 +24,7 @@ from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import BOARD_STATUSES, Issue, IssueStatus
 from app.db.models.issue_cycle import IssueCycle
+from app.db.models.label import Label
 from app.db.models.queue import QueueAction, QueueEntry, QueueHistory
 from app.db.models.user import User, UserRole
 from app.policy import ASSIGNABLE_ROLES
@@ -31,6 +32,7 @@ from app.queue_order import PIN_LIMIT, QueueItem, QueueRuleError
 from app.schemas.issue import UserSummary
 from app.schemas.queue import (
     CardContainer,
+    CardLabel,
     CardProject,
     WorkItemCard,
     WorkloadCounts,
@@ -114,6 +116,12 @@ async def build_cards(
         rows = await db.execute(select(IssueCycle).where(IssueCycle.id.in_(cycle_ids)))
         cycles = {c.id: c for c in rows.scalars().all()}
 
+    label_names = {n for i in issues for n in (i.labels or [])}
+    label_colors: dict[str, str] = {}
+    if label_names:
+        rows = await db.execute(select(Label.name, Label.color).where(Label.name.in_(label_names)))
+        label_colors = dict(rows.all())
+
     cards = []
     for issue in issues:
         cycle = cycles.get(issue.current_cycle_id)
@@ -143,9 +151,16 @@ async def build_cards(
             reject_reason=_value(cycle.start_reason) if cycle is not None and rejected else None,
             reject_comment_id=cycle.start_comment_id if cycle is not None and rejected else None,
             container=(
-                CardContainer(kind=_value(release.kind), name=release.version)
+                CardContainer(
+                    kind=_value(release.kind), name=release.version,
+                    status=_value(release.status),
+                )
                 if release is not None else None
             ),
+            labels=[
+                CardLabel(name=n, color=label_colors[n])
+                for n in (issue.labels or []) if n in label_colors
+            ],
             reporter=UserSummary.model_validate(issue.reporter) if issue.reporter else None,
             assignee=UserSummary.model_validate(issue.assignee) if issue.assignee else None,
             created_at=issue.created_at,
