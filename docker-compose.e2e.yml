@@ -72,6 +72,7 @@ services:
   # turns them on against this URL.
   jev:
     image: releasewatch-embeddings-fake
+    build: ./backend
     command: uvicorn tests.fakes.jev_endpoint:app --host 0.0.0.0 --port 80
     environment: !reset {}
     volumes:
