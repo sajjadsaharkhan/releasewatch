@@ -405,6 +405,8 @@ RESPONSE_ITEM_ACTIONS: tuple[str, ...] = (
     Action.flag_release_blocker.value,
     Action.reject.value,
     Action.report_recurrence.value,
+    # The item page's hints block keys off this, never the role (14, FR-S13).
+    Action.view_duplicate_hints.value,
 )
 
 

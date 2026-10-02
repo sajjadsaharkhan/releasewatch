@@ -34,7 +34,7 @@ export function SimilarItemsPanel({ projectId, title, description }) {
         {items.map(({ issue, verdict, confidence }) => (
           <li key={issue.id} className="min-w-0">
             <a
-              href={`#/issue/${issueSlug(issue)}`}
+              href={`/issue/${issueSlug(issue)}`}
               target="_blank"
               rel="noreferrer"
               className="group flex items-start gap-2 rounded-md px-1.5 py-1 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -64,7 +64,7 @@ export function SimilarItemsPanel({ projectId, title, description }) {
           </li>
         ))}
       </ul>
-      <p className={cn('mt-2 text-[11px] text-muted-foreground/70')}>
+      <p className="mt-2 text-[11px] text-muted-foreground/70">
         Check before filing — merging happens in triage.
       </p>
     </section>

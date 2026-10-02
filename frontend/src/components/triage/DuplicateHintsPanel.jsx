@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { StatusBadge, TypeIcon } from '../ui'
 import { Icon } from '../ui/Icon'
 import { issuesApi } from '../../lib/api'
 import { useApp } from '../../hooks/useApp'
+import { issueSlug } from '../../lib/issueSlug'
 import { STATUS } from '../../lib/constants'
 
 // What "Merge into this" will do to the candidate, per BR-49 — the sentence
@@ -29,32 +31,36 @@ function mergeEffectSentence(hint) {
  * names the candidate and says what merging will do. **Merge into this**
  * opens the Duplicate outcome with the candidate preselected (the parent
  * wires that); **Not a duplicate** dismisses the pair for good (BR-S12).
- * Shown in the triage detail pane and, for tech users, on the item page —
- * Support never sees it (FR-S13).
+ * Shown in the triage detail pane and, where the item allows it, on the item
+ * page — Support never sees it (FR-S13; the page gates on allowed_actions,
+ * never the role).
  */
 export function DuplicateHintsPanel({ issue, onMerge, onDismissed }) {
   const { features } = useApp()
-  const [hints, setHints] = useState([])
+  const queryClient = useQueryClient()
+  const [dismissed, setDismissed] = useState([])
   const eligible = issue.status === 'new' && features?.jev_enabled
 
-  const load = useCallback(() => {
-    if (!eligible) return
-    issuesApi.duplicateHints(issue.id)
-      .then((res) => setHints(res.data?.hints ?? []))
-      .catch(() => setHints([]))
-  }, [eligible, issue.id])
+  const { data: hints = [] } = useQuery({
+    queryKey: ['duplicate-hints', issue.id],
+    queryFn: async () => (await issuesApi.duplicateHints(issue.id)).data?.hints ?? [],
+    enabled: eligible,
+    // Fresh on every mount: hints appear while the lead watches the queue.
+    staleTime: 0,
+  })
+  // A dismissal leaves immediately and is undone only if the call fails.
+  const shown = hints.filter((h) => !dismissed.includes(h.candidate_id))
 
-  useEffect(() => { load() }, [load])
-
-  if (!eligible || hints.length === 0) return null
+  if (!eligible || shown.length === 0) return null
 
   async function dismiss(hint) {
-    setHints((prev) => prev.filter((h) => h.candidate_id !== hint.candidate_id))
+    setDismissed((prev) => [...prev, hint.candidate_id])
     try {
       await issuesApi.dismissDuplicateHint(issue.id, hint.candidate_id)
+      await queryClient.invalidateQueries({ queryKey: ['duplicate-hints', issue.id] })
       onDismissed?.(hint)
     } catch {
-      load() // put it back; the dismissal didn't take
+      setDismissed((prev) => prev.filter((id) => id !== hint.candidate_id))
     }
   }
 
@@ -66,10 +72,10 @@ export function DuplicateHintsPanel({ issue, onMerge, onDismissed }) {
     >
       <h3 className="flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300">
         <Icon name="copy" size={13} aria-hidden />
-        Possible duplicate{hints.length > 1 ? `s (${hints.length})` : ''}
+        Possible duplicate{shown.length > 1 ? `s (${shown.length})` : ''}
       </h3>
       <ul className="mt-2 space-y-2">
-        {hints.map((hint) => (
+        {shown.map((hint) => (
           <li
             key={hint.candidate_id}
             className="rounded-md border border-border/60 bg-background px-2.5 py-2"
@@ -81,7 +87,7 @@ export function DuplicateHintsPanel({ issue, onMerge, onDismissed }) {
               </span>
               <span className="min-w-0 flex-1">
                 <a
-                  href={`#/issue/${hint.candidate.type}-${hint.candidate.issue_number}`}
+                  href={`/issue/${issueSlug(hint.candidate)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="block truncate text-[13px] text-foreground underline-offset-2 hover:underline"

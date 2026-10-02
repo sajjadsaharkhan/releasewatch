@@ -22,10 +22,8 @@ function renderValue(field, raw) {
     }
     case 'long_text':
       return null // rendered line by line by the caller
-    case 'number': {
-      const num = Number(raw)
-      return String(Number.isInteger(num) ? num : num)
-    }
+    case 'number':
+      return String(Number(raw))
     case 'date':
       return String(raw).slice(0, 10)
     case 'datetime':

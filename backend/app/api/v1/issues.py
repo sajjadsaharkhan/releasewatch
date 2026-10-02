@@ -306,15 +306,22 @@ async def _build_enriched_responses(
         cycles = {c.id: c for c in rows.scalars().all()}
 
     # Possible-duplicate markers on triage rows (slice 14) — zero while Jev is
-    # off, and one grouped count query only while it is on.
+    # off, and one grouped count query only while it is on. Counted only for
+    # New items, the way GET /duplicate-hints shows them (FR-S15): a bug moved
+    # to Needs info keeps its stored hints but shows no marker.
     duplicates: dict[int, int] = {}
     if issues and await jev_settings.is_enabled(db):
-        rows = await db.execute(
-            select(DuplicateHint.issue_id, func.count())
-            .where(DuplicateHint.issue_id.in_([i.id for i in issues]))
-            .group_by(DuplicateHint.issue_id)
-        )
-        duplicates = {issue_id: count for issue_id, count in rows.all()}
+        new_ids = [
+            i.id for i in issues
+            if getattr(i.status, "value", i.status) == IssueStatus.new.value
+        ]
+        if new_ids:
+            rows = await db.execute(
+                select(DuplicateHint.issue_id, func.count())
+                .where(DuplicateHint.issue_id.in_(new_ids))
+                .group_by(DuplicateHint.issue_id)
+            )
+            duplicates = {issue_id: count for issue_id, count in rows.all()}
 
     responses = []
     for issue in issues:
@@ -924,11 +931,7 @@ async def get_duplicate_hints(
     (BR-S03). Each hint says what merging will do, computed the way the merge
     itself does (BR-49)."""
     issue = await authorize_issue(db, issue_id, current_user, Action.view_duplicate_hints)
-    if (
-        issue_type_value(issue.type) != IssueType.bug.value
-        or getattr(issue.status, "value", issue.status) != IssueStatus.new.value
-        or not await jev_settings.is_enabled(db)
-    ):
+    if not duplicate_hints.is_hintable(issue) or not await jev_settings.is_enabled(db):
         return DuplicateHintsResponse(hints=[])
     return DuplicateHintsResponse(hints=await duplicate_hints.hydrate(db, issue_id))
 

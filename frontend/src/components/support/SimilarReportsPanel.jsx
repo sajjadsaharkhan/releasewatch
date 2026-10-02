@@ -106,7 +106,15 @@ export function SimilarReportsPanel({
                 <span className="font-mono">{issue.key}</span>
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[13px] text-foreground">{issue.title}</span>
+                {/* Opens in a new tab, so the draft stays as it is (FR-S09). */}
+                <a
+                  href={`/issue/${issueSlug(issue)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-[13px] text-foreground underline-offset-2 hover:underline"
+                >
+                  {issue.title}
+                </a>
                 <StatusBadge status={issue.status} className="mt-0.5" />
               </span>
             </span>
@@ -118,7 +126,7 @@ export function SimilarReportsPanel({
               title={complete ? undefined : 'Fill the required fields first'}
               onClick={() => setRecording({ issue })}
             >
-              This is the same problem
+              This is the same problem — record recurrence
             </Button>
           </li>
         ))}

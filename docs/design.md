@@ -319,6 +319,7 @@ key, no labels, no avatar.
 | Reject reason | status Rejected | the `CYCLE_REASON` icon in its pill hue (review amber, release QA orange, production red) |
 | `CycleBadge` | `cycle_number ≥ 2` | as in Cycles above |
 | `ReportedCount` | `recurrence_count > 1` | violet `repeat ×N` |
+| `PossibleDuplicates` | New bug with stored duplicate hints (Jev on, slice 14) | amber `copy ×N`, tooltip "Possible duplicates (N) — check before accepting"; renders nothing at 0, like `ReportedCount` |
 | Due | due within 2 days, or overdue | amber `calendar-clock` + "today" / "tomorrow" / "in 2d"; red `calendar-x` "Overdue" |
 | `TechDebtMarker` | technical-debt task | compact stone chip |
 
@@ -530,7 +531,8 @@ chip that links to the project's templates. A support-sourced item shows `<Sourc
 source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
 
 **Triage** (`pages/TriagePage.jsx`, slice 06): a queue with **New** and **Needs info** `Tabs`
-(count badges), oldest first, each row showing key, `SourceBadge`, `<ReportedCount>` when reported more than once, "filed 3h ago", and the reporter. The detail pane has a
+(count badges), oldest first, each row showing key, `SourceBadge`, `<ReportedCount>` when reported more than once, `<PossibleDuplicates>` when the bug has stored hints
+(slice 14, Jev on), "filed 3h ago", and the reporter. The detail pane has a
 **Move to project** dropdown (disabled while the bug has a release) and
 `components/triage/TriageOutcomePanel`: four outcome buttons — Accept, Needs info,
 Duplicate, Reject — each opening one small form with exactly its inputs (priority chips,
@@ -538,6 +540,20 @@ assignee and release `Select`s; a required question; the same-project `Duplicate
 a reject-reason `Select`). A `duplicate_of_duplicate` refusal shows an amber inline notice
 with "Use BUG-n instead". While an item is in Needs info, the item page pins the triager's
 question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
+
+While Jev is on and the selected bug is New, `components/triage/DuplicateHintsPanel` (slice
+14) sits between the attachments and the outcome panel — an amber panel like the retired
+inline notices, one row per stored hint: type icon + key + title (opens in a new tab),
+status pill, the merge-effect sentence ("Stays In progress", "Stays Cancelled", "Done →
+back to To do (release QA)" / "(production)"), and **Merge into this** (preselects the
+Duplicate outcome) / **Not a duplicate** (dismisses the pair for good). Tech users get the
+same panel on the item page under the title meta row; its **Merge into this** goes to the
+triage queue with the item selected. The same judgment powers two form panels, both hidden
+while Jev is off or nothing was suggested: **Possibly the same** beside the create form
+(`issues/SimilarItemsPanel`, `Same problem`/`Related` badges, information only) and
+**Similar reports** under the support form's title (`support/SimilarReportsPanel`, with
+**This is the same problem** → a confirm dialog showing the exact composed markdown before
+it is recorded as a recurrence).
 
 **Backlog** (`pages/BacklogPage.jsx`, `/projects/:slug/backlog`, slice 08): a ranked list in one
 card — never a board. Header: "N items · M untouched for over 6 months" (the stale part amber with a

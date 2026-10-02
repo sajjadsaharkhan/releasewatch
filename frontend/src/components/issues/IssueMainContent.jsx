@@ -13,7 +13,6 @@ import { NeedsInfoQuestion } from './NeedsInfoQuestion'
 import { DuplicateHintsPanel } from '../triage/DuplicateHintsPanel'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
-import { isTech } from '../../lib/roles'
 import { useApp } from '../../hooks/useApp'
 import { ContainerBadge } from '../common/ContainerBadge'
 
@@ -103,10 +102,11 @@ export function IssueMainContent({
         <ContainerBadge item={issue} />
       </div>
 
-      {/* Possible duplicates of a New bug — tech users only (FR-S13). Merging
-          happens in triage, so "Merge into this" goes there with this item
-          ready to select. */}
-      {isTech(user?.role) && (
+      {/* Possible duplicates of a New bug. Who may see them comes from the
+          API (allowed_actions) — never the role — so Support never does
+          (FR-S13). Merging happens in triage, so "Merge into this" goes there
+          with this item ready to select. */}
+      {issue.allowed_actions?.includes('view_duplicate_hints') && (
         <DuplicateHintsPanel
           issue={issue}
           onMerge={() => navigate('/triage', { state: { selectIssueId: issue.id } })}
