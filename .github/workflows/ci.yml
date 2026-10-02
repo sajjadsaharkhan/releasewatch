@@ -238,6 +238,7 @@ jobs:
         run: |
           cat > .env <<'EOF'
           SECRET_KEY=ci-e2e-secret-key-not-for-production
+          POSTGRES_HOST=postgres
           POSTGRES_USER=rw_user
           POSTGRES_PASSWORD=ci_e2e_password
           POSTGRES_DB=releasewatch
