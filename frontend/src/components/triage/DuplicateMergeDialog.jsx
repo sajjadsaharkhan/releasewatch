@@ -60,7 +60,7 @@ export function DuplicateMergeDialog({ issue, hint, onClose, onMerged, toast }) 
           <li className="flex gap-2"><Icon name="x-circle" size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span><span className="font-mono">{key}</span> is cancelled as a duplicate.</span></li>
           <li className="flex gap-2"><Icon name="message-square" size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span>Its title and description are added to <span className="font-mono">{target.key}</span> as a comment.</span></li>
+            <span>Its title and description, and your comment below, are added to <span className="font-mono">{target.key}</span> as one comment.</span></li>
           <li className="flex gap-2"><Icon name="repeat" size={14} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
             <span><span className="font-mono">{target.key}</span> if merged: {mergeEffectSentence(hint)}.</span></li>
         </ul>
@@ -71,7 +71,7 @@ export function DuplicateMergeDialog({ issue, hint, onClose, onMerged, toast }) 
             <span className="rounded bg-muted px-1.5 py-px text-[10px] font-medium normal-case tracking-normal">Optional</span>
           </label>
           <Textarea id="merge-comment" rows={2} value={comment} onChange={e => setComment(e.target.value)}
-            placeholder="Added to the original with the merged report" />
+            placeholder="Goes into the merge comment on the original, above the merged report" />
         </div>
 
         {suggestion && (

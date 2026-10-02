@@ -795,6 +795,41 @@ async def test_merge_comment_credits_reporter(factories, rig):
 
 
 @pytest.mark.asyncio
+async def test_merge_comment_carries_the_triagers_note(factories, rig):
+    """The comment typed in the merge confirmation lands in the comment added to
+    the original — between where it came from and the quoted report — and is
+    still posted on the merged bug itself."""
+    original = await factories.issue(project_id=rig["project"].id)
+    dup = await factories.issue(project_id=rig["project"].id, title="Same crash on checkout")
+    resp = await triage(
+        rig["lead_client"], dup.id, outcome="duplicate", duplicate_of_id=original.id,
+        comment="Same stack trace as the original; the reporter is on iOS 17.",
+    )
+    assert resp.status_code == 200
+
+    merge = next(
+        e for e in await timeline(rig["admin"], original.id)
+        if e["event_type"] == "comment" and (e["meta"] or {}).get("merged_from_id") == dup.id
+    )
+    head, _, rest = merge["body"].partition("\n\n")
+    assert head.startswith("Merged from [BUG-")
+    assert rest.startswith("Same stack trace as the original; the reporter is on iOS 17.\n\n> **Same crash on checkout**")
+    assert any(
+        e["body"] == "Same stack trace as the original; the reporter is on iOS 17."
+        for e in await timeline(rig["admin"], dup.id) if e["event_type"] == "comment"
+    )
+
+    # Without a note the comment is unchanged: the source line, then the quote.
+    plain = await factories.issue(project_id=rig["project"].id, title="Another checkout crash")
+    await triage(rig["lead_client"], plain.id, outcome="duplicate", duplicate_of_id=original.id)
+    bare = next(
+        e for e in await timeline(rig["admin"], original.id)
+        if e["event_type"] == "comment" and (e["meta"] or {}).get("merged_from_id") == plain.id
+    )
+    assert bare["body"].split("\n\n")[1].startswith("> **Another checkout crash**")
+
+
+@pytest.mark.asyncio
 async def test_support_reports_list_shows_reporter_and_filters_to_me(factories, rig):
     mine = await support_report(factories, rig, title="Mine")
     theirs = await factories.support_report(

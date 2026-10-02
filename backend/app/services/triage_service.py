@@ -75,14 +75,19 @@ def _quote(text: str) -> str:
     return "\n".join(f"> {line}" if line else ">" for line in text.splitlines())
 
 
-def merge_comment(duplicate: Issue) -> str:
-    """The public comment a Duplicate outcome adds to the original (FR-18 v2.1, AC-49)."""
+def merge_comment(duplicate: Issue, note: str | None = None) -> str:
+    """The public comment a Duplicate outcome adds to the original (FR-18 v2.1, AC-49):
+    where it came from, the triager's own note when they wrote one, then the
+    duplicate's title and description as a quote."""
     parts = [f"**{duplicate.title}**"]
     if duplicate.description:
         parts += ["", duplicate.description]
     key = _key(duplicate)
     # A relative link, so it works on whatever host serves the app.
-    return f"Merged from [{key}](/issue/{key.lower()})\n\n" + _quote("\n".join(parts))
+    head = f"Merged from [{key}](/issue/{key.lower()})\n\n"
+    if note and note.strip():
+        head += f"{note.strip()}\n\n"
+    return head + _quote("\n".join(parts))
 
 
 class TriageService:
@@ -308,7 +313,7 @@ class TriageService:
 
         await merge_service.merge_into(
             db, original,
-            content_md=merge_comment(issue),
+            content_md=merge_comment(issue, outcome.comment),
             reporter_id=issue.reporter_id,
             merged_issue_id=issue.id,
             actor=actor,

@@ -75,7 +75,7 @@ Each project's **triage queue** lists its New and Needs info bugs. A triager (an
 
 One service function, `MergeService.merge_into(original, *, content_md, reporter_id, attachments, source_release_id, actor)`, owns the effects on the original. It is used by the `duplicate` outcome here and by recurrence (07), so the rules are written once:
 1. `recurrence_count += 1` (atomic UPDATE).
-2. A public timeline comment on the original. For a merge, this is "Merged from <key>" (the key is a link to the duplicate) plus the duplicate's title and description as a quote, then "Reported by <username>" as plain text — a credit, not a rendered @mention; for a recurrence, it is the recurrence comment (07). Attachments listed are re-linked to the original.
+2. A public timeline comment on the original. For a merge, this is "Merged from <key>" (the key is a link to the duplicate), the triager's own comment when they wrote one, then the duplicate's title and description as a quote, then "Reported by <username>" as plain text — a credit, not a rendered @mention; for a recurrence, it is the recurrence comment (07). Attachments listed are re-linked to the original.
 3. Subscribe the reporter (reason `duplicate` or `recurrence`).
 4. Status effect by the original's status:
 
