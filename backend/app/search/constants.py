@@ -53,10 +53,12 @@ T_RELEVANT = 0.5
 #: with ``search_eval stage2 --part similar`` on real text — done 2026-10-02 on 252
 #: production drafts: precision 0.930, recall 0.835 on duplicates, no hints on
 #: hard negatives or novel drafts (docs/phase-2/eval/stage2-similar-2026-10-02.md).
-#: ``T_RELATED`` is still the PoC ``bench_jev`` value, not swept.
+#: ``T_RELATED`` is from the same sweep: Jev's ``related`` verdict is mostly noise
+#: (at the old 0.6 only ~20% of shown ones were relevant, ~1.9 extra per draft; no
+#: threshold reaches 80%), so it takes the highest-precision value, 0.90.
 SIMILAR_CANDIDATES = 10
 T_SAME = 0.74
-T_RELATED = 0.6
+T_RELATED = 0.90
 #: Suggestions returned to a form, and stored hints per New item (A.4/A.5).
 SIMILAR_LIMIT = 5
 DUPLICATE_HINT_LIMIT = 3

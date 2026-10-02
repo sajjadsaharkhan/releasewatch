@@ -15,7 +15,7 @@ export function inlineMd(text) {
 
   // Tokenise with a combined regex
   const pattern =
-    /(\*\*(.+?)\*\*)|(_(.+?)_)|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(@[\w]+)|\\([\\`*_[\]()~@<>#|!])/g
+    /(\*\*(.+?)\*\*)|(_(.+?)_)|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/))[^)]+)\)|(@[\w]+)|\\([\\`*_[\]()~@<>#|!])/g
 
   const elements = []
   let lastIndex = 0
@@ -46,15 +46,15 @@ export function inlineMd(text) {
         )
       )
     } else if (match[9]) {
-      // [text](url)
+      // [text](url) — an app path like /issue/bug-12 stays in this tab
+      const internal = match[10].startsWith('/')
       elements.push(
         React.createElement(
           'a',
           {
             key: key(),
             href: match[10],
-            target: '_blank',
-            rel: 'noopener noreferrer',
+            ...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' }),
             className: 'text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:opacity-80',
           },
           match[9]

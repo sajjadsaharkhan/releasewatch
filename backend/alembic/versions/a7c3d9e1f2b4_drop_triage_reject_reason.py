@@ -38,7 +38,7 @@ _FROM_TRIAGE_REJECT = """
 def upgrade() -> None:
     op.create_table(
         'triage_reject_reason_backup',
-        sa.Column('issue_id', sa.Integer(), primary_key=True),
+        sa.Column('issue_id', sa.Integer(), primary_key=True, autoincrement=False),
         sa.Column('cancel_reason', sa.String(length=32), nullable=False),
     )
     op.execute(f"""

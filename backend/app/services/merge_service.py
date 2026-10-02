@@ -10,7 +10,7 @@ Effects, in order:
 1. ``recurrence_count += 1`` when the original is a bug — an atomic
    ``UPDATE``, never read-modify-write. Tasks don't count reports (08a).
 2. A public comment on the original carrying the merged content, crediting
-   the merged report's reporter with an @mention. A tech reporter gets the
+   the merged report's reporter by name (plain text, not an @mention). A tech reporter gets the
    mention notice (it tells them where their report went); a Support reporter
    doesn't — their own ``support_*`` notice already says so. A recurrence
    posts its own comment as a ``recurrence`` event, uncredited: its reporter
@@ -107,7 +107,9 @@ class MergeService:
 
         reporter = await db.get(User, reporter_id) if reporter_id and credit_reporter else None
         if reporter is not None:
-            content_md = f"{content_md}\n\nReported by @{reporter.username}"
+            # Plain text: the credit names the reporter without rendering as a
+            # mention (the notice below still reaches a tech reporter).
+            content_md = f"{content_md}\n\nReported by {reporter.username}"
         comment = await TimelineService().create_event(
             db=db,
             issue_id=original.id,

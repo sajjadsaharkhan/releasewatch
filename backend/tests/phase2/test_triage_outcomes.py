@@ -443,7 +443,7 @@ async def test_ac_49_merge_into_open_copies_content_keeps_status(factories, rig)
     assert len(merged) == 1
     comment = merged[0]
     assert not comment["is_internal"]
-    assert comment["body"].startswith(f"Merged from BUG-{a.issue_number}")
+    assert comment["body"].startswith(f"Merged from [BUG-{a.issue_number}](/issue/bug-{a.issue_number})")
     assert "Pay button dead" in comment["body"] and "Nothing happens on tap" in comment["body"]
 
 
@@ -781,9 +781,12 @@ async def test_merge_comment_credits_reporter(factories, rig):
         for e in await timeline(rig["admin"], original.id) if e["event_type"] == "comment"
     }
     qa_comment, support_comment = merged[qa_dup.id], merged[support_dup.id]
-    assert qa_comment["body"].endswith(f"Reported by @{rig['qa'].username}")
+    # The merged bug is a link; the credit is plain text, not a rendered @mention.
+    assert qa_comment["body"].startswith(f"Merged from [BUG-{qa_dup.issue_number}](/issue/bug-{qa_dup.issue_number})")
+    assert qa_comment["body"].endswith(f"Reported by {rig['qa'].username}")
+    assert "@" not in qa_comment["body"]
     assert qa_comment["mentioned_user_ids"] == [rig["qa"].id]
-    assert support_comment["body"].endswith(f"Reported by @{rig['support'].username}")
+    assert support_comment["body"].endswith(f"Reported by {rig['support'].username}")
     assert support_comment["mentioned_user_ids"] == [rig["support"].id]
 
     qa_mentions = [i for i in await inbox(rig["qa_client"]) if i["type"] == "mention"]
@@ -807,3 +810,73 @@ async def test_support_reports_list_shows_reporter_and_filters_to_me(factories, 
         "/support/reports", params={"reporter_id": rig["support"].id},
     )).json()
     assert [r["id"] for r in only_me["items"]] == [mine.id] and only_me["total"] == 1
+
+
+# ── Migration a7c3d9e1f2b4: drop the structured reason from triage rejections ─
+
+
+async def test_reject_reason_migration_clears_only_triage_rejects_and_reverses(factories, rig, db_session):
+    """Real rows through the migration's own SQL: a bug cancelled by a triage
+    Reject loses its stored reason, one cancelled any other way keeps it, and
+    the downgrade puts everything back."""
+    import importlib.util
+    import pathlib
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import text
+
+    path = next((pathlib.Path(__file__).parents[2] / "alembic" / "versions").glob("a7c3d9e1f2b4_*.py"))
+    spec = importlib.util.spec_from_file_location("reject_reason_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    def run(fn) -> None:
+        def _go(session):
+            with Operations.context(MigrationContext.configure(session.connection())):
+                fn()
+        return db_session.run_sync(_go)
+
+    async def reason_of(issue_id: int):
+        return (await db_session.execute(
+            text("SELECT cancel_reason FROM issues WHERE id = :i"), {"i": issue_id},
+        )).scalar_one()
+
+    # The test database is built at head, so the backup table already exists:
+    # step back to the state before the migration first.
+    await run(migration.downgrade)
+
+    # Rejected through triage — then given the reason the old Reject stored.
+    rejected = await factories.issue(project_id=rig["project"].id)
+    assert (await triage(rig["lead_client"], rejected.id, outcome="reject", comment="Not a bug.")).status_code == 200
+    await db_session.execute(text("UPDATE issues SET cancel_reason = 'user_error' WHERE id = :i"), {"i": rejected.id})
+
+    # Accepted, then cancelled by hand with the same reason: not a triage reject.
+    manual = await factories.issue(project_id=rig["project"].id)
+    await triage(rig["lead_client"], manual.id, outcome="accept", priority="low")
+    await to_status(rig["lead_client"], manual.id, "cancelled", cancel_reason="user_error")
+
+    # A different reason on a triage reject is untouched too (wont_fix is not one of the three).
+    other = await factories.issue(project_id=rig["project"].id)
+    await triage(rig["lead_client"], other.id, outcome="reject", comment="No.")
+    await db_session.execute(text("UPDATE issues SET cancel_reason = 'wont_fix' WHERE id = :i"), {"i": other.id})
+    await db_session.commit()
+
+    await run(migration.upgrade)
+    assert await reason_of(rejected.id) is None
+    assert await reason_of(manual.id) == "user_error"
+    assert await reason_of(other.id) == "wont_fix"
+    backed_up = dict((await db_session.execute(
+        text("SELECT issue_id, cancel_reason FROM triage_reject_reason_backup"),
+    )).all())
+    assert backed_up == {rejected.id: "user_error"}
+
+    await run(migration.downgrade)
+    assert await reason_of(rejected.id) == "user_error"
+    assert await reason_of(manual.id) == "user_error"
+    gone = (await db_session.execute(text("SELECT to_regclass('triage_reject_reason_backup')"))).scalar_one()
+    assert gone is None
+
+    # Leave the database at head, as every other test expects it.
+    await run(migration.upgrade)
+    await db_session.commit()

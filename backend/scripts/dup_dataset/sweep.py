@@ -37,16 +37,15 @@ POSITIVE_KINDS = ("duplicate", "recurrence")
 
 
 async def collect(dataset: Path, concurrency: int, limit: int | None) -> dict:
-    from app.db.models.issue import IssueStatus, IssueType
+    from sqlalchemy import select
+
+    from app.db.models.issue import Issue, IssueStatus, IssueType
     from app.db.session import task_session
     from app.search import jev_settings
     from app.search.constants import SIMILAR_CANDIDATES
     from app.search.jev import JevItem
     from app.search.normalize import normalize, strip_markdown
     from app.search.retrieval import Filters, same_problem_candidates
-    from sqlalchemy import select
-
-    from app.db.models.issue import Issue
 
     mapping = json.loads((dataset / "import_map.json").read_text(encoding="utf-8"))
     fake_of = {v["id"]: f for f, v in mapping.items()}
@@ -117,7 +116,7 @@ def _prf(tp: int, fp: int, fn: int, beta: float = 1.0) -> tuple[float, float, fl
 
 def score(run: dict, issues: dict[str, dict], t: float) -> dict:
     tp = fp = fn = 0
-    found = shown_pos = 0
+    found = 0
     pos_drafts = neg_drafts = false_hint_drafts = 0
     by_kind: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0])  # kind -> [drafts, drafts with a hint]
     for r in run["rows"]:
@@ -148,6 +147,40 @@ def score(run: dict, issues: dict[str, dict], t: float) -> dict:
     }
 
 
+RELATED_GRID = [round(0.30 + 0.02 * n, 2) for n in range(31)]  # 0.30 … 0.90
+RELATED_PRECISION_TARGET = 0.80  # an informational "Related" badge, not a merge prompt
+
+
+def score_related(run: dict, drafts: dict[str, dict], t_same: float, t: float) -> dict:
+    """What the create form's tech panel adds beyond `same`: candidates Jev calls
+    `related` at or above ``t``. One is *useful* when the draft's gold says it is the
+    same problem or a related one; anything else is noise."""
+    useful = noise = 0
+    per_draft = []
+    for r in run["rows"]:
+        gold = set(r["same"]) | set(drafts.get(r["id"], {}).get("related", []))
+        shown = [
+            c for c in r["cands"]
+            if c["verdict"] == "related" and c["confidence"] >= t
+            and not (c["verdict"] == "same" and c["confidence"] >= t_same)
+        ]
+        u = sum(1 for c in shown if c["fake"] in gold)
+        useful += u
+        noise += len(shown) - u
+        per_draft.append(len(shown))
+    shown_total = useful + noise
+    return {
+        "t": t, "precision": useful / shown_total if shown_total else 1.0,
+        "useful": useful, "noise": noise,
+        "per_draft": shown_total / len(run["rows"]) if run["rows"] else 0.0,
+    }
+
+
+def pick_related(table: list[dict]) -> dict:
+    ok = [s for s in table if s["precision"] >= RELATED_PRECISION_TARGET and s["useful"] > 0]
+    return ok[0] if ok else max(table, key=lambda s: s["precision"])
+
+
 def pick(table: list[dict]) -> dict:
     """The lowest threshold whose pair precision reaches the target — the most
     recall a triager can have while a shown hint is still right 9 times in 10."""
@@ -155,7 +188,7 @@ def pick(table: list[dict]) -> dict:
     return ok[0] if ok else max(table, key=lambda s: s["f05"])
 
 
-def report(run: dict, issues: dict[str, dict]) -> tuple[str, float]:
+def report(run: dict, issues: dict[str, dict], drafts: dict[str, dict] | None = None) -> tuple[str, float]:
     table = [score(run, issues, t) for t in GRID]
     best = pick(table)
     judged = sum(len(r["cands"]) for r in run["rows"])
@@ -187,6 +220,31 @@ def report(run: dict, issues: dict[str, dict]) -> tuple[str, float]:
     o += ["", "## Drafts that get at least one hint, by kind (at the recommended threshold)", "", "| kind | drafts | with a hint |", "|---|---|---|"]
     for k, (n, hit) in sorted(best["by_kind"].items()):
         o.append(f"| {k} | {n} | {hit} ({hit / n:.0%}) |")
+    if drafts:
+        rel = [score_related(run, drafts, best["t"], t) for t in RELATED_GRID]
+        rbest = pick_related(rel)
+        met = rbest["precision"] >= RELATED_PRECISION_TARGET
+        verdict = (
+            f"the lowest threshold at which a shown `related` candidate is genuinely relevant (gold same or related) "
+            f"at least {RELATED_PRECISION_TARGET:.0%} of the time"
+            if met else
+            f"**no threshold reaches {RELATED_PRECISION_TARGET:.0%}**; this is the highest-precision value, "
+            "so `related` suggestions are mostly noise at any setting and could be dropped"
+        )
+        o += [
+            "", "## T_RELATED — the create form's \"Related\" suggestions", "",
+            f"**Recommendation: `T_RELATED = {rbest['t']:.2f}`** — {verdict} "
+            f"(precision {rbest['precision']:.3f}, {rbest['per_draft']:.2f} extra suggestions per draft). "
+            "`Related` is an information badge on the create form, so the bar is lower than for `same`. "
+            "Gold `related` lists only sibling clusters, so a genuinely relevant item outside them counts as noise: "
+            "the precision figures are a floor.", "",
+            "| T_RELATED | precision | useful | noise | extra suggestions per draft |", "|---|---|---|---|---|",
+        ]
+        for x in rel:
+            if x["t"] != rbest["t"] and round(x["t"] * 100) % 4:
+                continue
+            mark = " **←**" if x["t"] == rbest["t"] else ""
+            o.append(f"| {x['t']:.2f}{mark} | {x['precision']:.3f} | {x['useful']} | {x['noise']} | {x['per_draft']:.2f} |")
     return "\n".join(o) + "\n", best["t"]
 
 
@@ -207,7 +265,8 @@ def main(argv: list[str]) -> int:
         if not args.limit:
             saved.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     issues = {i["id"]: i for i in json.loads((args.dataset / "corpus/issues.json").read_text(encoding="utf-8"))}
-    text, best = report(run, issues)
+    drafts = {d["id"]: d for d in json.loads((args.dataset / "drafts.json").read_text(encoding="utf-8"))["drafts"]}
+    text, best = report(run, issues, drafts)
     out = args.out or (args.dataset / "sweep_report.md")
     out.write_text(text, encoding="utf-8")
     print(text)

@@ -173,6 +173,12 @@ test('possible duplicate hint merges into the Done Stream bug', async ({ browser
   await lead.getByRole('button', { name: `Merge into ${streamBug.key}` }).click()
   await expect(lead).toHaveURL(new RegExp(`/issue/${streamBug.key.toLowerCase()}`)) // lands on the original
 
+  // The merge comment links the merged bug and credits the reporter as plain text.
+  const mergeLink = lead.getByRole('link', { name: dup.key, exact: true })
+  await expect(mergeLink).toBeVisible()
+  await expect(mergeLink).toHaveAttribute('href', `/issue/${dup.key.toLowerCase()}`)
+  await expect(lead.getByText(/Reported by @/)).toHaveCount(0)
+
   // The merged report was added to the original as a comment.
   const timeline = await api(lead, 'GET', `/issues/${streamBug.id}/timeline?size=100`)
   expect(timeline.items.some((e: { body?: string }) => e.body?.includes(title))).toBe(true)

@@ -80,7 +80,9 @@ def merge_comment(duplicate: Issue) -> str:
     parts = [f"**{duplicate.title}**"]
     if duplicate.description:
         parts += ["", duplicate.description]
-    return f"Merged from {_key(duplicate)}\n\n" + _quote("\n".join(parts))
+    key = _key(duplicate)
+    # A relative link, so it works on whatever host serves the app.
+    return f"Merged from [{key}](/issue/{key.lower()})\n\n" + _quote("\n".join(parts))
 
 
 class TriageService:

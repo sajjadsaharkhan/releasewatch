@@ -41,3 +41,26 @@ Source: the synthetic duplicate dataset (148 drafts, 1480 Jev judgments, judged 
 | hard_negative | 30 | 4 (13%) |
 | novel | 22 | 0 (0%) |
 | recurrence | 23 | 20 (87%) |
+
+## T_RELATED — the create form's "Related" suggestions
+
+**Recommendation: `T_RELATED = 0.90`** — **no threshold reaches 80%**; this is the highest-precision value, so `related` suggestions are mostly noise at any setting and could be dropped (precision 0.424, 0.40 extra suggestions per draft). `Related` is an information badge on the create form, so the bar is lower than for `same`. Gold `related` lists only sibling clusters, so a genuinely relevant item outside them counts as noise: the precision figures are a floor.
+
+| T_RELATED | precision | useful | noise | extra suggestions per draft |
+|---|---|---|---|---|
+| 0.32 | 0.161 | 66 | 344 | 2.77 |
+| 0.36 | 0.164 | 64 | 326 | 2.64 |
+| 0.40 | 0.164 | 61 | 311 | 2.51 |
+| 0.44 | 0.169 | 60 | 295 | 2.40 |
+| 0.48 | 0.169 | 57 | 280 | 2.28 |
+| 0.52 | 0.178 | 57 | 263 | 2.16 |
+| 0.56 | 0.186 | 55 | 241 | 2.00 |
+| 0.60 | 0.195 | 55 | 227 | 1.91 |
+| 0.64 | 0.216 | 55 | 200 | 1.72 |
+| 0.68 | 0.240 | 54 | 171 | 1.52 |
+| 0.72 | 0.262 | 51 | 144 | 1.32 |
+| 0.76 | 0.284 | 48 | 121 | 1.14 |
+| 0.80 | 0.328 | 45 | 92 | 0.93 |
+| 0.84 | 0.333 | 36 | 72 | 0.73 |
+| 0.88 | 0.342 | 26 | 50 | 0.51 |
+| 0.90 **←** | 0.424 | 25 | 34 | 0.40 |
