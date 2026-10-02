@@ -532,13 +532,15 @@ source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
 
 **Triage** (`pages/TriagePage.jsx`, slice 06): a queue with **New** and **Needs info** `Tabs`
 (count badges), oldest first, each row showing key, `SourceBadge`, `<ReportedCount>` when reported more than once, `<PossibleDuplicates>` when the bug has stored hints
-(slice 14, Jev on), "filed 3h ago", and the reporter. The right pane is `components/triage/TriageDetail`:
+(slice 14, Jev on; the count plus the best match's similarity — `×2 94%`), "filed 3h ago", and the reporter. The right pane is `components/triage/TriageDetail`:
 
 - **Sticky header** — key, `SourceBadge`, priority and status badges, the **Move to project**
   dropdown (disabled while the bug has a release), the title, and the reporter line.
 - **Details / Duplicates tabs** (`Tabs`, under the header). *Details* is the description and
   attachments. *Duplicates* exists only for a New bug while Jev is on; its label is amber
   with a `copy` icon and leads with the best match — `Duplicates · 94%` — plus a count badge.
+  Opening a bug that was never judged starts the comparison: the tab icon spins and the list says
+  "Looking for similar bugs…" until the hints land (polled, at most 30 s).
   It lists one `DuplicateCandidateCard` per stored hint, most similar first: a `SimilarityRing`
   (the percentage in the ring, amber from 80%, zinc below; the label under the key says
   "Almost certainly / Likely / Possibly the same"), type icon + key + status pill, the title

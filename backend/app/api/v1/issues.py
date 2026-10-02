@@ -55,6 +55,7 @@ from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.policy import Action, Target, item_actions, transition
 from app.search import duplicate_hints, jev_settings
+from app.tasks import search_index
 from app.schemas.issue import (
     BlockedAction,
     BlockedTransition,
@@ -309,7 +310,7 @@ async def _build_enriched_responses(
     # off, and one grouped count query only while it is on. Counted only for
     # New items, the way GET /duplicate-hints shows them (FR-S15): a bug moved
     # to Needs info keeps its stored hints but shows no marker.
-    duplicates: dict[int, int] = {}
+    duplicates: dict[int, tuple[int, float]] = {}  # issue id → (count, best confidence)
     if issues and await jev_settings.is_enabled(db):
         new_ids = [
             i.id for i in issues
@@ -317,11 +318,11 @@ async def _build_enriched_responses(
         ]
         if new_ids:
             rows = await db.execute(
-                select(DuplicateHint.issue_id, func.count())
+                select(DuplicateHint.issue_id, func.count(), func.max(DuplicateHint.confidence))
                 .where(DuplicateHint.issue_id.in_(new_ids))
                 .group_by(DuplicateHint.issue_id)
             )
-            duplicates = {issue_id: count for issue_id, count in rows.all()}
+            duplicates = {issue_id: (count, top) for issue_id, count, top in rows.all()}
 
     responses = []
     for issue in issues:
@@ -347,7 +348,8 @@ async def _build_enriched_responses(
             "project_slug": issue.project.slug if issue.project else None,
             "project_color": issue.project.color if issue.project else None,
             **_workflow_fields(issue, current_user),
-            "possible_duplicates_count": duplicates.get(issue.id, 0),
+            "possible_duplicates_count": duplicates.get(issue.id, (0, None))[0],
+            "possible_duplicates_top": duplicates.get(issue.id, (0, None))[1],
         })
         responses.append(enriched)
     return responses
@@ -933,7 +935,13 @@ async def get_duplicate_hints(
     issue = await authorize_issue(db, issue_id, current_user, Action.view_duplicate_hints)
     if not duplicate_hints.is_hintable(issue) or not await jev_settings.is_enabled(db):
         return DuplicateHintsResponse(hints=[])
-    return DuplicateHintsResponse(hints=await duplicate_hints.hydrate(db, issue_id))
+    hints = await duplicate_hints.hydrate(db, issue_id)
+    # Never judged (filed before Jev was on, or the job failed): ask for a run
+    # now, not after an edit's debounce, and tell the client to look again.
+    computing = not hints and issue.duplicate_hints_computed_at is None
+    if computing:
+        search_index.request_hints_on_open(issue.id)
+    return DuplicateHintsResponse(hints=hints, computing=computing)
 
 
 @router.post(

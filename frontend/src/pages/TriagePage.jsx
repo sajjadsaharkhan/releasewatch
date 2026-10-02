@@ -181,7 +181,7 @@ export default function TriagePage() {
                       <span className="font-mono text-[11px] text-muted-foreground">{issueKey(i)}</span>
                       <SourceBadge source={i.source} />
                       <ReportedCount count={i.recurrence_count} />
-                      <PossibleDuplicates count={i.possible_duplicates_count} />
+                      <PossibleDuplicates count={i.possible_duplicates_count} top={i.possible_duplicates_top} />
                       <span className="ml-auto text-[11px] text-muted-foreground" title={fullTime(i.created_at)}>
                         filed {relTime(i.created_at)}
                       </span>
@@ -216,6 +216,7 @@ export default function TriagePage() {
             onMove={handleMove}
             onDone={handleDone}
             onDismissed={() => loadQueue()}
+            onComputed={() => loadQueue()}
             toast={toast}
             showProject={!activeProjectId}
           />

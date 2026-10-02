@@ -9,11 +9,13 @@ import { Tooltip } from '../ui/Tooltip'
  * something to check before accepting, not a verdict. The icon and number
  * carry the meaning; screen readers get the sentence.
  */
-export function PossibleDuplicates({ count, className }) {
+export function PossibleDuplicates({ count, top, className }) {
   if (!count || count <= 0) return null
-  const label = count === 1
+  const percent = top != null ? Math.round(top * 100) : null
+  const label = (count === 1
     ? 'Possible duplicate — check before accepting'
-    : `Possible duplicates (${count}) — check before accepting`
+    : `Possible duplicates (${count}) — check before accepting`)
+    + (percent != null ? `, best match ${percent}% similar` : '')
   return (
     <Tooltip content={label}>
       <span
@@ -25,6 +27,7 @@ export function PossibleDuplicates({ count, className }) {
       >
         <Icon name="copy" size={11} strokeWidth={2.4} aria-hidden="true" />
         <span aria-hidden="true">×{count}</span>
+        {percent != null && <span aria-hidden="true" className="ml-0.5 font-semibold">{percent}%</span>}
         <span className="sr-only">{label}</span>
       </span>
     </Tooltip>

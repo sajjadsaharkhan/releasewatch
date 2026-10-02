@@ -124,14 +124,34 @@ def dispatch(issue_id: int) -> None:
 _HINT_GUARD_KEY = "rw:search:hints:pending:{}"
 
 
-def dispatch_hints(issue_id: int) -> None:
-    """Send ``compute_duplicate_hints`` unless one is already waiting."""
+def dispatch_hints(issue_id: int, countdown: int = DEBOUNCE_SECONDS) -> None:
+    """Send ``compute_duplicate_hints`` unless one is already waiting. Edits
+    wait out the debounce; opening a never-judged bug passes ``countdown=0``."""
     try:
         if not _redis().set(_HINT_GUARD_KEY.format(issue_id), "1", nx=True, ex=_GUARD_TTL):
             return
     except redis.RedisError:
         logger.warning("search: hint debounce guard unavailable; enqueueing %s anyway", issue_id)
-    compute_duplicate_hints.apply_async((issue_id,), countdown=DEBOUNCE_SECONDS, queue=QUEUE)
+    compute_duplicate_hints.apply_async((issue_id,), countdown=countdown, queue=QUEUE)
+
+
+#: Opening a never-judged bug asks for a run at most once per this many seconds,
+#: so a job that fails (or never stamps the bug) cannot turn polling into a
+#: stream of paid Jev calls.
+HINTS_ON_OPEN_TTL = 60
+_HINTS_ON_OPEN_KEY = "rw:search:hints:open:{}"
+
+
+def request_hints_on_open(issue_id: int) -> None:
+    """Start a hint run for a bug opened before it was ever judged — now, not
+    after an edit's debounce — but no more than once a minute per bug."""
+    try:
+        if not _redis().set(_HINTS_ON_OPEN_KEY.format(issue_id), "1", nx=True, ex=HINTS_ON_OPEN_TTL):
+            return
+    except redis.RedisError:
+        logger.warning("search: on-open guard unavailable; skipping hints for %s", issue_id)
+        return
+    dispatch_hints(issue_id, countdown=0)
 
 
 def request_reindex_all() -> bool:

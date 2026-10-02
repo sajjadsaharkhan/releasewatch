@@ -226,6 +226,11 @@ class Issue(Base):
     overdue_notified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    duplicate_hints_computed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        doc="When Jev last judged this New bug's candidates, even if none cleared the "
+            "threshold. Null = never computed, so opening the bug triggers a run (14).",
+    )
     status: Mapped[IssueStatus] = mapped_column(
         String(32), nullable=False, default=IssueStatus.new
     )

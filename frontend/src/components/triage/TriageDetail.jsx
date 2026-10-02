@@ -23,13 +23,13 @@ import { DuplicateCompareDialog } from './DuplicateCompareDialog'
  * leads with the best match's similarity.
  */
 export function TriageDetail({
-  issue, attachments, assignable, moveTargets, canMove, onMove, onDone, onDismissed, toast, showProject,
+  issue, attachments, assignable, moveTargets, canMove, onMove, onDone, onDismissed, onComputed, toast, showProject,
 }) {
   const [tab, setTab] = useState('details')
   const [compare, setCompare] = useState(null)
   // A candidate's Merge opens the Duplicate outcome with it preselected (FR-S14).
   const [preset, setPreset] = useState(null)
-  const hints = useDuplicateHints(issue, { onDismissed })
+  const hints = useDuplicateHints(issue, { onDismissed, onComputed })
   const top = hints.hints[0]
   const reporter = issue.reporter_user
 
@@ -94,7 +94,8 @@ export function TriageDetail({
                 value: 'duplicates',
                 label: (
                   <span className={cn('inline-flex items-center gap-1', top && 'text-amber-700 dark:text-amber-300')}>
-                    <Icon name="copy" size={12} aria-hidden="true" />
+                    <Icon name={hints.computing && !top ? 'loader' : 'copy'} size={12} aria-hidden="true"
+                      className={hints.computing && !top ? 'animate-spin' : undefined} />
                     {top ? `Duplicates · ${Math.round(top.confidence * 100)}%` : 'Duplicates'}
                   </span>
                 ),
@@ -111,8 +112,11 @@ export function TriageDetail({
               <Icon name="copy" size={12} aria-hidden="true" />
               Possible duplicates{hints.hints.length ? ` (${hints.hints.length})` : ''}
             </h3>
-            {hints.isLoading ? (
-              <div className="mt-2 h-24 rounded-lg bg-muted animate-pulse" aria-hidden="true" />
+            {hints.isLoading || (hints.computing && hints.hints.length === 0) ? (
+              <div className="mt-2 rounded-lg border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground" role="status">
+                <div className="mb-2 h-16 rounded-lg bg-muted animate-pulse" aria-hidden="true" />
+                Looking for similar bugs…
+              </div>
             ) : hints.hints.length === 0 ? (
               <p className="mt-2 rounded-lg border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground">
                 No close matches — nothing reached the similarity threshold.

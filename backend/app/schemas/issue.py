@@ -310,6 +310,8 @@ class IssueResponse(IssueBase):
     #: Stored possible duplicates of a New bug — the triage row's marker (14).
     #: 0 while Jev is disabled or the item isn't a candidate for hints.
     possible_duplicates_count: int = 0
+    #: The best stored hint's Jev confidence (0–1) — the % beside the marker; null when none.
+    possible_duplicates_top: float | None = None
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int
@@ -386,6 +388,9 @@ class DuplicateHintEntry(BaseModel):
 
 class DuplicateHintsResponse(BaseModel):
     hints: list[DuplicateHintEntry] = Field(default_factory=list)
+    #: True while a never-judged New bug's candidates are being compared — the
+    #: client polls until it turns false (hints may still be empty).
+    computing: bool = False
 
 
 class BulkMoveRequest(BaseModel):

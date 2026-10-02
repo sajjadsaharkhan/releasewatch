@@ -20,6 +20,10 @@ Two rules keep the hint honest:
 The API layer (``GET/POST /issues/{id}/duplicate-hints``) hides hints unless
 the item is New and Jev is enabled; Support never reaches either endpoint
 (FR-S13, Policy ``view_duplicate_hints``).
+
+Opening a New bug that was never judged (``duplicate_hints_computed_at`` is
+null — filed before Jev was on, or the job failed) asks for a run at once and
+says ``computing`` until it lands, so a triager always gets hints on open.
 """
 
 from sqlalchemy import delete, func, select
@@ -148,6 +152,8 @@ async def compute_in(db: AsyncSession, issue_id: int) -> dict:
             confidence=confidence,
             jev_model=outcome.model or jev.model,
         ))
+    # Even an empty result is a result: it is what stops opening the bug from asking again.
+    issue.duplicate_hints_computed_at = func.now()
     await db.flush()
     return {"issue_id": issue_id, "hints": len(kept), "jev_model": outcome.model}
 

@@ -165,6 +165,7 @@ async def test_ac_s07_no_panels_or_hints_when_jev_disabled(
     assert (await hints(rig["qa_client"], new_bug.id))["hints"] == []
     row = await queue_row(rig["lead_client"], new_bug.id, rig["project"].id)
     assert row is not None and row["possible_duplicates_count"] == 0
+    assert row["possible_duplicates_top"] is None
 
 
 # ── AC-S08: the support panel's candidates ───────────────────────────────────
@@ -292,6 +293,10 @@ async def test_ac_s10_new_bug_gets_possible_duplicate_hint(
 
     row = await queue_row(rig["lead_client"], new_bug.id, rig["project"].id)
     assert row is not None and row["possible_duplicates_count"] == len(body["hints"])
+    # The queue row carries the best match's confidence, for the % beside the marker.
+    assert row["possible_duplicates_top"] == pytest.approx(
+        max(h["confidence"] for h in body["hints"]), abs=1e-3,
+    )
 
 
 async def test_ac_s11_hint_on_done_candidate_says_return_and_merge_returns(
@@ -388,6 +393,51 @@ async def test_ac_s12_dismissed_pair_never_returns_after_reindex(
         h["candidate"]["id"] != candidate.id
         for h in (await hints(rig["qa_client"], new_bug.id))["hints"]
     )
+
+
+async def test_opening_a_never_judged_bug_computes_its_hints(
+    factories, rig, reaction_world, jev, search_jobs, background_jobs, db_session,
+):
+    """A New bug filed before Jev was on has no hints and was never judged:
+    opening it asks for a run at once and says ``computing`` until it lands."""
+    from sqlalchemy import update
+
+    from app.db.models.issue import Issue
+
+    jev.default(judge_by_title)
+    new_bug = await factories.issue(project_id=rig["project"].id, title=REACTION_DRAFT)
+    await search_jobs.run()  # Jev is still off: indexed, never judged
+    assert (await hints(rig["qa_client"], new_bug.id))["hints"] == []
+
+    await enable_jev(factories.admin_client)
+    background_jobs["hints"].clear()
+    body = await hints(rig["qa_client"], new_bug.id)
+    assert body == {"hints": [], "computing": True}
+    ((args, _, options),) = background_jobs["hints"]
+    assert args == (new_bug.id,) and options["countdown"] == 0  # no debounce on open
+
+    # Polling while it runs asks again, but never starts a second run.
+    background_jobs["hints"].clear()
+    assert (await hints(rig["qa_client"], new_bug.id))["computing"] is True
+    assert background_jobs["hints"] == []
+    background_jobs["hints"].append(((new_bug.id,), {}, {"countdown": 0}))
+
+    await search_jobs.run()
+    body = await hints(rig["qa_client"], new_bug.id)
+    assert body["computing"] is False and body["hints"], body
+
+    # A bug judged with nothing to show is not asked about again.
+    empty = await factories.issue(project_id=rig["project"].id, title="Completely unrelated zebra migration")
+    await search_jobs.run()
+    await db_session.execute(update(Issue).where(Issue.id == empty.id).values(duplicate_hints_computed_at=None))
+    await db_session.commit()
+    first = await hints(rig["qa_client"], empty.id)
+    assert first["computing"] is True
+    await search_jobs.run()
+    background_jobs["hints"].clear()
+    second = await hints(rig["qa_client"], empty.id)
+    assert second == {"hints": [], "computing": False}
+    assert background_jobs["hints"] == []
 
 
 async def test_dismissal_keeps_what_the_triager_saw(
