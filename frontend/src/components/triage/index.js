@@ -1,3 +1,7 @@
 export { TriageOutcomePanel } from './TriageOutcomePanel'
 export { DuplicatePicker } from './DuplicatePicker'
 export { DuplicateHintsPanel } from './DuplicateHintsPanel'
+export { TriageDetail } from './TriageDetail'
+export { DuplicateCandidateCard } from './DuplicateCandidateCard'
+export { DuplicateCompareDialog } from './DuplicateCompareDialog'
+export { SimilarityRing } from './SimilarityRing'

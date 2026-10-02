@@ -69,7 +69,8 @@ const TRIAGE_LABELS = {
   accept:     () => 'accepted this bug',
   needs_info: () => 'asked for more information',
   duplicate:  (m) => `merged this into ${m?.duplicate_of_key ?? 'another bug'}`,
-  reject:     (m) => `rejected this bug — ${REJECT_REASON_LABELS[m?.reason] ?? 'no reason'}`,
+  // Older events carry a structured reason; new rejections explain themselves in a comment.
+  reject:     (m) => (REJECT_REASON_LABELS[m?.reason] ? `rejected this bug — ${REJECT_REASON_LABELS[m.reason]}` : 'rejected this bug'),
 }
 
 const EVENT_ICONS = {

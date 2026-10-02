@@ -136,14 +136,17 @@ test('possible duplicate hint merges into the Done Stream bug', async ({ browser
   await expect(row.getByText(/×\d/)).toBeVisible() // the possible-duplicates marker
   await row.click()
   const detail = lead.getByTestId('triage-detail')
+  // The Duplicates tab leads with the best match's similarity.
+  await detail.getByRole('tab', { name: /^Duplicates · \d+%/ }).click()
   const hints = detail.getByTestId('duplicate-hints')
   await expect(hints).toBeVisible()
   const hintRow = hints.locator('li').filter({ hasText: streamBug.key })
   await expect(hintRow).toBeVisible()
+  await expect(hintRow.getByRole('img', { name: /\d+% similar/ })).toBeVisible()
   await expect(hintRow.getByText('Done → back to To do (production)')).toBeVisible()
 
-  // ── 4. "Merge into this" preselects the Duplicate outcome ────────────────
-  await hintRow.getByRole('button', { name: 'Merge into this' }).click()
+  // ── 4. "Merge" preselects the Duplicate outcome ──────────────────────────
+  await hintRow.getByRole('button', { name: 'Merge', exact: true }).click()
   await expect(detail.getByRole('button', { name: `Merge into ${streamBug.key}` })).toBeVisible()
   await detail.getByRole('button', { name: `Merge into ${streamBug.key}` }).click()
 
@@ -154,6 +157,36 @@ test('possible duplicate hint merges into the Done Stream bug', async ({ browser
   expect(after.reject_reason).toBe('production')
   const cycles = await api(lead, 'GET', `/issues/${streamBug.id}/cycles`)
   expect(cycles.at(-1).start_reason).toBe('production')
+
+  await leadCtx.close()
+})
+
+// Reject needs only the triager's comment: no structured reason is asked for
+// or stored, and the comment is what the reporter reads.
+test('reject takes a comment and no reason', async ({ browser }) => {
+  const title = `Rejected without a reason ${Date.now()}`
+
+  const leadCtx = await browser.newContext({ storageState: auth('qa') })
+  const lead = await leadCtx.newPage()
+  await lead.goto('/inbox')
+  const [project] = await api(lead, 'GET', '/projects')
+  const bug = await api(lead, 'POST', '/issues', { project_id: project.id, title, description: 'Not a real problem.' })
+
+  await lead.goto('/triage')
+  await lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) }).click()
+  const detail = lead.getByTestId('triage-detail')
+  await detail.getByRole('button', { name: 'Reject', exact: true }).click()
+
+  await expect(detail.getByText('Choose a reason')).toHaveCount(0)
+  const submit = detail.getByRole('button', { name: 'Reject', exact: true }).last()
+  await expect(submit).toBeDisabled() // the comment is required
+  await detail.getByRole('textbox', { name: /Why it is rejected/ }).fill('Works as designed.')
+  await submit.click()
+
+  await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
+  const after = await api(lead, 'GET', `/issues/${bug.id}`)
+  expect(after.status).toBe('cancelled')
+  expect(after.cancel_reason).toBeNull()
 
   await leadCtx.close()
 })

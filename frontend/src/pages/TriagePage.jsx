@@ -3,21 +3,20 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
-import { PriorityBadge, StatusBadge, RoleBadge } from '../components/ui/Badge'
+import { RoleBadge } from '../components/ui/Badge'
 import { Icon } from '../components/ui/Icon'
 import { Tabs } from '../components/ui/Tabs'
 import { Empty } from '../components/ui/Empty'
-import { Dropdown, DropdownItem, DropdownLabel } from '../components/ui/Dropdown'
-import { MediaPreview } from '../components/common/MediaPreview'
+import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { SourceBadge } from '../components/common/SourceBadge'
 import { ReportedCount } from '../components/common/ReportedCount'
 import { PossibleDuplicates } from '../components/common/PossibleDuplicates'
-import { TriageOutcomePanel, DuplicateHintsPanel } from '../components/triage'
+import { TriageDetail } from '../components/triage'
 import { issuesApi, teamApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
+import { normalizeAttachment } from '../lib/attachments'
 import { relTime, fullTime } from '../lib/relTime'
 import { useToast } from '../components/ui/Toast'
-import { renderMarkdown } from '../lib/markdown'
 import { useApp } from '../context/AppContext'
 
 const SORT_OPTIONS = [
@@ -27,19 +26,6 @@ const SORT_OPTIONS = [
 ]
 
 const TRIAGE_STATUSES = ['new', 'needs_info']
-
-function normalizeAttachment(a) {
-  const mimeType = a.mime_type || ''
-  const type = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : 'file'
-  return {
-    id: a.id,
-    name: a.file_name,
-    type,
-    url: a.download_url || a.public_url || '#',
-    size: a.file_size_bytes || 0,
-    createdAt: a.created_at,
-  }
-}
 
 function QueueSkeleton() {
   return (
@@ -63,9 +49,6 @@ export default function TriagePage() {
   const [tab, setTab] = useState('new')
   const [sort, setSort] = useState('oldest')
   const [selectedId, setSelectedId] = useState(null)
-  // A duplicate hint's "Merge into this" → the Duplicate outcome with the
-  // candidate preselected (slice 14, FR-S14).
-  const [preset, setPreset] = useState(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -219,86 +202,23 @@ export default function TriagePage() {
         )}
       </div>
 
-      {/* Right: the selected bug and its outcomes */}
-      <div className="overflow-y-auto bg-muted/40">
+      {/* Right: the selected bug, its possible duplicates, and its outcomes */}
+      <div className="min-h-0 bg-muted/40">
         {!selected ? (
           !loading && <Empty icon="inbox" title="No bug selected" body="Pick a bug from the queue to triage it." />
         ) : (
-          <div className="px-5 py-5" data-testid="triage-detail">
-            <div className="flex items-center gap-2 mb-2">
-              <a href={`#/issue/${issueKey(selected).toLowerCase()}`} className="font-mono text-[12px] text-muted-foreground hover:underline">
-                {issueKey(selected)}
-              </a>
-              <SourceBadge source={selected.source} />
-              <PriorityBadge priority={selected.priority} />
-              <StatusBadge status={selected.status} />
-              <div className="ml-auto">
-                <Dropdown align="end" width={220}
-                  trigger={
-                    <button disabled={!canMove}
-                      title={canMove ? undefined : 'A bug in a release can’t change project'}
-                      className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-border bg-background hover:bg-muted text-[11.5px] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <Icon name="folder-input" size={12} aria-hidden="true" /> Move to project
-                    </button>
-                  }
-                >
-                  {({ close }) => (
-                    <>
-                      <DropdownLabel>Move to</DropdownLabel>
-                      {moveTargets.length === 0 && (
-                        <div className="px-3 py-2 text-[12px] text-muted-foreground">No other projects</div>
-                      )}
-                      {moveTargets.map(p => (
-                        <DropdownItem key={p.id} onClick={() => { close(); handleMove(p) }}>{p.name}</DropdownItem>
-                      ))}
-                    </>
-                  )}
-                </Dropdown>
-              </div>
-            </div>
-            <h2 className="text-[17px] font-semibold leading-snug text-foreground">{selected.title}</h2>
-            <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-              <Avatar user={selected.reporter_user} size={14} />
-              <span>{selected.reporter_user?.name ?? 'Unknown reporter'}</span>
-              <span aria-hidden="true">·</span>
-              <span title={fullTime(selected.created_at)}>{relTime(selected.created_at)}</span>
-              {selected.recurrence_count > 1 && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>Reported {selected.recurrence_count} times</span>
-                </>
-              )}
-            </div>
-
-            <div className="mt-3 text-[13px] text-foreground/90 leading-relaxed prose-sm max-w-none">
-              {selected.description
-                ? renderMarkdown(selected.description)
-                : <span className="text-muted-foreground">No description provided.</span>}
-            </div>
-
-            {attachments.length > 0
-              ? <MediaPreview key={selected.id} attachments={attachments} readonly />
-              : (
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  <Icon name="paperclip" size={11} />
-                  <span>No attachments</span>
-                </div>
-              )}
-
-            <DuplicateHintsPanel
-              issue={selected}
-              onMerge={(candidate) => setPreset({ issueId: selected.id, candidate })}
-              onDismissed={() => loadQueue()}
-            />
-
-            <TriageOutcomePanel
-              issue={selected}
-              assignable={assignable}
-              onDone={handleDone}
-              toast={toast}
-              presetOriginal={preset?.issueId === selected.id ? preset.candidate : null}
-            />
-          </div>
+          <TriageDetail
+            issue={selected}
+            attachments={attachments}
+            assignable={assignable}
+            moveTargets={moveTargets}
+            canMove={canMove}
+            onMove={handleMove}
+            onDone={handleDone}
+            onDismissed={() => loadQueue()}
+            toast={toast}
+            showProject={!activeProjectId}
+          />
         )}
       </div>
     </div>

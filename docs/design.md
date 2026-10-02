@@ -532,25 +532,45 @@ source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
 
 **Triage** (`pages/TriagePage.jsx`, slice 06): a queue with **New** and **Needs info** `Tabs`
 (count badges), oldest first, each row showing key, `SourceBadge`, `<ReportedCount>` when reported more than once, `<PossibleDuplicates>` when the bug has stored hints
-(slice 14, Jev on), "filed 3h ago", and the reporter. The detail pane has a
-**Move to project** dropdown (disabled while the bug has a release) and
-`components/triage/TriageOutcomePanel`: four outcome buttons — Accept, Needs info,
-Duplicate, Reject — each opening one small form with exactly its inputs (priority chips,
-assignee and release `Select`s; a required question; the same-project `DuplicatePicker`;
-a reject-reason `Select`). A `duplicate_of_duplicate` refusal shows an amber inline notice
-with "Use BUG-n instead". While an item is in Needs info, the item page pins the triager's
-question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
+(slice 14, Jev on), "filed 3h ago", and the reporter. The right pane is `components/triage/TriageDetail`:
 
-While Jev is on and the selected bug is New, `components/triage/DuplicateHintsPanel` (slice
-14) sits between the attachments and the outcome panel — an amber panel like the retired
-inline notices, one row per stored hint: type icon + key + title (opens in a new tab),
-status pill, the merge-effect sentence ("Stays In progress", "Stays Cancelled", "Done →
-back to To do (release QA)" / "(production)"), and **Merge into this** (preselects the
-Duplicate outcome) / **Not a duplicate** (dismisses the pair for good). Tech users get the
-same panel on the item page under the title meta row; its **Merge into this** goes to the
-triage queue with the item selected. The same judgment powers two form panels, both hidden
-while Jev is off or nothing was suggested: **Possibly the same** beside the create form
-(`issues/SimilarItemsPanel`, `Same problem`/`Related` badges, information only) and
+- **Sticky header** — key, `SourceBadge`, priority and status badges, the **Move to project**
+  dropdown (disabled while the bug has a release), the title, and the reporter line.
+- **Details / Duplicates tabs** (`Tabs`, under the header). *Details* is the description and
+  attachments. *Duplicates* exists only for a New bug while Jev is on; its label is amber
+  with a `copy` icon and leads with the best match — `Duplicates · 94%` — plus a count badge.
+  It lists one `DuplicateCandidateCard` per stored hint, most similar first: a `SimilarityRing`
+  (the percentage in the ring, amber from 80%, zinc below; the label under the key says
+  "Almost certainly / Likely / Possibly the same"), type icon + key + status pill, the title
+  (opens in a new tab), "If merged: …" (the BR-49 sentence — "Stays In progress", "Stays
+  Cancelled", "Done → back to To do (release QA)" / "(production)"), and **Merge** (opens the
+  Duplicate outcome preselected), **Compare** (`DuplicateCompareDialog`, `max-w-6xl`: a similarity
+  strip, then this bug and the candidate in two columns — type, key, status, priority and source
+  badges, title, reporter, filed, project, placement, assignee, environment, labels, the full
+  description, reproduction steps with Expected / Actual, and attachments; the candidate is
+  fetched in full; footer: Open BUG-n, Not a duplicate, Merge into BUG-n) and **Not a duplicate** (dismisses the pair for good). A hint at
+  90% or more gets an amber border. Nothing reaching the threshold shows "No close matches".
+  The backend stores only hints at or above `T_SAME`, so the UI shows what it is given.
+- **Outcome panel, pinned** — `TriageOutcomePanel` sits in a bottom dock (`max-h-[62%]`, scrolls)
+  so a decision is always one click away.
+
+`TriageOutcomePanel` has four outcome buttons, each with one hue that colours its icon, its
+notes and its submit button: **Accept** green, **Needs info** sky (the Needs info status),
+**Duplicate** amber (the possible-duplicate marker), **Reject** red. Each opens one form with
+exactly its inputs (priority chips; optional assignee; the release / Backlog picker; for the
+Backlog only, an optional **Backlog category** — empty means the project's Default; a required
+question; the same-project `DuplicatePicker`; a required rejection comment). A reject has no
+structured reason: the comment is the explanation and is posted publicly. The notes that explain
+what an outcome does are tinted callouts (`Note`), and optional fields carry an "Optional" chip —
+never mute either to grey helper text. A `duplicate_of_duplicate` refusal shows an amber inline
+notice with "Use BUG-n instead". While an item is in Needs info, the item page pins the
+triager's question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
+
+Tech users also get `components/triage/DuplicateHintsPanel` on the item page under the title
+meta row — an amber panel, one row per stored hint, with **Merge into this** (which goes to the
+triage queue with the item selected) and **Not a duplicate**. The same judgment powers two form
+panels, both hidden while Jev is off or nothing was suggested: **Possibly the same** beside the
+create form (`issues/SimilarItemsPanel`, `Same problem`/`Related` badges, information only) and
 **Similar reports** under the support form's title (`support/SimilarReportsPanel`, with
 **This is the same problem** → a confirm dialog showing the exact composed markdown before
 it is recorded as a recurrence).

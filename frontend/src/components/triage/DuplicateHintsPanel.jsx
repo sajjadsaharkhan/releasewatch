@@ -1,10 +1,8 @@
-import React, { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import React from 'react'
 import { Button } from '../ui/Button'
 import { StatusBadge, TypeIcon } from '../ui'
 import { Icon } from '../ui/Icon'
-import { issuesApi } from '../../lib/api'
-import { useApp } from '../../hooks/useApp'
+import { useDuplicateHints } from '../../hooks/useDuplicateHints'
 import { issueSlug } from '../../lib/issueSlug'
 import { STATUS } from '../../lib/constants'
 
@@ -12,7 +10,7 @@ import { STATUS } from '../../lib/constants'
 // the API's merge_effect renders (FR-S13, AC-S11). The backend computes the
 // effect with the merge's own reason function, so this never disagrees with
 // what actually happens.
-function mergeEffectSentence(hint) {
+export function mergeEffectSentence(hint) {
   const label = STATUS[hint.candidate.status]?.label ?? hint.candidate.status
   switch (hint.merge_effect) {
     case 'stays_cancelled':
@@ -36,33 +34,9 @@ function mergeEffectSentence(hint) {
  * never the role).
  */
 export function DuplicateHintsPanel({ issue, onMerge, onDismissed }) {
-  const { features } = useApp()
-  const queryClient = useQueryClient()
-  const [dismissed, setDismissed] = useState([])
-  const eligible = issue.status === 'new' && features?.jev_enabled
-
-  const { data: hints = [] } = useQuery({
-    queryKey: ['duplicate-hints', issue.id],
-    queryFn: async () => (await issuesApi.duplicateHints(issue.id)).data?.hints ?? [],
-    enabled: eligible,
-    // Fresh on every mount: hints appear while the lead watches the queue.
-    staleTime: 0,
-  })
-  // A dismissal leaves immediately and is undone only if the call fails.
-  const shown = hints.filter((h) => !dismissed.includes(h.candidate_id))
+  const { eligible, hints: shown, dismiss } = useDuplicateHints(issue, { onDismissed })
 
   if (!eligible || shown.length === 0) return null
-
-  async function dismiss(hint) {
-    setDismissed((prev) => [...prev, hint.candidate_id])
-    try {
-      await issuesApi.dismissDuplicateHint(issue.id, hint.candidate_id)
-      await queryClient.invalidateQueries({ queryKey: ['duplicate-hints', issue.id] })
-      onDismissed?.(hint)
-    } catch {
-      setDismissed((prev) => prev.filter((id) => id !== hint.candidate_id))
-    }
-  }
 
   return (
     <section
