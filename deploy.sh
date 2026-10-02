@@ -7,7 +7,13 @@
 #   ./deploy.sh --no-pull              # restart with already-downloaded images
 #   ./deploy.sh abc1234 --no-pull      # specific tag, skip pull
 #   ./deploy.sh --check-db             # check DB migration status without deploying
+#   ./deploy.sh --fetch-model          # force a re-download of the embeddings model
+#   ./deploy.sh --skip-model           # do not check/download the embeddings model
 #   IMAGE_TAG=abc1234 ./deploy.sh
+#
+# The BAAI/bge-m3 embeddings model (~2.3 GB) lives in the `embeddings_models`
+# volume. The embeddings container runs offline, so deploy.sh downloads the model
+# once (online) when the volume is empty — before any app container is stopped.
 #
 # Requirements on the server:
 #   - Docker + Docker Compose v2
@@ -22,10 +28,14 @@ REGISTRY="ghcr.io/sajjadsaharkhan/releasewatch"
 # ── Parse arguments ───────────────────────────────────────────────────────────
 NO_PULL=false
 CHECK_DB=false
+FETCH_MODEL=false
+SKIP_MODEL=false
 for arg in "$@"; do
   case "$arg" in
     --no-pull)  NO_PULL=true ;;
     --check-db) CHECK_DB=true ;;
+    --fetch-model) FETCH_MODEL=true ;;
+    --skip-model)  SKIP_MODEL=true ;;
     --*)        echo "Unknown flag: $arg"; exit 1 ;;
     *)          IMAGE_TAG="$arg" ;;
   esac
@@ -48,11 +58,72 @@ if [ "$CHECK_DB" = false ] && [ "$NO_PULL" = false ]; then
   echo "▶ Pulling images from GHCR..."
   docker pull "${REGISTRY}/api:${IMAGE_TAG}"
   docker pull "${REGISTRY}/frontend:${IMAGE_TAG}"
+  $COMPOSE pull embeddings
 else
   if [ "$CHECK_DB" = true ]; then
     echo "▶ Skipping image pull (--check-db mode)"
   else
     echo "▶ Skipping image pull (--no-pull)"
+  fi
+fi
+
+# ── Embeddings model (BAAI/bge-m3) ────────────────────────────────────────────
+# Runs before anything is stopped, so a failed/slow download never costs downtime.
+model_present() {
+  $COMPOSE run --rm --no-deps --entrypoint sh embeddings \
+    -c 'ls /data/models--BAAI--bge-m3/snapshots/*/config.json' > /dev/null 2>&1
+}
+
+# Expected on-disk size of the model; only used for the approximate % display.
+MODEL_BYTES=2400000000
+POLL_SECS=5
+
+human() { awk -v b="$1" 'BEGIN{ s="B KB MB GB"; split(s,u," "); i=1; while (b>=1024 && i<4) { b/=1024; i++ } printf "%.1f %s", b, u[i] }'; }
+mmss()  { printf '%02d:%02d' $(($1 / 60)) $(($1 % 60)); }
+
+fetch_model() {
+  echo "▶ Embeddings model not found in the embeddings_models volume — downloading BAAI/bge-m3"
+  echo "  (≈2.3 GB, one-off; the % is approximate and the last step, loading the model, can take a minute)"
+  docker rm -f rw-embeddings-fetch > /dev/null 2>&1 || true
+  $COMPOSE run -d --rm --no-deps --name rw-embeddings-fetch -e HF_HUB_OFFLINE=0 embeddings > /dev/null
+  echo "  fetch container started: rw-embeddings-fetch  (logs: docker logs -f rw-embeddings-fetch)"
+
+  local start prev_size prev_t size now pct speed
+  start=$(date +%s); prev_t=$start; prev_size=0
+  # The router only reports healthy once the model is downloaded and loaded.
+  for _ in $(seq 1 360); do
+    if docker exec rw-embeddings-fetch curl -sf http://localhost:80/health > /dev/null 2>&1; then
+      size=$(docker exec rw-embeddings-fetch du -sb /data 2>/dev/null | cut -f1 || echo 0)
+      docker stop rw-embeddings-fetch > /dev/null
+      echo "▶ Model ready ✓  $(human "${size:-0}") in $(mmss $(( $(date +%s) - start )))"
+      return 0
+    fi
+    if ! docker inspect rw-embeddings-fetch > /dev/null 2>&1; then
+      echo "✗ The model fetch container exited"
+      return 1
+    fi
+    size=$(docker exec rw-embeddings-fetch du -sb /data 2>/dev/null | cut -f1 || echo 0)
+    size=${size:-0}; now=$(date +%s)
+    pct=$(( size * 100 / MODEL_BYTES )); [ "$pct" -gt 99 ] && pct=99
+    speed=$(( (size - prev_size) / (now - prev_t > 0 ? now - prev_t : 1) ))
+    if [ "$size" -ge "$MODEL_BYTES" ]; then
+      echo "  [$(mmss $((now - start)))] downloaded $(human "$size") — loading model..."
+    else
+      echo "  [$(mmss $((now - start)))] ${pct}%  $(human "$size") / ~$(human "$MODEL_BYTES")  $(human "$speed")/s"
+    fi
+    prev_size=$size; prev_t=$now
+    sleep "$POLL_SECS"
+  done
+  docker stop rw-embeddings-fetch > /dev/null 2>&1 || true
+  echo "✗ Model download did not finish within 30 minutes"
+  return 1
+}
+
+if [ "$CHECK_DB" = false ] && [ "$SKIP_MODEL" = false ]; then
+  if [ "$FETCH_MODEL" = true ] || ! model_present; then
+    fetch_model || { echo "  Nothing was stopped — the old version is still running."; exit 1; }
+  else
+    echo "▶ Embeddings model already present ✓"
   fi
 fi
 
