@@ -46,10 +46,14 @@ T_RELEVANT = 0.5
 
 #: Same-problem suggestions (slice 14, A.7 judge): candidates sent to Jev, and
 #: the confidence a ``same`` / ``related`` verdict needs to be shown.
-#: Set by: PoC ``bench_jev`` policies — set the final values from the stage-2
-#: ``--part similar`` run (Q3: same-problem precision ≥ 0.80).
+#: ``T_SAME`` is from the duplicate-dataset sweep of 2026-10-02
+#: (docs/phase-2/eval/duplicate-threshold-2026-10-02.md, ``python -m
+#: scripts.dup_dataset sweep``): the lowest value at which a shown hint is right
+#: 92% of the time (precision 0.925, recall 0.805 on 148 drafts). Re-check it
+#: with ``search_eval stage2 --part similar`` on real text.
+#: ``T_RELATED`` is still the PoC ``bench_jev`` value, not swept.
 SIMILAR_CANDIDATES = 10
-T_SAME = 0.7
+T_SAME = 0.74
 T_RELATED = 0.6
 #: Suggestions returned to a form, and stored hints per New item (A.4/A.5).
 SIMILAR_LIMIT = 5

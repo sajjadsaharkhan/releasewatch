@@ -1,4 +1,4 @@
-"""``python -m scripts.dup_dataset <build|validate|import|probe|guide>``"""
+"""``python -m scripts.dup_dataset <build|validate|import|probe|sweep|guide>``"""
 
 import sys
 
@@ -18,6 +18,10 @@ def main() -> int:
         from . import importer
 
         return importer.main(rest)
+    if cmd == "sweep":
+        from . import sweep
+
+        return sweep.main(rest)
     if cmd == "guide":
         from . import guide
 
