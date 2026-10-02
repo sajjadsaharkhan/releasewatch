@@ -117,3 +117,7 @@ With Jev off, none of these surfaces exist.
 - Cross-project suggestions.
 - Suggestions while Jev is off (S3).
 - Changing the merge rules; they are in 06.
+
+## Amendment 2026-10-02 — dismissals are kept as training data
+
+`duplicate_dismissals` now also stores, at the moment of "Not a duplicate": Jev's `confidence` and `jev_model`, when the hint was computed, and a snapshot of both items' title and description plus the candidate's status. They are labelled negatives for tuning `T_SAME` or training a similarity model later (a merge into the candidate is the matching positive). Rows dismissed earlier, or without a stored hint, have these columns null; re-dismissing keeps the first snapshot. The snapshot holds production text — treat exports accordingly.

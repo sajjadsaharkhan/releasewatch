@@ -390,6 +390,41 @@ async def test_ac_s12_dismissed_pair_never_returns_after_reindex(
     )
 
 
+async def test_dismissal_keeps_what_the_triager_saw(
+    factories, rig, reaction_world, jev, search_jobs, db_session,
+):
+    """"Not a duplicate" is a labelled negative: the row keeps Jev's confidence
+    and model and a snapshot of both texts, for tuning the threshold later."""
+    from sqlalchemy import select
+
+    from app.db.models.search import DuplicateDismissal
+
+    jev.default(judge_by_title)
+    await enable_jev(factories.admin_client)
+    new_bug = await factories.issue(project_id=rig["project"].id, title=REACTION_DRAFT)
+    await search_jobs.run()
+    candidate = reaction_world["report"]
+    shown = {h["candidate"]["id"]: h["confidence"] for h in (await hints(rig["qa_client"], new_bug.id))["hints"]}
+    assert (await dismiss(rig["lead_client"], new_bug.id, candidate.id)).status_code == 204
+
+    row = (await db_session.execute(
+        select(DuplicateDismissal).where(
+            DuplicateDismissal.issue_id == new_bug.id, DuplicateDismissal.candidate_id == candidate.id,
+        )
+    )).scalar_one()
+    assert row.confidence == pytest.approx(shown[candidate.id], abs=1e-3)
+    assert row.hint_computed_at is not None
+    assert row.issue_title == REACTION_DRAFT
+    assert row.candidate_title == candidate.title
+    assert row.candidate_status
+
+    # Dismissing again refreshes who and when, and keeps the first snapshot.
+    first_confidence = row.confidence
+    assert (await dismiss(rig["lead_client"], new_bug.id, candidate.id)).status_code == 204
+    await db_session.refresh(row)
+    assert row.confidence == first_confidence
+
+
 async def test_ac_s13_hint_hidden_after_leaving_new(
     factories, rig, reaction_world, jev, search_jobs,
 ):

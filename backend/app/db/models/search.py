@@ -165,3 +165,16 @@ class DuplicateDismissal(Base):
     dismissed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+    # What the triager saw when they said "no" — kept as labelled negatives for
+    # tuning the similarity threshold or training later. Texts are snapshots:
+    # both items may be edited afterwards. All null on rows dismissed before
+    # this was recorded, or when no stored hint backed the dismissal.
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    jev_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hint_computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    issue_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    issue_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    candidate_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    candidate_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    candidate_status: Mapped[str | None] = mapped_column(String(32), nullable=True)

@@ -192,16 +192,39 @@ async def hydrate(db: AsyncSession, issue_id: int) -> list[dict]:
 
 async def dismiss(db: AsyncSession, issue_id: int, candidate_id: int, actor_id: int) -> None:
     """Record "Not a duplicate" forever and drop the stored hint (BR-S12, AC-S12).
-    Idempotent: dismissing a pair again refreshes the stamp, nothing more."""
+
+    The row also keeps what the triager saw — Jev's confidence and model, and
+    both items' title, description and the candidate's status — so the
+    dismissals can later tune the threshold or train the similarity model.
+    Idempotent: dismissing a pair again refreshes who and when, and keeps the
+    first snapshot."""
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-    values = {"dismissed_by_id": actor_id, "dismissed_at": func.now()}
+    hint = (await db.execute(
+        select(DuplicateHint).where(
+            DuplicateHint.issue_id == issue_id, DuplicateHint.candidate_id == candidate_id,
+        )
+    )).scalar_one_or_none()
+    issue = await db.get(Issue, issue_id)
+    candidate = await db.get(Issue, candidate_id)
+
+    stamp = {"dismissed_by_id": actor_id, "dismissed_at": func.now()}
+    snapshot = {
+        "confidence": hint.confidence if hint else None,
+        "jev_model": hint.jev_model if hint else None,
+        "hint_computed_at": hint.computed_at if hint else None,
+        "issue_title": issue.title if issue else None,
+        "issue_description": issue.description if issue else None,
+        "candidate_title": candidate.title if candidate else None,
+        "candidate_description": candidate.description if candidate else None,
+        "candidate_status": _value(candidate.status) if candidate else None,
+    }
     stmt = pg_insert(DuplicateDismissal).values(
-        issue_id=issue_id, candidate_id=candidate_id, **values
+        issue_id=issue_id, candidate_id=candidate_id, **stamp, **snapshot
     )
     await db.execute(stmt.on_conflict_do_update(
         index_elements=[DuplicateDismissal.issue_id, DuplicateDismissal.candidate_id],
-        set_=values,
+        set_=stamp,
     ))
     await db.execute(
         delete(DuplicateHint).where(
