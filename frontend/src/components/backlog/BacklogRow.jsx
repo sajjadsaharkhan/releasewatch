@@ -2,38 +2,48 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AlertCircle, Clock, GripVertical } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { Avatar, Checkbox, PriorityBadge, Tooltip, TypeIcon, UserHoverCard } from '../ui'
-import { BacklogCategoryBadge, ReportedCount, TechDebtMarker } from '../common'
 import { issueKey, issueSlug } from '../../lib/issueSlug'
-import { fullTime, relTime } from '../../lib/relTime'
+import { fullTime } from '../../lib/relTime'
+import { Avatar, Checkbox, Icon, Tooltip, UserHoverCard } from '../ui'
+import { BacklogCategoryBadge, ReportedCount, TechDebtMarker } from '../common'
+import { PriorityPicker } from '../queue/QueueItemRow'
+import { TypeMark, ageOf } from '../queue/QueueMarks'
 
 /**
- * One backlog item (slice 08): drag handle, checkbox, [rank], key, title with
- * its markers, category, priority, age, assignee. The whole row opens the
- * item; the handle, checkbox, and hover cards don't.
+ * One backlog item (slice 08; redesigned 2026-10-02 from prototype R2): grip
+ * handle, a position that gives way to the checkbox on hover or once anything
+ * is selected, then two lines — type, title and markers over key, category,
+ * age and the stale note — then the priority menu and the assignee's hover
+ * card. Rows sit in one panel and are divided by a line. The whole row opens
+ * the item; the handle, checkbox, menu and hover card don't.
  *
- * `canManage` false disables the handle and checkbox with `manageReason` as
- * the tooltip (Policy's `manage_backlog` detail — never re-derived here).
+ * `canManage` false disables the handle, checkbox and priority menu, with
+ * `manageReason` as the tooltip (Policy's `manage_backlog` detail — never
+ * re-derived here). `canDrag` is false while a filter hides part of the list.
  */
 export function BacklogRow({
   item,
   rank,
   selected,
+  anySelected,
   onSelect,
   canManage,
+  canDrag,
   manageReason,
   stale,
   error,
   onOpen,
+  onPriority,
+  showCategory = true,
 }) {
   const {
     attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging,
-  } = useSortable({ id: item.id, disabled: !canManage })
+  } = useSortable({ id: item.id, disabled: !canDrag })
 
   const key = issueKey(item)
-  const assignee = item.assignee_user
+  const age = ageOf(item.created_at)
+  const category = showCategory && !item.backlog_category?.is_default ? item.backlog_category : null
 
   const handle = (
     <button
@@ -42,18 +52,17 @@ export function BacklogRow({
       {...attributes}
       {...listeners}
       aria-label={`Reorder ${key}`}
-      disabled={!canManage}
+      disabled={!canDrag}
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        'flex h-7 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground',
-        'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100',
-        '[@media(hover:none)]:opacity-100',
+        'flex h-8 w-5 shrink-0 touch-none items-center justify-center rounded text-zinc-300 dark:text-zinc-600',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        canManage ? 'cursor-grab active:cursor-grabbing hover:text-foreground' : 'cursor-not-allowed',
-        isDragging && 'opacity-100'
+        canDrag
+          ? 'cursor-grab hover:text-zinc-600 active:cursor-grabbing dark:hover:text-zinc-300'
+          : 'cursor-not-allowed opacity-40',
       )}
     >
-      <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
+      <Icon name="grip-vertical" size={14} aria-hidden="true" />
     </button>
   )
 
@@ -66,112 +75,128 @@ export function BacklogRow({
     />
   )
 
+  const showCheck = selected || anySelected
+
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       onClick={() => onOpen(item)}
-      className={cn(
-        'group relative flex h-10 cursor-pointer items-center gap-2 border-b border-border px-2 text-[13px] last:border-b-0',
-        'bg-card transition-colors hover:bg-muted/50',
-        selected && 'bg-accent/70 hover:bg-accent',
-        (selected || error) && 'before:absolute before:inset-y-0 before:left-0 before:w-0.5',
-        selected && 'before:bg-primary',
-        error && 'before:bg-red-500',
-        isDragging && 'z-10 rounded-lg shadow-lg ring-1 ring-border hover:bg-card'
-      )}
+      data-testid="backlog-row"
+      className="border-b border-border last:border-b-0"
     >
-      {canManage ? handle : <Tooltip content={manageReason}>{handle}</Tooltip>}
-      <span className="flex w-5 shrink-0 justify-center">
-        {canManage ? checkbox : <Tooltip content={manageReason}>{checkbox}</Tooltip>}
-      </span>
+      <div
+        className={cn(
+          'group relative flex cursor-pointer items-center gap-3 bg-card px-3 py-2.5 transition-colors hover:bg-muted/50',
+          selected && 'bg-accent/70 hover:bg-accent',
+          (selected || error) && 'before:absolute before:inset-y-0 before:left-0 before:w-0.5',
+          selected && 'before:bg-primary',
+          error && 'before:bg-red-500',
+          isDragging && 'z-10 rounded-lg shadow-xl ring-1 ring-border hover:bg-card',
+        )}
+      >
+        {handle}
 
-      {rank != null && (
-        <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-          {rank}
+        <span className="relative flex h-7 w-7 shrink-0 items-center justify-center">
+          <span
+            aria-label={`Position ${rank}`}
+            className={cn(
+              'text-center text-[12px] font-semibold tabular-nums text-zinc-300 dark:text-zinc-600',
+              showCheck ? 'hidden' : 'group-focus-within:hidden group-hover:hidden',
+            )}
+          >
+            {rank}
+          </span>
+          <span className={cn('items-center justify-center', showCheck ? 'flex' : 'hidden group-focus-within:flex group-hover:flex')}>
+            {canManage ? checkbox : <Tooltip content={manageReason}>{checkbox}</Tooltip>}
+          </span>
         </span>
-      )}
 
-      <span className="inline-flex w-[92px] shrink-0 items-center gap-1 font-mono text-[11.5px] text-muted-foreground">
-        <TypeIcon type={item.type} />
-        {key}
-      </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <TypeMark type={item.type} />
+            <Link
+              to={`/issue/${issueSlug(item)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate rounded text-[13.5px] font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {item.title}
+            </Link>
+            <TechDebtMarker item={item} />
+            <ReportedCount count={item.recurrence_count} />
+            {error && (
+              <Tooltip content={error}>
+                <span className="inline-flex shrink-0 text-red-600 dark:text-red-400">
+                  <Icon name="alert-circle" size={14} aria-hidden="true" />
+                  <span className="sr-only">{error}</span>
+                </span>
+              </Tooltip>
+            )}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] text-muted-foreground">
+            <span className="font-mono">{key}</span>
+            {/* Default is where most items sit — a badge on every row would be noise. */}
+            <BacklogCategoryBadge category={category} className="h-4 bg-transparent px-0" />
+            <Tooltip content={`Created ${fullTime(item.created_at)}`}>
+              <span className="inline-flex items-center gap-1">
+                <Icon name="clock" size={11} aria-hidden="true" />
+                {age === 'today' ? 'Opened today' : `${age} old`}
+              </span>
+            </Tooltip>
+            {stale && (
+              <Tooltip content={`Last updated ${fullTime(item.updated_at)}`}>
+                <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                  <Icon name="history" size={11} aria-hidden="true" />
+                  Untouched for over 6 months
+                </span>
+              </Tooltip>
+            )}
+          </div>
+        </div>
 
-      <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <Link
-          to={`/issue/${issueSlug(item)}`}
-          onClick={(e) => e.stopPropagation()}
-          className="truncate font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-        >
-          {item.title}
-        </Link>
-        <TechDebtMarker item={item} />
-        <ReportedCount count={item.recurrence_count} />
-        {error && (
-          <Tooltip content={error}>
-            <span className="inline-flex shrink-0 text-red-600 dark:text-red-400">
-              <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only">{error}</span>
-            </span>
-          </Tooltip>
-        )}
-      </span>
+        <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          {canManage ? (
+            <PriorityPicker item={item} onChange={onPriority} note={null} />
+          ) : (
+            <Tooltip content={manageReason}>
+              <span><PriorityPicker item={item} disabled /></span>
+            </Tooltip>
+          )}
+        </span>
 
-      {/* Default is where most items sit — a badge on every row would be noise. */}
-      {!item.backlog_category?.is_default && (
-        <BacklogCategoryBadge category={item.backlog_category} className="hidden md:inline-flex" />
-      )}
-
-      <span className="hidden w-[84px] shrink-0 sm:flex">
-        <PriorityBadge priority={item.priority} />
-      </span>
-
-      <span className="flex w-[70px] shrink-0 items-center justify-end gap-1 text-[12px] tabular-nums text-muted-foreground">
-        {stale && (
-          <Tooltip content={`Untouched for over 6 months — last updated ${fullTime(item.updated_at)}`}>
-            <span className="inline-flex">
-              <Clock className="h-3 w-3 text-amber-500" aria-hidden="true" />
-              <span className="sr-only">Untouched for over 6 months</span>
-            </span>
-          </Tooltip>
-        )}
-        <Tooltip content={`Created ${fullTime(item.created_at)}`}>
-          <span>{relTime(item.created_at)}</span>
-        </Tooltip>
-      </span>
-
-      <span className="flex w-7 shrink-0 justify-center" onClick={(e) => e.stopPropagation()}>
-        {assignee ? (
-          <UserHoverCard user={assignee} size={22}>
-            <Avatar user={assignee} size={22} />
-          </UserHoverCard>
-        ) : (
-          <Tooltip content="Unassigned">
-            <span className="block h-[22px] w-[22px] rounded-full border border-dashed border-muted-foreground/40">
-              <span className="sr-only">Unassigned</span>
-            </span>
-          </Tooltip>
-        )}
-      </span>
+        <span className="flex w-6 shrink-0 justify-center" onClick={(e) => e.stopPropagation()}>
+          {item.assignee_user ? (
+            <UserHoverCard user={item.assignee_user} size={22}>
+              <Avatar user={item.assignee_user} size={22} />
+            </UserHoverCard>
+          ) : (
+            <Tooltip content="Unassigned">
+              <span className="block h-[22px] w-[22px] rounded-full border border-dashed border-muted-foreground/40">
+                <span className="sr-only">Unassigned</span>
+              </span>
+            </Tooltip>
+          )}
+        </span>
+      </div>
     </li>
   )
 }
 
-/** Skeleton rows mirroring BacklogRow's columns. */
-export function BacklogRowsSkeleton({ rows = 8 }) {
+/** Skeleton rows mirroring BacklogRow's two lines. */
+export function BacklogRowsSkeleton({ rows = 6 }) {
   const pulse = 'rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse'
   const widths = ['w-56', 'w-72', 'w-48', 'w-64', 'w-40', 'w-60']
   return (
     <ul aria-hidden="true">
       {Array.from({ length: rows }, (_, i) => (
-        <li key={i} className="flex h-10 items-center gap-2 border-b border-border px-2 last:border-b-0">
+        <li key={i} className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0">
           <span className="w-5" />
-          <span className={cn('h-4 w-4', pulse)} />
-          <span className={cn('ml-1 h-3 w-16', pulse)} />
-          <span className="flex-1"><span className={cn('block h-3', widths[i % widths.length], pulse)} /></span>
-          <span className={cn('hidden h-5 w-24 rounded-full md:block', pulse)} />
-          <span className={cn('hidden h-5 w-16 rounded-full sm:block', pulse)} />
-          <span className={cn('h-3 w-10', pulse)} />
+          <span className={cn('h-4 w-7', pulse)} />
+          <span className="flex-1 space-y-2">
+            <span className={cn('block h-3.5', widths[i % widths.length], pulse)} />
+            <span className={cn('block h-3 w-32 opacity-60', pulse)} />
+          </span>
+          <span className={cn('h-6 w-20 rounded-md', pulse)} />
           <span className={cn('h-[22px] w-[22px] rounded-full', pulse)} />
         </li>
       ))}

@@ -6,25 +6,28 @@ import {
 import {
   SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Clock, Construction, Layers, ListOrdered } from 'lucide-react'
 import { useApp } from '../hooks/useApp'
 import { backlogApi, issuesApi } from '../lib/api'
 import { useContainers } from '../hooks/useContainers'
 import { issueSlug } from '../lib/issueSlug'
-import { cn } from '../lib/cn'
-import { Button, Empty, Segmented, Switch, useToast } from '../components/ui'
+import { Button, Empty, useToast } from '../components/ui'
 import {
-  BacklogGroupHeader, BacklogRow, BacklogRowsSkeleton, BulkMoveBar, groupMeta,
+  BACKLOG_FILTERS, BacklogGroupHeader, BacklogHeader, BacklogRail, BacklogRow, BacklogRowsSkeleton,
+  BulkMoveBar, groupMeta,
 } from '../components/backlog'
 
 /**
- * A project's backlog (slice 08, FR-23–25): its open items with no container, as
- * a ranked list — never a board. Grouped by category by default, or flat in
- * rank order. Drag (pointer or keyboard) to rank; select to move many to a
- * container (the Stream or a release) at once. Technical debt is hidden unless "Show technical debt" is on.
+ * A project's backlog (slice 08, FR-23–25; redesigned 2026-10-02): its open
+ * items with no container, as a ranked list — never a board. A header with a
+ * category bar, a left rail (category, "Show" filter), and two-line rows in one
+ * panel — grouped by category by default, or flat in rank order. Drag (pointer
+ * or keyboard) to rank; select to move many to a container (the Stream or a
+ * release) at once. Technical debt is hidden unless "Show technical debt" is on.
  *
  * Membership, grouping, the stale rule and who may manage all come from the
- * API — this page only renders them. View and debt toggle live in the URL.
+ * API — this page only renders them. View, debt toggle, category and filter
+ * live in the URL (`?view=ranked`, `?debt=1`, `?category=<group key>`,
+ * `?show=high|stale|unassigned`).
  */
 
 
@@ -52,6 +55,8 @@ export default function BacklogPage() {
 
   const view = searchParams.get('view') === 'ranked' ? 'ranked' : 'grouped'
   const showDebt = searchParams.get('debt') === '1'
+  const showParam = searchParams.get('show')
+  const filter = BACKLOG_FILTERS[showParam] ? showParam : 'all'
   const project = projects?.find((p) => p.slug === slug)
 
   const [data, setData] = useState(null)
@@ -130,10 +135,30 @@ export default function BacklogPage() {
   const groups = (data?.groups ?? []).map((g) => ({
     ...g, items: g.item_ids.map((id) => byId.get(id)).filter(Boolean),
   }))
+  // The rail's category (a group key) and "Show" filter narrow what's listed.
+  // A category that no longer exists (debt hidden, deleted) falls back to all.
+  const categoryParam = searchParams.get('category')
+  const catGroup = groups.find((g) => g.key === categoryParam) ?? null
+  const category = catGroup ? catGroup.key : 'all'
+  const test = BACKLOG_FILTERS[filter].test
+  const pass = (i) => test(i, stale) && (!catGroup || catGroup.item_ids.includes(i.id))
+  const rankedShown = items.filter(pass)
+  const groupsShown = groups
+    .filter((g) => !catGroup || g === catGroup)
+    .map((g) => ({ ...g, shown: g.items.filter(pass) }))
+    .filter((g) => filter === 'all' || g.shown.length > 0)
+  const counts = useMemo(() => ({
+    high: items.filter((i) => BACKLOG_FILTERS.high.test(i)).length,
+    stale: items.filter((i) => stale.has(i.id)).length,
+    unassigned: items.filter((i) => !i.assignee_user).length,
+  }), [items, stale])
+  // Filters hide rows, so ranking waits until they're cleared.
+  const canDrag = canManage && filter === 'all'
+
   // The order rows appear in — shift-click ranges follow it.
   const visibleOrder = view === 'ranked'
-    ? items.map((i) => i.id)
-    : groups.flatMap((g) => (collapsed.has(g.key) ? [] : g.item_ids))
+    ? rankedShown.map((i) => i.id)
+    : groupsShown.flatMap((g) => (collapsed.has(g.key) ? [] : g.shown.map((i) => i.id)))
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(searchParams)
@@ -287,6 +312,16 @@ export default function BacklogPage() {
 
   const openItem = (item) => navigate(`/issue/${issueSlug(item)}`)
 
+  const onPriority = async (item, priority) => {
+    if (priority === item.priority) return
+    try {
+      await issuesApi.update(item.id, { priority })
+      load({ silent: true })
+    } catch (err) {
+      toast.error("Couldn't change the priority", err.response?.data?.detail)
+    }
+  }
+
   // ── Routing states ───────────────────────────────────────────────────────
   if (!slug) {
     const target = projects?.find((p) => p.id === activeProjectId) ?? projects?.[0]
@@ -298,170 +333,158 @@ export default function BacklogPage() {
     return <Empty icon="list-ordered" title="Project not found" body={`There's no project called “${slug}”.`} />
   }
 
-  const renderRow = (item, rank) => (
+  const total = data?.total ?? 0
+  const hidden = data?.hidden_tech_debt_count ?? 0
+  const anySelected = selected.size > 0
+
+  const renderRow = (item, rank, showCategory = true) => (
     <BacklogRow
       key={item.id}
       item={item}
       rank={rank}
       selected={selected.has(item.id)}
+      anySelected={anySelected}
       onSelect={onSelect}
       canManage={canManage}
+      canDrag={canDrag}
       manageReason={manageReason}
       stale={stale.has(item.id)}
       error={rowErrors[String(item.id)]}
       onOpen={openItem}
+      onPriority={onPriority}
+      showCategory={showCategory}
     />
   )
 
-  const total = data?.total ?? 0
-  const hidden = data?.hidden_tech_debt_count ?? 0
+  const nothingShown = view === 'ranked'
+    ? rankedShown.length === 0
+    : groupsShown.every((g) => g.shown.length === 0) && filter !== 'all'
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-4 p-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-baseline gap-2 text-lg font-semibold text-foreground">
-            Backlog
-            {project && <span className="truncate text-sm font-normal text-muted-foreground">{project.name}</span>}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted-foreground">
-            {loading && !data ? (
-              <span className="inline-block h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-            ) : (
-              <>
-                <span className="tabular-nums">{total} {total === 1 ? 'item' : 'items'}</span>
-                {data?.stale_count > 0 && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="tabular-nums">{data.stale_count}</span> untouched for over 6 months
-                    </span>
-                  </>
+  const list = loading && !data ? (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <BacklogRowsSkeleton />
+    </div>
+  ) : loadError && !data ? (
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+      <Empty icon="alert-circle" title="Failed to load backlog" body={loadError}>
+        <Button size="sm" variant="outline" onClick={() => load()}>Try again</Button>
+      </Empty>
+    </div>
+  ) : total === 0 ? (
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+      {hidden > 0 ? (
+        <Empty
+          icon="construction"
+          title="Only technical debt here"
+          body={`${hidden} technical-debt ${hidden === 1 ? 'task is' : 'tasks are'} hidden.`}
+        >
+          <Button size="sm" variant="outline" onClick={() => setParam('debt', '1')}>Show technical debt</Button>
+        </Empty>
+      ) : (
+        <Empty
+          icon="list-ordered"
+          title="Backlog is empty"
+          body="Work that isn't planned yet lands here — tasks created without a place, bugs accepted into the backlog, and items taken out of the Stream or a release."
+        />
+      )}
+    </div>
+  ) : nothingShown ? (
+    <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[13px] text-muted-foreground">
+      Nothing matches — clear a filter to see the rest.
+    </p>
+  ) : (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+      accessibility={{ announcements, screenReaderInstructions: DND_SCREEN_READER }}
+    >
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        {view === 'ranked' ? (
+          <SortableContext items={rankedShown.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            <ul aria-label="Backlog, in rank order">
+              {rankedShown.map((item) => renderRow(item, items.indexOf(item) + 1))}
+            </ul>
+          </SortableContext>
+        ) : (
+          groupsShown.map((g) => {
+            const open = !collapsed.has(g.key)
+            const label = groupMeta(g).label
+            return (
+              <section key={g.key} aria-label={label} className="border-b border-border last:border-b-0">
+                <BacklogGroupHeader
+                  group={g}
+                  open={open}
+                  canManage={canManage}
+                  count={g.shown.length}
+                  selectedCount={g.shown.filter((i) => selected.has(i.id)).length}
+                  onSelectAll={(next) => selectGroup(g.shown.map((i) => i.id), next)}
+                  onToggle={() => setCollapsed((prev) => {
+                    const out = new Set(prev)
+                    out.has(g.key) ? out.delete(g.key) : out.add(g.key)
+                    return out
+                  })}
+                />
+                {open && (
+                  <div id={`backlog-group-${g.key}`}>
+                    {g.shown.length === 0 ? (
+                      <p className="px-14 py-2.5 text-[12px] italic text-muted-foreground">
+                        Nothing in {label} yet.
+                      </p>
+                    ) : (
+                      <SortableContext items={g.shown.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                        <ul aria-label={label}>
+                          {g.shown.map((item) => renderRow(item, g.item_ids.indexOf(item.id) + 1, false))}
+                        </ul>
+                      </SortableContext>
+                    )}
+                  </div>
                 )}
-              </>
-            )}
-          </p>
-        </div>
-        {project && (
-          <Button variant="outline" size="sm" onClick={() => navigate(`/tech-debt?project=${project.id}`)}>
-            <Construction className="h-3.5 w-3.5" aria-hidden="true" />
-            Technical debt in this project
-          </Button>
+              </section>
+            )
+          })
         )}
       </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Segmented
-          value={view}
-          onValueChange={(v) => setParam('view', v === 'ranked' ? 'ranked' : null)}
-          options={[
-            { value: 'grouped', label: 'Grouped', icon: <Layers className="h-3.5 w-3.5" /> },
-            { value: 'ranked', label: 'Ranked', icon: <ListOrdered className="h-3.5 w-3.5" /> },
-          ]}
-        />
-        <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-muted-foreground">
-          <Switch
-            checked={showDebt}
-            onCheckedChange={(v) => setParam('debt', v ? '1' : null)}
-            aria-label="Show technical debt"
-          />
-          <span className="text-foreground">Show technical debt</span>
-          {!showDebt && hidden > 0 && (
-            <span className="rounded-full bg-muted px-1.5 text-[10.5px] font-medium tabular-nums">{hidden} hidden</span>
-          )}
-        </label>
-      </div>
-
-      {/* List */}
-      {loading && !data ? (
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <BacklogRowsSkeleton />
-        </div>
-      ) : loadError && !data ? (
-        <div className="rounded-xl border border-border bg-card shadow-sm">
-          <Empty icon="alert-circle" title="Failed to load backlog" body={loadError}>
-            <Button size="sm" variant="outline" onClick={() => load()}>Try again</Button>
-          </Empty>
-        </div>
-      ) : total === 0 ? (
-        <div className="rounded-xl border border-border bg-card shadow-sm">
-          {hidden > 0 ? (
-            <Empty
-              icon="construction"
-              title="Only technical debt here"
-              body={`${hidden} technical-debt ${hidden === 1 ? 'task is' : 'tasks are'} hidden.`}
-            >
-              <Button size="sm" variant="outline" onClick={() => setParam('debt', '1')}>Show technical debt</Button>
-            </Empty>
-          ) : (
-            <Empty
-              icon="list-ordered"
-              title="Backlog is empty"
-              body="Work that isn't planned yet lands here — tasks created without a place, bugs accepted into the backlog, and items taken out of the Stream or a release."
-            />
-          )}
-        </div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onDragEnd}
-          accessibility={{ announcements, screenReaderInstructions: DND_SCREEN_READER }}
-        >
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {view === 'ranked' ? (
-              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <ul aria-label="Backlog, in rank order">
-                  {items.map((item, idx) => renderRow(item, idx + 1))}
-                </ul>
-              </SortableContext>
-            ) : (
-              groups.map((g) => {
-                const open = !collapsed.has(g.key)
-                const label = groupMeta(g).label
-                return (
-                  <section key={g.key} aria-label={label}>
-                    <BacklogGroupHeader
-                      group={g}
-                      open={open}
-                      canManage={canManage}
-                      selectedCount={g.item_ids.filter((id) => selected.has(id)).length}
-                      onSelectAll={(next) => selectGroup(g.item_ids, next)}
-                      onToggle={() => setCollapsed((prev) => {
-                        const out = new Set(prev)
-                        out.has(g.key) ? out.delete(g.key) : out.add(g.key)
-                        return out
-                      })}
-                    />
-                    {open && (
-                      <div id={`backlog-group-${g.key}`}>
-                        {g.items.length === 0 ? (
-                          <p className="border-b border-border px-14 py-2.5 text-[12px] italic text-muted-foreground">
-                            Nothing in {label} yet.
-                          </p>
-                        ) : (
-                          <SortableContext items={g.item_ids} strategy={verticalListSortingStrategy}>
-                            <ul aria-label={label}>{g.items.map((item) => renderRow(item, null))}</ul>
-                          </SortableContext>
-                        )}
-                      </div>
-                    )}
-                  </section>
-                )
-              })
-            )}
-          </div>
-          {canManage && (
-            <p className={cn('text-[11.5px] text-muted-foreground', view === 'grouped' && 'pt-0.5')}>
-              Drag the handle to rank{view === 'grouped' ? ' within a group' : ''} — or focus it and press Space, then the arrow keys.
-              Shift-click checkboxes to select a range.
-            </p>
-          )}
-        </DndContext>
+      {canManage && (
+        <p className="mt-3 text-[11.5px] text-muted-foreground">
+          {canDrag
+            ? `Drag the handle to rank${view === 'grouped' ? ' within a group' : ''} — or focus it and press Space, then the arrow keys. Shift-click checkboxes to select a range.`
+            : 'Clear the filter to rank. Selecting and moving still work.'}
+        </p>
       )}
+    </DndContext>
+  )
+
+  return (
+    <div className="h-full overflow-auto scrollbar-thin">
+      <BacklogHeader
+        project={project}
+        loading={loading && !data}
+        total={total}
+        staleCount={data?.stale_count ?? 0}
+        groups={groups}
+        view={view}
+        onView={(v) => setParam('view', v === 'ranked' ? 'ranked' : null)}
+        showDebt={showDebt}
+        onShowDebt={(v) => setParam('debt', v ? '1' : null)}
+        hidden={hidden}
+        onOpenDebt={() => navigate(`/tech-debt?project=${project.id}`)}
+      />
+
+      <div className="flex flex-col gap-5 px-7 pb-28 pt-5 md:flex-row">
+        {total > 0 && (
+          <BacklogRail
+            groups={groups}
+            total={total}
+            counts={counts}
+            filter={filter}
+            onFilter={(k) => setParam('show', k === 'all' ? null : k)}
+            category={category}
+            onCategory={(k) => setParam('category', k === 'all' ? null : k)}
+          />
+        )}
+        <div className="min-w-0 flex-1">{list}</div>
+      </div>
 
       {canManage && (
         <BulkMoveBar

@@ -584,18 +584,35 @@ create form (`issues/SimilarItemsPanel`, `Same problem`/`Related` badges, inform
 **This is the same problem** → a confirm dialog showing the exact composed markdown before
 it is recorded as a recurrence).
 
-**Backlog** (`pages/BacklogPage.jsx`, `/projects/:slug/backlog`, slice 08): a ranked list in one
-card — never a board. Header: "N items · M untouched for over 6 months" (the stale part amber with a
-`clock`), and a "Technical debt in this project" button. Toolbar: a `Segmented` Grouped / Ranked
-(`?view=ranked`) and a "Show technical debt" `Switch` (`?debt=1`) with an "N hidden" count.
-`components/backlog/`: `BacklogGroupHeader` (collapsible, icon + label + count, a tri-state
-`Checkbox` selecting the group), `BacklogRow` (grip handle that appears on hover/focus, checkbox,
-rank number in Ranked view, key, title with markers, category, priority, age with a `clock` when
-stale, assignee — a dashed circle when unassigned), and `BulkMoveBar` (a floating toolbar that slides
+**Backlog** (`pages/BacklogPage.jsx`, `/projects/:slug/backlog`, slice 08; redesigned 2026-10-02 from
+prototype H3 + R2 with the rail of variant C — the prototype lives on branch `prototype/backlog`): a
+ranked list in one panel — never a board. The page scrolls as a whole (`h-full overflow-auto`, `px-7`
+like My Work). `components/backlog/`:
+- `BacklogHeader` (H3): `text-xl font-bold` "Backlog", the project name, "N items · M untouched 6+
+  months" (the stale part amber), then on the right a "Show technical debt" `Switch` (`?debt=1`, with
+  an "N hidden" count), a `Segmented` Grouped / Ranked (`?view=ranked`) and a "Technical debt" button.
+  Under it, one bar split by category in each category's swatch with a count legend — a picture of the
+  rail's numbers (`role="img"`, `aria-label` lists them). Empty categories are left out of the bar.
+- `BacklogRail` (N3, `md:w-52`, stacked above the list below `md`): **Category** (All categories, each
+  category, Technical debt while shown) and **Show** (All, High priority, Stale, Unassigned), each with
+  a count. One of each at a time, in the URL (`?category=<group key>`, `?show=high|stale|unassigned`).
+  A category that is gone falls back to All. Filters hide rows, so **dragging is off while one is on**
+  (the handle is dimmed; the hint says "Clear the filter to rank"); selecting and moving still work.
+- `BacklogGroupHeader`: icon on its soft hue, label, count and a chevron, with a tri-state `Checkbox`
+  selecting the group's shown items; it lines up with the rows' position column.
+- `BacklogRow` (R2): a two-line row, a hairline between rows. Grip handle (always visible, dimmed
+  when ranking is off), a position number that becomes the checkbox on hover/focus or once anything
+  is selected, then line 1 — type, title (link), markers — and line 2, muted — key, category (hidden
+  for Default, and inside a category group), age, "Untouched for over 6 months" (amber, `history`).
+  Right: the `PriorityPicker` (as in My Work, without its pin note) and the assignee's `UserHoverCard`
+  avatar (a dashed circle when unassigned). Position is the rank in the whole backlog in Ranked, and
+  inside the group in Grouped. The whole row opens the item.
+- `BulkMoveBar` (a floating toolbar that slides
 up from the bottom of the scroller while anything is selected: "N selected", release `Select`,
 "Move to release", a **Category** menu that moves the whole selection to another category group —
 rank kept, the selection's shared category checked, `POST /projects/{id}/backlog/category`, all or
-nothing — and "Clear Esc"). Ranking uses `@dnd-kit/sortable` with the pointer and the keyboard
+nothing — and "Clear Esc").
+Ranking uses `@dnd-kit/sortable` with the pointer and the keyboard
 (Space, arrows, Space; announcements name item keys); in Grouped view a drag stays within its group.
 The move is optimistic and rolls back with `toast.error` on failure. Shift-click selects a range. A
 failed bulk move (`bulk_move_failed`) marks the failing rows with a red left bar and an alert icon

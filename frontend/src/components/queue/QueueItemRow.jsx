@@ -48,7 +48,10 @@ export function SortableQueue({ items, enabled, onMove, children }) {
 }
 
 /** The one inline edit: a priority pill that opens a menu. */
-export function PriorityPicker({ item, onChange, disabled = false }) {
+export function PriorityPicker({
+  item, onChange, disabled = false,
+  note = 'An unpinned item moves to its place by the default rule.', // null hides it
+}) {
   const p = PRIORITY[item.priority]
   const pill = p?.pill ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
   const label = `Priority: ${p?.label ?? 'Unrated'}`
@@ -90,10 +93,12 @@ export function PriorityPicker({ item, onChange, disabled = false }) {
           </span>
         </DropdownItem>
       ))}
-      <DropdownSep />
-      <p className="px-3 pb-1.5 text-[11px] leading-snug text-muted-foreground">
-        An unpinned item moves to its place by the default rule.
-      </p>
+      {note && (
+        <>
+          <DropdownSep />
+          <p className="px-3 pb-1.5 text-[11px] leading-snug text-muted-foreground">{note}</p>
+        </>
+      )}
     </Dropdown>
   )
 }

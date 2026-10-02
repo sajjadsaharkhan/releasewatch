@@ -1,3 +1,5 @@
 export { BacklogRow, BacklogRowsSkeleton } from './BacklogRow'
 export { BacklogGroupHeader, groupMeta } from './BacklogGroupHeader'
+export { BacklogHeader } from './BacklogHeader'
+export { BacklogRail, BACKLOG_FILTERS } from './BacklogRail'
 export { BulkMoveBar } from './BulkMoveBar'
