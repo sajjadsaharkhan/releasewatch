@@ -117,7 +117,7 @@ test('record recurrence from the similar reports panel', async ({ browser }) => 
   await expect(preview).toContainText('**Report template:** Online class problem')
   await expect(preview).toContainText(/- \*\*Class time:\*\* \S+ 18:30/)
   await expect(preview).toContainText('- **Class name:** IELTS B2 — Evening')
-  await page.getByRole('button', { name: 'Record recurrence' }).click()
+  await page.getByRole('button', { name: 'Record recurrence', exact: true }).click()
 
   // ── 4. The seeded report counts one more; no new report was created ────────
   await expect(page.getByText(/Recurrence recorded on BUG-/)).toBeVisible()
