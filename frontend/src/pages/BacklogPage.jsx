@@ -337,7 +337,7 @@ export default function BacklogPage() {
   const hidden = data?.hidden_tech_debt_count ?? 0
   const anySelected = selected.size > 0
 
-  const renderRow = (item, rank, showCategory = true) => (
+  const renderRow = (item, rank) => (
     <BacklogRow
       key={item.id}
       item={item}
@@ -352,7 +352,7 @@ export default function BacklogPage() {
       error={rowErrors[String(item.id)]}
       onOpen={openItem}
       onPriority={onPriority}
-      showCategory={showCategory}
+      showCategory={category === 'all'}
     />
   )
 
@@ -434,7 +434,7 @@ export default function BacklogPage() {
                     ) : (
                       <SortableContext items={g.shown.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                         <ul aria-label={label}>
-                          {g.shown.map((item) => renderRow(item, g.item_ids.indexOf(item.id) + 1, false))}
+                          {g.shown.map((item) => renderRow(item, g.item_ids.indexOf(item.id) + 1))}
                         </ul>
                       </SortableContext>
                     )}

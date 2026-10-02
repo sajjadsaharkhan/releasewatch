@@ -602,8 +602,8 @@ like My Work). `components/backlog/`:
   selecting the group's shown items; it lines up with the rows' position column.
 - `BacklogRow` (R2): a two-line row, a hairline between rows. Grip handle (always visible, dimmed
   when ranking is off), a position number that becomes the checkbox on hover/focus or once anything
-  is selected, then line 1 — type, title (link), markers — and line 2, muted — key, category (hidden
-  for Default, and inside a category group), age, "Untouched for over 6 months" (amber, `history`).
+  is selected, then line 1 — type, title (link), markers — and line 2, muted — key, the `BacklogCategoryBadge` (only while the rail is on All
+  categories, in Grouped too; Default included), age, "Untouched for over 6 months" (amber, `history`).
   Right: the `PriorityPicker` (as in My Work, without its pin note) and the assignee's `UserHoverCard`
   avatar (a dashed circle when unassigned). Position is the rank in the whole backlog in Ranked, and
   inside the group in Grouped. The whole row opens the item.

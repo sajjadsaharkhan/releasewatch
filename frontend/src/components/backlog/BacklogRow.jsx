@@ -43,7 +43,7 @@ export function BacklogRow({
 
   const key = issueKey(item)
   const age = ageOf(item.created_at)
-  const category = showCategory && !item.backlog_category?.is_default ? item.backlog_category : null
+  const category = showCategory ? item.backlog_category : null
 
   const handle = (
     <button
@@ -135,8 +135,7 @@ export function BacklogRow({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] text-muted-foreground">
             <span className="font-mono">{key}</span>
-            {/* Default is where most items sit — a badge on every row would be noise. */}
-            <BacklogCategoryBadge category={category} className="h-4 bg-transparent px-0" />
+            <BacklogCategoryBadge category={category} />
             <Tooltip content={`Created ${fullTime(item.created_at)}`}>
               <span className="inline-flex items-center gap-1">
                 <Icon name="clock" size={11} aria-hidden="true" />
