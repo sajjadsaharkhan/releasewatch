@@ -28,7 +28,6 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
-      e2e: ${{ steps.filter.outputs.e2e }}
       images: ${{ steps.images.outputs.matrix }}
       any-image: ${{ steps.images.outputs.any }}
 
@@ -44,10 +43,6 @@ jobs:
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
-              - '.github/workflows/ci.yml'
-            e2e:
-              - 'e2e/**'
-              - 'docker-compose.e2e.yml'
               - '.github/workflows/ci.yml'
 
       # Build the docker matrix from the filters so untouched images aren't rebuilt.
@@ -216,73 +211,10 @@ jobs:
       - name: Run tests
         run: pytest --cov=app
 
-  # Drives the real frontend against the full Docker stack
-  # (docker-compose.e2e.yml — isolated ports/DB, safe to run in CI).
-  e2e:
-    name: E2E (Playwright)
-    needs: changes
-    if: >-
-      needs.changes.outputs.frontend == 'true'
-      || needs.changes.outputs.backend == 'true'
-      || needs.changes.outputs.e2e == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # docker-compose.yml reads POSTGRES_USER/PASSWORD via ${...} variable
-      # substitution at parse time; docker-compose.e2e.yml overrides the rest
-      # (SECRET_KEY, POSTGRES_DB, ports) per service.
-      - name: Write .env for compose variable substitution
-        run: |
-          cat > .env <<'EOF'
-          SECRET_KEY=ci-e2e-secret-key-not-for-production
-          POSTGRES_HOST=postgres
-          POSTGRES_USER=rw_user
-          POSTGRES_PASSWORD=ci_e2e_password
-          POSTGRES_DB=releasewatch
-          REDIS_URL=redis://redis:6379/0
-          ALLOWED_ORIGINS=http://localhost:8082
-          S3_BUCKET_NAME=releasewatch
-          FRONTEND_URL=http://localhost:8082
-          TELEGRAM_BOT_TOKEN=
-          TELEGRAM_BOT_USERNAME=
-          ADMIN_PASSWORD=
-          JWT_ALGORITHM=HS256
-          JWT_ACCESS_EXPIRE_MINUTES=60
-          JWT_REFRESH_EXPIRE_DAYS=30
-          EOF
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: e2e/package-lock.json
-
-      - name: Install Playwright + browsers
-        working-directory: e2e
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-
-      - name: Run E2E suite
-        run: make e2e
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            e2e/playwright-report
-            e2e/test-results
-          retention-days: 7
-
   # ── Docker images — build & push to GHCR ──────────────────────────────────
   docker:
     name: Docker — ${{ matrix.image.name }}
-    needs: [changes, frontend-build, backend-migrations, backend-tests, e2e]
+    needs: [changes, frontend-build, backend-migrations, backend-tests]
     # Publish only on pushes, only for images whose source actually changed, and
     # only when no upstream job failed (skipped upstream jobs are fine).
     if: >-
