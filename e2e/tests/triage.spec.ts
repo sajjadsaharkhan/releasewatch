@@ -190,3 +190,42 @@ test('reject takes a comment and no reason', async ({ browser }) => {
 
   await leadCtx.close()
 })
+
+// The Duplicate outcome's original-bug box works like the Search page's: an
+// item number, `#n` or `BUG-n` jumps to that item; a prefix pins the type; the
+// item being triaged is never offered.
+test('duplicate picker finds the original by number or key', async ({ browser }) => {
+  const stamp = Date.now()
+  const leadCtx = await browser.newContext({ storageState: auth('qa') })
+  const lead = await leadCtx.newPage()
+  await lead.goto('/inbox')
+  const [project] = await api(lead, 'GET', '/projects')
+  const original = await api(lead, 'POST', '/issues', { project_id: project.id, title: `Original login bug ${stamp}`, description: 'x' })
+  const title = `Second login report ${stamp}`
+  const dup = await api(lead, 'POST', '/issues', { project_id: project.id, title, description: 'y' })
+
+  await lead.goto('/triage')
+  await lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) }).click()
+  const detail = lead.getByTestId('triage-detail')
+  await detail.getByRole('button', { name: 'Duplicate', exact: true }).click()
+  const box = detail.getByRole('textbox', { name: 'Search for the original item' })
+  const options = detail.getByRole('listbox', { name: 'Original item' })
+
+  for (const text of [original.key, `#${original.issue_number}`, String(original.issue_number)]) {
+    await box.fill(text)
+    await expect(options.getByRole('option', { name: new RegExp(`${original.key}.*Original login bug`) })).toBeVisible()
+  }
+  // The wrong type prefix and the item itself are not offered as a jump.
+  await box.fill(`TASK-${original.issue_number}`)
+  await expect(detail.getByText(/No bug or task TASK-\d+ in this project/)).toBeVisible()
+  await box.fill(dup.key)
+  await expect(detail.getByText(new RegExp(`No bug or task ${dup.key} in this project`))).toBeVisible()
+  await expect(options.getByRole('option', { name: new RegExp(`${dup.key}\\b`) })).toHaveCount(0)
+
+  await box.fill(original.key)
+  await options.getByRole('option', { name: new RegExp(original.key) }).click()
+  await detail.getByRole('button', { name: `Merge into ${original.key}` }).click()
+  await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
+
+  await leadCtx.close()
+})

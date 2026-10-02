@@ -559,7 +559,9 @@ notes and its submit button: **Accept** green, **Needs info** sky (the Needs inf
 **Duplicate** amber (the possible-duplicate marker), **Reject** red. Each opens one form with
 exactly its inputs (priority chips; optional assignee; the release / Backlog picker; for the
 Backlog only, an optional **Backlog category** — empty means the project's Default; a required
-question; the same-project `DuplicatePicker`; a required rejection comment). A reject has no
+question; the same-project `DuplicatePicker` — type `#13`, `13`, `BUG-13` or `TASK-13` to jump to that
+item (a prefix pins the type; the item itself is never offered), or words to search by meaning,
+the way the Search page's box does; a required rejection comment). A reject has no
 structured reason: the comment is the explanation and is posted publicly. The notes that explain
 what an outcome does are tinted callouts (`Note`), and optional fields carry an "Optional" chip —
 never mute either to grey helper text. A `duplicate_of_duplicate` refusal shows an amber inline

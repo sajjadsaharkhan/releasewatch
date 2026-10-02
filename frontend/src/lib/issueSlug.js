@@ -28,3 +28,15 @@ export function issueKey(issue) {
   const prefix = PREFIX_BY_TYPE[issue?.type] ?? 'issue'
   return `${prefix}-${issue?.issue_number}`
 }
+
+// A typed reference to one item: `#13`, `13`, `BUG-13`, `bug-13`, `TASK-13`
+// (a bare number or `#` matches either type; a prefix pins the type). Item
+// numbers are global, so the number alone finds the item.
+const REF_RE = /^(?:#|(bug|task|issue)-?)?(\d+)$/i
+
+export function parseIssueRef(text) {
+  const match = REF_RE.exec((text ?? '').trim())
+  if (!match) return null
+  const prefix = match[1]?.toLowerCase()
+  return { number: parseInt(match[2], 10), type: prefix === 'bug' || prefix === 'task' ? prefix : null }
+}
