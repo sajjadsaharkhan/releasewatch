@@ -104,12 +104,12 @@ export function IssueMainContent({
 
       {/* Possible duplicates of a New bug. Who may see them comes from the
           API (allowed_actions) — never the role — so Support never does
-          (FR-S13). Merging happens in triage, so "Merge into this" goes there
-          with this item ready to select. */}
+          (FR-S13). Merge confirms and merges right here, then opens the original. */}
       {issue.allowed_actions?.includes('view_duplicate_hints') && (
         <DuplicateHintsPanel
           issue={issue}
-          onMerge={() => navigate('/triage', { state: { selectIssueId: issue.id } })}
+          attachments={issue.attachments ?? []}
+          onMerged={(_updated, original) => navigate(`/issue/${original.key.toLowerCase()}`)}
         />
       )}
 

@@ -14,6 +14,7 @@ import { renderMarkdown } from '../../lib/markdown'
 import { TriageOutcomePanel } from './TriageOutcomePanel'
 import { DuplicateCandidateCard } from './DuplicateCandidateCard'
 import { DuplicateCompareDialog } from './DuplicateCompareDialog'
+import { DuplicateMergeDialog } from './DuplicateMergeDialog'
 
 /**
  * The right-hand pane of the triage page (slice 06, 14): a sticky header
@@ -27,17 +28,18 @@ export function TriageDetail({
 }) {
   const [tab, setTab] = useState('details')
   const [compare, setCompare] = useState(null)
-  // A candidate's Merge opens the Duplicate outcome with it preselected (FR-S14).
-  const [preset, setPreset] = useState(null)
+  // A candidate's Merge confirms and performs the merge (FR-S14).
+  const [merging, setMerging] = useState(null)
   const hints = useDuplicateHints(issue, { onDismissed, onComputed })
   const top = hints.hints[0]
   const reporter = issue.reporter_user
 
-  useEffect(() => { setTab('details'); setCompare(null) }, [issue.id])
+  useEffect(() => { setTab('details'); setCompare(null); setMerging(null) }, [issue.id])
   // The tab disappears with Jev or when the bug leaves New.
   useEffect(() => { if (tab === 'duplicates' && !hints.eligible) setTab('details') }, [tab, hints.eligible])
 
-  const merge = (candidate) => setPreset({ issueId: issue.id, candidate })
+  // A card's or the comparison's Merge: find that candidate's hint and confirm.
+  const merge = (candidate) => setMerging(hints.hints.find(h => h.candidate_id === candidate.id) ?? null)
 
   return (
     <div className="relative flex h-full min-h-0 flex-col" data-testid="triage-detail">
@@ -155,9 +157,13 @@ export function TriageDetail({
           assignable={assignable}
           onDone={onDone}
           toast={toast}
-          presetOriginal={preset?.issueId === issue.id ? preset.candidate : null}
         />
       </div>
+
+      {merging && (
+        <DuplicateMergeDialog issue={issue} hint={merging} toast={toast} onClose={() => setMerging(null)}
+          onMerged={(updated) => { setMerging(null); onDone(updated) }} />
+      )}
 
       {compare && (
         <DuplicateCompareDialog issue={issue} attachments={attachments} hint={compare} onClose={() => setCompare(null)}

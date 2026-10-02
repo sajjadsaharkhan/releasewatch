@@ -15,7 +15,7 @@ import { issueKey } from '../../lib/issueSlug'
 import { relTime, fullTime } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { SimilarityRing, similarityBand } from './SimilarityRing'
-import { mergeEffectSentence } from './DuplicateHintsPanel'
+import { mergeEffectSentence } from './mergeEffect'
 
 function Section({ title, count, children }) {
   return (

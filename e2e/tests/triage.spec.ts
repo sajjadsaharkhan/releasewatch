@@ -145,12 +145,40 @@ test('possible duplicate hint merges into the Done Stream bug', async ({ browser
   await expect(hintRow.getByRole('img', { name: /\d+% similar/ })).toBeVisible()
   await expect(hintRow.getByText('Done → back to To do (production)')).toBeVisible()
 
-  // ── 4. "Merge" preselects the Duplicate outcome ──────────────────────────
+  // Merge on a card is one decision: it asks first, and Cancel changes nothing.
   await hintRow.getByRole('button', { name: 'Merge', exact: true }).click()
-  await expect(detail.getByRole('button', { name: `Merge into ${streamBug.key}` })).toBeVisible()
-  await detail.getByRole('button', { name: `Merge into ${streamBug.key}` }).click()
+  const mergeTitle = lead.getByRole('heading', { name: `Merge ${dup.key} into ${streamBug.key}?` })
+  await expect(mergeTitle).toBeVisible()
+  await lead.getByRole('button', { name: 'Cancel' }).click()
+  await expect(mergeTitle).toHaveCount(0)
+
+  // ── 4. The item page shows the same cards; its Merge confirms, merges in
+  //      place and lands on the original ───────────────────────────────────
+  await lead.goto(`/issue/${dup.key.toLowerCase()}`)
+  const pageHints = lead.getByTestId('duplicate-hints')
+  await expect(pageHints).toBeVisible()
+  // Collapsed by default; open by itself only when the best match is 90% or more.
+  const toggle = pageHints.getByRole('button', { name: /^Possible duplicate/ })
+  const best = Number(/best match (\d+)%/.exec(await toggle.innerText())![1])
+  await expect(toggle).toHaveAttribute('aria-expanded', String(best >= 90))
+  if (best < 90) await toggle.click()
+  const pageCard = pageHints.locator('li').filter({ hasText: streamBug.key })
+  await expect(pageCard.getByRole('img', { name: /\d+% similar/ })).toBeVisible()
+  await pageCard.getByRole('button', { name: 'Compare' }).click()
+  const compare = lead.getByRole('heading', { name: new RegExp(`Compare ${dup.key} with ${streamBug.key}`) })
+  await expect(compare).toBeVisible()
+  await lead.keyboard.press('Escape')
+  await pageCard.getByRole('button', { name: 'Merge', exact: true }).click()
+  await expect(lead.getByRole('heading', { name: `Merge ${dup.key} into ${streamBug.key}?` })).toBeVisible()
+  await lead.getByRole('button', { name: `Merge into ${streamBug.key}` }).click()
+  await expect(lead).toHaveURL(new RegExp(`/issue/${streamBug.key.toLowerCase()}`)) // lands on the original
+
+  // The merged report was added to the original as a comment.
+  const timeline = await api(lead, 'GET', `/issues/${streamBug.id}/timeline?size=100`)
+  expect(timeline.items.some((e: { body?: string }) => e.body?.includes(title))).toBe(true)
 
   // ── 5. The Done Stream bug returns: Rejected, production cycle (AC-50) ────
+  await lead.goto('/triage')
   await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
   const after = await api(lead, 'GET', `/issues/${streamBug.id}`)
   expect(after.status).toBe('rejected')

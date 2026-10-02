@@ -1,97 +1,85 @@
-import React from 'react'
-import { Button } from '../ui/Button'
-import { StatusBadge, TypeIcon } from '../ui'
+import React, { useEffect, useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { useDuplicateHints } from '../../hooks/useDuplicateHints'
-import { issueSlug } from '../../lib/issueSlug'
-import { STATUS } from '../../lib/constants'
+import { DuplicateCandidateCard } from './DuplicateCandidateCard'
+import { DuplicateCompareDialog } from './DuplicateCompareDialog'
+import { DuplicateMergeDialog } from './DuplicateMergeDialog'
+import { useToast } from '../ui/Toast'
 
-// What "Merge into this" will do to the candidate, per BR-49 — the sentence
-// the API's merge_effect renders (FR-S13, AC-S11). The backend computes the
-// effect with the merge's own reason function, so this never disagrees with
-// what actually happens.
-export function mergeEffectSentence(hint) {
-  const label = STATUS[hint.candidate.status]?.label ?? hint.candidate.status
-  switch (hint.merge_effect) {
-    case 'stays_cancelled':
-      return 'Stays Cancelled'
-    case 'returns_release_qa':
-      return 'Done → back to To do (release QA)'
-    case 'returns_production':
-      return 'Done → back to To do (production)'
-    default:
-      return `Stays ${label}`
-  }
-}
+/** At or above this similarity the panel opens by itself — a near-certain match should not hide. */
+const AUTO_OPEN_AT = 0.9
 
 /**
- * Stored possible duplicates of a New bug (slice 14, FR-S12–S15): each hint
- * names the candidate and says what merging will do. **Merge into this**
- * opens the Duplicate outcome with the candidate preselected (the parent
- * wires that); **Not a duplicate** dismisses the pair for good (BR-S12).
- * Shown in the triage detail pane and, where the item allows it, on the item
- * page — Support never sees it (FR-S13; the page gates on allowed_actions,
- * never the role).
+ * Stored possible duplicates of a New bug (slice 14, FR-S12–S15) on the item
+ * page — the same candidates as the triage pane's Duplicates tab
+ * (`DuplicateCandidateCard`, laid out as one row each: similarity ring and %,
+ * title and merge effect, **Merge** / **Compare** / **Not a duplicate**).
+ * The panel is collapsed to its header by default and opens by itself when the
+ * best match is 90% or more; the reader's own toggle wins from then on.
+ * **Merge** confirms and performs the merge right here, then calls
+ * `onMerged(updatedIssue, original)`. Opening a bug that was never judged
+ * starts the comparison; a quiet line says so until it lands. Support never
+ * sees this (FR-S13; the page gates on allowed_actions, never the role).
  */
-export function DuplicateHintsPanel({ issue, onMerge, onDismissed }) {
-  const { eligible, hints: shown, dismiss } = useDuplicateHints(issue, { onDismissed })
+export function DuplicateHintsPanel({ issue, attachments = [], onMerged, onDismissed }) {
+  const hints = useDuplicateHints(issue, { onDismissed })
+  const { toast } = useToast()
+  const [compare, setCompare] = useState(null)
+  const [merging, setMerging] = useState(null)
+  // null = follow the default; true/false = the reader chose.
+  const [chosen, setChosen] = useState(null)
+  useEffect(() => { setChosen(null); setCompare(null); setMerging(null) }, [issue.id])
 
-  if (!eligible || shown.length === 0) return null
+  if (!hints.eligible) return null
+  if (hints.hints.length === 0) {
+    return hints.computing ? (
+      <p role="status" className="mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <Icon name="loader" size={12} className="animate-spin text-amber-600 dark:text-amber-400" aria-hidden="true" />
+        Looking for similar bugs…
+      </p>
+    ) : null
+  }
 
+  const merge = (candidate) => setMerging(hints.hints.find(h => h.candidate_id === candidate.id) ?? null)
+  const top = hints.hints[0]
+  const open = chosen ?? top.confidence >= AUTO_OPEN_AT
+  const listId = `duplicate-hints-${issue.id}`
   return (
     <section
       aria-label="Possible duplicates"
       data-testid="duplicate-hints"
-      className="mt-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-950/20"
+      className="mt-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"
     >
-      <h3 className="flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300">
-        <Icon name="copy" size={13} aria-hidden />
-        Possible duplicate{shown.length > 1 ? `s (${shown.length})` : ''}
-      </h3>
-      <ul className="mt-2 space-y-2">
-        {shown.map((hint) => (
-          <li
-            key={hint.candidate_id}
-            className="rounded-md border border-border/60 bg-background px-2.5 py-2"
-          >
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <TypeIcon type={hint.candidate.type} aria-hidden />
-                <span className="font-mono">{hint.candidate.key}</span>
-              </span>
-              <span className="min-w-0 flex-1">
-                <a
-                  href={`/issue/${issueSlug(hint.candidate)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate text-[13px] text-foreground underline-offset-2 hover:underline"
-                >
-                  {hint.candidate.title}
-                </a>
-                <span className="mt-0.5 flex items-center gap-1.5">
-                  <StatusBadge status={hint.candidate.status} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {mergeEffectSentence(hint)}
-                  </span>
-                </span>
-              </span>
-            </div>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Button size="sm" onClick={() => onMerge?.(hint.candidate)}>
-                Merge into this
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground"
-                onClick={() => dismiss(hint)}
-              >
-                Not a duplicate
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <button
+        type="button"
+        onClick={() => setChosen(!open)}
+        aria-expanded={open}
+        aria-controls={listId}
+        className="flex w-full items-center gap-1.5 rounded-[var(--radius)] px-3 py-2 text-left text-xs font-semibold text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-300"
+      >
+        <Icon name="copy" size={13} aria-hidden="true" />
+        Possible duplicate{hints.hints.length > 1 ? `s (${hints.hints.length})` : ''}
+        <span className="font-normal text-amber-800/80 dark:text-amber-300/80">
+          · best match {Math.round(top.confidence * 100)}%{open ? ' — check before accepting' : ''}
+        </span>
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} className="ml-auto" aria-hidden="true" />
+      </button>
+      {open && (
+        <ul id={listId} className="space-y-2 px-3 pb-3">
+          {hints.hints.map(hint => (
+            <DuplicateCandidateCard key={hint.candidate_id} hint={hint} layout="row"
+              onMerge={merge} onCompare={setCompare} onDismiss={hints.dismiss} />
+          ))}
+        </ul>
+      )}
+      {compare && (
+        <DuplicateCompareDialog issue={issue} attachments={attachments} hint={compare}
+          onClose={() => setCompare(null)} onMerge={merge} onDismiss={hints.dismiss} />
+      )}
+      {merging && (
+        <DuplicateMergeDialog issue={issue} hint={merging} toast={toast} onClose={() => setMerging(null)}
+          onMerged={(updated, original) => { setMerging(null); onMerged?.(updated, original) }} />
+      )}
     </section>
   )
 }

@@ -545,8 +545,10 @@ source>` (Support teal, headset icon) in the triage queue and `IssueTable`.
   (the percentage in the ring, amber from 80%, zinc below; the label under the key says
   "Almost certainly / Likely / Possibly the same"), type icon + key + status pill, the title
   (opens in a new tab), "If merged: …" (the BR-49 sentence — "Stays In progress", "Stays
-  Cancelled", "Done → back to To do (release QA)" / "(production)"), and **Merge** (opens the
-  Duplicate outcome preselected), **Compare** (`DuplicateCompareDialog`, `max-w-6xl`: a similarity
+  Cancelled", "Done → back to To do (release QA)" / "(production)"), and **Merge** (opens
+  `DuplicateMergeDialog`, which says what will happen — the duplicate is cancelled, its text is added
+  to the original as a comment, the original's merge effect — takes an optional comment, and
+  performs the merge itself; "Merge into BUG-m instead" when the candidate is itself a duplicate), **Compare** (`DuplicateCompareDialog`, `max-w-6xl`: a similarity
   strip, then this bug and the candidate in two columns — type, key, status, priority and source
   badges, title, reporter, filed, project, placement, assignee, environment, labels, the full
   description, reproduction steps with Expected / Actual, and attachments; the candidate is
@@ -571,8 +573,11 @@ notice with "Use BUG-n instead". While an item is in Needs info, the item page p
 triager's question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
 
 Tech users also get `components/triage/DuplicateHintsPanel` on the item page under the title
-meta row — an amber panel, one row per stored hint, with **Merge into this** (which goes to the
-triage queue with the item selected) and **Not a duplicate**. The same judgment powers two form
+meta row: an amber section **collapsed to its header** ("Possible duplicates (2) · best match 94%",
+chevron, `aria-expanded`) that **opens by itself when the best match is 90% or more**; the reader's
+own toggle wins until the next bug. Open, it lists one horizontal `DuplicateCandidateCard`
+(`layout="row"`) per hint — ring and %, key and status, title and "If merged: …", then Merge /
+Compare / Not a duplicate. Merge confirms and merges in place, then opens the original. The same judgment powers two form
 panels, both hidden while Jev is off or nothing was suggested: **Possibly the same** beside the
 create form (`issues/SimilarItemsPanel`, `Same problem`/`Related` badges, information only) and
 **Similar reports** under the support form's title (`support/SimilarReportsPanel`, with
