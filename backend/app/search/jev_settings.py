@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import attributes
 
 from app.config import settings
+from app.core import proxy
 from app.core.errors import DomainError
 from app.db.models.system_setting import SystemSetting
 from app.search.jev import DEFAULT_MODEL, JevClient
@@ -194,4 +195,11 @@ async def client(db: AsyncSession) -> JevClient | None:
     fresh, never the 30 s cache: the backfill runs in a worker whose cached
     flag an enabling PUT cannot bust, and a stale off would skip it for good."""
     config = await load(db)
-    return JevClient(config.api_key, config.model) if config.active else None
+    if not config.active:
+        return None
+    return JevClient(config.api_key, config.model, await jev_proxy(db))
+
+
+async def jev_proxy(db: AsyncSession) -> str | None:
+    """The Settings → Configuration proxy for Jev's host, if enabled."""
+    return await proxy.for_url(db, settings.JEV_BASE_URL)

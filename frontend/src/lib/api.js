@@ -352,6 +352,7 @@ export const settingsApi = {
   saveGeneral: (data) => api.put('/settings/general', data),
   getConfiguration: () => api.get('/settings/configuration'),
   saveConfiguration: (data) => api.put('/settings/configuration', data),
+  testProxy: (data) => api.post('/settings/configuration/proxy/test', data),
 }
 
 // ─── Support intake (slice 05) ────────────────────────────────────────────────

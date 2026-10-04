@@ -37,6 +37,13 @@ class GeneralResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProxyTestRequest(BaseModel):
+    """Settings → Configuration → Test: the form's current values, saved or not."""
+
+    url: str = Field(min_length=1, max_length=2048)
+    proxy: ProxyConfig
+
+
 class ConfigurationResponse(BaseModel):
     """Complete system configuration response."""
 

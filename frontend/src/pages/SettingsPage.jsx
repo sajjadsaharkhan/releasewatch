@@ -18,7 +18,7 @@ import { CreateMemberModal, EditMemberModal, ConfirmModal, DeleteLabelModal, Inv
 import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, NeedsTriageLeadBadge } from '../components/project'
 import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
 import { BacklogCategoriesTab } from '../components/backlog/BacklogCategoriesTab'
-import { SearchSettingsTab, SettingsSideNav, SettingsSectionHeader } from '../components/settings'
+import { SearchSettingsTab, SettingsSideNav, SettingsSectionHeader, ProxyTest } from '../components/settings'
 import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
 import { GatedButton } from '../components/common'
 import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
@@ -1072,6 +1072,7 @@ export default function SettingsPage() {
                         placeholder="localhost,127.0.0.1,.internal.com"
                       />
                     </div>
+                    <ProxyTest proxy={proxy} />
                   </div>
                 )}
               </div>

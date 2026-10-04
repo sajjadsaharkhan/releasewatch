@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+from app.core import proxy as proxy_lib
 from app.core.auth import get_current_user, require_role
+from app.core.proxy import mask as _mask_proxy_url
 from app.db.models.telegram_integration import TelegramIntegration
 from app.db.models.user import User, UserRole
 from app.db.models.system_setting import SystemSetting
@@ -18,6 +20,7 @@ from app.db.session import get_db
 from app.schemas.auth import TelegramIntegrationResponse
 from app.schemas.settings import (
     ProxyConfig,
+    ProxyTestRequest,
     GeneralConfig,
     GeneralResponse,
     ConfigurationResponse,
@@ -84,19 +87,6 @@ def _mask_bot_token(token: str) -> str:
         return token[:4] + "..." if len(token) > 4 else "***"
     bot_id, key = token.split(":", 1)
     return bot_id + ":" + key[:4] + "..." + key[-4:]
-
-
-def _mask_proxy_url(url: str) -> str:
-    """Mask credentials in a proxy URL so it is safe to return to the frontend."""
-    try:
-        parsed = urlparse(url)
-        if parsed.password:
-            host = f"{parsed.hostname}:{parsed.port}" if parsed.port else (parsed.hostname or "")
-            netloc = f"{parsed.username}:***@{host}" if parsed.username else f"***@{host}"
-            return urlunparse(parsed._replace(netloc=netloc))
-    except Exception:
-        pass
-    return url
 
 
 async def _call_get_me(token: str, proxy_url: str | None) -> tuple[dict | None, str | None]:
@@ -354,3 +344,29 @@ async def save_configuration(
     return {"status": "ok"}
 
 
+@router.post("/configuration/proxy/test")
+async def test_proxy(
+    body: ProxyTestRequest,
+    current_user: User = Depends(require_role(UserRole.admin)),
+) -> dict:
+    """Admin: one GET to ``body.url`` through the proxy in the form (saved or not).
+
+    Any HTTP answer counts as ``ok`` — it proves the route works. Admin-only
+    because it makes the server fetch an arbitrary URL.
+    """
+    target = urlparse(body.url.strip())
+    if target.scheme not in ("http", "https") or not target.hostname:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Enter a full http(s):// URL.")
+    value = body.proxy.model_dump()
+    proxy_url = proxy_lib.resolve(value, body.url.strip())
+    if not proxy_url:
+        reason = "proxy_disabled" if not value["enabled"] else "no_proxy_for_url"
+        return {"ok": False, "reason": reason, "status_code": None, "latency_ms": 0, "proxy": None}
+    result = await proxy_lib.probe(body.url.strip(), proxy_url)
+    return {
+        "ok": result.ok,
+        "reason": result.reason,
+        "status_code": result.status_code,
+        "latency_ms": result.latency_ms,
+        "proxy": _mask_proxy_url(proxy_url),
+    }

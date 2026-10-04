@@ -155,7 +155,9 @@ async def test_jev(db: AsyncSession) -> dict:
     jev = await jev_settings.load(db)
     if not jev.has_key:
         return {"ok": False, "latency_ms": 0, "model": None, "reason": "no_key"}
-    outcome = await JevClient(jev.api_key, jev.model).ping()
+    outcome = await JevClient(
+        jev.api_key, jev.model, await jev_settings.jev_proxy(db)
+    ).ping()
     await jev_settings.record_test(db, outcome.ok)
     return {
         "ok": outcome.ok, "latency_ms": outcome.latency_ms, "model": outcome.model,

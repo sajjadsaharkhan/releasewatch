@@ -100,9 +100,13 @@ def _excerpt(text: str | None, limit: int) -> str:
 
 
 class JevClient:
-    def __init__(self, api_key: str | None, model: str = DEFAULT_MODEL) -> None:
+    def __init__(
+        self, api_key: str | None, model: str = DEFAULT_MODEL, proxy_url: str | None = None
+    ) -> None:
         self.api_key = api_key
         self.model = model or DEFAULT_MODEL
+        #: Settings → Configuration proxy, when enabled for Jev's host (never logged).
+        self.proxy_url = proxy_url
 
     # ── Transport ─────────────────────────────────────────────────────────────
 
@@ -111,7 +115,11 @@ class JevClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         start = time.perf_counter()
         try:
-            async with httpx.AsyncClient(timeout=timeout, transport=transport_override) as client:
+            async with httpx.AsyncClient(
+                timeout=timeout,
+                transport=transport_override,
+                proxy=None if transport_override else self.proxy_url,
+            ) as client:
                 resp = await client.post(url, json=payload, headers=headers)
         except httpx.TimeoutException:
             return JevOutcome(False, reason="timeout", latency_ms=_ms(start))
