@@ -3,7 +3,6 @@ import { Plus, Trash2, Paperclip, X, ChevronDown, ChevronRight } from 'lucide-re
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { Select, SelectItem } from '../ui/Select'
 import { DatePicker } from '../ui/DatePicker'
 import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
@@ -11,7 +10,7 @@ import { AttachmentsSection } from './AttachmentsSection'
 import { SimilarityRing, similarityBand } from '../triage/SimilarityRing'
 import { useSimilarItems } from '../../hooks/useSimilarItems'
 import { issueSlug } from '../../lib/issueSlug'
-import { BacklogCategoryPicker, ContainerPicker, ProjectSwitcher } from '../common'
+import { BacklogCategoryPicker, ContainerPicker, ProjectSwitcher, UserPicker } from '../common'
 import { PRIORITY, PRIORITIES, TASK_DEFAULT_PRIORITY, TECH_DEBT, TYPE, isOpenRelease } from '../../lib/constants'
 import { ENVIRONMENT } from './DescriptionSection'
 import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../lib/api'
@@ -499,9 +498,7 @@ function BacklogCategory({ s }) {
 }
 
 const Assignee = ({ s }) => (
-  <Select value={s.form.assigneeId} onChange={(id) => s.set('assigneeId', id)} placeholder="Unassigned">
-    {s.assignableUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-  </Select>
+  <UserPicker users={s.assignableUsers} value={s.form.assigneeId || null} onChange={(id) => s.set('assigneeId', id ?? '')} />
 )
 const Due = ({ s }) => <DatePicker value={s.form.dueDate} onChange={(d) => s.set('dueDate', d)} placeholder="No due date" />
 const Blocker = ({ s }) => !s.isTask && s.inRelease && (
