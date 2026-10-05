@@ -54,6 +54,8 @@ function normalize(i) {
   }
 }
 
+const shortDay = (day) => new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
 function dueLabel(item) {
   if (item.dueState === 'overdue') return 'Overdue'
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -115,19 +117,21 @@ function RejectMarker({ item }) {
 }
 
 function DueMarker({ item }) {
-  if (item.dueState === 'none' || !item.due_date) return null
+  if (!item.due_date) return null
   const overdue = item.dueState === 'overdue'
-  const label = dueLabel(item)
+  const far = item.dueState === 'none'
+  const label = far ? 'Due' : dueLabel(item)
   return (
     <Tooltip content={`${label} · ${formatDay(item.due_date)}`}>
       <span
         className={cn(
           'inline-flex shrink-0 items-center gap-0.5 text-[10.5px] font-semibold',
-          overdue ? 'text-red-600 dark:text-red-400' : 'text-amber-700 dark:text-amber-300',
+          overdue ? 'text-red-600 dark:text-red-400'
+            : far ? 'font-medium text-muted-foreground' : 'text-amber-700 dark:text-amber-300',
         )}
       >
-        <Icon name={overdue ? 'calendar-x' : 'calendar-clock'} size={11} strokeWidth={2.4} aria-hidden="true" />
-        <span>{overdue ? 'Overdue' : label.replace('Due ', '')}</span>
+        <Icon name={overdue ? 'calendar-x' : far ? 'calendar' : 'calendar-clock'} size={11} strokeWidth={2.4} aria-hidden="true" />
+        <span>{overdue ? 'Overdue' : far ? shortDay(item.due_date) : label.replace('Due ', '')}</span>
       </span>
     </Tooltip>
   )

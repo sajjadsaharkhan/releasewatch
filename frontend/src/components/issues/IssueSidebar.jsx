@@ -5,6 +5,7 @@ import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
 import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { Switch } from '../ui/Switch'
+import { DatePicker } from '../ui/DatePicker'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
@@ -21,7 +22,7 @@ import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
 import { PRIORITIES, RELEASE_STATUS, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
-import { relTime } from '../../lib/relTime'
+import { relTime, formatDay } from '../../lib/relTime'
 
 // Status movement is unrestricted — any status can move to any other status,
 // no reason required, no self-verification block (see app/workflow.py).
@@ -45,6 +46,21 @@ function Editable({ issue, action, readOnly, children }) {
   return readOnly
 }
 
+const toDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// Overdue = the due day is before today, and the item isn't finished (done / cancelled).
+const isOverdue = (issue) =>
+  !!issue.due_date && !['done', 'cancelled'].includes(issue.status) && issue.due_date < toDay(new Date())
+
+function OverdueTag() {
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-red-700 dark:bg-red-900/40 dark:text-red-300">
+      <Icon name="calendar-x" size={10} strokeWidth={2.5} aria-hidden="true" />
+      Overdue
+    </span>
+  )
+}
+
 export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableProjects, applyUpdate, onSentBack, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
@@ -55,6 +71,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   // Whether the Reject dialog is open (09a).
   const [rejecting, setRejecting] = React.useState(false)
   const place = placementOf(issue)
+  const overdue = isOverdue(issue)
   // The Release row's choices: open releases, plus the current one if it's closed.
   const { releases: allReleases, openReleases } = useContainers(issue.project_id)
   const currentRelease = allReleases.find((r) => r.id === issue.release_id)
@@ -176,6 +193,39 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             </>
           )}
         </Dropdown>
+        </Editable>
+      </MetaRow>
+
+      <MetaRow label="Due date">
+        <Editable
+          issue={issue}
+          action="set_due_date"
+          readOnly={issue.due_date
+            ? <span className={cn('inline-flex items-center gap-1.5', overdue ? 'text-red-600 dark:text-red-400' : 'text-zinc-800 dark:text-zinc-200')}>{formatDay(issue.due_date)}{overdue && <OverdueTag />}</span>
+            : <span className="text-zinc-400 italic">none</span>}
+        >
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <DatePicker
+              className={cn(
+                'h-auto w-auto gap-0 whitespace-nowrap border-0 bg-transparent p-0 text-[12.5px] shadow-none hover:bg-transparent hover:underline',
+                issue.due_date && (overdue ? 'text-red-600 dark:text-red-400' : 'text-zinc-800 dark:text-zinc-200'),
+              )}
+              placeholder="No due date"
+              value={issue.due_date ? new Date(`${issue.due_date}T00:00:00`) : undefined}
+              onChange={(d) => d && toDay(d) !== issue.due_date && applyUpdate({ due_date: toDay(d) }, 'Due date updated')}
+            />
+            {issue.due_date && (
+              <button
+                type="button"
+                aria-label="Clear due date"
+                onClick={() => applyUpdate({ due_date: null }, 'Due date cleared')}
+                className="rounded p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              >
+                <Icon name="x" size={12} />
+              </button>
+            )}
+            {overdue && <OverdueTag />}
+          </div>
         </Editable>
       </MetaRow>
 
