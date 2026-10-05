@@ -505,9 +505,8 @@ Route access keys off role, not off the badge. `lib/roles.js` holds the role-lev
   role. Support only reports, so a Support profile shows the header, the Reported card, and
   the Reported tab (plus Edit profile, Security, and Telegram on its own profile).
 - `ADMIN_ROLES = ['admin', 'cto']` still gates the Reports section in `Sidebar`, the Settings
-  link in `Topbar`, and `<AdminRoute>`. Inside Settings, managing users and projects is
-  **Admin only** (`canManageUsersAndProjects`); a CTO sees those controls disabled with a
-  tooltip rather than hidden.
+  link in `Topbar`, and `<AdminRoute>`. Inside Settings the CTO has every Admin control
+  (`canManageUsersAndProjects` = Admin or CTO, 2026-10-05); Support-role users never reach it.
 
 **Per-item permissions never key off role in the UI.** Every `IssueResponse` carries
 `allowed_actions` and `blocked_actions` (`{action, code, detail}`) from

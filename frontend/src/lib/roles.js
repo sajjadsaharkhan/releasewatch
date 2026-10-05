@@ -23,8 +23,8 @@ export const canManageTemplates = (role) => role === 'cto' || role === 'admin'
 /** The Team page's Workload view (slice 11) — CTO and Admin (`view_team_overview`). */
 export const canViewTeamOverview = (role) => role === 'cto' || role === 'admin'
 
-/** Manage users and projects — Admin only (§7.3). */
-export const canManageUsersAndProjects = (role) => role === 'admin'
+/** Manage users and projects — Admin and CTO (§7.3). */
+export const canManageUsersAndProjects = (role) => role === 'admin' || role === 'cto'
 
-export const ONLY_ADMINS_MANAGE_PROJECTS = 'Only admins can manage projects.'
-export const ONLY_ADMINS_MANAGE_USERS = 'Only admins can manage users.'
+export const ONLY_ADMINS_MANAGE_PROJECTS = 'Only admins and CTOs can manage projects.'
+export const ONLY_ADMINS_MANAGE_USERS = 'Only admins and CTOs can manage users.'

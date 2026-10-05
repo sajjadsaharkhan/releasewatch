@@ -170,9 +170,10 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.go_nogo: _CTO_ADMIN,
     Action.manage_templates: _CTO_ADMIN,
     Action.manage_backlog_categories: _CTO_ADMIN,  # Settings → Backlog categories (2026-09-28)
-    Action.manage_users: frozenset({"admin"}),
-    Action.manage_projects: frozenset({"admin"}),
-    Action.manage_search: frozenset({"admin"}),
+    # CTO has everything Admin has in Settings (2026-10-05).
+    Action.manage_users: _CTO_ADMIN,
+    Action.manage_projects: _CTO_ADMIN,
+    Action.manage_search: _CTO_ADMIN,
     # Field edits on an item a tech user can see.
     Action.edit_item: _T,
     Action.assign: _T,

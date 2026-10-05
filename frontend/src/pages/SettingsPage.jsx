@@ -1172,7 +1172,7 @@ export default function SettingsPage() {
             onClose={() => setEditModalOpen(false)}
             user={selectedUser}
             currentUser={currentUser}
-            canEditRole={currentUser?.role === 'admin'}
+            canEditRole={['admin', 'cto'].includes(currentUser?.role)}
             onUpdated={handleUserUpdated}
           />
           <DeactivateUserModal

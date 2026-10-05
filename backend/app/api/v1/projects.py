@@ -106,7 +106,7 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_action(Action.manage_projects)),
 ) -> ProjectResponse:
-    """Create a new project (admin only, §7.3). A triage lead is required (BR-15)."""
+    """Create a new project (Admin and CTO, §7.3). A triage lead is required (BR-15)."""
     await validate_triage_lead(db, payload.triage_lead_id)
     # Check slug uniqueness
     existing = await db.execute(select(Project).where(Project.slug == payload.slug))

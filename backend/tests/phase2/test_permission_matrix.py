@@ -193,7 +193,7 @@ async def test_manage_users(world, role):
         "name": "New Person", "username": f"new-{role}", "role": "qa",
         "temporary_password": "a-long-password-123",
     })
-    assert resp.status_code == _expect(role, {"admin"}, 201, support_status=403), resp.text
+    assert resp.status_code == _expect(role, {"cto", "admin"}, 201, support_status=403), resp.text
 
 
 @pytest.mark.asyncio
@@ -203,7 +203,7 @@ async def test_manage_projects(world, role):
     resp = await c.post("/projects", json={
         "name": "P", "slug": f"p-{role}", "triage_lead_id": world.lead.id,
     })
-    assert resp.status_code == _expect(role, {"admin"}, 201, support_status=403), resp.text
+    assert resp.status_code == _expect(role, {"cto", "admin"}, 201, support_status=403), resp.text
 
 
 # ── Reports are tech-only (spec: Support gets 403 on reports) ────────────────────

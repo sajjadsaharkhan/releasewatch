@@ -31,12 +31,12 @@ EXPECTED = {
     Action.view_team_overview: {"cto", "admin"},
     Action.go_nogo: {"cto", "admin"},
     Action.manage_templates: {"cto", "admin"},
-    Action.manage_users: {"admin"},
-    Action.manage_projects: {"admin"},
-    Action.manage_search: {"admin"},
-    Action.flag_release_blocker: {"qa", "pm", "cto", "admin"},
-    Action.reject: {"qa", "developer", "pm", "cto", "admin"},
-    Action.view_reports: {"qa", "developer", "pm", "cto", "admin"},
+    Action.manage_users: {"cto", "admin"},
+    Action.manage_projects: {"cto", "admin"},
+    Action.manage_search: {"cto", "admin"},
+    Action.flag_release_blocker: {"qa", "product_manager", "cto", "admin"},
+    Action.reject: {"qa", "developer", "product_manager", "cto", "admin"},
+    Action.view_reports: {"qa", "developer", "product_manager", "cto", "admin"},
 }
 
 

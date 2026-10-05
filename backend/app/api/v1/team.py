@@ -1,6 +1,6 @@
 """Team management API — list members, invite, change role, deactivate.
 
-User management is admin-only (``manage_users``, §7.3). ``GET /team?assignable=true``
+User management is Admin and CTO (``manage_users``, §7.3). ``GET /team?assignable=true``
 is what every assignee picker calls — it never lists Support users (BR-32, AC-47).
 ``GET /team/workload`` is the Team overview's Workload view (slice 11, FR-43) —
 CTO and Admin only (``view_team_overview``, AC-48).
@@ -182,7 +182,7 @@ async def change_role(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_action(Action.manage_users)),
 ):
-    """Change a team member's role (admin only)."""
+    """Change a team member's role (Admin and CTO)."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -200,7 +200,7 @@ async def update_user(
     current_user: User = Depends(get_current_user),
 ):
     """Update a team member's profile (name, username, title, bio, avatar_color, password).
-    Admins can edit anyone. Users can edit their own profile (except role).
+    Admins and CTOs can edit anyone. Users can edit their own profile (except role).
     Password changes only allowed by admins or for self.
     """
     result = await db.execute(select(User).where(User.id == user_id))
@@ -208,8 +208,8 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Only admins can change role and password of others
-    is_admin = current_user.role == UserRole.admin
+    # Only admins and CTOs can change role and password of others
+    is_admin = current_user.role in (UserRole.admin, UserRole.cto)  # CTO = Admin here
     is_self = current_user.id == user.id
 
     if not is_admin and not is_self:
@@ -235,13 +235,13 @@ async def update_user(
     if body.role is not None and is_admin:
         user.role = UserRole(body.role)
     if body.password is not None:
-        # Only admins can change other users' passwords
+        # Only admins and CTOs can change other users' passwords
         if is_self or is_admin:
             user.hashed_password = get_password_hash(body.password)
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only admins can change other users' passwords"
+                detail="Only admins and CTOs can change other users' passwords"
             )
 
     await db.commit()

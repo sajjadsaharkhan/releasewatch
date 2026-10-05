@@ -173,10 +173,10 @@ async def get_telegram_integration(
 @router.put("/integrations/telegram", response_model=TelegramIntegrationResponse)
 async def save_telegram_integration(
     body: TelegramBotConfigRequest,
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Save Telegram bot token (admin only).
+    """Save Telegram bot token (Admin and CTO).
 
     After storing the token, calls Telegram getMe to auto-populate the bot username.
     Restart the backend for the new token to take effect in the polling loop.
@@ -247,10 +247,10 @@ async def get_general_settings(
 @router.put("/general")
 async def save_general_settings(
     body: GeneralConfig,
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Save general workspace settings (admin only)."""
+    """Save general workspace settings (Admin and CTO)."""
     await _set_setting(
         db,
         "general",
@@ -324,10 +324,10 @@ async def get_configuration(
 @router.put("/configuration")
 async def save_configuration(
     body: ConfigurationResponse,
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Save system configuration (admin only)."""
+    """Save system configuration (Admin and CTO)."""
     # Save proxy settings
     await _set_setting(
         db,
@@ -347,7 +347,7 @@ async def save_configuration(
 @router.post("/configuration/proxy/test")
 async def test_proxy(
     body: ProxyTestRequest,
-    current_user: User = Depends(require_role(UserRole.admin)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.cto)),
 ) -> dict:
     """Admin: one GET to ``body.url`` through the proxy in the form (saved or not).
 

@@ -92,7 +92,7 @@ export function EditUserModal({ open, onClose, user, onUpdated, currentUser, can
         avatar_color: form.avatar_color !== user.avatar_color ? form.avatar_color : undefined,
       }
 
-      // Only admins can change role via profile update
+      // Only admins and CTOs can change role via profile update
       if (form.role !== user.role && canEditRole) {
         updateData.role = form.role
       }
@@ -208,7 +208,7 @@ export function EditUserModal({ open, onClose, user, onUpdated, currentUser, can
               disabled={!canEditRole}
             />
             {!canEditRole && (
-              <p className="text-xs text-muted-foreground mt-1">Only admins can change roles</p>
+              <p className="text-xs text-muted-foreground mt-1">Only admins and CTOs can change roles</p>
             )}
           </div>
           <div>

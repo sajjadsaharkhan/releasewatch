@@ -52,7 +52,7 @@ export default function TeamPage() {
   }
 
   const canInviteUser = currentUser?.role && CAN_INVITE_ROLES.includes(currentUser.role)
-  const canEditRole = currentUser?.role && currentUser.role === 'admin'
+  const canEditRole = ['admin', 'cto'].includes(currentUser?.role)
 
   const fetchTeam = useCallback(async () => {
     setLoading(true)
