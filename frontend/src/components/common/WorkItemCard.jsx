@@ -247,7 +247,7 @@ function HoverDetails({ item }) {
 /** Opens the details after a short hover or on keyboard focus; portaled, viewport-clamped. */
 function useHoverDetails() {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: HOVER_HEIGHT })
   const ref = useRef(null)
   const timer = useRef(null)
 
@@ -256,8 +256,14 @@ function useHoverDetails() {
     if (!rect) return
     const pad = 12
     const left = Math.max(pad, Math.min(rect.left, window.innerWidth - HOVER_WIDTH - pad))
-    const below = window.innerHeight - rect.bottom - pad >= HOVER_HEIGHT
-    setPos({ top: below ? rect.bottom + 6 : Math.max(pad, rect.top - HOVER_HEIGHT - 6), left })
+    const spaceBelow = window.innerHeight - rect.bottom - pad - 6
+    const spaceAbove = rect.top - pad - 6
+    // Sit flush against the card on whichever side fits the details (or has more room);
+    // anchoring to the card's edge means the real height never leaves a gap.
+    const below = spaceBelow >= HOVER_HEIGHT || spaceBelow >= spaceAbove
+    setPos(below
+      ? { top: rect.bottom + 6, left, maxHeight: spaceBelow }
+      : { bottom: window.innerHeight - rect.top + 6, left, maxHeight: spaceAbove })
   }, [])
 
   const show = useCallback(() => {
@@ -291,8 +297,8 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
     <div
       role="tooltip"
       data-testid="work-item-details"
-      className="fixed z-[9999] rounded-lg border border-border bg-card p-3.5 shadow-lg"
-      style={{ top: hover.pos.top, left: hover.pos.left, width: HOVER_WIDTH }}
+      className="fixed z-[9999] overflow-y-auto rounded-lg border border-border bg-card p-3.5 shadow-lg"
+      style={{ top: hover.pos.top, bottom: hover.pos.bottom, left: hover.pos.left, width: HOVER_WIDTH, maxHeight: hover.pos.maxHeight }}
       onMouseEnter={hover.keep}
       onMouseLeave={hover.hide}
     >
