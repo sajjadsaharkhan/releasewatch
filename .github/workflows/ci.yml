@@ -265,3 +265,39 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+
+  # ── Deploy — runs deploy.sh on the production server's self-hosted runner ──
+  # Only on pushes to main, and only when images were actually published and
+  # every docker job succeeded. Always deploys `latest`: the sha tag only exists
+  # for images that were rebuilt, so it would fail when only one side changed.
+  deploy:
+    name: Deploy — production
+    needs: [changes, docker]
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && needs.changes.outputs.any-image == 'true'
+      && needs.docker.result == 'success'
+    runs-on: self-hosted
+    timeout-minutes: 45
+    environment: production
+
+    # Never run two deploys at once, and never cancel one mid-flight.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      # deploy.sh needs the server's .env (not in git), so it runs from the
+      # existing production checkout rather than the runner's throwaway workspace.
+      # Set the repo variable DEPLOY_PATH to that directory.
+      - name: Update production checkout
+        working-directory: ${{ vars.DEPLOY_PATH }}
+        run: |
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+
+      - name: Deploy
+        working-directory: ${{ vars.DEPLOY_PATH }}
+        run: ./deploy.sh
