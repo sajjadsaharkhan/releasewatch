@@ -52,7 +52,7 @@
   ]},
  {"id": "c65", "project": "Chat", "area": "links", "note": "Link preview: a task and a bug in the same area (hard negatives of each other).",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "نمایش پیش‌نمایش لینک در پیام‌ها", "d": "وقتی URL در پیام فرستاده می‌شود عنوان و تصویر صفحه به صورت کارت زیر پیام نمایش داده شود.", "days": 52},
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "نمایش پیش‌نمایش لینک در پیام‌ها", "d": "وقتی URL در پیام فرستاده می‌شود عنوان و تصویر صفحه به صورت کارت زیر پیام نمایش داده شود.", "days": 52},
    {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "qa", "t": "لینک‌هایی که با پیشوند www شروع می‌شوند کلیک‌پذیر نیستند", "d": "فقط آدرس‌هایی که با https شروع شوند به لینک تبدیل می‌شوند.", "steps": [["پیام «www.example.com» را بفرستید", "متن به لینک تبدیل شود", "متن ساده می‌ماند"]], "days": 12}
   ],
   "drafts": [
@@ -65,7 +65,7 @@
   ]},
  {"id": "c66", "project": "Chat", "area": "delete", "note": "Delete for everyone window (task) — also has a recurrence-like bug sibling.",
   "members": [
-   {"k": "a", "type": "task", "st": "in_progress", "sev": "enhancement", "role": "pm", "t": "محدودیت زمانی حذف پیام برای همه شرکت‌کنندگان", "d": "فرستنده فقط تا ۴۸ ساعت بعد از ارسال بتواند پیام را برای همه حذف کند؛ بعد از آن فقط برای خودش.", "days": 25, "cm": [["pm", "۴۸ ساعت را با تیم محصول نهایی کنید."], ["developer", "روی گروه‌ها و چت خصوصی یکسان اعمال می‌شود؟", 0]]}
+   {"k": "a", "type": "task", "st": "in_progress", "sev": "enhancement", "role": "product_manager", "t": "محدودیت زمانی حذف پیام برای همه شرکت‌کنندگان", "d": "فرستنده فقط تا ۴۸ ساعت بعد از ارسال بتواند پیام را برای همه حذف کند؛ بعد از آن فقط برای خودش.", "days": 25, "cm": [["product_manager", "۴۸ ساعت را با تیم محصول نهایی کنید."], ["developer", "روی گروه‌ها و چت خصوصی یکسان اعمال می‌شود؟", 0]]}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "developer", "t": "Time limit for delete-for-everyone", "d": "After N hours only local delete should be allowed.", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["description"], "diff": "easy"},
@@ -101,7 +101,7 @@
   ]},
  {"id": "c69", "project": "Limsa", "area": "vocab", "note": "Vocabulary export: task + comment-driven detail.",
   "members": [
-   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "pm", "t": "خروجی گرفتن از لیست لغات یادگرفته‌شده", "d": "کاربر بتواند لغت‌های ذخیره‌شده را به صورت فایل دانلود کند.", "days": 9, "cm": [["pm", "فرمت CSV و PDF هر دو خوب است."], ["support", "سه موسسه تا الان درخواست کردند.", 1]]}
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "product_manager", "t": "خروجی گرفتن از لیست لغات یادگرفته‌شده", "d": "کاربر بتواند لغت‌های ذخیره‌شده را به صورت فایل دانلود کند.", "days": 9, "cm": [["product_manager", "فرمت CSV و PDF هر دو خوب است."], ["support", "سه موسسه تا الان درخواست کردند.", 1]]}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "support", "t": "میشه لغت‌هایی که یاد گرفته رو دانلود کرد؟", "d": "زبان‌آموز می‌خواد چاپ کنه.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "easy"}

@@ -12,22 +12,22 @@ import pytest
 from app import policy
 from app.policy import Action, Actor, Target, decide, item_actions, transition
 
-ROLES = ["support", "qa", "developer", "pm", "cto", "admin"]
+ROLES = ["support", "qa", "developer", "product_manager", "cto", "admin"]
 ME = 7
 OTHER = 8
 
 # capability → roles allowed (no triage-lead designation involved)
 EXPECTED = {
     Action.submit_support_report: {"support", "admin"},
-    Action.create_item: {"qa", "developer", "pm", "cto", "admin"},
-    Action.comment_internal: {"qa", "developer", "pm", "cto", "admin"},
+    Action.create_item: {"qa", "developer", "product_manager", "cto", "admin"},
+    Action.comment_internal: {"qa", "developer", "product_manager", "cto", "admin"},
     Action.report_recurrence: set(ROLES),
-    Action.triage: {"qa", "developer", "pm", "cto", "admin"},
-    transition("in_progress"): {"qa", "developer", "pm", "cto", "admin"},
-    transition("done"): {"qa", "developer", "pm", "cto", "admin"},
-    Action.flag_tech_debt: {"qa", "developer", "pm", "cto", "admin"},
-    Action.manage_backlog: {"pm", "cto", "admin"},
-    Action.manage_releases: {"pm", "cto", "admin"},
+    Action.triage: {"qa", "developer", "product_manager", "cto", "admin"},
+    transition("in_progress"): {"qa", "developer", "product_manager", "cto", "admin"},
+    transition("done"): {"qa", "developer", "product_manager", "cto", "admin"},
+    Action.flag_tech_debt: {"qa", "developer", "product_manager", "cto", "admin"},
+    Action.manage_backlog: {"product_manager", "cto", "admin"},
+    Action.manage_releases: {"product_manager", "cto", "admin"},
     Action.view_team_overview: {"cto", "admin"},
     Action.go_nogo: {"cto", "admin"},
     Action.manage_templates: {"cto", "admin"},
@@ -121,7 +121,7 @@ def test_item_actions_builds_allowed_and_blocked_lists():
 @pytest.mark.parametrize("status", ["to_review", "in_review", "done"])
 def test_reject_on_delivered_or_done_work(status):
     item = Target(item_id=1, item_type="task", status=status)
-    for role in ("qa", "developer", "pm", "cto", "admin"):
+    for role in ("qa", "developer", "product_manager", "cto", "admin"):
         assert decide(Actor(ME, role), Action.reject, item).ok
     support = decide(Actor(ME, "support"), Action.reject, Target(
         item_id=1, item_type="bug", status=status, source="support",

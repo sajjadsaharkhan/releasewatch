@@ -490,8 +490,8 @@ the release.
 
 ### Role — `ROLE` in `lib/constants.js`
 
-`support` teal · `qa` blue · `developer` violet · `pm` amber · `cto` rose · `admin` zinc.
-Rendered by `<RoleBadge>`. The label for `pm` is "Project manager".
+`support` teal · `qa` blue · `developer` violet · `product_manager` amber · `cto` rose · `admin` zinc.
+Rendered by `<RoleBadge>`. The label for `product_manager` is "Product Manager".
 
 Route access keys off role, not off the badge. `lib/roles.js` holds the role-level gates
 (slice 04, PRD §7.3):

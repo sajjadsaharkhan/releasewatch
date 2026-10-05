@@ -575,7 +575,7 @@ async def test_cto_can_open_and_change_search_settings(factories, client_for, ba
     assert (await cto.post("/settings/search/reindex")).status_code == 202
 
 
-@pytest.mark.parametrize("role", ["pm", "developer", "qa", "support"])
+@pytest.mark.parametrize("role", ["product_manager", "developer", "qa", "support"])
 async def test_ac_s21_search_settings_admin_and_cto_only(factories, client_for, role):
     client = await client_for(await factories.user(role=role))
     assert (await client.get("/settings/search")).status_code == 403

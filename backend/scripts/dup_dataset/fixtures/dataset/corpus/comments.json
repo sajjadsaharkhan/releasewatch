@@ -18,7 +18,7 @@
  {
   "id": "fc003",
   "issue_id": "f001",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "اوکی، ببندیم.",
   "created_at": "2026-08-04T01:00:00+00:00"
@@ -138,7 +138,7 @@
  {
   "id": "fc018",
   "issue_id": "f021",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "اولویت متوسط، بعد از ریلیز ۳.۲.",
   "created_at": "2026-08-21T13:00:00+00:00"
@@ -234,7 +234,7 @@
  {
   "id": "fc030",
   "issue_id": "f044",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "با تیم محتوا هماهنگ شد، قرار است معیار توزیع distractor را بنویسند.",
   "created_at": "2026-08-11T13:00:00+00:00"
@@ -330,7 +330,7 @@
  {
   "id": "fc042",
   "issue_id": "f060",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "برای مالی حساس است، اولویت بالا.",
   "created_at": "2026-09-16T22:00:00+00:00"
@@ -402,7 +402,7 @@
  {
   "id": "fc051",
   "issue_id": "f091",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "Shipped in 3.1.",
   "created_at": "2026-07-22T06:00:00+00:00"
@@ -434,7 +434,7 @@
  {
   "id": "fc055",
   "issue_id": "f108",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "۴۸ ساعت را با تیم محصول نهایی کنید.",
   "created_at": "2026-09-05T02:00:00+00:00"
@@ -458,7 +458,7 @@
  {
   "id": "fc058",
   "issue_id": "f114",
-  "author_role": "pm",
+  "author_role": "product_manager",
   "is_internal": false,
   "body": "فرمت CSV و PDF هر دو خوب است.",
   "created_at": "2026-09-21T06:00:00+00:00"

@@ -41,7 +41,7 @@ STREAM_FIXTURE_TITLE = "Reaction state on group messages is lost after refresh"
 ROLE_USERS = [
     ("e2e-qa", "E2E QA", UserRole.qa),
     ("e2e-developer", "E2E Developer", UserRole.developer),
-    ("e2e-pm", "E2E PM", UserRole.pm),
+    ("e2e-product_manager", "E2E Product Manager", UserRole.product_manager),
     ("e2e-support", "E2E Support", UserRole.support),
     ("e2e-cto", "E2E CTO", UserRole.cto),
     ("e2e-admin", "E2E Admin", UserRole.admin),

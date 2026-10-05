@@ -13,7 +13,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b04", "project": "Chat", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "src": "internal", "t": "امکان بی‌صدا کردن یک گروه برای مدت مشخص", "d": "کاربر بتواند اعلان یک گروه را ۸ ساعت یا یک هفته بی‌صدا کند.", "days": 33}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "امکان بی‌صدا کردن یک گروه برای مدت مشخص", "d": "کاربر بتواند اعلان یک گروه را ۸ ساعت یا یک هفته بی‌صدا کند.", "days": 33}
   ], "drafts": [], "queries": []},
  {"id": "b05", "project": "Chat", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
@@ -53,7 +53,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b14", "project": "Limsa", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "src": "internal", "t": "نمایش پیشرفت هفتگی لغات جدید در صفحه اصلی لیمسا", "d": "یک نمودار ساده از تعداد لغت‌های جدید در هفته گذشته.", "days": 13}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "نمایش پیشرفت هفتگی لغات جدید در صفحه اصلی لیمسا", "d": "یک نمودار ساده از تعداد لغت‌های جدید در هفته گذشته.", "days": 13}
   ], "drafts": [], "queries": []},
  {"id": "b15", "project": "Limsa", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
@@ -85,7 +85,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b22", "project": "Limsa", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "pm", "src": "internal", "t": "Weekly summary email of what the learner practised with Limsa", "d": "A short email every Friday with minutes practised, new words and mistakes.", "days": 69}
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "Weekly summary email of what the learner practised with Limsa", "d": "A short email every Friday with minutes practised, new words and mistakes.", "days": 69}
   ], "drafts": [], "queries": []},
  {"id": "b23", "project": "Dano", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
@@ -97,7 +97,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b25", "project": "Dano", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "pm", "src": "internal", "t": "امکان اضافه کردن توضیح به هر تراکنش کیف پول", "d": "ادمین بتواند هنگام شارژ دستی یادداشت ثبت کند.", "days": 90}
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "امکان اضافه کردن توضیح به هر تراکنش کیف پول", "d": "ادمین بتواند هنگام شارژ دستی یادداشت ثبت کند.", "days": 90}
   ], "drafts": [], "queries": []},
  {"id": "b26", "project": "Dano", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
@@ -133,7 +133,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b34", "project": "StudentPanel", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "src": "internal", "t": "نمایش فهرست تکالیف سررسید نزدیک در داشبورد", "d": "کارت «تکالیف هفته» با تاریخ تحویل.", "days": 63}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "نمایش فهرست تکالیف سررسید نزدیک در داشبورد", "d": "کارت «تکالیف هفته» با تاریخ تحویل.", "days": 63}
   ], "drafts": [], "queries": []},
  {"id": "b35", "project": "StudentPanel", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
@@ -153,7 +153,7 @@
   ], "drafts": [], "queries": []},
  {"id": "b39", "project": "Releasewatch", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "src": "internal", "t": "Show a release's risk level on the Releases list", "d": "A small badge next to the release name derived from open blockers.", "days": 8}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "src": "internal", "t": "Show a release's risk level on the Releases list", "d": "A small badge next to the release name derived from open blockers.", "days": 8}
   ], "drafts": [], "queries": []},
  {"id": "b40", "project": "Releasewatch", "area": "background", "note": "Background distractor: no duplicates, no probes.",
   "members": [

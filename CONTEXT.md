@@ -30,7 +30,7 @@ The application's own JWT that the frontend sends on every API request. The only
 _Avoid_: app token, session token, access token (ambiguous with the provider's)
 
 **Role**:
-A team member's global capability level: `support`, `qa`, `developer`, `pm`, `cto`, or `admin`. Everyone but `support` is a **tech role**. Only tech roles can be assigned work. What each role may do is PRD §7.3, enforced by `backend/app/policy.py`. Support sees only support-sourced items and never internal notes. Stored on the local user and is always the source of truth. In Phase 1, any user provisioned via a provider is seeded as `developer` and an admin adjusts them in-app; reading provider groups to seed the role is deferred to a later phase. In-app role management always wins and is never overwritten by a provider.
+A team member's global capability level: `support`, `qa`, `developer`, `product_manager`, `cto`, or `admin`. Everyone but `support` is a **tech role**. Only tech roles can be assigned work. What each role may do is PRD §7.3, enforced by `backend/app/policy.py`. Support sees only support-sourced items and never internal notes. Stored on the local user and is always the source of truth. In Phase 1, any user provisioned via a provider is seeded as `developer` and an admin adjusts them in-app; reading provider groups to seed the role is deferred to a later phase. In-app role management always wins and is never overwritten by a provider.
 _Avoid_: permission, group (a group is the provider-side concept, deferred past Phase 1)
 
 ### Issue lifecycle
@@ -196,7 +196,7 @@ Where Phase 2 deliberately departs from the PRD. Each came up while checking the
 | # | PRD says | Code before Phase 2 | Decision |
 |---|---|---|---|
 | D1 | "Global Triage Lead role" in v1 | Triage lead is already per project (`projects.triage_lead_id`, nullable) | Keep the column. Make it required on create and update (slice 04). Existing projects without a lead are flagged, and their notifications fall back to admins. |
-| D2 | Roles include Project Manager and Support | Roles are `qa`, `developer`, `cto`, `admin` | Add `pm` and `support` (slice 04). |
+| D2 | Roles include Product Manager and Support | Roles are `qa`, `developer`, `cto`, `admin` | Add `product_manager` and `support` (slice 04). |
 | D3 | IDs like `BUG-042` | Display is `issue-123`, global sequence | Type-prefixed keys (`BUG-123`, `TASK-124`) over the same global sequence (slice 03). |
 | D4 | Severity is required when a bug is accepted | `severity` is non-null with default `minor` | Make it nullable, then rename it to `priority` with the shared scale in 03a. Null for New and Needs info bugs nobody has rated; required when leaving triage (02, enforced in 06). |
 | D5 | Severity has four levels | Five levels, including `enhancement` | A data migration maps `enhancement` to `minor` (slice 02). |

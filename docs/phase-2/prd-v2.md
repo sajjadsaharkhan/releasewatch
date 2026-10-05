@@ -186,7 +186,7 @@ Gantt, CPM, dependencies, working calendar, holidays, estimation fields, release
 | **Support** | Reports bugs through templates. Sees all support-reported items. Is never assigned work |
 | **QA Engineer** | Files bugs and tasks, verifies and rejects delivered work |
 | **Developer** | Files bugs and tasks, works assigned items, triages |
-| **Project Manager** | Manages backlog and releases |
+| **Product Manager** | Manages backlog and releases |
 | **CTO** | Reads everything, release go/no-go and ship, shapes any person's queue |
 | **Admin** | Everything, plus users, projects, templates, and search settings |
 

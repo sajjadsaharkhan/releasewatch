@@ -73,7 +73,7 @@
   ]},
  {"id": "c25", "project": "Limsa", "area": "quiz", "note": "Quiz quality: wrong options too easy. Hard negative sibling of c24.", "rel_clusters": ["c24"],
   "members": [
-   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "pm", "t": "گزینه‌های غلط کوییز کیفیت پایینی دارند و جواب درست مشخص است", "d": "در بسیاری از سوال‌ها دو گزینه کاملاً بی‌ربط هستند و زبان‌آموز بدون خواندن متن می‌تواند حدس بزند.", "labels": ["limsa"], "days": 50, "cm": [["pm", "با تیم محتوا هماهنگ شد، قرار است معیار توزیع distractor را بنویسند."], ["developer", "یادآوری: ربطی به خطای کتاب‌های حجیم نداره.", 0]]}
+   {"k": "a", "type": "bug", "st": "todo", "sev": "major", "role": "product_manager", "t": "گزینه‌های غلط کوییز کیفیت پایینی دارند و جواب درست مشخص است", "d": "در بسیاری از سوال‌ها دو گزینه کاملاً بی‌ربط هستند و زبان‌آموز بدون خواندن متن می‌تواند حدس بزند.", "labels": ["limsa"], "days": 50, "cm": [["product_manager", "با تیم محتوا هماهنگ شد، قرار است معیار توزیع distractor را بنویسند."], ["developer", "یادآوری: ربطی به خطای کتاب‌های حجیم نداره.", 0]]}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "qa", "t": "گزینه‌های اشتباه آزمون بی‌ربط‌اند", "d": "با خواندن فقط صورت سوال پاسخ مشخص می‌شود؛ distractorها ضعیف‌اند.", "same": ["a"], "cat": ["codeswitch"], "sig": ["description"], "diff": "medium"}
@@ -83,7 +83,7 @@
   ]},
  {"id": "c26", "project": "Limsa", "area": "podcast", "note": "Task duplicates: podcast / audio content.",
   "members": [
-   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "pm", "t": "ارائه محتوای پادکست برای تمرین شنیداری", "d": "زبان‌آموزان بتوانند در لیمسا پادکست کوتاه مرتبط با سطح خود را گوش دهند و سوال‌های فهم مطلب بگیرند.", "days": 45},
+   {"k": "a", "type": "task", "st": "new", "sev": "enhancement", "role": "product_manager", "t": "ارائه محتوای پادکست برای تمرین شنیداری", "d": "زبان‌آموزان بتوانند در لیمسا پادکست کوتاه مرتبط با سطح خود را گوش دهند و سوال‌های فهم مطلب بگیرند.", "days": 45},
    {"k": "b", "type": "task", "st": "new", "sev": "enhancement", "role": "support", "src": "internal", "t": "Add listening practice with short podcasts", "d": "Support gets asked weekly whether Limsa can play audio episodes.", "days": 9, "dupe_of": "a"}
   ],
   "drafts": [

@@ -71,7 +71,7 @@
   ]},
  {"id": "c55", "project": "StudentPanel", "area": "dashboard", "note": "Suggestion card not linked to session content (task).",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "اتصال پیشنهاد داشبورد به محتوای جلسه کلاس", "d": "پیشنهاد تمرین روی داشبورد باید بر اساس مبحث آخرین جلسه باشد، نه یک پیشنهاد ثابت.", "days": 37}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "اتصال پیشنهاد داشبورد به محتوای جلسه کلاس", "d": "پیشنهاد تمرین روی داشبورد باید بر اساس مبحث آخرین جلسه باشد، نه یک پیشنهاد ثابت.", "days": 37}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "developer", "t": "Make dashboard practice suggestions follow the last session topic", "d": "", "same": ["a"], "cat": ["en2fa", "cross_lingual"], "sig": ["title"], "diff": "medium"}
@@ -81,7 +81,7 @@
   ]},
  {"id": "c56", "project": "Releasewatch", "area": "filters", "note": "Reporter filter and URL params are two tasks in one area (hard negative).",
   "members": [
-   {"k": "a", "type": "task", "st": "done", "sev": "enhancement", "role": "developer", "t": "Add Reporter filter in issue list page", "d": "The list can be filtered by assignee but not by reporter; QA wants to see everything they filed.", "days": 70, "cm": [["pm", "Shipped in 3.1."]]},
+   {"k": "a", "type": "task", "st": "done", "sev": "enhancement", "role": "developer", "t": "Add Reporter filter in issue list page", "d": "The list can be filtered by assignee but not by reporter; QA wants to see everything they filed.", "days": 70, "cm": [["product_manager", "Shipped in 3.1."]]},
    {"k": "b", "type": "task", "st": "new", "sev": "enhancement", "role": "qa", "t": "فیلتر گزارش‌دهنده در لیست ایشوها", "d": "می‌خواهم فقط ایشوهایی را ببینم که خودم ثبت کرده‌ام.", "days": 4, "dupe_of": "a"}
   ],
   "drafts": [
@@ -122,7 +122,7 @@
   ]},
  {"id": "c60", "project": "Releasewatch", "area": "comments", "note": "Cross-project distractor for Chat message reactions (c01): reactions on comments are a different feature in another project.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "Add reactions to comments in issue details", "d": "Let team members react to a comment with an emoji instead of writing +1.", "days": 42}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "Add reactions to comments in issue details", "d": "Let team members react to a comment with an emoji instead of writing +1.", "days": 42}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "qa", "t": "ایموجی زدن زیر کامنت‌های ایشو", "d": "به جای نوشتن موافقم بشود روی کامنت واکنش گذاشت.", "same": ["a"], "cat": ["fa2en", "cross_lingual"], "sig": ["description"], "diff": "medium"}

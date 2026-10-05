@@ -28,7 +28,7 @@ STATUSES = {
 }
 KINDS = {"duplicate", "recurrence", "hard_negative", "novel"}
 PERSONAS = {"support", "qa", "developer"}
-ROLES = {"qa", "developer", "pm", "support", "cto", "admin"}
+ROLES = {"qa", "developer", "product_manager", "support", "cto", "admin"}
 CATS = {
     "short",
     "colloquial",

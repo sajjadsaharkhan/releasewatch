@@ -1,7 +1,7 @@
 [
  {"id": "c36", "project": "Dano", "area": "wallet", "note": "Wallet balance mismatch; sibling of c37.",
   "members": [
-   {"k": "a", "type": "bug", "st": "in_progress", "sev": "critical", "role": "qa", "t": "موجودی کیف پول در پنل مدیریت با بک‌آفیس برابر نیست", "d": "برای چند زبان‌آموز مبلغ نمایش‌داده‌شده در صفحه کاربر پنل ادمین با عدد همان کاربر در بک‌آفیس مالی تفاوت دارد.", "steps": [["کاربری را که شارژ اخیر داشته باز کنید", "هر دو سیستم یک عدد نشان دهند", "پنل ۲۵۰ هزار و بک‌آفیس ۳۰۰ هزار تومان"]], "curl": "/api/v1/admin/user/wallet", "days": 13, "cm": [["developer", "پنل از cache ده دقیقه‌ای می‌خواند و پس از شارژ آن را باطل نمی‌کند."], ["pm", "برای مالی حساس است، اولویت بالا."]]},
+   {"k": "a", "type": "bug", "st": "in_progress", "sev": "critical", "role": "qa", "t": "موجودی کیف پول در پنل مدیریت با بک‌آفیس برابر نیست", "d": "برای چند زبان‌آموز مبلغ نمایش‌داده‌شده در صفحه کاربر پنل ادمین با عدد همان کاربر در بک‌آفیس مالی تفاوت دارد.", "steps": [["کاربری را که شارژ اخیر داشته باز کنید", "هر دو سیستم یک عدد نشان دهند", "پنل ۲۵۰ هزار و بک‌آفیس ۳۰۰ هزار تومان"]], "curl": "/api/v1/admin/user/wallet", "days": 13, "cm": [["developer", "پنل از cache ده دقیقه‌ای می‌خواند و پس از شارژ آن را باطل نمی‌کند."], ["product_manager", "برای مالی حساس است، اولویت بالا."]]},
    {"k": "b", "type": "bug", "st": "new", "sev": "critical", "role": "developer", "t": "Admin panel shows a stale wallet amount after top-up", "d": "The figure differs from the finance back office for several minutes after a charge.", "days": 2, "dupe_of": "a"}
   ],
   "drafts": [

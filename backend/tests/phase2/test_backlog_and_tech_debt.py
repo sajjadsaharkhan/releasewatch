@@ -284,7 +284,7 @@ async def test_ac_31_tech_debt_flag_rejected_on_bug(factories, rig):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role", ["qa", "developer", "pm", "cto"])
+@pytest.mark.parametrize("role", ["qa", "developer", "product_manager", "cto"])
 async def test_every_tech_role_can_flag_tech_debt_later(factories, client_for, rig, role):
     user = await factories.user(role=role)
     task = await _task(factories, rig["project"].id)
@@ -456,7 +456,7 @@ async def test_order_refuses_an_item_outside_the_backlog(factories, rig, ranked)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role,allowed", [
-    ("qa", False), ("developer", False), ("pm", True), ("cto", True),
+    ("qa", False), ("developer", False), ("product_manager", True), ("cto", True),
 ])
 async def test_manage_backlog_policy_on_reorder(factories, client_for, ranked, role, allowed):
     pid, (a, _, c) = ranked

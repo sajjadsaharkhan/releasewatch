@@ -6,7 +6,7 @@
 What it creates (never touches anything else, except ``--wipe``, which deletes the
 ``dd-*`` projects it made earlier — their releases, issues, comments and search rows cascade):
 
-* users ``dd-qa``, ``dd-developer``, ``dd-pm``, ``dd-support``, ``dd-cto``, ``dd-admin``
+* users ``dd-qa``, ``dd-developer``, ``dd-product_manager``, ``dd-support``, ``dd-cto``, ``dd-admin``
   (one password for all, ``--password``, default ``dataset-pass-123``; re-applied to existing
   ``dd-*`` users so the printed password is always the one that works);
 * five projects, slugs ``dd-chat``, ``dd-limsa``, ``dd-dano``, ``dd-studentpanel``,
@@ -62,7 +62,7 @@ IN_CONTAINER = {"todo", "in_progress", "to_review", "in_review", "done", "blocke
 ROLE_NAMES = {
     "qa": "QA",
     "developer": "Developer",
-    "pm": "PM",
+    "product_manager": "Product Manager",
     "support": "Support",
     "cto": "CTO",
     "admin": "Admin",
@@ -200,7 +200,7 @@ async def _project(
             status=ReleaseStatus.released,
             go_nogo_status=GoNogoStatus.approved,
             released_at=shipped_at,
-            created_by_id=users["pm"].id,
+            created_by_id=users["product_manager"].id,
             description="Synthetic dataset — shipped",
         ),
         "qa": Release(
@@ -211,7 +211,7 @@ async def _project(
             go_nogo_status=GoNogoStatus.pending,
             code_freeze_date=(now - timedelta(days=3)).date(),
             target_date=now + timedelta(days=4),
-            created_by_id=users["pm"].id,
+            created_by_id=users["product_manager"].id,
             description="Synthetic dataset — in release QA",
         ),
         "planning": Release(
@@ -221,7 +221,7 @@ async def _project(
             status=ReleaseStatus.planning,
             go_nogo_status=GoNogoStatus.pending,
             target_date=now + timedelta(days=30),
-            created_by_id=users["pm"].id,
+            created_by_id=users["product_manager"].id,
             description="Synthetic dataset — next",
         ),
     }

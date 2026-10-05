@@ -15,8 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-ROLES = ["support", "qa", "developer", "pm", "cto", "admin"]
-TECH = {"qa", "developer", "pm", "cto", "admin"}
+ROLES = ["support", "qa", "developer", "product_manager", "cto", "admin"]
+TECH = {"qa", "developer", "product_manager", "cto", "admin"}
 
 
 @pytest.fixture
@@ -139,7 +139,7 @@ async def test_flag_release_blocker(world, role):
     user = world.lead if role == "triage_lead" else world.users[role]
     c = await world.client(user)
     resp = await c.patch(f"/issues/{world.bug.id}", json={"is_release_blocker": True})
-    allowed = {"qa", "pm", "cto", "admin", "triage_lead"}
+    allowed = {"qa", "product_manager", "cto", "admin", "triage_lead"}
     assert resp.status_code == _expect(role, allowed, 200), resp.text
 
 
@@ -165,7 +165,7 @@ async def test_manage_releases(world, role):
     c = await world.client(user)
     payload = {"project_id": world.project.id, "version": f"9.9-{role}"}
     resp = await c.post("/releases", json=payload)
-    allowed = {"pm", "cto", "admin", "triage_lead"}
+    allowed = {"product_manager", "cto", "admin", "triage_lead"}
     assert resp.status_code == _expect(role, allowed, 201, support_status=403), resp.text
     if role == "developer":
         assert resp.json()["code"] == "not_triage_lead"

@@ -316,12 +316,12 @@ async def test_pin_not_in_queue(factories, rig):
 async def test_ac_40_pm_and_triage_lead_cannot_reorder_or_pin(factories, client_for, rig):
     dev = rig["dev"]
     a, b = await _task(factories, rig), await _task(factories, rig)
-    pm = await factories.user(role="pm")
+    product_manager = await factories.user(role="product_manager")
     lead = await factories.user(role="developer")
     await factories.admin_client.patch(
         f"/projects/{rig['project'].id}", json={"triage_lead_id": lead.id},
     )
-    for user in (pm, lead):
+    for user in (product_manager, lead):
         client = await client_for(user)
         for resp in (
             await client.get(f"/users/{dev.id}/queue"),
@@ -332,7 +332,7 @@ async def test_ac_40_pm_and_triage_lead_cannot_reorder_or_pin(factories, client_
         ):
             assert resp.status_code == 403, resp.text
     # Their own queue is theirs to order.
-    q = await _queue(await client_for(pm))
+    q = await _queue(await client_for(product_manager))
     assert (q["can_reorder"], q["can_pin"]) == (True, True)
 
 

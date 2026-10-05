@@ -150,7 +150,7 @@ Note on the last row: the goal in the first quarter is measurement, not accuracy
 
 **Sajjad — CTO.** Needs strategic visibility. Wants to know which milestones are at risk, whether release quality is improving, and where time is being lost. Reads dashboards weekly, not daily. Does not manage individual tasks.
 
-**Reza — Project Manager.** Owns milestones and deadlines. Sets estimates, creates dependencies, manages the backlog, and manually sequences work when one person has several parallel tasks. The heaviest user of the Gantt view.
+**Reza — Product Manager.** Owns milestones and deadlines. Sets estimates, creates dependencies, manages the backlog, and manually sequences work when one person has several parallel tasks. The heaviest user of the Gantt view.
 
 **Ali — Developer.** Works across several projects simultaneously. Needs one screen showing everything assigned to him, ordered sensibly. Updates remaining hours as work progresses. Rarely opens a Gantt.
 
@@ -381,7 +381,7 @@ Numbered for reference in test cases and acceptance criteria.
 
 **BR-21** Remaining hours defaults to the estimate when an estimate is set, and to null otherwise.
 
-**BR-22** Remaining hours may be updated freely by the assignee and by triage leads, project managers, and admins.
+**BR-22** Remaining hours may be updated freely by the assignee and by triage leads, product managers, and admins.
 
 **BR-23** Every change to remaining hours is recorded in the activity timeline with old and new values.
 
@@ -618,13 +618,13 @@ No double counting. Available hours are zero. Both entries display in the calend
 ### Permissions
 
 **EC-49 — A developer attempts to set an estimate.**
-The field is visible but disabled with a tooltip: "Estimates are set by the project manager."
+The field is visible but disabled with a tooltip: "Estimates are set by the product manager."
 
 **EC-50 — A QA engineer files a task rather than a bug.**
 Fully permitted. All roles can file both types.
 
 **EC-51 — A user updates remaining hours on an item not assigned to them.**
-Blocked for QA and developer roles. Permitted for triage leads, project managers, and admins.
+Blocked for QA and developer roles. Permitted for triage leads, product managers, and admins.
 
 **EC-52 — The CTO attempts to edit a work item.**
 Blocked. The CTO role is read-only except for the release go/no-go decision. The interface makes this visible rather than failing on submit.
@@ -749,7 +749,7 @@ Staging matters here. Introducing the Gantt before the team is habitually filing
 
 ### Assumptions
 
-The team runs Kanban and does not want sprints, story points, or velocity. Sequencing of one person's parallel work is expressed manually by the project manager through dependencies rather than by a capacity model. Estimates are provided by the project manager, not negotiated by the team. The national holidays service is reliable enough for daily sync with graceful degradation. Most milestones will not use scheduling; it is reserved for genuinely deadline-critical work.
+The team runs Kanban and does not want sprints, story points, or velocity. Sequencing of one person's parallel work is expressed manually by the product manager through dependencies rather than by a capacity model. Estimates are provided by the product manager, not negotiated by the team. The national holidays service is reliable enough for daily sync with graceful degradation. Most milestones will not use scheduling; it is reserved for genuinely deadline-critical work.
 
 ### Open questions
 
@@ -761,7 +761,7 @@ The team runs Kanban and does not want sprints, story points, or velocity. Seque
 
 **Q4** — Should there be a soft warning when a milestone accumulates more items than a suggested threshold, in the same spirit as the deep dependency chain warning?
 
-**Q5** — Should estimate accuracy be visible to individual contributors for their own work, or restricted to project managers and above?
+**Q5** — Should estimate accuracy be visible to individual contributors for their own work, or restricted to product managers and above?
 
 ---
 

@@ -79,7 +79,7 @@ def write(dataset: Path = DEFAULT_DATASET) -> Path:
     out = [
         "# Hand-test script for the duplicate dataset",
         "",
-        f"Sign in as `dd-qa`, `dd-developer`, `dd-pm`, `dd-cto`, `dd-admin` or `dd-support` ({PASSWORD_NOTE}). "
+        f"Sign in as `dd-qa`, `dd-developer`, `dd-product_manager`, `dd-cto`, `dd-admin` or `dd-support` ({PASSWORD_NOTE}). "
         "Projects are `Chat`, `Limsa`, `Dano`, `StudentPanel`, `Releasewatch` (slugs `dd-…`).",
         "",
         "## 1 · Tech create form — *Possibly the same* (needs Jev on)",

@@ -50,7 +50,7 @@ async def seed(session: AsyncSession) -> None:
         User(name="Ana Beatriz",        username="ana",     role=UserRole.developer,   avatar_color="#f59e0b", title="Backend Developer", is_active=True),
         User(name="Lena Hoffmann",      username="lena",    role=UserRole.qa,          avatar_color="#ef4444", title="QA Engineer", is_active=True),
         User(name="Marcus Chen",        username="marcus",  role=UserRole.cto,         avatar_color="#6366f1", title="CTO", is_active=True),
-        User(name="Nora Lindqvist",     username="nora",    role=UserRole.pm,          avatar_color="#ec4899", title="Project Manager", is_active=True),
+        User(name="Nora Lindqvist",     username="nora",    role=UserRole.product_manager, avatar_color="#ec4899", title="Product Manager", is_active=True),
         User(name="Omar Haddad",        username="omar",    role=UserRole.support,     avatar_color="#14b8a6", title="Customer Support", is_active=True),
     ]
 

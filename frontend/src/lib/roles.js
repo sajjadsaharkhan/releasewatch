@@ -4,7 +4,7 @@
 // `blocked_actions` instead (see components/common/ActionButton.jsx); never
 // re-derive item permissions from the role here.
 
-export const TECH_ROLES = ['qa', 'developer', 'pm', 'cto', 'admin']
+export const TECH_ROLES = ['qa', 'developer', 'product_manager', 'cto', 'admin']
 
 /** Everyone except Support. */
 export const isTech = (role) => TECH_ROLES.includes(role)

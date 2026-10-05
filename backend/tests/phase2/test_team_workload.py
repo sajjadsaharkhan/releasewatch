@@ -75,7 +75,7 @@ def _count_queries():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role", ["developer", "pm", "qa", "support"])
+@pytest.mark.parametrize("role", ["developer", "product_manager", "qa", "support"])
 async def test_ac_48_workload_denied_to_developer(factories, client_for, role):
     user = await factories.user(role=role)
     resp = await (await client_for(user)).get("/team/workload")
@@ -121,7 +121,7 @@ async def test_workload_shows_in_progress_next_three_and_counts(factories, rig):
     admin = factories.admin_client
     ana = await factories.user(role="developer", name="Ana")
     ben = await factories.user(role="qa", name="Ben")
-    cy = await factories.user(role="pm", name="Cy")
+    cy = await factories.user(role="product_manager", name="Cy")
 
     # Ana: six items; default order is critical, high, medium, medium, low, low.
     a_crit = await _task(factories, rig, ana, "critical")

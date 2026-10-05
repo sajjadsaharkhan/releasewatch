@@ -25,13 +25,13 @@ class Role(str, Enum):
     support = "support"
     qa = "qa"
     developer = "developer"
-    pm = "pm"
+    product_manager = "product_manager"
     cto = "cto"
     admin = "admin"
 
 
 #: Everyone except Support (§7.1).
-TECH_ROLES: frozenset[str] = frozenset({"qa", "developer", "pm", "cto", "admin"})
+TECH_ROLES: frozenset[str] = frozenset({"qa", "developer", "product_manager", "cto", "admin"})
 #: Who can be given work (BR-32) — the tech roles; never Support.
 ASSIGNABLE_ROLES: frozenset[str] = TECH_ROLES
 ALL_ROLES: frozenset[str] = frozenset(r.value for r in Role)
@@ -143,7 +143,7 @@ DEVELOPER_AS_LEAD = "developer_as_lead"
 
 _T = TECH_ROLES
 _CTO_ADMIN = frozenset({"cto", "admin"})
-_MANAGE = frozenset({"pm", "cto", "admin", DEVELOPER_AS_LEAD})
+_MANAGE = frozenset({"product_manager", "cto", "admin", DEVELOPER_AS_LEAD})
 
 MATRIX: dict[str, frozenset[str]] = {
     # §7.3
@@ -182,7 +182,7 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_reports: _T,
     Action.view_releases: _T,
     # §9.2 flags
-    Action.flag_release_blocker: frozenset({"qa", "pm", "cto", "admin", TRIAGE_LEAD}),
+    Action.flag_release_blocker: frozenset({"qa", "product_manager", "cto", "admin", TRIAGE_LEAD}),
     # 09a: Reject delivered or Done work — every tech role, never Support.
     Action.reject: _T,
 }
@@ -229,7 +229,7 @@ _LABELS: dict[str, str] = {
 }
 
 _ROLE_LABELS = {
-    "support": "Support", "qa": "QA", "developer": "Developers", "pm": "Project managers",
+    "support": "Support", "qa": "QA", "developer": "Developers", "product_manager": "Product Managers",
     "cto": "CTOs", "admin": "Admins",
 }
 

@@ -44,7 +44,7 @@ docker compose exec api python -m scripts.dup_dataset probe  [--k 5]
 docker compose exec api python -m scripts.dup_dataset guide  # rewrite scenarios.md
 ```
 
-`import` creates users `dd-qa`, `dd-developer`, `dd-pm`, `dd-support`, `dd-cto`, `dd-admin`
+`import` creates users `dd-qa`, `dd-developer`, `dd-product_manager`, `dd-support`, `dd-cto`, `dd-admin`
 (password `dataset-pass-123`) and projects `dd-chat`, `dd-limsa`, `dd-dano`, `dd-studentpanel`,
 `dd-releasewatch`. It is additive and refuses to run twice; `--wipe` deletes the earlier `dd-*`
 projects first. It then indexes every issue for search through the configured embedding endpoint

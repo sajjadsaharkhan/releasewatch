@@ -26,7 +26,7 @@
   ]},
  {"id": "c11", "project": "Chat", "area": "mention", "note": "Feature requests (tasks): mention in private chat.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "پشتیبانی از منشن کردن کاربران در چت خصوصی", "d": "در چت دو نفره هم امکان زدن @ و انتخاب نام کاربر وجود داشته باشد تا پیام برای او برجسته شود و نوتیفیکیشن جداگانه بگیرد.", "days": 40, "cm": [["pm", "اولویت متوسط، بعد از ریلیز ۳.۲."]]},
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "پشتیبانی از منشن کردن کاربران در چت خصوصی", "d": "در چت دو نفره هم امکان زدن @ و انتخاب نام کاربر وجود داشته باشد تا پیام برای او برجسته شود و نوتیفیکیشن جداگانه بگیرد.", "days": 40, "cm": [["product_manager", "اولویت متوسط، بعد از ریلیز ۳.۲."]]},
    {"k": "b", "type": "task", "st": "new", "sev": "enhancement", "role": "developer", "t": "Allow @mentions in direct messages", "d": "Mentions only work in groups; DMs should resolve @username too.", "days": 10, "dupe_of": "a"}
   ],
   "drafts": [

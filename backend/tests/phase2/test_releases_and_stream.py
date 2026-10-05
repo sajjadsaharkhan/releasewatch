@@ -234,8 +234,8 @@ async def test_released_or_cancelled_release_is_never_overdue(factories, rig, cl
 
 @pytest.mark.asyncio
 async def test_ac_59_release_with_done_item_cannot_be_cancelled(factories, client_for, rig):
-    pm = await factories.user(role="pm")
-    c = await client_for(pm)
+    product_manager = await factories.user(role="product_manager")
+    c = await client_for(product_manager)
     await _item(factories, rig["release"].id, rig["project"].id, "done")
     before = await _release(factories.admin_client, rig["release"].id)
     assert "cancelled" not in before["allowed_transitions"]
@@ -385,7 +385,7 @@ async def test_ship_requires_confirm(factories, rig):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role,lead,ok", [
-    ("cto", False, True), ("admin", False, True), ("pm", False, False),
+    ("cto", False, True), ("admin", False, True), ("product_manager", False, False),
     ("developer", False, False), ("qa", False, False),
     ("qa", True, True), ("developer", True, True),
 ])

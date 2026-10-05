@@ -298,8 +298,8 @@ export const ROLE = {
     label: 'Developer',
     pill: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
   },
-  pm: {
-    label: 'Project manager',
+  product_manager: {
+    label: 'Product Manager',
     pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   },
   cto: {

@@ -1,7 +1,7 @@
 [
  {"id": "c28", "project": "Limsa", "area": "sessions", "note": "User cannot delete a conversation (session): a task with a bug-type twin from support.",
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "امکان حذف گفتگوهای قدیمی لیمسا توسط زبان‌آموز", "d": "کاربر بتواند یک گفتگوی قدیمی را از تاریخچه پاک کند تا لیست شلوغ نشود و محتوای خصوصی نماند.", "days": 38, "cm": [["developer", "soft delete کافی است؛ حذف از index جستجو هم لازم است."]]},
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "امکان حذف گفتگوهای قدیمی لیمسا توسط زبان‌آموز", "d": "کاربر بتواند یک گفتگوی قدیمی را از تاریخچه پاک کند تا لیست شلوغ نشود و محتوای خصوصی نماند.", "days": 38, "cm": [["developer", "soft delete کافی است؛ حذف از index جستجو هم لازم است."]]},
    {"k": "b", "type": "bug", "st": "new", "sev": "minor", "role": "support", "src": "support", "t": "گزینه‌ای برای پاک کردن چت‌های قبلی لیمسا نیست", "d": "زبان‌آموز میگه نمی‌خواد گفتگوهای قدیمیش بمونه ولی دکمه‌ای براش پیدا نکرد.", "days": 7, "dupe_of": "a"}
   ],
   "drafts": [
@@ -48,7 +48,7 @@
   ]},
  {"id": "c32", "project": "Limsa", "area": "flashcard", "note": "Feature: flashcards by topic; sibling area to c20/c21 but a task.", "rel_clusters": ["c20"],
   "members": [
-   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "pm", "t": "ساخت فلش‌کارت بر اساس موضوع به‌جای صفحات کتاب", "d": "کاربر بتواند بنویسد «برای مبحث تایم‌ها فلش‌کارت بساز» و بدون انتخاب صفحه کارت بگیرد.", "days": 29}
+   {"k": "a", "type": "task", "st": "todo", "sev": "enhancement", "role": "product_manager", "t": "ساخت فلش‌کارت بر اساس موضوع به‌جای صفحات کتاب", "d": "کاربر بتواند بنویسد «برای مبحث تایم‌ها فلش‌کارت بساز» و بدون انتخاب صفحه کارت بگیرد.", "days": 29}
   ],
   "drafts": [
    {"k": "1", "kind": "duplicate", "p": "support", "t": "می‌خوام بگم درباره یه موضوع کارت بسازه نه از روی صفحه", "d": "مشتری می‌خواد موضوع بنویسه و کارت بگیره.", "same": ["a"], "cat": ["colloquial"], "sig": ["description"], "diff": "medium"}

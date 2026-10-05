@@ -19,7 +19,7 @@ class UserRole(str, enum.Enum):
     support = "support"
     qa = "qa"
     developer = "developer"
-    pm = "pm"
+    product_manager = "product_manager"
     cto = "cto"
     admin = "admin"
 

@@ -33,7 +33,7 @@ async def validate_triage_lead(db: AsyncSession, triage_lead_id: int | None) -> 
     if user is None or not user.is_active or not is_tech(user.role):
         raise DomainError(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "The triage lead must be an active QA, Developer, PM, CTO, or Admin user.",
+            "The triage lead must be an active QA, Developer, Product Manager, CTO, or Admin user.",
             "invalid_triage_lead",
         )
 

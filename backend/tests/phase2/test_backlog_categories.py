@@ -139,7 +139,7 @@ async def test_a_project_holds_at_most_twenty_categories(factories, project):
     "role,allowed",
     [
         ("cto", True),
-        ("pm", False),
+        ("product_manager", False),
         ("developer", False),
         ("qa", False),
     ],

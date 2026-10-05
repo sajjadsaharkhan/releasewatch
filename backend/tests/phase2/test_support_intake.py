@@ -336,7 +336,7 @@ async def test_template_admin_is_cto_and_admin_only(factories, client_for, rig):
     cto = await client_for(await factories.user(role="cto"))
     resp = await cto.post(f"/projects/{pid}/templates", json={"name": "Payment problem"})
     assert resp.status_code == 201
-    for role in ("developer", "qa", "pm"):
+    for role in ("developer", "qa", "product_manager"):
         c = await client_for(await factories.user(role=role))
         assert (await c.get(f"/projects/{pid}/templates")).status_code == 403
 

@@ -5,16 +5,16 @@
 
 ## Problem Statement
 
-Releasewatch has four roles: QA, Developer, CTO, and Admin. Everyone sees everything. Phase 2 adds people who must not see everything. Support staff will file reports, but they must never see internal notes, tasks, or internally filed bugs, and they must never be assigned work. A Project Manager role is also needed to manage backlog, releases, and milestones. Permission checks today are scattered `require_role(...)` calls with no single source of truth, and the UI hides or shows controls by guessing.
+Releasewatch has four roles: QA, Developer, CTO, and Admin. Everyone sees everything. Phase 2 adds people who must not see everything. Support staff will file reports, but they must never see internal notes, tasks, or internally filed bugs, and they must never be assigned work. A Product Manager role is also needed to manage backlog, releases, and milestones. Permission checks today are scattered `require_role(...)` calls with no single source of truth, and the UI hides or shows controls by guessing.
 
 ## Solution
 
-Add `pm` and `support` roles. Introduce a pure **Policy** module that answers "can this user do this action on this item or project, and if not, why". Every route checks Policy. Every item response carries `allowed_actions` and `blocked_actions` from Policy, so the UI shows controls disabled with the Policy's reason instead of guessing. Enforce Support visibility in every read path: lists, detail, timeline, search, export, inbox, and WebSocket pushes. Make the project triage lead required, and flag projects whose lead is missing or deactivated.
+Add `product_manager` and `support` roles. Introduce a pure **Policy** module that answers "can this user do this action on this item or project, and if not, why". Every route checks Policy. Every item response carries `allowed_actions` and `blocked_actions` from Policy, so the UI shows controls disabled with the Policy's reason instead of guessing. Enforce Support visibility in every read path: lists, detail, timeline, search, export, inbox, and WebSocket pushes. Make the project triage lead required, and flag projects whose lead is missing or deactivated.
 
 ## User Stories
 
 1. As an admin, I want to give a user the Support role, so that support staff can use Releasewatch safely.
-2. As an admin, I want to give a user the Project Manager role, so that someone can manage backlog, releases, and milestones without being CTO or admin.
+2. As an admin, I want to give a user the Product Manager role, so that someone can manage backlog, releases, and milestones without being CTO or admin.
 3. As a Support user, I want to see only support-sourced items, so that I'm not exposed to internal engineering work. (BR-30, AC-08)
 4. As a Support user, I want to see only public comments on those items, so that internal discussion stays internal. (BR-30, BR-31, AC-07)
 5. As a Support user, I want internal notes excluded from counts, previews, search results, inbox items, and Telegram messages too, so that nothing leaks through side channels. (AC-07)
@@ -38,7 +38,7 @@ Add `pm` and `support` roles. Introduce a pure **Policy** module that answers "c
 
 ### Roles
 
-- `UserRole` gains `pm` and `support`. `ROLE` in `lib/constants.js` gains labels and colors, documented in `docs/design.md` §3.
+- `UserRole` gains `product_manager` and `support`. `ROLE` in `lib/constants.js` gains labels and colors, documented in `docs/design.md` §3.
 - **Tech roles** = `qa, developer, pm, cto, admin`. **Assignable** = tech roles. Support is neither.
 - JIT-provisioned users (Keycloak/LDAP) are still created as `developer`, per `CONTEXT.md`. No change.
 
