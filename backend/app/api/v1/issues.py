@@ -35,7 +35,7 @@ import csv
 import io
 from datetime import UTC
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func, or_, select
 from sqlalchemy import delete as sa_delete
@@ -57,6 +57,7 @@ from app.policy import Action, Target, item_actions, transition
 from app.search import duplicate_hints, jev_settings
 from app.tasks import search_index
 from app.schemas.issue import (
+    SubscriberOut,
     BlockedAction,
     BlockedTransition,
     BulkMoveRequest,
@@ -89,6 +90,8 @@ from app.services.authz import (
 )
 from app.services.cycle_metrics import is_regression_expr, regression_counts
 from app.services.issue_service import issue_service
+from app.services.subscriber_service import set_subscription, subscription_state
+from app.services.subscriber_service import subscribers as list_subscribers
 from app.workflow import Workflow
 
 router = APIRouter()
@@ -324,6 +327,8 @@ async def _build_enriched_responses(
             )
             duplicates = {issue_id: (count, top) for issue_id, count, top in rows.all()}
 
+    subscriptions = await subscription_state(db, [i.id for i in issues], current_user.id)
+
     responses = []
     for issue in issues:
         resp = IssueResponse.model_validate(issue)
@@ -350,6 +355,8 @@ async def _build_enriched_responses(
             **_workflow_fields(issue, current_user),
             "possible_duplicates_count": duplicates.get(issue.id, (0, None))[0],
             "possible_duplicates_top": duplicates.get(issue.id, (0, None))[1],
+            "subscriber_count": subscriptions.get(issue.id, (0, False))[0],
+            "is_subscribed": subscriptions.get(issue.id, (0, False))[1],
         })
         responses.append(enriched)
     return responses
@@ -915,6 +922,46 @@ async def report_recurrence(
     await db.commit()
 
     return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.put("/{issue_id}/subscription", response_model=IssueResponse, summary="Subscribe to an item")
+@router.delete("/{issue_id}/subscription", response_model=IssueResponse, summary="Unsubscribe from an item")
+async def change_subscription(
+    issue_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> IssueResponse:
+    """Track (PUT) or stop tracking (DELETE) an item the caller can see — any
+    role, Support included (it still hears only its three events). Idempotent;
+    each real change lands on the timeline for every member."""
+    await load_visible_issue(db, issue_id, current_user)
+    await set_subscription(db, issue_id, current_user.id, subscribed=request.method == "PUT")
+    await db.commit()
+    return await _reload_and_enrich(db, issue_id, current_user)
+
+
+@router.get(
+    "/{issue_id}/subscribers",
+    response_model=list[SubscriberOut],
+    summary="Who is subscribed to an item",
+)
+async def get_subscribers(
+    issue_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SubscriberOut]:
+    """The subscriber list behind the Subscribe button's hover card — any user
+    who can see the item (404 otherwise)."""
+    await load_visible_issue(db, issue_id, current_user)
+    return [
+        SubscriberOut(
+            user=UserSummary.model_validate(user),
+            reason=getattr(sub.reason, "value", sub.reason),
+            subscribed_at=sub.created_at,
+        )
+        for user, sub in await list_subscribers(db, issue_id)
+    ]
 
 
 @router.get(

@@ -270,6 +270,15 @@ class VerifyRequest(BaseModel):
     note: str | None = None
 
 
+class SubscriberOut(BaseModel):
+    """One person on an item's subscriber list."""
+
+    user: UserSummary
+    #: ``reporter`` | ``recurrence`` | ``duplicate`` | ``manual`` — why they're on it.
+    reason: str
+    subscribed_at: datetime
+
+
 class IssueResponse(IssueBase):
     """Full issue representation."""
 
@@ -312,6 +321,9 @@ class IssueResponse(IssueBase):
     possible_duplicates_count: int = 0
     #: The best stored hint's Jev confidence (0–1) — the % beside the marker; null when none.
     possible_duplicates_top: float | None = None
+    #: Whether the current user is on the item's subscriber list, and how many are.
+    is_subscribed: bool = False
+    subscriber_count: int = 0
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int

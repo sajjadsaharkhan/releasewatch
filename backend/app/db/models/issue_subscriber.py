@@ -20,6 +20,8 @@ class SubscriptionReason(str, enum.Enum):
     reporter = "reporter"
     recurrence = "recurrence"
     duplicate = "duplicate"
+    #: Chosen by the user — the Subscribe button on the item.
+    manual = "manual"
 
 
 class IssueSubscriber(Base):

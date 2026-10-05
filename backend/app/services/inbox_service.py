@@ -54,6 +54,7 @@ from app.db.models.inbox_item import (
 )
 from app.db.models.issue import Issue, IssueSource
 from app.db.models.issue_timeline import IssueTimeline
+from app.db.models.system_setting import SystemSetting
 from app.db.models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -273,6 +274,20 @@ class InboxFanOutService:
                     select(User.id).where(User.id.in_(ids), User.role == UserRole.support)
                 )
                 recipients.update(str(uid) for uid in result.scalars().all())
+
+        # ── Subscribers ────────────────────────────────────────────────────────
+        # Anyone tracking the item (the Subscribe button) hears every event the
+        # matrix switches on for the Subscriber column. Mentions and reactions
+        # keep their fixed audience; the Support notices were handled above, and
+        # _drop_invisible below keeps Support to its own events.
+        if trigger not in SUPPORT_EVENTS and trigger not in (
+            InboxEventType.mention, InboxEventType.reaction,
+        ):
+            matrix_row = await self._matrix_row(db, trigger)
+            if matrix_row and matrix_row.get("subscriber"):
+                from app.services.subscriber_service import subscriber_ids
+
+                recipients.update(str(uid) for uid in await subscriber_ids(db, issue.id))
 
         # Remove the actor — they don't get notified of their own actions,
         # then re-add any forced recipients (e.g. self-assignment).
@@ -854,6 +869,17 @@ class InboxFanOutService:
             and (not internal or is_tech(u.role))
             and (support_may_receive or is_tech(u.role))
         }
+
+    @staticmethod
+    async def _matrix_row(db: AsyncSession, trigger: InboxEventType) -> dict[str, bool] | None:
+        """The saved notification matrix (over the defaults) for one event."""
+        result = await db.execute(
+            select(SystemSetting)
+            .where(SystemSetting.category == "notifications")
+            .where(SystemSetting.key == "matrix")
+        )
+        setting = result.scalar_one_or_none()
+        return resolve_matrix(setting.value if setting else None).get(trigger.value)
 
     async def _triage_recipients(self, db: AsyncSession, issue: Issue) -> list[User]:
         """Return the project's triage lead — or every active admin when the

@@ -46,6 +46,9 @@ class TimelineEventType(str, enum.Enum):
     tech_debt_cleared = "tech_debt_cleared"
     #: The due date set, changed or cleared — ``meta.from`` / ``meta.to`` (ISO dates or null).
     due_date_changed = "due_date_changed"
+    #: A user started / stopped tracking the item (the Subscribe button).
+    subscribed = "subscribed"
+    unsubscribed = "unsubscribed"
 
 
 class IssueTimeline(Base):
