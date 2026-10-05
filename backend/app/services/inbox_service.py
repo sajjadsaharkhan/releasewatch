@@ -19,6 +19,7 @@ release_changed      → assignee + reporter + triage_lead (new release's triage
 project_changed      → assignee + reporter + triage_lead
 attachment_added     → assignee + reporter
 priority_changed     → assignee + reporter + triage_lead
+due_date_changed     → assignee + reporter
 needs_info_replied   → triage leads (slice 06, FR-19)
 moved_into_project   → the new project's triage leads (slice 06, FR-20)
 recurrence_on_cancelled → triage leads (a merge or recurrence on a Cancelled item)
@@ -234,6 +235,7 @@ class InboxFanOutService:
         elif trigger in (
             InboxEventType.environment_changed,
             InboxEventType.attachment_added,
+            InboxEventType.due_date_changed,
         ):
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
@@ -649,6 +651,8 @@ class InboxFanOutService:
                 "new_release": _esc(to_val),
                 "old_priority": _esc(from_val or "unrated"),
                 "new_priority": _esc(to_val or "unrated"),
+                "old_due": _esc(_meta.get("from") or "no due date"),
+                "new_due": _esc(_meta.get("to") or "no due date"),
                 "old_project": _esc(from_val),
                 "new_project": _esc(to_val),
                 # support_cancelled (slice 06): the human-readable reason, or

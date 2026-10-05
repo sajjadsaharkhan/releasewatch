@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon'
 import { Badge, StatusBadge, PriorityBadge, RoleBadge } from '../ui/Badge'
 import { ENVIRONMENT } from './DescriptionSection'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
-import { relTime, fullTime, formatEventTime } from '../../lib/relTime'
+import { relTime, fullTime, formatEventTime, formatDay } from '../../lib/relTime'
 import { renderMarkdown } from '../../lib/markdown'
 import { CommentComposer } from './CommentComposer'
 import { ReactionBar } from './ReactionBar'
@@ -47,6 +47,7 @@ const EVENT_STYLES = {
   },
   tech_debt_flagged:   { dot: 'bg-stone-500',  label: 'flagged as technical debt' },
   tech_debt_cleared:   { dot: 'bg-stone-400',  label: 'cleared the technical debt flag' },
+  due_date_changed:    { dot: 'bg-amber-500',  label: (e) => null },
 }
 
 // A category as a timeline entry recorded it: `{id, name, icon, color}` since
@@ -56,6 +57,35 @@ function categorySnapshot(value) {
   if (!value) return null
   if (typeof value === 'object') return value
   return { name: value.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), icon: 'tag', color: 'zinc' }
+}
+
+// The old date reads red (going away), the new one green (taking over).
+const DUE_SIDE = {
+  from: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300',
+  to:   'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300',
+}
+
+// A due date as a static chip, the same look as PlacementChip: card outline with a
+// muted calendar icon and mono date, like the version chip,, dashed zinc "No due date" for none. Weekday on hover.
+function DueChip({ day, side }) {
+  const base = 'inline-flex h-5 items-center gap-1 rounded-full border px-2 align-middle text-[11px] font-medium whitespace-nowrap'
+  if (!day) {
+    return (
+      <span className={cn(base, 'border-dashed border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400')}>
+        <Icon name="calendar-x" size={10} strokeWidth={2.5} aria-hidden />
+        No due date
+      </span>
+    )
+  }
+  const full = new Date(`${day}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+  return (
+    <span title={full} className={cn(base, DUE_SIDE[side])}>
+      <Icon name="calendar" size={10} strokeWidth={2.5} aria-hidden />
+      {formatDay(day)}
+    </span>
+  )
 }
 
 const REJECT_REASON_LABELS = {
@@ -98,6 +128,7 @@ const EVENT_ICONS = {
   triaged:             'inbox',
   backlog_category_changed: 'list-ordered',
   tech_debt_flagged:   'construction',
+  due_date_changed:    'calendar',
   tech_debt_cleared:   'construction',
 }
 
@@ -210,6 +241,18 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
           <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
           <PriorityBadge priority={to ?? null} />
         </>
+      )
+    }
+
+    if (event.type === 'due_date_changed') {
+      return from ? (
+        <>
+          changed due date <DueChip day={from} side="from" />
+          <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+          <DueChip day={to} side="to" />
+        </>
+      ) : (
+        <>set due date to <DueChip day={to} side="to" /></>
       )
     }
 

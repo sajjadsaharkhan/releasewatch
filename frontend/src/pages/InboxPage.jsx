@@ -47,6 +47,7 @@ const TYPE_DESCRIPTIONS = {
   environment_changed: 'changed environment on',
   release_changed:     'changed release on',
   attachment_added:    'added an attachment to',
+  due_date_changed:    'changed the due date on',
   needs_clarification: 'needs clarification on',
   needs_info_replied:  'replied on',
   moved_into_project:  'moved into your project',

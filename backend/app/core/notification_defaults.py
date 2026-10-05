@@ -30,6 +30,7 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "release_gate":        _row(triage=True, cto=True),
     "environment_changed": _row(reporter=True, assignee=True),
     "release_changed":     _row(reporter=True, assignee=True, triage=True),
+    "due_date_changed":    _row(reporter=True, assignee=True),
     "project_changed":     _row(reporter=True, assignee=True, triage=True),
     "attachment_added":    _row(reporter=True, assignee=True),
     "priority_changed":    _row(reporter=True, assignee=True, triage=True),

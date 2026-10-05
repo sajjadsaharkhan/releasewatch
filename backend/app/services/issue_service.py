@@ -858,6 +858,20 @@ class IssueService:
             if field in payload:
                 setattr(issue, field, payload[field])
         if "due_date" in payload and payload["due_date"] != issue.due_date:
+            events_to_emit.append((
+                TimelineEventType.due_date_changed,
+                {
+                    "from": issue.due_date.isoformat() if issue.due_date else None,
+                    "to": payload["due_date"].isoformat() if payload["due_date"] else None,
+                },
+            ))
+            inbox_triggers.append((
+                InboxEventType.due_date_changed,
+                {
+                    "from": issue.due_date.isoformat() if issue.due_date else None,
+                    "to": payload["due_date"].isoformat() if payload["due_date"] else None,
+                },
+            ))
             issue.due_date = payload["due_date"]
             # A new date gets its own due-soon and overdue notices (slice 10, §13).
             issue.due_soon_notified_at = None

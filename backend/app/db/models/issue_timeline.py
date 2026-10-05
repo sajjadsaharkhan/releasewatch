@@ -44,6 +44,8 @@ class TimelineEventType(str, enum.Enum):
     #: The technical-debt flag set / cleared (slice 08).
     tech_debt_flagged = "tech_debt_flagged"
     tech_debt_cleared = "tech_debt_cleared"
+    #: The due date set, changed or cleared — ``meta.from`` / ``meta.to`` (ISO dates or null).
+    due_date_changed = "due_date_changed"
 
 
 class IssueTimeline(Base):

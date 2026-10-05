@@ -161,3 +161,26 @@ async def test_sort_by_priority_puts_unrated_last(factories, rig):
     assert resp.status_code == 200
     order = [i["id"] for i in resp.json()["items"]]
     assert order == [critical.id, medium.id, low.id, unrated.id]
+
+
+# ── Changing the due date: timeline + notification ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_due_date_change_records_event_and_notifies_assignee(factories, client_for, rig):
+    developer = await factories.user(role="developer")
+    bug = await factories.issue(
+        project_id=rig["project"].id, release_id=rig["release"].id, assignee_id=developer.id,
+    )
+    admin = factories.admin_client
+
+    assert (await admin.patch(f"/issues/{bug.id}", json={"due_date": "2026-10-21"})).status_code == 200
+    assert (await admin.patch(f"/issues/{bug.id}", json={"due_date": None})).status_code == 200
+
+    timeline = (await admin.get(f"/issues/{bug.id}/timeline")).json()["items"]
+    changes = [e["meta"] for e in timeline if e["event_type"] == "due_date_changed"]
+    assert changes == [{"from": None, "to": "2026-10-21"}, {"from": "2026-10-21", "to": None}]
+
+    dev_client = await client_for(developer)
+    inbox = (await dev_client.get("/inbox")).json()["items"]
+    assert [i["type"] for i in inbox].count("due_date_changed") == 2

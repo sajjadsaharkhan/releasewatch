@@ -32,6 +32,8 @@ class InboxEventType(str, enum.Enum):
     project_changed = "project_changed"
     attachment_added = "attachment_added"
     priority_changed = "priority_changed"
+    #: The item's due date set, changed or cleared: meta ``{from, to}`` (ISO dates or null).
+    due_date_changed = "due_date_changed"
     needs_clarification = "needs_clarification"
     # Slice 06 — triage outcomes (docs/phase-2/06-triage-outcomes.md).
     needs_info_replied = "needs_info_replied"

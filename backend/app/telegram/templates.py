@@ -5,7 +5,7 @@ key.  Dynamic fields are filled in by the sender:
   issue_number, title, issue_url, comment_url, actor, actor_url, priority,
   excerpt, project_name, release_name, release_deadline,
   old_status/new_status, old_environment/new_environment, old_release/new_release,
-  old_priority/new_priority, version, gate_status, approver, blocker, note,
+  old_priority/new_priority, old_due/new_due, version, gate_status, approver, blocker, note,
   cancel_reason (support_cancelled)
 """
 
@@ -250,6 +250,16 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "📥 To:      <code>{new_priority}</code>\n"
         "\n"
         "⚠️ Updated by <a href=\"{actor_url}\">{actor}</a>"
+    ),
+    "due_date_changed": (
+        "📅 <b>Due date changed</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "🗂 <b>{project_name}</b> · <code>{release_name}</code>\n"
+        "\n"
+        "📤 From: <code>{old_due}</code>\n"
+        "📥 To:      <code>{new_due}</code>\n"
+        "\n"
+        "<i>Updated by <a href=\"{actor_url}\">{actor}</a></i>"
     ),
     "release_gate": (
         "🚀 <b>Release gate update</b> — <code>{version}</code>\n"
