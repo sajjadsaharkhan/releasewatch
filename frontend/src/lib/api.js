@@ -147,6 +147,12 @@ export const issuesApi = {
   duplicateHints: (id) => api.get(`/issues/${id}/duplicate-hints`),
   dismissDuplicateHint: (id, candidateId) =>
     api.post(`/issues/${id}/duplicate-hints/${candidateId}/dismiss`),
+  // Track / stop tracking an item (the Subscribe button). Idempotent; returns the issue
+  // with `is_subscribed` and `subscriber_count`, and writes a timeline entry on a real change.
+  subscribe: (id) => api.put(`/issues/${id}/subscription`),
+  unsubscribe: (id) => api.delete(`/issues/${id}/subscription`),
+  /** [{ user, reason: 'reporter'|'recurrence'|'duplicate'|'manual', subscribed_at }] */
+  subscribers: (id) => api.get(`/issues/${id}/subscribers`),
   // Move a New / Needs info bug with no release to another project (FR-20).
   move: (id, projectId) => api.post(`/issues/${id}/move`, { project_id: projectId }),
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),

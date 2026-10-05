@@ -40,6 +40,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     updateComment,
     deleteComment,
     toggleReaction,
+    toggleSubscription,
+    subscribing,
     loadMoreTimeline,
     fetchAttachments,
     deleteIssue,
@@ -84,6 +86,8 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
         onNavigate={onNavigate}
         adjacent={adjacent}
         onExportMarkdown={() => setExportModalOpen(true)}
+        onToggleSubscription={toggleSubscription}
+        subscribing={subscribing}
         canDelete={canDeleteIssue(currentUser, localIssue)}
         canMove={canMove}
         onMove={() => setMoveOpen(true)}

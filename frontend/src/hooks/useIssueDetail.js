@@ -231,6 +231,28 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     await fetchTimeline(issueIdRef.current)
   }
 
+  // The Subscribe button: server is the source of truth, so no optimistic flip —
+  // the response carries the new state and the timeline gains its entry.
+  const [subscribing, setSubscribing] = useState(false)
+  const toggleSubscription = async () => {
+    const id = issueIdRef.current
+    if (!id || subscribing) return
+    const wasSubscribed = !!localIssue?.is_subscribed
+    setSubscribing(true)
+    try {
+      const res = wasSubscribed ? await issuesApi.unsubscribe(id) : await issuesApi.subscribe(id)
+      const { is_subscribed, subscriber_count } = res.data
+      setLocalIssue(prev => ({ ...prev, is_subscribed, subscriber_count }))
+      onUpdate?.({ ...res.data })
+      toast({ title: wasSubscribed ? 'Unsubscribed' : 'Subscribed — you will hear about this item' })
+      await fetchTimeline(id)
+    } catch (err) {
+      toast({ title: err.response?.data?.detail || 'Could not change your subscription' })
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
   const addComment = async (body, isInternal, mentionedUserIds) => {
     const id = issueIdRef.current
     try {
@@ -401,6 +423,8 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     updateComment,
     deleteComment,
     toggleReaction,
+    toggleSubscription,
+    subscribing,
     loadMoreTimeline,
     fetchAttachments,
     deleteIssue,

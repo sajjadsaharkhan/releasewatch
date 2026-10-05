@@ -48,6 +48,8 @@ const EVENT_STYLES = {
   tech_debt_flagged:   { dot: 'bg-stone-500',  label: 'flagged as technical debt' },
   tech_debt_cleared:   { dot: 'bg-stone-400',  label: 'cleared the technical debt flag' },
   due_date_changed:    { dot: 'bg-amber-500',  label: (e) => null },
+  subscribed:          { dot: 'bg-blue-500',   label: (e, item) => `subscribed to this ${itemNoun(item)}` },
+  unsubscribed:        { dot: 'bg-zinc-400',   label: (e, item) => `unsubscribed from this ${itemNoun(item)}` },
 }
 
 // A category as a timeline entry recorded it: `{id, name, icon, color}` since
@@ -129,6 +131,8 @@ const EVENT_ICONS = {
   backlog_category_changed: 'list-ordered',
   tech_debt_flagged:   'construction',
   due_date_changed:    'calendar',
+  subscribed:          'bell',
+  unsubscribed:        'bell-off',
   tech_debt_cleared:   'construction',
 }
 

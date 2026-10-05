@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
-import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, FileDown, MoveRight } from 'lucide-react'
+import { ChevronLeft, ChevronUp, ChevronDown, Link as LinkIcon, Check, MoreVertical, FileDown, MoveRight, Bell, BellRing } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { StatusBadge, TypeIcon, PriorityBadge } from '../ui/Badge'
 import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { issueKey } from '../../lib/issueSlug'
 import { TechDebtMarker } from '../common/TechDebtMarker'
+import { SubscribersHoverCard } from './SubscribersHoverCard'
 import { itemNoun } from '../../lib/constants'
 
-export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete, canMove, onMove }) {
+export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, onExportMarkdown, canDelete, onDelete, canMove, onMove, onToggleSubscription, subscribing }) {
   const [copied, setCopied] = useState(false)
 
   const copyLink = () => {
@@ -36,6 +37,26 @@ export function IssueHeader({ issue, onClose, backLabel, onNavigate, adjacent, o
         <TechDebtMarker item={issue} />
       </div>
       <div className="ml-auto flex items-center gap-1.5">
+        {onToggleSubscription && (
+          <SubscribersHoverCard issueId={issue.id} count={issue.subscriber_count}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleSubscription}
+            disabled={subscribing}
+            aria-pressed={!!issue.is_subscribed}
+            className={issue.is_subscribed ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20' : undefined}
+          >
+            {issue.is_subscribed ? <BellRing size={12} /> : <Bell size={12} />}
+            {' '}{issue.is_subscribed ? 'Subscribed' : 'Subscribe'}
+            {issue.subscriber_count > 0 && (
+              <span className="ml-1 tabular-nums text-[11px] opacity-70" aria-label={`${issue.subscriber_count} subscribers`}>
+                {issue.subscriber_count}
+              </span>
+            )}
+          </Button>
+          </SubscribersHoverCard>
+        )}
         <Button variant="outline" size="sm" onClick={copyLink}>
           {copied ? <Check size={12} className="text-green-500" /> : <LinkIcon size={12} />}
           {' '}{copied ? 'Copied' : 'Share'}
