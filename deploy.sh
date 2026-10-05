@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.shared-pg.yml"
 REGISTRY="ghcr.io/sajjadsaharkhan/releasewatch"
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -133,19 +133,19 @@ if [ "$CHECK_DB" = false ]; then
   $COMPOSE stop api worker beat bot frontend 2>/dev/null || true
 fi
 
-# ── Ensure postgres and redis are up before migrating ────────────────────────
+# ── Ensure redis is up before migrating (postgres is shared: ~/infra/postgres) ──
 echo "▶ Starting database services..."
-$COMPOSE up -d --no-build postgres redis
+$COMPOSE up -d --no-build redis
 
 echo "▶ Waiting for postgres to be healthy..."
 for i in $(seq 1 30); do
-  if $COMPOSE exec -T postgres pg_isready -U "${POSTGRES_USER:-rw_user}" -d "${POSTGRES_DB:-releasewatch}" > /dev/null 2>&1; then
+  if docker exec postgres pg_isready -U "${POSTGRES_USER:-rw_user}" -d "${POSTGRES_DB:-releasewatch}" > /dev/null 2>&1; then
     echo "▶ Postgres is ready ✓"
     break
   fi
   if [ "$i" -eq 30 ]; then
     echo "✗ Postgres did not become healthy in 30 seconds"
-    $COMPOSE logs --tail=20 postgres
+    docker logs --tail=20 postgres
     exit 1
   fi
   sleep 1

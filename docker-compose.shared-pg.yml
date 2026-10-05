@@ -1,0 +1,40 @@
+# Production uses the server's shared PostgreSQL container (~/infra/postgres,
+# on the external `pg` network) instead of the compose-managed one.
+# deploy.sh layers this file last:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.shared-pg.yml ...
+#
+# Dev and e2e keep the base file's own postgres service.
+
+services:
+  postgres: !reset null
+
+  api:
+    depends_on: !override
+      redis:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
+    networks: !override [default, pg]
+
+  worker:
+    depends_on: !override
+      redis:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
+    networks: !override [default, pg]
+
+  beat:
+    depends_on: !override
+      - redis
+    networks: !override [default, pg]
+
+  bot:
+    depends_on: !override
+      redis:
+        condition: service_healthy
+    networks: !override [default, pg]
+
+networks:
+  pg:
+    external: true
