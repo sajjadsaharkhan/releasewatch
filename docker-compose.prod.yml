@@ -46,6 +46,12 @@ services:
   embeddings:
     logging: *default-logging
 
+  postgres:
+    ports: []   # not exposed in production — access via Docker network only
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    logging: *default-logging
+
   redis:
     ports: []   # not exposed in production
     volumes:

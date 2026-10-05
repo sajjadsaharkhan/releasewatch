@@ -9,6 +9,9 @@
 #   ./deploy.sh --check-db             # check DB migration status without deploying
 #   ./deploy.sh --fetch-model          # force a re-download of the embeddings model
 #   ./deploy.sh --skip-model           # do not check/download the embeddings model
+#   ./deploy.sh --shared-pg            # use the server's shared PostgreSQL container
+#                                      # (docker-compose.shared-pg.yml) instead of the
+#                                      # compose-managed one
 #   IMAGE_TAG=abc1234 ./deploy.sh
 #
 # The BAAI/bge-m3 embeddings model (~2.3 GB) lives in the `embeddings_models`
@@ -22,7 +25,7 @@
 
 set -euo pipefail
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.shared-pg.yml"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
 REGISTRY="ghcr.io/sajjadsaharkhan/releasewatch"
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -30,18 +33,27 @@ NO_PULL=false
 CHECK_DB=false
 FETCH_MODEL=false
 SKIP_MODEL=false
+SHARED_PG=false
 for arg in "$@"; do
   case "$arg" in
     --no-pull)  NO_PULL=true ;;
     --check-db) CHECK_DB=true ;;
     --fetch-model) FETCH_MODEL=true ;;
     --skip-model)  SKIP_MODEL=true ;;
+    --shared-pg)   SHARED_PG=true ;;
     --*)        echo "Unknown flag: $arg"; exit 1 ;;
     *)          IMAGE_TAG="$arg" ;;
   esac
 done
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 export IMAGE_TAG
+
+# --shared-pg layers docker-compose.shared-pg.yml last: no compose-managed
+# postgres, services join the external `pg` network (~/infra/postgres).
+if [ "$SHARED_PG" = true ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.shared-pg.yml"
+fi
+COMPOSE="docker compose $COMPOSE_FILES"
 
 if [ "$CHECK_DB" = true ]; then
   echo ""
@@ -133,19 +145,31 @@ if [ "$CHECK_DB" = false ]; then
   $COMPOSE stop api worker beat bot frontend 2>/dev/null || true
 fi
 
-# ── Ensure redis is up before migrating (postgres is shared: ~/infra/postgres) ──
+# ── Ensure postgres and redis are up before migrating ────────────────────────
+# With --shared-pg postgres is the server's shared container, not ours to start.
 echo "▶ Starting database services..."
-$COMPOSE up -d --no-build redis
+if [ "$SHARED_PG" = true ]; then
+  $COMPOSE up -d --no-build redis
+else
+  $COMPOSE up -d --no-build postgres redis
+fi
+
+pg_exec() {
+  if [ "$SHARED_PG" = true ]; then docker exec postgres "$@"; else $COMPOSE exec -T postgres "$@"; fi
+}
+pg_logs() {
+  if [ "$SHARED_PG" = true ]; then docker logs --tail=20 postgres; else $COMPOSE logs --tail=20 postgres; fi
+}
 
 echo "▶ Waiting for postgres to be healthy..."
 for i in $(seq 1 30); do
-  if docker exec postgres pg_isready -U "${POSTGRES_USER:-rw_user}" -d "${POSTGRES_DB:-releasewatch}" > /dev/null 2>&1; then
+  if pg_exec pg_isready -U "${POSTGRES_USER:-rw_user}" -d "${POSTGRES_DB:-releasewatch}" > /dev/null 2>&1; then
     echo "▶ Postgres is ready ✓"
     break
   fi
   if [ "$i" -eq 30 ]; then
     echo "✗ Postgres did not become healthy in 30 seconds"
-    docker logs --tail=20 postgres
+    pg_logs
     exit 1
   fi
   sleep 1

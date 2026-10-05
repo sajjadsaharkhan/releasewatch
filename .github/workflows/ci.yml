@@ -300,4 +300,4 @@ jobs:
 
       - name: Deploy
         working-directory: ${{ vars.DEPLOY_PATH }}
-        run: ./deploy.sh
+        run: ./deploy.sh --shared-pg
