@@ -309,6 +309,7 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
 
   const open = () => { hover.close(); onOpen?.(raw) }
   const label = `${item.key} ${item.title}`
+  const cardType = TYPE[item.type] ?? TYPE.bug
 
   return (
     <div
@@ -334,8 +335,16 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
             {item.is_release_blocker && <BlockerPill />}
           </div>
         )}
-        <div className="mb-1.5 line-clamp-2 text-[12.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
-          {item.title}
+        <div className="mb-1.5 flex items-start gap-1.5">
+          <Icon
+            name={cardType.icon}
+            size={13}
+            title={cardType.label}
+            className={cn('mt-[2px] shrink-0', item.type === 'task' ? 'text-violet-500' : 'text-red-500')}
+          />
+          <div className="line-clamp-2 min-w-0 text-[12.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
         </div>
         <InlineLabels labels={item.labels} className="mb-2" />
         <div className="flex items-center gap-2">
