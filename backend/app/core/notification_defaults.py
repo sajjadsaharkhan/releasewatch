@@ -23,17 +23,14 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "comment":             _row(reporter=True, assignee=True),
     "status_changed":      _row(reporter=True, assignee=True),
     "item_returned":       _row(assignee=True),
-    "fixed":               _row(reporter=True),
-    "verified":            _row(assignee=True),
     "blocker_filed":       _row(triage=True, cto=True),
     "blocker_cleared":     _row(reporter=True, assignee=True, triage=True, cto=True),
-    "release_gate":        _row(triage=True, cto=True),
     "environment_changed": _row(reporter=True, assignee=True),
     "release_changed":     _row(reporter=True, assignee=True, triage=True),
-    "due_date_changed":    _row(reporter=True, assignee=True),
     "project_changed":     _row(reporter=True, assignee=True, triage=True),
     "attachment_added":    _row(reporter=True, assignee=True),
     "priority_changed":    _row(reporter=True, assignee=True, triage=True),
+    "due_date_changed":    _row(reporter=True, assignee=True),
     "needs_clarification": _row(reporter=True),
     # Slice 06 — to the triage lead (§13).
     "needs_info_replied":      _row(triage=True),
@@ -57,10 +54,12 @@ def resolve_matrix(stored: dict | None) -> dict[str, dict[str, bool]]:
     """Overlay a saved matrix on the defaults, row by row.
 
     Merging per row (not per event) means a matrix saved before a key existed
-    — ``subscriber`` from slice 06 — still gets that key's default.
+    — ``subscriber`` from slice 06 — still gets that key's default. Saved rows
+    for events that are no longer in the defaults (``fixed``, ``verified`` and
+    ``release_gate`` were retired — nothing emits them) are dropped.
     """
     matrix = {event: dict(row) for event, row in DEFAULT_NOTIFICATION_MATRIX.items()}
     for event, row in (stored or {}).items():
-        if isinstance(row, dict):
-            matrix[event] = {**matrix.get(event, _row()), **row}
+        if event in matrix and isinstance(row, dict):
+            matrix[event] = {**matrix[event], **{k: v for k, v in row.items() if k in MATRIX_KEYS}}
     return matrix
