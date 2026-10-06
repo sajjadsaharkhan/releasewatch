@@ -71,7 +71,7 @@ async def presign_upload(
             mime_type=payload.mime_type,
             max_size_mb=payload.max_size_mb,
             project_slug=project.slug,
-            release_version=release.version,
+            release_version=release.version if release else None,
             issue_number=issue.issue_number,
         )
     except ValueError as exc:
@@ -189,7 +189,7 @@ async def start_multipart_upload(
             filename=payload.filename,
             mime_type=payload.mime_type,
             project_slug=project.slug,
-            release_version=release.version,
+            release_version=release.version if release else None,
             issue_number=issue.issue_number,
         )
     except ValueError as exc:
@@ -392,9 +392,13 @@ async def _get_issue_or_404(
     return issue
 
 
-async def _get_release(db: AsyncSession, release_id: int) -> Release:
+async def _get_release(db: AsyncSession, release_id: int | None) -> Release | None:
+    """The issue's release, or ``None`` — backlog/tech-debt items are filed
+    without one, and a referenced release may since have been deleted."""
+    if release_id is None:
+        return None
     result = await db.execute(select(Release).where(Release.id == release_id))
-    return result.scalar_one()
+    return result.scalar_one_or_none()
 
 
 async def _get_project(db: AsyncSession, project_id: int) -> Project:

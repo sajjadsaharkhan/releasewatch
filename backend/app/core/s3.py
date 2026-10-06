@@ -2,6 +2,7 @@
 
 Key formats used for uploads:
 - Attachments:  attachments/{project_slug}/{release_version}/{issue_number}/{uuid4}/{filename}
+  ({release_version} is "no-release" for backlog/tech-debt items filed without one)
 - Profile avatars: avatars/{user_id}/{uuid4}/{filename}
 
 This keeps objects namespaced and browsable in the S3 console.
@@ -186,7 +187,8 @@ class S3Service:
             safe_filename = filename.replace(" ", "_")
             if "project_slug" in context:
                 project_slug = context["project_slug"]
-                release_version = context.get("release_version", "unknown")
+                # None (backlog/tech-debt item — no release) → "no-release"
+                release_version = context.get("release_version") or "no-release"
                 issue_number = context.get("issue_number", "0")
                 s3_key = f"attachments/{project_slug}/{release_version}/{issue_number}/{unique_id}/{safe_filename}"
             else:
