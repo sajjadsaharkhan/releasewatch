@@ -30,10 +30,10 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     teamUsers,
     assignableUsers,
     availableLabels,
-    availableProjects,
     cycles,
     currentCycle,
     applyUpdate,
+    moveToProject,
     sentBack,
     recurrenceReported,
     addComment,
@@ -126,6 +126,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           open={moveOpen}
           onClose={() => setMoveOpen(false)}
           onMove={applyUpdate}
+          onMoveProject={moveToProject}
         />
 
         <IssueSidebar
@@ -133,7 +134,6 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           currentCycle={currentCycle}
           teamUsers={assignableUsers}
           availableLabels={availableLabels}
-          availableProjects={availableProjects}
           applyUpdate={applyUpdate}
           onSentBack={sentBack}
           onRecurrenceReported={recurrenceReported}

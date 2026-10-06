@@ -232,9 +232,14 @@ class TriageRequest(RootModel):
 
 
 class MoveRequest(BaseModel):
-    """Payload for POST /issues/{id}/move (FR-20)."""
+    """Payload for POST /issues/{id}/move (FR-20): another project plus where the
+    item lands there. ``release_id`` is the destination's Stream or an open
+    Release; omitted or ``null`` puts it in the destination's backlog, in
+    ``backlog_category_id`` (the project's Default when omitted)."""
 
     project_id: int
+    release_id: int | None = None
+    backlog_category_id: int | None = None
 
 
 class RecurrenceCreate(BaseModel):

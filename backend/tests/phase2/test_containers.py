@@ -274,6 +274,19 @@ async def test_ac_58_done_item_cannot_change_container(factories, rig):
 
 
 @pytest.mark.asyncio
+async def test_done_item_cannot_move_to_another_project(factories, rig):
+    admin = factories.admin_client
+    other = await factories.project()
+    task = await factories.issue(project_id=rig["project"].id, type="task")
+    await _drive(admin, task.id, "in_progress", "in_review", "done")
+
+    resp = await admin.post(f"/issues/{task.id}/move", json={"project_id": other.id})
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["code"] == "done_item_immobile"
+    assert (await admin.get(f"/issues/{task.id}")).json()["project_id"] == rig["project"].id
+
+
+@pytest.mark.asyncio
 async def test_done_item_edits_that_keep_the_container_still_work(factories, rig):
     admin = factories.admin_client
     task = await factories.issue(

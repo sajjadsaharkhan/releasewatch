@@ -231,7 +231,7 @@ async def test_moving_to_another_project_lands_in_its_default(factories, project
     target_default = await factories.default_category(project_id=target.id)
     task = await factories.issue(project_id=project.id, type="task", backlog_category_id=here.id)
 
-    resp = await admin.patch(f"/issues/{task.id}", json={"project_id": target.id})
+    resp = await admin.post(f"/issues/{task.id}/move", json={"project_id": target.id})
     assert resp.status_code == 200, resp.text
     assert resp.json()["backlog_category_id"] == target_default.id
     # The sidebar renders these, so they must describe the new project, not the old.
@@ -245,8 +245,8 @@ async def test_moving_projects_may_pick_a_category_of_the_target(factories, proj
     target = await factories.project()
     there = await factories.backlog_category(project_id=target.id, name="There")
     task = await factories.issue(project_id=project.id, type="task")
-    resp = await factories.admin_client.patch(
-        f"/issues/{task.id}",
+    resp = await factories.admin_client.post(
+        f"/issues/{task.id}/move",
         json={"project_id": target.id, "backlog_category_id": there.id},
     )
     assert resp.status_code == 200, resp.text

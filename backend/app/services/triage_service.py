@@ -346,42 +346,74 @@ class TriageService:
 
     async def move_project(
         self, db: AsyncSession, issue: Issue, project_id: int, actor: User,
+        *, release_id: int | None = None, backlog_category_id: int | None = None,
     ) -> Issue:
-        if _status(issue) not in _TRIAGE_VALUES:
+        """Move an open item to another project and place it there (the Move…
+        dialog). The item lands in the destination's Stream or an open Release
+        (``release_id``), else its backlog — in ``backlog_category_id`` or the
+        Default. Leaving a release drops the blocker flag (BR-58)."""
+        if _status(issue) == IssueStatus.cancelled.value:
             raise DomainError(
-                status.HTTP_409_CONFLICT,
-                "Only New and Needs info bugs can be moved during triage.",
-                "not_in_triage",
+                status.HTTP_409_CONFLICT, "A cancelled item can't be moved.", "item_closed",
             )
-        if issue.release_id is not None:
+        if _status(issue) == IssueStatus.done.value:
             raise DomainError(
                 status.HTTP_409_CONFLICT,
-                "A bug in a release can't change project. Remove it from the release first.",
-                "move_has_release",
+                "A Done item can't move to another project.",
+                "done_item_immobile",
+            )
+        if release_id is not None and backlog_category_id is not None:
+            raise DomainError(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "A backlog category only applies to the backlog.",
+                "category_needs_backlog",
+                errors={"backlog_category_id": "Only for an item placed in the backlog."},
             )
         target = await db.get(Project, project_id)
         if target is None or target.archived_at is not None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
         if target.id == issue.project_id:
             raise DomainError(
-                status.HTTP_409_CONFLICT, "The bug is already in that project.", "same_project",
+                status.HTTP_409_CONFLICT, "The item is already in that project.", "same_project",
             )
+        container = await containers.resolve(db, target.id, release_id)
+        category = await backlog_category_service.resolve(
+            db, target.id, backlog_category_id if container is None else None,
+        )
 
         source = await db.get(Project, issue.project_id)
-        # The item lands in the target project's Default (2026-09-28); set both
-        # together — the composite FK checks them as a pair.
-        default = await backlog_category_service.default_for(db, target.id)
+        from_release = await db.get(Release, issue.release_id) if issue.release_id else None
+        events: list[tuple[TimelineEventType, dict]] = [(
+            TimelineEventType.project_changed,
+            {"from_name": source.name if source else None, "to_name": target.name},
+        )]
+        if issue.release_id != release_id:
+            events.append((
+                TimelineEventType.release_changed,
+                {
+                    "from_version": from_release.version if from_release else None,
+                    "to_version": container.version if container else None,
+                },
+            ))
+        if issue.is_release_blocker and (container is None or container.is_stream):
+            issue.is_release_blocker = False
+            events.append((TimelineEventType.blocker_cleared, {"reason": "left_release"}))
+
+        # Project, container and category move together — the composite FKs
+        # check them as a set, and their rank belongs to the old backlog.
         issue.project_id = target.id
-        issue.backlog_category_id = default.id
+        issue.release_id = container.id if container else None
+        issue.backlog_category_id = category.id
+        issue.backlog_rank = None
         db.add(issue)
         await db.flush()
         search_index.enqueue(db, issue.id)
         search_index.enqueue_hints(db, issue.id)  # a New bug's candidates are per project (14)
-        await TimelineService().create_event(
-            db=db, issue_id=issue.id, actor_id=actor.id,
-            event_type=TimelineEventType.project_changed, body=None,
-            meta={"from_name": source.name if source else None, "to_name": target.name},
-        )
+        for event_type, meta in events:
+            await TimelineService().create_event(
+                db=db, issue_id=issue.id, actor_id=actor.id,
+                event_type=event_type, body=None, meta=meta,
+            )
         await InboxFanOutService().fan_out(
             db=db, trigger=InboxEventType.moved_into_project, issue=issue, actor=actor,
             meta={"from": source.name if source else "—", "to": target.name},

@@ -634,19 +634,11 @@ async def test_ac_22_move_project_notifies_new_lead(factories, rig, telegram, cl
 @pytest.mark.asyncio
 async def test_move_refusals(factories, rig):
     target = await factories.project()
-    release = await factories.release(project_id=rig["project"].id)
-    in_release = await factories.issue(project_id=rig["project"].id, release_id=release.id)
-    accepted = await support_report(factories, rig)
-    await triage(rig["lead_client"], accepted.id, outcome="accept", priority="low")
     fresh = await support_report(factories, rig)
 
     async def move(issue_id, project_id):
         return await rig["lead_client"].post(f"/issues/{issue_id}/move", json={"project_id": project_id})
 
-    resp = await move(in_release.id, target.id)
-    assert resp.status_code == 409 and resp.json()["code"] == "move_has_release"
-    resp = await move(accepted.id, target.id)
-    assert resp.status_code == 409 and resp.json()["code"] == "not_in_triage"
     resp = await move(fresh.id, rig["project"].id)
     assert resp.status_code == 409 and resp.json()["code"] == "same_project"
     assert (await move(fresh.id, 999_999)).status_code == 404

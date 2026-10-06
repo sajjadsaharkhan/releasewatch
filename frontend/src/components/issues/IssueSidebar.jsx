@@ -61,7 +61,7 @@ function OverdueTag() {
   )
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, availableProjects, applyUpdate, onSentBack, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, applyUpdate, onSentBack, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
@@ -343,43 +343,15 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </MetaRow>
       )}
 
+      {/* Read-only: a project change also picks the placement there, so it lives
+          in Move… (header ⋯ menu). */}
       <MetaRow label="Project">
-        <Dropdown
-          width={220}
-          trigger={
-            <button className="text-left text-zinc-800 dark:text-zinc-200 hover:underline">
-              {issue.project_name || '—'}
-            </button>
-          }
+        <span
+          className="text-zinc-800 dark:text-zinc-200"
+          title={issue.status === 'done' ? 'A Done item stays in its project.' : 'Use Move… in the ⋯ menu to change it.'}
         >
-          {({ close }) => (
-            <>
-              <DropdownLabel>Move to project</DropdownLabel>
-              {availableProjects.map(p => (
-                <DropdownItem key={p.id} onClick={() => {
-                  close()
-                  if (String(p.id) === String(issue.project_id)) return
-                  onConfirm({
-                    title: 'Move to another project?',
-                    body: <span>Move this {noun} to project <strong>{p.name}</strong>?</span>,
-                    confirmLabel: `Move ${noun}`,
-                    onConfirm: () => applyUpdate({ project_id: p.id }, `Moved to ${p.name}`),
-                  })
-                }}>
-                  <span className={cn('text-sm', String(p.id) === String(issue.project_id) && 'text-zinc-400')}>
-                    {p.name}
-                  </span>
-                  {String(p.id) === String(issue.project_id) && (
-                    <span className="ml-auto text-xs text-zinc-400">Current</span>
-                  )}
-                </DropdownItem>
-              ))}
-              {availableProjects.length === 0 && (
-                <DropdownItem>No projects found</DropdownItem>
-              )}
-            </>
-          )}
-        </Dropdown>
+          {issue.project_name || '—'}
+        </span>
       </MetaRow>
 
       {/* Bug-only rows (BR-08): environment, regressions, release blocker. */}

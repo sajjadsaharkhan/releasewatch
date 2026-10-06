@@ -156,12 +156,6 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: availableProjects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data?.projects || r.data || []),
-    staleTime: 5 * 60 * 1000,
-  })
-
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const loadMoreTimeline = async () => {
@@ -205,6 +199,28 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     if (patch.status || 'assignee_id' in patch || 'release_id' in patch) {
       await fetchCycles(id)
     }
+    return true
+  }
+
+  // Move… to another project (FR-20): the server moves and places the item
+  // in one call; refresh what the move touches. Resolves truthy on success.
+  const moveToProject = async (projectId, placement, successMsg) => {
+    const id = issueIdRef.current
+    try {
+      const res = await issuesApi.move(id, projectId, placement)
+      const movedIssue = res.data
+      setLocalIssue(prev => ({
+        ...movedIssue,
+        attachments: movedIssue.attachments ?? prev?.attachments ?? [],
+      }))
+      onUpdate?.(movedIssue)
+      if (successMsg) toast({ title: successMsg })
+    } catch (err) {
+      toast({ title: err.response?.data?.detail || 'Failed to move item' })
+      return false
+    }
+    await fetchTimeline(id)
+    await fetchCycles(id)
     return true
   }
 
@@ -412,11 +428,11 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     teamUsers,
     assignableUsers,
     availableLabels,
-    availableProjects,
     cycles,
     cycles,
     currentCycle,
     applyUpdate,
+    moveToProject,
     sentBack,
     recurrenceReported,
     addComment,

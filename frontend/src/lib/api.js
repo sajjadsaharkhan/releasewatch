@@ -153,8 +153,15 @@ export const issuesApi = {
   unsubscribe: (id) => api.delete(`/issues/${id}/subscription`),
   /** [{ user, reason: 'reporter'|'recurrence'|'duplicate'|'manual', subscribed_at }] */
   subscribers: (id) => api.get(`/issues/${id}/subscribers`),
-  // Move a New / Needs info bug with no release to another project (FR-20).
-  move: (id, projectId) => api.post(`/issues/${id}/move`, { project_id: projectId }),
+  // Move an open item to another project (FR-20) and place it there: `releaseId`
+  // is the destination's Stream or an open Release, omitted for its backlog
+  // (then `backlogCategoryId`, else the Default).
+  move: (id, projectId, { releaseId, backlogCategoryId } = {}) =>
+    api.post(`/issues/${id}/move`, {
+      project_id: projectId,
+      ...(releaseId != null ? { release_id: releaseId } : {}),
+      ...(backlogCategoryId != null ? { backlog_category_id: backlogCategoryId } : {}),
+    }),
   fix: (id, data) => api.post(`/issues/${id}/fix`, data),
   verify: (id, data) => api.post(`/issues/${id}/verify`, data),
   // Generic status change — board drags and the sidebar's status control.

@@ -12,7 +12,7 @@ DELETE /issues/{id}                         — delete issue (CTO, admin, report
 POST   /issues/{id}/restore                 — restore a soft-deleted issue (CTO/admin only)
 DELETE /issues/{id}/permanent               — permanently delete one trashed issue (CTO/admin only)
 POST   /issues/{id}/triage                  — apply a triage outcome (accept | needs_info | duplicate | reject)
-POST   /issues/{id}/move                    — move a New/Needs info bug to another project
+POST   /issues/{id}/move                    — move an open item to another project, with its placement
 POST   /issues/{id}/recurrences             — report a recurrence on an open or Cancelled bug
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
 POST   /issues/{id}/verify                  — verify the fix (-> done; fail → 409 use_reject)
@@ -43,6 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user, require_role
+from app.core.errors import DomainError
 from app.db.models.issue import (
     PRIORITY_RANK, Issue, IssueStatus, IssueType, Priority, issue_key, issue_type_value,
 )
@@ -753,6 +754,13 @@ async def update_issue(
     """Partially update editable fields of an issue; emits a timeline event per changed field."""
     data = payload.model_dump(exclude_unset=True)
     issue = await authorize_issue(db, issue_id, current_user, Action.edit_item)
+    if data.get("project_id") not in (None, issue.project_id):
+        raise DomainError(
+            status.HTTP_409_CONFLICT,
+            "Use Move to change an item's project — it also picks the placement there.",
+            "use_move",
+        )
+    data.pop("project_id", None)
     target = issue_target(issue, issue.project)
     for field, action in _FIELD_ACTIONS.items():
         if field in data:
@@ -889,11 +897,15 @@ async def move_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """Move a New or Needs info bug with no release to another project (FR-20, BR-05)."""
+    """Move an open item to another project and place it there (FR-20): the
+    destination's Stream, an open Release, or its backlog (Move… dialog)."""
     from app.services.triage_service import triage_service
 
-    issue = await authorize_issue(db, issue_id, current_user, Action.triage)
-    await triage_service.move_project(db, issue, payload.project_id, current_user)
+    issue = await authorize_issue(db, issue_id, current_user, Action.edit_item)
+    await triage_service.move_project(
+        db, issue, payload.project_id, current_user,
+        release_id=payload.release_id, backlog_category_id=payload.backlog_category_id,
+    )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 

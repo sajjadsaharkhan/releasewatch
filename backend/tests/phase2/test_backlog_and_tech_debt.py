@@ -527,25 +527,80 @@ async def test_bulk_move_needs_manage_backlog(factories, client_for, rig, ranked
 
 
 @pytest.mark.asyncio
-async def test_project_change_blocked_while_item_has_a_release(factories, rig):
-    admin = factories.admin_client
+async def test_patch_refuses_a_project_change(factories, rig):
     other = await factories.project()
-    task = await _task(factories, rig["project"].id, release_id=rig["release"].id)
-    resp = await admin.patch(f"/issues/{task.id}", json={"project_id": other.id})
+    task = await _task(factories, rig["project"].id)
+    resp = await factories.admin_client.patch(f"/issues/{task.id}", json={"project_id": other.id})
     assert resp.status_code == 409
-    assert resp.json()["code"] == "move_has_release"
+    assert resp.json()["code"] == "use_move"
 
 
 @pytest.mark.asyncio
-async def test_project_change_moves_a_backlog_item_to_the_new_backlog(factories, rig):
+async def test_move_takes_a_release_item_to_the_new_backlog(factories, rig):
     admin = factories.admin_client
     other = await factories.project()
     existing = await _task(factories, other.id)
-    task = await _task(factories, rig["project"].id)
-    resp = await admin.patch(f"/issues/{task.id}", json={"project_id": other.id})
+    task = await _task(factories, rig["project"].id, release_id=rig["release"].id)
+    resp = await admin.post(f"/issues/{task.id}/move", json={"project_id": other.id})
     assert resp.status_code == 200, resp.text
+    assert resp.json()["release_id"] is None
     assert await _backlog_ids(admin, other.id) == [existing.id, task.id]
     assert await _backlog_ids(admin, rig["project"].id) == []
+    events = (await admin.get(f"/issues/{task.id}/timeline", params={"size": 200})).json()["items"]
+    kinds = [e["event_type"] for e in events]
+    assert "project_changed" in kinds and "release_changed" in kinds
+
+
+@pytest.mark.asyncio
+async def test_move_places_the_item_in_the_target_stream_or_release(factories, rig):
+    admin = factories.admin_client
+    other = await factories.project()
+    other_release = await factories.release(project_id=other.id)
+    stream_id = await factories.stream_id(project_id=other.id)
+    a = await _task(factories, rig["project"].id)
+    b = await _task(factories, rig["project"].id)
+    resp = await admin.post(
+        f"/issues/{a.id}/move", json={"project_id": other.id, "release_id": other_release.id},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["release_id"] == other_release.id
+    resp = await admin.post(
+        f"/issues/{b.id}/move", json={"project_id": other.id, "release_id": stream_id},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["release_id"] == stream_id
+
+
+@pytest.mark.asyncio
+async def test_move_to_the_stream_drops_the_release_blocker_flag(factories, rig):
+    other = await factories.project()
+    stream_id = await factories.stream_id(project_id=other.id)
+    bug = await factories.issue(
+        project_id=rig["project"].id, release_id=rig["release"].id, is_release_blocker=True,
+    )
+    resp = await factories.admin_client.post(
+        f"/issues/{bug.id}/move", json={"project_id": other.id, "release_id": stream_id},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["is_release_blocker"] is False
+
+
+@pytest.mark.asyncio
+async def test_move_refusals_for_placement(factories, rig):
+    admin = factories.admin_client
+    other = await factories.project()
+    foreign = await factories.release(project_id=rig["project"].id)
+    category = await factories.backlog_category(project_id=other.id, name="There")
+    task = await _task(factories, rig["project"].id)
+    resp = await admin.post(
+        f"/issues/{task.id}/move", json={"project_id": other.id, "release_id": foreign.id},
+    )
+    assert resp.status_code == 409 and resp.json()["code"] == "release_project_mismatch"
+    resp = await admin.post(
+        f"/issues/{task.id}/move",
+        json={"project_id": other.id, "release_id": foreign.id, "backlog_category_id": category.id},
+    )
+    assert resp.status_code == 422 and resp.json()["code"] == "category_needs_backlog"
 
 
 @pytest.mark.asyncio
