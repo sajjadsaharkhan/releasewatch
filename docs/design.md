@@ -652,7 +652,34 @@ triage). It renders nothing while Jev is off. `ContainerPicker colorize` tints i
 and close once the trigger leaves the viewport.
 
 `lib/markdown.js` honours backslash escapes (`\*` renders a literal `*`) and renders `---` as
-a rule — the support report description relies on both.
+a rule — the support report description relies on both. A ` ```mermaid ` fence renders as a
+diagram (`MermaidDiagram`, `components/common`) wherever markdown is rendered — comments,
+descriptions, triage — mixed freely with the surrounding markdown. The diagram is a bordered
+`figure` captioned "Diagram" with **Download as PNG** (2×, over the page background, plain SVG
+text labels so the canvas isn't tainted) and **Expand**, a skeleton while it renders, and on a
+syntax error a red note with the parser message and the source instead of a blank box. Mermaid uses `securityLevel: 'strict'`, follows the light/dark theme (`neutral` /
+`dark`), and is lazy-loaded on the first diagram on screen, never in the main bundle. Expand opens
+a full-screen viewer portaled to `<body>` (`z-[100]`, so it clears a dialog it was opened from;
+Escape closes only the viewer), fitted to the screen on open: a zoom toolbar (− · % · + · Fit,
+the % button resets to 100% = natural size), ⌘/Ctrl + wheel or pinch zooms at the cursor, drag or
+a plain wheel pans, `+` `−` `0` keys, double-click fits, plus Download.
+
+Any other fence renders as `CodeBlock` (`components/common`): a `bg-muted` bordered block with a
+header — the language name (`csharp` → "C#") and **Copy** ("Copied" with a green check for
+1.5s) — and Shiki highlighting (VS Code's TextMate grammars, `github-light` / `github-dark`;
+each span carries both colors as `--shiki-light/-dark`, picked in `globals.css`). Shiki runs on
+its JavaScript regex engine (no WASM), lazy-loaded with the first code block, and each grammar
+loads the first time a block uses it. Languages and fence aliases are the `LANGS` / `ALIASES`
+tables in `lib/highlight.js` (C#, Razor, JS/TS/JSX/TSX, Python, Java, Kotlin, Go, Rust, C/C++,
+Swift, PHP, Ruby, SQL, JSON, YAML, TOML, XML/HTML, CSS/SCSS, Bash/PowerShell, Dockerfile, HTTP,
+diff, …); an unknown or missing language shows plain text. Code is always `dir="ltr"`.
+
+**Comment composer** (`CommentComposer`, chosen from a prototype 2026-10-06, variants on
+`prototype/comment-composer`): **Write / Preview** tabs, then a grouped toolbar — heading, bold,
+italic, strike · link, inline code, code block · bulleted, numbered, quote · a **Diagram ▾**
+menu inserting a Flowchart / Sequence / State starter. List, quote and heading prefix every
+selected line; code blocks and diagrams go on their own blank-line-separated lines. ⌘B, ⌘I,
+⌘K (link — kept from the command palette while typing), ⌘Enter submits.
 
 A project whose triage lead is missing or deactivated (`needs_triage_lead`) shows
 `<NeedsTriageLeadBadge>` (amber) in the project switcher and Settings → Projects. Settings also

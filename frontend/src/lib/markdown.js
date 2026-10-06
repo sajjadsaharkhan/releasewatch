@@ -1,4 +1,6 @@
 import React from 'react'
+import { MermaidDiagram } from '../components/common/MermaidDiagram'
+import { CodeBlock } from '../components/common/CodeBlock'
 
 let _keyCounter = 0
 const key = () => `md-${_keyCounter++}`
@@ -92,14 +94,20 @@ export function inlineMd(text) {
 // ─── Block parser ─────────────────────────────────────────────────────────────
 /**
  * Parse block-level markdown into React elements.
- * Handles: # headings, - ul, 1. ol, > blockquote, ``` code block, paragraphs
+ * Handles: # headings, - ul, 1. ol, > blockquote, ```lang code block (highlighted), ```mermaid
+ * diagram, paragraphs. `diagramDelay` (ms) debounces diagram re-renders for a
+ * live preview.
  */
-export function renderMarkdown(text) {
+export function renderMarkdown(text, { diagramDelay = 0 } = {}) {
   if (!text) return null
 
   const lines = text.split('\n')
   const elements = []
   let i = 0
+  // Diagrams are keyed by position so a live preview updates them in place
+  // instead of remounting (and flashing) on every keystroke.
+  let diagrams = 0
+  let codeBlocks = 0
 
   while (i < lines.length) {
     const line = lines[i]
@@ -113,21 +121,13 @@ export function renderMarkdown(text) {
         codeLines.push(lines[i])
         i++
       }
-      elements.push(
-        React.createElement(
-          'pre',
-          {
-            key: key(),
-            className:
-              'bg-muted rounded-lg p-4 overflow-x-auto my-3 scrollbar-thin',
-          },
-          React.createElement(
-            'code',
-            { className: `font-mono text-sm language-${lang || 'text'}` },
-            codeLines.join('\n')
-          )
-        )
-      )
+      if (lang === 'mermaid') {
+        elements.push(React.createElement(MermaidDiagram, { key: `mermaid-${diagrams++}`, source: codeLines.join('\n'), delay: diagramDelay }))
+        i++ // skip closing ```
+        continue
+      }
+      // Keyed by position, like diagrams, so a re-render keeps its copied state.
+      elements.push(React.createElement(CodeBlock, { key: `code-${codeBlocks++}`, code: codeLines.join('\n'), lang }))
       i++ // skip closing ```
       continue
     }

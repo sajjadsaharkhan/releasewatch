@@ -263,3 +263,8 @@ pre code {
     animation: none;
   }
 }
+
+/* Syntax highlighting for CodeBlock: Shiki emits both GitHub themes' colors
+   per span as variables; the app theme picks one. */
+code.shiki span { color: var(--shiki-light); font-style: var(--shiki-light-font-style); font-weight: var(--shiki-light-font-weight); }
+.dark code.shiki span { color: var(--shiki-dark); font-style: var(--shiki-dark-font-style); font-weight: var(--shiki-dark-font-weight); }

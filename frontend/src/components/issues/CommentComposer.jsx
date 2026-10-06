@@ -1,12 +1,14 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Bold, Italic, Strikethrough, Code, Link2, List, ListOrdered,
-  Quote, Eye, Edit3
+  Quote, Eye, Edit3, Heading, SquareCode, Workflow, ChevronDown,
+  GitBranch, ArrowRightLeft, Spline
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { Textarea } from '../ui/Textarea'
 import { Switch } from '../ui/Switch'
+import { Dropdown, DropdownItem, DropdownLabel } from '../ui/Dropdown'
 import { UserMentionSelector } from '../ui/UserMentionSelector'
 import { renderMarkdown } from '../../lib/markdown'
 
@@ -15,13 +17,33 @@ function ToolbarBtn({ icon: Icon, label, onClick }) {
     <button
       type="button"
       title={label}
+      aria-label={label}
       onClick={onClick}
-      className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Icon className="h-3.5 w-3.5" />
     </button>
   )
 }
+
+const Divider = () => <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />
+
+// Starter diagrams for the toolbar's Diagram menu (chosen from a prototype,
+// 2026-10-06; the variants are on prototype/comment-composer).
+const DIAGRAMS = [
+  {
+    key: 'flowchart', label: 'Flowchart', icon: GitBranch,
+    body: 'flowchart TD\n  A[Report received] --> B{Reproducible?}\n  B -->|Yes| C[Fix]\n  B -->|No| D[Ask for info]',
+  },
+  {
+    key: 'sequence', label: 'Sequence', icon: ArrowRightLeft,
+    body: 'sequenceDiagram\n  participant U as User\n  participant A as App\n  participant S as API\n  U->>A: Submit form\n  A->>S: POST /issues\n  S-->>A: 500 error\n  A-->>U: Blank screen',
+  },
+  {
+    key: 'state', label: 'State', icon: Spline,
+    body: 'stateDiagram-v2\n  [*] --> Open\n  Open --> InProgress\n  InProgress --> Fixed\n  Fixed --> Verified\n  Fixed --> Open: regression\n  Verified --> [*]',
+  },
+]
 
 function wrapSelection(ta, before, after = before) {
   const start = ta.selectionStart
@@ -29,6 +51,26 @@ function wrapSelection(ta, before, after = before) {
   const selected = ta.value.slice(start, end)
   const newVal = ta.value.slice(0, start) + before + selected + after + ta.value.slice(end)
   return { newVal, cursor: start + before.length + selected.length + after.length }
+}
+
+// Prefix every line the selection touches (lists, quotes, headings).
+function prefixLines(ta, prefix) {
+  const { value, selectionStart: s, selectionEnd: e } = ta
+  const lineStart = value.lastIndexOf('\n', s - 1) + 1
+  const out = value.slice(lineStart, e).split('\n')
+    .map((l, i) => (typeof prefix === 'function' ? prefix(i) : prefix) + l).join('\n')
+  return { newVal: value.slice(0, lineStart) + out + value.slice(e), cursor: lineStart + out.length }
+}
+
+// Put a block (code fence, diagram) on its own lines, blank-line separated
+// from the surrounding text, so it never glues onto a paragraph.
+function insertBlock(ta, text) {
+  const { value, selectionStart: s, selectionEnd: e } = ta
+  const before = value.slice(0, s)
+  const after = value.slice(e)
+  const lead = before === '' || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n'
+  const trail = after.startsWith('\n') ? '' : '\n'
+  return { newVal: before + lead + text + trail + after, cursor: (before + lead + text).length }
 }
 
 export function CommentComposer({
@@ -59,10 +101,10 @@ export function CommentComposer({
     }
   }, [mode, initialValue, initialInternal, initialMentionedUsers])
 
-  const insert = useCallback((before, after = before) => {
+  const apply = useCallback((edit) => {
     const ta = taRef.current
     if (!ta) return
-    const { newVal, cursor } = wrapSelection(ta, before, after)
+    const { newVal, cursor } = edit(ta)
     setBody(newVal)
     onChange?.(newVal)
     setTimeout(() => {
@@ -71,10 +113,18 @@ export function CommentComposer({
     }, 0)
   }, [onChange])
 
+  const insert = useCallback((before, after = before) => apply((ta) => wrapSelection(ta, before, after)), [apply])
+  const prefix = (p) => apply((ta) => prefixLines(ta, p))
+  const codeBlock = () => apply((ta) => insertBlock(ta, '```\n' + ta.value.slice(ta.selectionStart, ta.selectionEnd) + '\n```'))
+  const diagram = (d) => apply((ta) => insertBlock(ta, '```mermaid\n' + d.body + '\n```'))
+
   function handleKey(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); insert('**') }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); insert('_') }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit() }
+    const mod = e.metaKey || e.ctrlKey
+    if (mod && e.key === 'b') { e.preventDefault(); insert('**') }
+    if (mod && e.key === 'i') { e.preventDefault(); insert('_') }
+    // stopPropagation: ⌘K would otherwise also open the command palette
+    if (mod && e.key === 'k') { e.preventDefault(); e.stopPropagation(); insert('[', '](url)') }
+    if (mod && e.key === 'Enter') { e.preventDefault(); handleSubmit() }
   }
 
   function handleSubmit() {
@@ -95,35 +145,68 @@ export function CommentComposer({
     onCancelEdit?.()
   }
 
+  const preview = useMemo(() => (tab === 'preview' ? renderMarkdown(body) : null), [body, tab])
+  const internal = showInternal && isInternal
+
   return (
-    <div className={cn('rounded-xl border border-border overflow-hidden', showInternal && isInternal && 'border-amber-300 dark:border-amber-700')}>
+    <div className={cn('rounded-xl border border-border overflow-hidden', internal && 'border-amber-300 dark:border-amber-700')}>
       {/* Tab bar + toolbar */}
       <div className="flex items-center gap-1 border-b border-border bg-muted/50 px-2 py-1">
-        <button
-          className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors', tab === 'write' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
-          onClick={() => setTab('write')}
-        >
-          <Edit3 className="inline-block mr-1 h-3 w-3" />
-          Write
-        </button>
-        <button
-          className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors', tab === 'preview' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
-          onClick={() => setTab('preview')}
-        >
-          <Eye className="inline-block mr-1 h-3 w-3" />
-          Preview
-        </button>
+        <div role="tablist" aria-label="Editor mode" className="flex shrink-0 items-center gap-0.5">
+          {[['write', 'Write', Edit3], ['preview', 'Preview', Eye]].map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={cn(
+                'inline-flex items-center px-3 py-1 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                tab === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Icon className="mr-1 h-3 w-3" aria-hidden />
+              {label}
+            </button>
+          ))}
+        </div>
 
         {tab === 'write' && (
-          <div className="ml-2 flex items-center gap-0.5 border-l border-border pl-2">
+          <div className="ml-2 flex min-w-0 items-center overflow-x-auto border-l border-border pl-2 scrollbar-thin">
+            <ToolbarBtn icon={Heading} label="Heading" onClick={() => prefix('### ')} />
             <ToolbarBtn icon={Bold} label="Bold (⌘B)" onClick={() => insert('**')} />
             <ToolbarBtn icon={Italic} label="Italic (⌘I)" onClick={() => insert('_')} />
             <ToolbarBtn icon={Strikethrough} label="Strikethrough" onClick={() => insert('~~')} />
-            <ToolbarBtn icon={Code} label="Code" onClick={() => insert('`')} />
+            <Divider />
             <ToolbarBtn icon={Link2} label="Link (⌘K)" onClick={() => insert('[', '](url)')} />
-            <ToolbarBtn icon={List} label="Unordered list" onClick={() => insert('- ', '')} />
-            <ToolbarBtn icon={ListOrdered} label="Ordered list" onClick={() => insert('1. ', '')} />
-            <ToolbarBtn icon={Quote} label="Blockquote" onClick={() => insert('> ', '')} />
+            <ToolbarBtn icon={Code} label="Inline code" onClick={() => insert('`')} />
+            <ToolbarBtn icon={SquareCode} label="Code block" onClick={codeBlock} />
+            <Divider />
+            <ToolbarBtn icon={List} label="Bulleted list" onClick={() => prefix('- ')} />
+            <ToolbarBtn icon={ListOrdered} label="Numbered list" onClick={() => prefix((i) => `${i + 1}. `)} />
+            <ToolbarBtn icon={Quote} label="Quote" onClick={() => prefix('> ')} />
+            <Divider />
+            <Dropdown
+              width={200}
+              trigger={
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Insert diagram"
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click() } }}
+                  className="flex h-7 shrink-0 items-center gap-1 rounded px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Workflow className="h-3.5 w-3.5" aria-hidden />
+                  Diagram
+                  <ChevronDown className="h-3 w-3" aria-hidden />
+                </span>
+              }
+            >
+              <DropdownLabel>Insert Mermaid diagram</DropdownLabel>
+              {DIAGRAMS.map((d) => (
+                <DropdownItem key={d.key} icon={d.icon} onClick={() => diagram(d)}>{d.label}</DropdownItem>
+              ))}
+            </Dropdown>
           </div>
         )}
       </div>
@@ -139,25 +222,25 @@ export function CommentComposer({
           rows={5}
           dir="auto"
           className={cn(
-            'rounded-none border-0 focus-visible:ring-0 resize-none',
-            showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10'
+            'rounded-none border-0 focus-visible:ring-0 resize-y',
+            internal && 'bg-amber-50 dark:bg-amber-900/10'
           )}
         />
       ) : (
         <div dir="auto" className="min-h-[120px] px-4 py-3 text-sm">
-          {body.trim() ? renderMarkdown(body) : <p className="text-muted-foreground italic">Nothing to preview.</p>}
+          {body.trim() ? preview : <p className="text-muted-foreground italic">Nothing to preview.</p>}
         </div>
       )}
 
       {/* Footer */}
       {!hideFooter && (
-        <div className={cn('border-t border-border', showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10')}>
+        <div className={cn('border-t border-border', internal && 'bg-amber-50 dark:bg-amber-900/10')}>
           <UserMentionSelector
             users={users}
             selectedIds={mentionedUserIds}
             onChange={setMentionedUserIds}
           />
-          <div className={cn('flex items-center gap-3 px-3 py-2', showInternal && isInternal && 'bg-amber-50 dark:bg-amber-900/10')}>
+          <div className={cn('flex items-center gap-3 px-3 py-2', internal && 'bg-amber-50 dark:bg-amber-900/10')}>
             {showInternal && (
               <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none">
                 <Switch checked={isInternal} onCheckedChange={setIsInternal} />
@@ -172,7 +255,7 @@ export function CommentComposer({
               )}
               <span className="hidden sm:block text-xs text-muted-foreground">⌘ + Enter to submit</span>
               <Button size="sm" onClick={handleSubmit} loading={loading} disabled={!body.trim()}>
-                {mode === 'edit' ? 'Save' : (showInternal && isInternal ? 'Add note' : 'Comment')}
+                {mode === 'edit' ? 'Save' : (internal ? 'Add note' : 'Comment')}
               </Button>
             </div>
           </div>
