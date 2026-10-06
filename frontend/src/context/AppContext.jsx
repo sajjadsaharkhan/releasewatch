@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi, projectsApi, releasesApi, inboxApi, searchApi } from '../lib/api'
+import { authApi, projectsApi, releasesApi, inboxApi, issuesApi, searchApi } from '../lib/api'
 import { isSupport } from '../lib/roles'
 
 const AppContext = createContext(null)
@@ -45,6 +45,7 @@ export function AppProvider({ children }) {
 
   // Inbox state
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
+  const [triageCount, setTriageCount] = useState(0)
 
   // Theme effect
   useEffect(() => {
@@ -190,6 +191,25 @@ export function AppProvider({ children }) {
     return () => clearInterval(interval)
   }, [isAuthenticated])
 
+  // Poll the number of items awaiting a triage decision (status New) for the
+  // sidebar badge; TriagePage pushes fresh values via setTriageCount.
+  useEffect(() => {
+    if (!isAuthenticated || isSupport(user?.role)) {
+      setTriageCount(0)
+      return
+    }
+    const fetchCount = () => {
+      const params = { statuses: 'new', size: 1 }
+      if (activeProjectId) params.project_id = activeProjectId
+      issuesApi.list(params)
+        .then((r) => setTriageCount(r.data.total))
+        .catch(() => {})
+    }
+    fetchCount()
+    const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated, activeProjectId, user?.role])
+
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
@@ -301,6 +321,9 @@ export function AppProvider({ children }) {
     // Inbox
     inboxUnreadCount,
     setInboxUnreadCount,
+    // Triage
+    triageCount,
+    setTriageCount,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

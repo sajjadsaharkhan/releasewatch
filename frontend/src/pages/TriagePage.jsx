@@ -52,7 +52,7 @@ export default function TriagePage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { activeProjectId, projects } = useApp()
+  const { activeProjectId, projects, setTriageCount } = useApp()
 
   const loadQueue = useCallback(async () => {
     const params = { statuses: TRIAGE_STATUSES.join(','), sort, size: 500 }
@@ -74,6 +74,7 @@ export default function TriagePage() {
     new: issues.filter(i => i.status === 'new').length,
     needs_info: issues.filter(i => i.status === 'needs_info').length,
   }), [issues])
+  useEffect(() => { if (!loading) setTriageCount(counts.new) }, [counts.new, loading, setTriageCount])
   const queue = useMemo(() => issues.filter(i => i.status === tab), [issues, tab])
   const selected = queue.find(i => i.id === selectedId) ?? null
   const project = projects.find(p => String(p.id) === String(selected?.project_id))

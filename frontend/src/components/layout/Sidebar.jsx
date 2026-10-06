@@ -12,7 +12,7 @@ import logoUrl from '../../assets/logo.svg'
 const ADMIN_ROLES = ['admin', 'cto']
 
 export function Sidebar() {
-  const { activeProjectId, projects, switchProject, inboxUnreadCount, user } = useApp()
+  const { activeProjectId, projects, switchProject, inboxUnreadCount, triageCount, user } = useApp()
   const [issuesOpen, setIssuesOpen] = useState(true)
   const [planningOpen, setPlanningOpen] = useState(true)
   const [deliveryOpen, setDeliveryOpen] = useState(true)
@@ -65,7 +65,7 @@ export function Sidebar() {
             {issuesOpen && (
               <div className="mt-0.5 space-y-0.5">
                 <NavItem to="/issues" icon="list" label="All Issues" />
-                <NavItem to="/triage" icon="filter" label="Triage" />
+                <NavItem to="/triage" icon="filter" label="Triage" badge={triageCount} />
               </div>
             )}
           </div>
