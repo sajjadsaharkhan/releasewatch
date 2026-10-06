@@ -270,11 +270,14 @@ jobs:
   # Only on pushes to main, and only when images were actually published and
   # every docker job succeeded. Always deploys `latest`: the sha tag only exists
   # for images that were rebuilt, so it would fail when only one side changed.
+  # `!failure() && !cancelled()` replaces the implicit success(), which is false
+  # whenever a transitive upstream job (e.g. backend-tests) was skipped.
   deploy:
     name: Deploy — production
     needs: [changes, docker]
     if: >-
-      github.event_name == 'push'
+      !failure() && !cancelled()
+      && github.event_name == 'push'
       && github.ref == 'refs/heads/main'
       && needs.changes.outputs.any-image == 'true'
       && needs.docker.result == 'success'
