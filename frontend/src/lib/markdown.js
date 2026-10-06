@@ -41,7 +41,7 @@ export function inlineMd(text) {
       elements.push(
         React.createElement(
           'code',
-          { key: key(), className: 'bg-muted px-1 py-0.5 rounded text-sm font-mono' },
+          { key: key(), className: 'bg-muted px-1 py-0.5 rounded text-sm font-mono break-words' },
           match[8]
         )
       )
@@ -165,7 +165,7 @@ export function renderMarkdown(text) {
           {
             key: key(),
             className:
-              'border-l-4 border-border pl-4 my-3 text-muted-foreground italic',
+              'border-l-4 border-border pl-4 my-3 text-muted-foreground italic break-words',
           },
           quoteLines.map((l, idx) => React.createElement('p', { key: idx }, inlineMd(l)))
         )
@@ -185,7 +185,7 @@ export function renderMarkdown(text) {
           'ul',
           { key: key(), className: 'list-disc list-inside my-2 space-y-1' },
           items.map((item, idx) =>
-            React.createElement('li', { key: idx, className: 'text-sm' }, inlineMd(item))
+            React.createElement('li', { key: idx, className: 'text-sm break-words' }, inlineMd(item))
           )
         )
       )
@@ -204,7 +204,7 @@ export function renderMarkdown(text) {
           'ol',
           { key: key(), className: 'list-decimal list-inside my-2 space-y-1' },
           items.map((item, idx) =>
-            React.createElement('li', { key: idx, className: 'text-sm' }, inlineMd(item))
+            React.createElement('li', { key: idx, className: 'text-sm break-words' }, inlineMd(item))
           )
         )
       )
@@ -237,7 +237,10 @@ export function renderMarkdown(text) {
       elements.push(
         React.createElement(
           'p',
-          { key: key(), className: 'text-sm leading-relaxed my-2' },
+          // break-words: pasted tokens (JWTs, JSON payloads) must wrap inside the
+          // column, never widen it — a 677-char token once gave <main> an
+          // h-scrollbar (bug-344, 2026-10-06)
+          { key: key(), className: 'text-sm leading-relaxed my-2 break-words' },
           inlineMd(paraLines.join(' '))
         )
       )
