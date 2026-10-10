@@ -12,6 +12,12 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+// A plain left-click opens in place; modified and middle clicks keep the
+// browser's own link behaviour (new tab, copy link address, …).
+function isPlainClick(e) {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+}
+
 async function downloadFile(url, name, type) {
   if (type === 'image') {
     try {
@@ -34,7 +40,7 @@ async function downloadFile(url, name, type) {
 }
 
 // Fullscreen overlay component — owns its own navigation index
-export function FullscreenMediaOverlay({ attachments, initialIndex = 0, onClose, onNavigate }) {
+export function FullscreenMediaOverlay({ attachments, initialIndex = 0, onClose, onNavigate, getHref }) {
   const [index, setIndex] = useState(initialIndex)
   const [saved, setSaved] = useState(false)
 
@@ -83,8 +89,18 @@ export function FullscreenMediaOverlay({ attachments, initialIndex = 0, onClose,
             <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">
               <Icon name={media.type === 'image' ? 'image' : media.type === 'video' ? 'play' : 'file-text'} size={16} className="text-white" />
             </div>
-            <div>
-              <div className="text-white font-medium truncate max-w-md">{media.name}</div>
+            <div className="min-w-0">
+              {getHref?.(media) ? (
+                <a
+                  href={getHref(media)}
+                  onClick={(e) => { if (isPlainClick(e)) e.preventDefault() }}
+                  title="Link to this attachment"
+                  className="block text-white font-medium truncate max-w-md hover:underline underline-offset-2 decoration-white/40">
+                  {media.name}
+                </a>
+              ) : (
+                <div className="text-white font-medium truncate max-w-md">{media.name}</div>
+              )}
               <div className="text-zinc-400 text-sm">{formatSize(media.size)} · {media.type}</div>
             </div>
           </div>
@@ -166,6 +182,20 @@ export function MediaPreviewSurface({ media, fullscreen = false }) {
     )
   }
 
+  if (fullscreen) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
+        <div className="h-16 w-16 rounded-2xl bg-white/10 flex items-center justify-center">
+          <Icon name="file-text" size={30} className="text-white/80" />
+        </div>
+        <div className="text-white font-medium break-all max-w-md">{media.name}</div>
+        <div className="text-sm text-zinc-400">
+          {media.size ? `${formatSize(media.size)} · ` : ''}No preview for this file type — download it to open.
+        </div>
+      </div>
+    )
+  }
+
   // File preview
   return (
     <div className={cn('relative overflow-hidden bg-zinc-950', fullscreen ? 'h-full w-full' : 'aspect-[16/9] w-full')}>
@@ -180,7 +210,7 @@ export function MediaPreviewSurface({ media, fullscreen = false }) {
 }
 
 // Compact media card for grid display
-export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProgress, isUploading }) {
+export function MediaCard({ attachment, onClick, onDelete, onPreview, href, uploadProgress, isUploading }) {
   const progress = uploadProgress ?? 0
   const uploading = isUploading ?? false
   const hasError = uploadProgress === -1
@@ -249,10 +279,25 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, uploadProg
         )}
       </div>
 
+      {/* The whole card is a link to the attachment: click opens it, and the
+          browser's own "Copy link address" / new tab work without a share button. */}
+      {href && !uploading && !hasError && (
+        <a
+          href={href}
+          onClick={(e) => {
+            if (!isPlainClick(e)) return
+            e.preventDefault()
+            onPreview?.(attachment)
+          }}
+          aria-label={`Open ${attachment.name}`}
+          className="absolute inset-0 z-[5] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        />
+      )}
+
       {/* Overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
         {/* Action buttons - left side, stacked with dark backdrop */}
-        <div className="absolute top-2 left-2 flex flex-col gap-2 rounded-lg bg-black/50 backdrop-blur-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="pointer-events-auto absolute top-2 left-2 flex flex-col gap-2 rounded-lg bg-black/50 backdrop-blur-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {/* Delete button */}
           {onDelete && (
             <button

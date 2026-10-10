@@ -162,6 +162,7 @@ export function IssueMainContent({
             issue={issue}
             onAttachmentsChange={(atts) => setLocalIssue(prev => ({ ...prev, attachments: atts }))}
             issueId={issue.id}
+            linkable
             onUploadComplete={() => fetchAttachments?.(issue.id)}
           />
         )}

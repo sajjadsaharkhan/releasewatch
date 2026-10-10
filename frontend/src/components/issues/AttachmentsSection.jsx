@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
@@ -18,17 +19,40 @@ export function AttachmentsSection({
   onUploadComplete = null,
   // One-row empty state (a button you can also drop onto) instead of the big box.
   compact = false,
+  // The open preview lives in `?attachment=<id>` so the address bar is a share
+  // link to it — only for a saved issue's attachments, which have real ids.
+  linkable = false,
 }) {
   const { toast } = useToast()
   const [dragOver, setDragOver] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({})
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [attachmentToDelete, setAttachmentToDelete] = useState(null)
-  const [previewAttachment, setPreviewAttachment] = useState(null)
+  const [localPreview, setLocalPreview] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
   const [activeUploads, setActiveUploads] = useState(new Set())
   const fileRef = useRef(null)
 
   const attachments = issue?.attachments ?? []
+
+  const linkedId = linkable ? searchParams.get('attachment') : null
+  const previewAttachment = linkable
+    ? (linkedId && attachments.find(a => String(a.id) === linkedId)) || null
+    : localPreview
+
+  const hasLink = (att) => linkable && !att.uploading && !String(att.id).startsWith('temp-')
+  const linkParams = (att) => {
+    const params = new URLSearchParams(searchParams)
+    if (att) {
+      params.set('tab', 'attachments')
+      params.set('attachment', att.id)
+    } else {
+      params.delete('attachment')
+    }
+    return params
+  }
+  const attachmentHref = (att) => hasLink(att) ? `${location.pathname}?${linkParams(att)}` : undefined
 
   // Report uploading state to parent
   useEffect(() => {
@@ -220,24 +244,21 @@ export function AttachmentsSection({
   }
 
   function handlePreview(attachment) {
-    setPreviewAttachment(attachment)
-    document.body.style.overflow = 'hidden'
+    if (hasLink(attachment)) setSearchParams(linkParams(attachment), { replace: true })
+    else setLocalPreview(attachment)
   }
 
   function closePreview() {
-    setPreviewAttachment(null)
-    document.body.style.overflow = ''
+    if (linkedId) setSearchParams(linkParams(null), { replace: true })
+    setLocalPreview(null)
   }
 
+  const previewOpen = !!previewAttachment
   useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape' && previewAttachment) {
-        closePreview()
-      }
-    }
-    window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [previewAttachment])
+    if (!previewOpen) return
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [previewOpen])
 
   // Get upload progress for an attachment
   const getUploadProgress = (att) => {
@@ -363,6 +384,7 @@ export function AttachmentsSection({
               attachment={att}
               onDelete={handleDelete}
               onPreview={handlePreview}
+              href={attachmentHref(att)}
               uploadProgress={getUploadProgress(att)}
               isUploading={isUploading(att)}
             />
@@ -406,7 +428,8 @@ export function AttachmentsSection({
           attachments={attachments}
           initialIndex={attachments.findIndex(a => a.id === previewAttachment.id)}
           onClose={closePreview}
-          onNavigate={(a) => setPreviewAttachment(a)}
+          onNavigate={handlePreview}
+          getHref={linkable ? attachmentHref : undefined}
         />
       )}
     </div>
