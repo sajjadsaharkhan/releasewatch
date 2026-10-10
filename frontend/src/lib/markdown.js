@@ -91,11 +91,60 @@ export function inlineMd(text) {
   return elements
 }
 
+// ─── Tables ───────────────────────────────────────────────────────────────────
+// GFM tables: a header row, a delimiter row (`| --- | :-: |`), then body rows.
+// Outer pipes are optional; `\|` is a literal pipe inside a cell.
+const TABLE_DELIM = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/
+
+function splitRow(line) {
+  let row = line.trim()
+  if (row.startsWith('|')) row = row.slice(1)
+  if (row.endsWith('|') && !row.endsWith('\\|')) row = row.slice(0, -1)
+  // The escaped pipe stays escaped; inlineMd turns `\|` into `|`.
+  return row.split(/(?<!\\)\|/).map((c) => c.trim())
+}
+
+function isTableStart(lines, i) {
+  return lines[i].includes('|') && i + 1 < lines.length &&
+    lines[i + 1].includes('|') && TABLE_DELIM.test(lines[i + 1]) &&
+    splitRow(lines[i]).length === splitRow(lines[i + 1]).length
+}
+
+function renderTable(header, delim, rows) {
+  const align = splitRow(delim).map((d) =>
+    d.startsWith(':') && d.endsWith(':') ? 'center' : d.endsWith(':') ? 'right' : d.startsWith(':') ? 'left' : undefined
+  )
+  const cell = (tag, text, idx, className) =>
+    React.createElement(tag, { key: idx, className, style: align[idx] ? { textAlign: align[idx] } : undefined }, inlineMd(text))
+  return React.createElement(
+    // Wide tables scroll inside their own box, never widen the column (bug-344).
+    'div',
+    { key: key(), className: 'my-3 overflow-x-auto rounded-md border border-border' },
+    React.createElement(
+      'table',
+      { className: 'w-full border-collapse text-[13px]' },
+      React.createElement('thead', null,
+        React.createElement('tr', { className: 'bg-muted/50' },
+          header.map((h, idx) => cell('th', h, idx, 'px-3 py-2 text-left font-semibold border-b border-border'))
+        )
+      ),
+      React.createElement('tbody', null,
+        rows.map((r, rIdx) =>
+          React.createElement('tr', { key: rIdx, className: 'border-t border-border first:border-t-0' },
+            // Pad short rows and drop extra cells so every row matches the header.
+            header.map((_, idx) => cell('td', r[idx] ?? '', idx, 'px-3 py-2 align-top break-words'))
+          )
+        )
+      )
+    )
+  )
+}
+
 // ─── Block parser ─────────────────────────────────────────────────────────────
 /**
  * Parse block-level markdown into React elements.
  * Handles: # headings, - ul, 1. ol, > blockquote, ```lang code block (highlighted), ```mermaid
- * diagram, paragraphs. `diagramDelay` (ms) debounces diagram re-renders for a
+ * diagram, | tables |, paragraphs. `diagramDelay` (ms) debounces diagram re-renders for a
  * live preview.
  */
 export function renderMarkdown(text, { diagramDelay = 0 } = {}) {
@@ -129,6 +178,20 @@ export function renderMarkdown(text, { diagramDelay = 0 } = {}) {
       // Keyed by position, like diagrams, so a re-render keeps its copied state.
       elements.push(React.createElement(CodeBlock, { key: `code-${codeBlocks++}`, code: codeLines.join('\n'), lang }))
       i++ // skip closing ```
+      continue
+    }
+
+    // Table — runs until a blank line or a line without a pipe
+    if (isTableStart(lines, i)) {
+      const header = splitRow(line)
+      const delim = lines[i + 1]
+      const rows = []
+      i += 2
+      while (i < lines.length && lines[i].trim() !== '' && lines[i].includes('|')) {
+        rows.push(splitRow(lines[i]))
+        i++
+      }
+      elements.push(renderTable(header, delim, rows))
       continue
     }
 
@@ -227,7 +290,8 @@ export function renderMarkdown(text, { diagramDelay = 0 } = {}) {
       !lines[i].startsWith('> ') &&
       !/^(-{3,}|\*{3,})\s*$/.test(lines[i]) &&
       !lines[i].match(/^[-*+]\s/) &&
-      !lines[i].match(/^\d+\.\s/)
+      !lines[i].match(/^\d+\.\s/) &&
+      !isTableStart(lines, i)
     ) {
       paraLines.push(lines[i])
       i++

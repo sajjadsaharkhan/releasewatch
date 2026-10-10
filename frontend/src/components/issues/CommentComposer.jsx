@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Bold, Italic, Strikethrough, Code, Link2, List, ListOrdered,
   Quote, Eye, Edit3, Heading, SquareCode, Workflow, ChevronDown,
-  GitBranch, ArrowRightLeft, Spline
+  GitBranch, ArrowRightLeft, Spline, Table
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
@@ -44,6 +44,8 @@ const DIAGRAMS = [
     body: 'stateDiagram-v2\n  [*] --> Open\n  Open --> InProgress\n  InProgress --> Fixed\n  Fixed --> Verified\n  Fixed --> Open: regression\n  Verified --> [*]',
   },
 ]
+
+const TABLE = '| Step | Expected | Actual |\n| --- | --- | --- |\n| 1 |  |  |'
 
 function wrapSelection(ta, before, after = before) {
   const start = ta.selectionStart
@@ -116,6 +118,7 @@ export function CommentComposer({
   const insert = useCallback((before, after = before) => apply((ta) => wrapSelection(ta, before, after)), [apply])
   const prefix = (p) => apply((ta) => prefixLines(ta, p))
   const codeBlock = () => apply((ta) => insertBlock(ta, '```\n' + ta.value.slice(ta.selectionStart, ta.selectionEnd) + '\n```'))
+  const table = () => apply((ta) => insertBlock(ta, TABLE))
   const diagram = (d) => apply((ta) => insertBlock(ta, '```mermaid\n' + d.body + '\n```'))
 
   function handleKey(e) {
@@ -185,6 +188,7 @@ export function CommentComposer({
             <ToolbarBtn icon={List} label="Bulleted list" onClick={() => prefix('- ')} />
             <ToolbarBtn icon={ListOrdered} label="Numbered list" onClick={() => prefix((i) => `${i + 1}. `)} />
             <ToolbarBtn icon={Quote} label="Quote" onClick={() => prefix('> ')} />
+            <ToolbarBtn icon={Table} label="Table" onClick={table} />
             <Divider />
             <Dropdown
               width={200}

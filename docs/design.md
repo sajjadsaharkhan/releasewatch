@@ -676,10 +676,12 @@ diff, …); an unknown or missing language shows plain text. Code is always `dir
 
 **Comment composer** (`CommentComposer`, chosen from a prototype 2026-10-06, variants on
 `prototype/comment-composer`): **Write / Preview** tabs, then a grouped toolbar — heading, bold,
-italic, strike · link, inline code, code block · bulleted, numbered, quote · a **Diagram ▾**
+italic, strike · link, inline code, code block · bulleted, numbered, quote, table · a **Diagram ▾**
 menu inserting a Flowchart / Sequence / State starter. List, quote and heading prefix every
-selected line; code blocks and diagrams go on their own blank-line-separated lines. ⌘B, ⌘I,
-⌘K (link — kept from the command palette while typing), ⌘Enter submits.
+selected line; code blocks, tables and diagrams go on their own blank-line-separated lines.
+GFM tables (`lib/markdown.js`) render in a bordered `overflow-x-auto` box (wide tables scroll
+inside it, never the page), `text-[13px]` cells, a `bg-muted/50` header row, and honour the
+`:--` / `:-:` / `--:` alignment row; `\|` is a literal pipe. ⌘B, ⌘I, ⌘K (link — kept from the command palette while typing), ⌘Enter submits.
 
 A project whose triage lead is missing or deactivated (`needs_triage_lead`) shows
 `<NeedsTriageLeadBadge>` (amber) in the project switcher and Settings → Projects. Settings also
