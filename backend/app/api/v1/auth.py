@@ -28,8 +28,10 @@ from app.core.auth import (
     create_access_token,
     create_refresh_token,
     delete_kc_refresh,
+    federated_access_lifetime,
     get_current_user,
     get_kc_refresh,
+    retire_kc_refresh,
     store_kc_refresh,
     verify_password,
     verify_token,
@@ -48,7 +50,7 @@ from app.schemas.auth import (
     UserMeResponse,
 )
 from app.services.auth_providers.ldap import LdapProvider, LdapUnavailable
-from app.services.auth_providers.oidc import KeycloakOIDCProvider
+from app.services.auth_providers.oidc import KeycloakOIDCProvider, KeycloakUnavailable
 from app.services.identity_service import resolve_or_provision
 
 logger = logging.getLogger(__name__)
@@ -60,11 +62,21 @@ _OIDC_STATE_PREFIX = "rw:oidc_state:"
 _OIDC_STATE_TTL = 600  # seconds
 
 
-def _mint_pair(user: User) -> tuple[str, str, str]:
+# Refresh-token ``idp`` claim marking a Keycloak-backed session.  Such a session
+# must always be re-checked against Keycloak and never degrade to a local one.
+_IDP_KEYCLOAK = "keycloak"
+
+
+def _mint_pair(
+    user: User,
+    *,
+    idp: str | None = None,
+    access_ttl: timedelta | None = None,
+) -> tuple[str, str, str]:
     """Return (access_token, refresh_token, refresh_jti) for a resolved user."""
     token_data = {"sub": str(user.id), "role": user.role}
-    access = create_access_token(token_data)
-    refresh = create_refresh_token(token_data)
+    access = create_access_token(token_data, access_ttl)
+    refresh = create_refresh_token({**token_data, "idp": idp} if idp else token_data)
     refresh_jti = verify_token(refresh)["jti"]
     return access, refresh, refresh_jti
 
@@ -176,9 +188,15 @@ async def keycloak_callback(
     if not user.is_active:
         return _callback_error_redirect("deactivated")
 
-    access, refresh, refresh_jti = _mint_pair(user)
     if principal.provider_refresh_token:
+        access, refresh, refresh_jti = _mint_pair(
+            user,
+            idp=_IDP_KEYCLOAK,
+            access_ttl=federated_access_lifetime(principal.provider_refresh_expires_in),
+        )
         await store_kc_refresh(refresh_jti, principal.provider_refresh_token)
+    else:
+        access, refresh, _ = _mint_pair(user)
 
     # The SPA uses BrowserRouter (real paths), so this must be a plain path with a
     # single fragment carrying the tokens — never a hash route.
@@ -202,8 +220,10 @@ async def refresh(
     """Exchange a valid refresh token for a new access + refresh token pair.
 
     For Keycloak-provisioned sessions, the stored Keycloak refresh token is used
-    to confirm the Keycloak session is still valid before re-minting; if it was
-    revoked/disabled in Keycloak, the refresh is rejected.
+    to confirm the Keycloak session is still valid before re-minting — which also
+    resets Keycloak's idle timer, keeping an active user's session alive.  A
+    rejection from Keycloak is a 401 (log out); Keycloak being unreachable is a
+    503 (keep the session, retry later).
     """
     claims = verify_token(payload.refresh_token)
     if claims.get("type") != "refresh":
@@ -221,20 +241,39 @@ async def refresh(
     old_jti = claims.get("jti")
     kc_refresh = await get_kc_refresh(old_jti) if old_jti else None
 
-    access, refresh_token, new_jti = _mint_pair(user)
+    # Tokens minted before the ``idp`` claim existed are recognised by their
+    # stored Keycloak token alone.
+    if claims.get("idp") != _IDP_KEYCLOAK and kc_refresh is None:
+        access, refresh_token, _ = _mint_pair(user)
+        return TokenResponse(access_token=access, refresh_token=refresh_token)
 
     # Federated (Keycloak) session — re-check against Keycloak and rotate storage.
-    if kc_refresh is not None:
-        new_kc_refresh = await KeycloakOIDCProvider().refresh_session(kc_refresh)
-        if new_kc_refresh is None:
-            await delete_kc_refresh(old_jti)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Keycloak session is no longer valid",
-            )
+    if kc_refresh is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Keycloak session is no longer valid",
+        )
+    try:
+        renewed = await KeycloakOIDCProvider().refresh_session(kc_refresh)
+    except KeycloakUnavailable:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Keycloak is unavailable; try again shortly",
+        )
+    if renewed is None:
         await delete_kc_refresh(old_jti)
-        await store_kc_refresh(new_jti, new_kc_refresh)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Keycloak session is no longer valid",
+        )
 
+    access, refresh_token, new_jti = _mint_pair(
+        user,
+        idp=_IDP_KEYCLOAK,
+        access_ttl=federated_access_lifetime(renewed.refresh_expires_in),
+    )
+    await store_kc_refresh(new_jti, renewed.refresh_token)
+    await retire_kc_refresh(old_jti, renewed.refresh_token)
     return TokenResponse(access_token=access, refresh_token=refresh_token)
 
 

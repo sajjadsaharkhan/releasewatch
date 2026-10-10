@@ -243,7 +243,9 @@ export function AppProvider({ children }) {
       setIsAuthenticated(false)
       localStorage.removeItem('rw:token')
       localStorage.removeItem('rw:refresh_token')
-      window.location.hash = '/login'
+      // BrowserRouter: navigate by path (a hash would never leave the page). An
+      // explicit sign-out starts fresh, so no `next`.
+      window.location.assign('/login')
     }
   }, [])
 

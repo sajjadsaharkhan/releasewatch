@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LogIn, Eye, EyeOff, AlertCircle, AtSign, KeyRound } from 'lucide-react'
 import logoUrl from '../assets/logo.svg'
 import { cn } from '../lib/cn'
@@ -7,10 +7,14 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { authApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
+import { safeNext, stashNext } from '../lib/authRedirect'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useApp()
+  // The page the user was sent here from — returned to after signing in.
+  const [searchParams] = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -35,6 +39,7 @@ export default function LoginPage() {
   }, [])
 
   const handleKeycloak = () => {
+    stashNext(next)
     window.location.href = authApi.keycloakLoginUrl()
   }
 
@@ -55,8 +60,7 @@ export default function LoginPage() {
       const meResponse = await authApi.me()
       login(meResponse.data, access_token)
 
-      // Navigate to dashboard
-      navigate('/dashboard')
+      navigate(next ?? '/dashboard', { replace: true })
     } catch (err) {
       // Use normalized error message if available, otherwise use default
       const message = err.normalizedMessage || err.response?.data?.detail || 'Login failed. Please check your credentials.'

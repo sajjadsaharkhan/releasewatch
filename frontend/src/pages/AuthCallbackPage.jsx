@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useApp } from '../hooks/useApp'
+import { takeStashedNext } from '../lib/authRedirect'
 
 // Captured the moment this module loads — before any effect runs or a stray 401
 // handler can rewrite the URL — so the tokens can never be lost to a race.
@@ -10,7 +11,8 @@ const INITIAL_HASH = typeof window !== 'undefined' ? window.location.hash : ''
 /**
  * Landing page for the Keycloak redirect. The backend hands the Releasewatch
  * tokens back in the URL fragment (`/auth/callback#access=...&refresh=...`);
- * we store them, hydrate auth state, strip the fragment, and continue.
+ * we store them, hydrate auth state, strip the fragment, and continue to the
+ * page the user was originally after (stashed by LoginPage before the redirect).
  */
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
@@ -41,7 +43,7 @@ export default function AuthCallbackPage() {
         login(meResponse.data, accessToken)
         // Drop the token fragment from the URL history.
         window.history.replaceState(null, '', window.location.pathname)
-        navigate('/dashboard', { replace: true })
+        navigate(takeStashedNext() ?? '/dashboard', { replace: true })
       } catch (err) {
         localStorage.removeItem('rw:token')
         localStorage.removeItem('rw:refresh_token')

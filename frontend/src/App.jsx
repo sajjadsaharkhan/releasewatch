@@ -7,6 +7,7 @@ import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
 import { useTrackNavOrigin } from './hooks/useNavOrigin'
 import { canSubmitSupportReport, homePath, isSupport } from './lib/roles'
+import { loginPath, safeNext } from './lib/authRedirect'
 
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'))
@@ -50,7 +51,7 @@ function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to={loginPath(location.pathname + location.search + location.hash)} replace />
   }
 
   return children
@@ -70,7 +71,7 @@ function AdminRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to={loginPath(location.pathname + location.search + location.hash)} replace />
   }
 
   if (!ADMIN_ROLES.includes(user?.role)) {
@@ -105,6 +106,7 @@ function HomeRedirect() {
 // Public route wrapper (redirect if already authenticated)
 function PublicRoute({ children }) {
   const { isAuthenticated, authLoading, user } = useApp()
+  const location = useLocation()
 
   if (authLoading) {
     return (
@@ -115,7 +117,8 @@ function PublicRoute({ children }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={homePath(user?.role)} replace />
+    const next = safeNext(new URLSearchParams(location.search).get('next'))
+    return <Navigate to={next ?? homePath(user?.role)} replace />
   }
 
   return children

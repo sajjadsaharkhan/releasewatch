@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { currentPath, loginPath } from './authRedirect'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -39,10 +40,49 @@ function clearAuthAndRedirect() {
   localStorage.removeItem('rw:token')
   localStorage.removeItem('rw:refresh_token')
   // The app uses BrowserRouter, so navigate by path — assigning location.hash
-  // would only append a fragment and never leave the current page.
+  // would only append a fragment and never leave the current page. Carry the
+  // current page so signing back in returns here.
   if (window.location.pathname !== '/login') {
-    window.location.assign('/login')
+    window.location.assign(loginPath(currentPath()))
   }
+}
+
+function bearerOf(config) {
+  const header = config.headers?.Authorization ?? config.headers?.authorization
+  return typeof header === 'string' ? header.replace(/^Bearer /, '') : null
+}
+
+// Exchange the stored refresh token for a new pair. Serialised across tabs with
+// a Web Lock: a tab that waited behind another tab's refresh finds a newer
+// access token already stored and reuses it instead of spending the (now
+// rotated) refresh token a second time.
+async function refreshTokens(staleAccessToken) {
+  const run = async () => {
+    const stored = localStorage.getItem('rw:token')
+    if (stored && stored !== staleAccessToken) return stored
+
+    const refreshToken = localStorage.getItem('rw:refresh_token')
+    if (!refreshToken) {
+      const err = new Error('No refresh token')
+      err.noRefreshToken = true
+      throw err
+    }
+    const { data } = await rawApi.post('/auth/refresh', { refresh_token: refreshToken })
+    localStorage.setItem('rw:token', data.access_token)
+    if (data.refresh_token) {
+      localStorage.setItem('rw:refresh_token', data.refresh_token)
+    }
+    return data.access_token
+  }
+  return navigator.locks?.request ? navigator.locks.request('rw:auth-refresh', run) : run()
+}
+
+// Only a definitive answer ends the session. A 503 (Keycloak unreachable) or a
+// network error leaves the tokens in place so the next request tries again.
+function endsSession(refreshError) {
+  if (refreshError.noRefreshToken) return true
+  const status = refreshError.response?.status
+  return status === 401 || status === 403
 }
 
 // Response interceptor: handle errors
@@ -52,13 +92,6 @@ api.interceptors.response.use(
     const originalRequest = error.config
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const refreshToken = localStorage.getItem('rw:refresh_token')
-
-      if (!refreshToken) {
-        clearAuthAndRedirect()
-        return Promise.reject(error)
-      }
-
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
@@ -72,20 +105,17 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await rawApi.post('/auth/refresh', { refresh_token: refreshToken })
-        const newToken = data.access_token
-        localStorage.setItem('rw:token', newToken)
-        if (data.refresh_token) {
-          localStorage.setItem('rw:refresh_token', data.refresh_token)
-        }
+        const newToken = await refreshTokens(bearerOf(originalRequest))
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`
         originalRequest.headers.Authorization = `Bearer ${newToken}`
         processQueue(null, newToken)
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        clearAuthAndRedirect()
-        return Promise.reject(refreshError)
+        if (endsSession(refreshError)) clearAuthAndRedirect()
+        // Signed out already (e.g. a wrong password on /login): surface the
+        // request's own 401, not the missing refresh token.
+        return Promise.reject(refreshError.noRefreshToken ? error : refreshError)
       } finally {
         isRefreshing = false
       }

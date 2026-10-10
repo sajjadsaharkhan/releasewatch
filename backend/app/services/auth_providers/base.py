@@ -11,7 +11,8 @@ class ExternalPrincipal:
     ``subject`` is the stable provider id (Keycloak ``sub`` UUID, AD objectGUID)
     used as ``UserIdentity.provider_subject`` — never the username, which can
     change.  ``provider_refresh_token`` is set only by OIDC providers that
-    support silent renewal.
+    support silent renewal; ``provider_refresh_expires_in`` is that token's
+    lifetime in seconds (the provider's idle timeout; ``0`` = no idle limit).
     """
 
     provider: str
@@ -20,6 +21,7 @@ class ExternalPrincipal:
     name: str | None = None
     email: str | None = None
     provider_refresh_token: str | None = None
+    provider_refresh_expires_in: int | None = None
 
 
 class AuthProvider(Protocol):

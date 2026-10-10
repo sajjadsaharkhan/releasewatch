@@ -19,6 +19,22 @@ from app.services.auth_providers.base import ExternalPrincipal
 logger = logging.getLogger(__name__)
 
 
+class KeycloakUnavailable(Exception):
+    """Keycloak could not be reached or answered with a server error.
+
+    Distinct from a rejected refresh token: the session may still be valid, so
+    callers must not treat this as a logout.
+    """
+
+
+@dataclass(slots=True)
+class KeycloakRefresh:
+    """A renewed Keycloak session: the new refresh token and its lifetime."""
+
+    refresh_token: str
+    refresh_expires_in: int | None
+
+
 @dataclass(slots=True)
 class AuthRequestState:
     """Per-login transient state, stashed server-side keyed by ``state``."""
@@ -111,6 +127,7 @@ class KeycloakOIDCProvider:
             name=claims.get("name"),
             email=claims.get("email"),
             provider_refresh_token=tokens.get("refresh_token"),
+            provider_refresh_expires_in=tokens.get("refresh_expires_in"),
         )
 
     async def _validate_id_token(self, id_token: str, expected_nonce: str) -> dict:
@@ -135,14 +152,15 @@ class KeycloakOIDCProvider:
             raise ValueError("Nonce mismatch")
         return dict(claims)
 
-    async def refresh_session(self, kc_refresh_token: str) -> str | None:
-        """Refresh the Keycloak session; return the NEW KC refresh token or ``None``.
+    async def refresh_session(self, kc_refresh_token: str) -> KeycloakRefresh | None:
+        """Refresh the Keycloak session, which also resets its idle timer.
 
-        ``None`` means the session is no longer valid (user revoked/disabled) and
-        the RW refresh must be rejected.
+        Returns the renewed session, or ``None`` when Keycloak rejects the token
+        (session expired, revoked, or user disabled) and the RW refresh must be
+        rejected.  Raises ``KeycloakUnavailable`` when Keycloak can't answer.
         """
-        meta = await self._discover()
         try:
+            meta = await self._discover()
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(
                     meta["token_endpoint"],
@@ -153,9 +171,18 @@ class KeycloakOIDCProvider:
                         "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
                     },
                 )
-            if resp.status_code != 200:
-                return None
-            return resp.json().get("refresh_token", kc_refresh_token)
         except httpx.HTTPError as exc:
             logger.warning("Keycloak refresh failed: %s", exc)
+            raise KeycloakUnavailable(str(exc)) from exc
+
+        if resp.status_code >= 500:
+            logger.warning("Keycloak refresh failed: HTTP %s", resp.status_code)
+            raise KeycloakUnavailable(f"HTTP {resp.status_code}")
+        if resp.status_code != 200:
+            logger.info("Keycloak rejected refresh: HTTP %s %s", resp.status_code, resp.text[:200])
             return None
+        tokens = resp.json()
+        return KeycloakRefresh(
+            refresh_token=tokens.get("refresh_token", kc_refresh_token),
+            refresh_expires_in=tokens.get("refresh_expires_in"),
+        )

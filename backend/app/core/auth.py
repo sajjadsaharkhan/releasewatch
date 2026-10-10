@@ -53,13 +53,15 @@ def _build_token(data: dict[str, Any], expires_delta: timedelta) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_access_token(data: dict[str, Any]) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """Create a short-lived access JWT.
 
     Parameters
     ----------
     data:
         Arbitrary claims to embed.  Must include ``"sub"`` (user ID as string).
+    expires_delta:
+        Lifetime override; defaults to ``JWT_ACCESS_EXPIRE_MINUTES``.
 
     Returns
     -------
@@ -68,8 +70,24 @@ def create_access_token(data: dict[str, Any]) -> str:
     """
     return _build_token(
         {**data, "type": "access"},
-        timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES),
+        expires_delta or timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES),
     )
+
+
+def federated_access_lifetime(provider_refresh_expires_in: int | None) -> timedelta:
+    """Access-token lifetime for a session backed by an external IdP session.
+
+    The IdP session only stays alive if it is refreshed before its idle timeout
+    (Keycloak's SSO Session Idle, reported as ``refresh_expires_in``).  RW only
+    contacts the IdP when its own access token expires, so that token must
+    expire well inside the idle window — otherwise an active user's IdP session
+    lapses and the next refresh logs them out.  Half the window, capped at the
+    normal lifetime and floored at one minute.  ``0``/``None`` = no idle limit.
+    """
+    default = timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
+    if not provider_refresh_expires_in:
+        return default
+    return min(default, timedelta(seconds=max(60, provider_refresh_expires_in // 2)))
 
 
 def create_refresh_token(data: dict[str, Any]) -> str:
@@ -96,6 +114,11 @@ def create_refresh_token(data: dict[str, Any]) -> str:
 
 _KC_REFRESH_PREFIX = "rw:kc_refresh:"
 
+# After rotation the old ``jti`` keeps pointing at the renewed Keycloak token for
+# this long, so a second tab refreshing with the same RW token at the same moment
+# still succeeds instead of being logged out.
+KC_REFRESH_GRACE_SECONDS = 60
+
 
 async def store_kc_refresh(jti: str, kc_refresh_token: str) -> None:
     """Persist a Keycloak refresh token against an RW refresh ``jti``.
@@ -115,6 +138,16 @@ async def get_kc_refresh(jti: str) -> str | None:
 
     client = await get_redis_raw()
     return await client.get(_KC_REFRESH_PREFIX + jti)
+
+
+async def retire_kc_refresh(jti: str, renewed_kc_refresh_token: str) -> None:
+    """Point a rotated-out ``jti`` at the renewed Keycloak token for a short grace."""
+    from app.core.redis_client import get_redis_raw
+
+    client = await get_redis_raw()
+    await client.set(
+        _KC_REFRESH_PREFIX + jti, renewed_kc_refresh_token, ex=KC_REFRESH_GRACE_SECONDS
+    )
 
 
 async def delete_kc_refresh(jti: str) -> None:
