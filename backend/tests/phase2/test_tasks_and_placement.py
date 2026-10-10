@@ -59,6 +59,32 @@ async def test_bug_still_starts_in_new_and_has_bug_key(factories, rig):
     assert bug.key.startswith("BUG-")
 
 
+@pytest.mark.asyncio
+async def test_bug_filed_with_assignee_skips_triage_into_its_placement(factories, rig):
+    dev = await factories.user(role="developer")
+    project_id = rig["project"].id
+    in_release = await factories.issue(
+        project_id=project_id, release_id=rig["release"].id, assignee_id=dev.id, priority="high",
+    )
+    assert in_release.status == "todo" and in_release.release_id == rig["release"].id
+    assert in_release.assignee_id == dev.id
+
+    # Backlog placement: a To do bug is a backlog member, so it gets a rank.
+    in_backlog = await factories.issue(project_id=project_id, assignee_id=dev.id, priority="low")
+    assert in_backlog.status == "todo" and in_backlog.release_id is None
+    backlog = (await factories.admin_client.get(f"/projects/{project_id}/backlog")).json()
+    assert in_backlog.id in {i["id"] for i in backlog["items"]}
+
+
+@pytest.mark.asyncio
+async def test_bug_filed_with_assignee_needs_a_priority(factories, rig):
+    dev = await factories.user(role="developer")
+    resp = await factories.admin_client.post(
+        "/issues", json={"title": "t", "project_id": rig["project"].id, "assignee_id": dev.id},
+    )
+    assert resp.status_code == 422 and resp.json()["code"] == "priority_required"
+
+
 # ── Task workflow: free movement between task statuses ───────────────────────
 
 TASK_STATUSES = ["todo", "in_progress", "to_review", "in_review", "done", "blocked", "cancelled"]

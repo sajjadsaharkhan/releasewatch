@@ -91,7 +91,10 @@ class IssueService:
 
         Automatically assigns the next ``issue_number`` and appends a
         ``filed`` timeline event. Bugs start in ``new`` (BR-11 — every bug
-        passes triage). Tasks start in ``todo`` and skip triage (BR-12).
+        passes triage) unless filed with an assignee: then the reporter has
+        triaged it already, so it starts in ``todo`` in its chosen placement
+        and, like a triage Accept, needs a priority (BR-16). Tasks start in
+        ``todo`` and skip triage (BR-12).
 
         ``source`` and ``filed_meta`` are set only by ``SupportService`` (slice
         05) — ``/issues`` always files ``internal`` items. ``filed_meta`` is
@@ -113,8 +116,17 @@ class IssueService:
         if data.is_release_blocker:
             containers.ensure_blocker_allowed(issue_type_value(data.type), container)
 
+        is_task = issue_type_value(data.type) == IssueType.task.value
+        pre_triaged = not is_task and data.assignee_id is not None
+        if pre_triaged and data.priority is None:
+            raise DomainError(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Set a priority — a bug filed with an assignee goes straight to To do.",
+                "priority_required",
+            )
+
         now = datetime.now(tz=UTC)
-        initial_status = IssueStatus.todo if data.type == IssueType.task else IssueStatus.new
+        initial_status = IssueStatus.todo if is_task or pre_triaged else IssueStatus.new
 
         # Every item has a category of its own project — Default unless one is chosen.
         category = await backlog_category_service.resolve(
@@ -214,7 +226,7 @@ class IssueService:
             )
 
         search_index.enqueue(db, issue.id)
-        if issue_type_value(data.type) == IssueType.bug.value:
+        if initial_status == IssueStatus.new:
             # A filed bug enters New: look for possible duplicates (slice 14).
             search_index.enqueue_hints(db, issue.id)
         return issue

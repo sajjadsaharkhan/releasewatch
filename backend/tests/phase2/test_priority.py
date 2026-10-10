@@ -100,10 +100,10 @@ async def test_ac_16_priority_required_on_accept(factories, rig):
 @pytest.mark.asyncio
 async def test_priority_change_records_event_and_notifies_assignee(factories, client_for, rig):
     developer = await factories.user(role="developer")
-    bug = await factories.issue(
-        project_id=rig["project"].id, release_id=rig["release"].id, assignee_id=developer.id,
-    )
+    # Filed unrated, then assigned: filing with an assignee would need a priority.
+    bug = await factories.issue(project_id=rig["project"].id, release_id=rig["release"].id)
     admin = factories.admin_client
+    assert (await admin.patch(f"/issues/{bug.id}", json={"assignee_id": developer.id})).status_code == 200
 
     resp = await admin.patch(f"/issues/{bug.id}", json={"priority": "critical"})
     assert resp.status_code == 200
@@ -169,10 +169,10 @@ async def test_sort_by_priority_puts_unrated_last(factories, rig):
 @pytest.mark.asyncio
 async def test_due_date_change_records_event_and_notifies_assignee(factories, client_for, rig):
     developer = await factories.user(role="developer")
-    bug = await factories.issue(
-        project_id=rig["project"].id, release_id=rig["release"].id, assignee_id=developer.id,
-    )
+    # Filed unrated, then assigned: filing with an assignee would need a priority.
+    bug = await factories.issue(project_id=rig["project"].id, release_id=rig["release"].id)
     admin = factories.admin_client
+    assert (await admin.patch(f"/issues/{bug.id}", json={"assignee_id": developer.id})).status_code == 200
 
     assert (await admin.patch(f"/issues/{bug.id}", json={"due_date": "2026-10-21"})).status_code == 200
     assert (await admin.patch(f"/issues/{bug.id}", json={"due_date": None})).status_code == 200

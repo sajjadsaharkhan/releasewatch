@@ -99,10 +99,11 @@ async def test_queue_holds_only_open_board_items_across_projects(factories, rig)
     await _transition(admin, done.id, "done")
     cancelled = await _task(factories, rig)
     await _transition(admin, cancelled.id, "cancelled")
-    # A bug still in triage (New) isn't committed work.
-    await factories.issue(
-        project_id=rig["project"].id, release_id=rig["stream_id"], assignee_id=rig["dev"].id,
-    )
+    # A bug still in triage (New) isn't committed work. Assigned after filing —
+    # filing it with an assignee would skip triage.
+    triage_bug = await factories.issue(project_id=rig["project"].id, release_id=rig["stream_id"])
+    resp = await admin.patch(f"/issues/{triage_bug.id}", json={"assignee_id": rig["dev"].id})
+    assert resp.status_code == 200 and resp.json()["status"] == "new"
 
     assert set(await _flat(rig["dev_client"])) == {a.id, b.id}
 

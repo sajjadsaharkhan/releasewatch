@@ -54,16 +54,12 @@ async def _inbox(client):
 
 async def _delivered(factories, rig, *, type="task", release_id, **overrides):
     """An item assigned to the developer, delivered by them to In review."""
+    # A bug filed with an assignee and a priority skips triage straight into To do.
     item = await factories.issue(
         project_id=rig["project"].id, type=type, release_id=release_id,
-        assignee_id=rig["dev"].id, **overrides,
+        assignee_id=rig["dev"].id, **({"priority": "high"} if type == "bug" else {}), **overrides,
     )
-    if type == "bug":
-        resp = await factories.admin_client.post(f"/issues/{item.id}/triage", json={
-            "outcome": "accept", "priority": "high", "release_id": release_id,
-            "assignee_id": rig["dev"].id,
-        })
-        assert resp.status_code == 200, resp.text
+    assert item.status == "todo"
     await _move(rig["dev_client"], item.id, "in_progress", "in_review")
     return item
 

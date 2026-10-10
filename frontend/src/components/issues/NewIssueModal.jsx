@@ -44,6 +44,9 @@ function useNewIssueForm({ open, onClose, onCreated }) {
   const isTask = form.type === 'task'
   const priority = form.priority ?? (isTask ? TASK_DEFAULT_PRIORITY : null)
   const inRelease = form.releaseId != null && allReleases.some((r) => r.id === form.releaseId)
+  // A bug filed with an assignee skips triage: it starts in To do where it's placed,
+  // so — like a triage Accept — it needs a priority.
+  const skipsTriage = !isTask && !!form.assigneeId
   const { categories } = useBacklogCategories(form.projectId || null)
 
   useEffect(() => {
@@ -116,6 +119,7 @@ function useNewIssueForm({ open, onClose, onCreated }) {
 
   async function submit() {
     if (!form.title.trim()) { setErrors({ title: 'Give it a title first' }); return false }
+    if (skipsTriage && priority == null) { setErrors({ priority: 'Pick a priority — an assigned bug skips triage' }); return false }
     setLoading(true)
     try {
       const shared = {
@@ -153,7 +157,7 @@ function useNewIssueForm({ open, onClose, onCreated }) {
 
   return {
     form, set, setType, setProject, setContainer, addStep, updateStep, removeStep, toggleLabel,
-    errors, loading, dataLoading, isUploading, setIsUploading, isTask, priority, inRelease, categories,
+    errors, loading, dataLoading, isUploading, setIsUploading, isTask, priority, inRelease, skipsTriage, categories,
     projects, labels, teamUsers, assignableUsers, composerKey, submit,
     attachments, setAttachments,
     addPending: (p) => setPendingAttachments((prev) => [...prev, p]),
@@ -341,16 +345,17 @@ function Chip({ selected, onClick, children, ...p }) {
 }
 
 function PriorityRow({ s }) {
-  return (
+  return (<>
     <div className="flex flex-wrap gap-1" role="group" aria-label="Priority">
-      {!s.isTask && <Chip selected={s.priority == null} onClick={() => s.set('priority', null)}>Unrated</Chip>}
+      {!s.isTask && !s.skipsTriage && <Chip selected={s.priority == null} onClick={() => s.set('priority', null)}>Unrated</Chip>}
       {PRIORITIES.map((p) => (
         <Chip key={p} selected={s.priority === p} onClick={() => s.set('priority', p)}>
           <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', PRIORITY[p].dot)} />{PRIORITY[p].label}
         </Chip>
       ))}
     </div>
-  )
+    {s.errors.priority && <p role="alert" className="mt-1 text-xs text-destructive">{s.errors.priority}</p>}
+  </>)
 }
 
 function EnvRow({ s }) {
@@ -537,11 +542,16 @@ export function NewIssueModal({ open, onClose, onCreated }) {
               <div><Label>Place in</Label><ContainerPicker colorize projectId={s.form.projectId} value={s.form.releaseId} onChange={s.setContainer} /></div>
             </div>
             <BacklogCategory s={s} />
-            <div><Label hint={!s.isTask ? '(optional until triage)' : undefined}>Priority</Label><PriorityRow s={s} /></div>
+            <div><Label hint={s.isTask ? undefined : s.skipsTriage ? '(required — assigned bugs skip triage)' : '(optional until triage)'}>Priority</Label><PriorityRow s={s} /></div>
             <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
               <div><Label>Assignee</Label><Assignee s={s} /></div>
               <div><Label>Due date</Label><Due s={s} /></div>
             </div>
+            {s.skipsTriage && (
+              <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                <Icon name="info" size={12} aria-hidden="true" /> Skips triage — starts in To do, in the place chosen above.
+              </p>
+            )}
           </div>
 
           <TaskDebt s={s} />
