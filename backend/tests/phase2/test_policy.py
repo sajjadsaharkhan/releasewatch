@@ -143,5 +143,18 @@ def test_item_actions_hide_tech_controls_from_support():
     assert blocked == []
 
 
+def test_support_can_mark_in_review_work_done():
+    support = Actor(ME, "support")
+    item = Target(item_id=1, item_type="bug", status="in_review", source="support")
+    assert decide(support, transition("done"), item).ok
+    allowed, _ = item_actions(support, item, ["done", "in_progress"])
+    assert "transition:done" in allowed and "transition:in_progress" not in allowed
+    # Only from In review, and only on items Support can see.
+    for status in ("todo", "in_progress", "to_review", "blocked"):
+        d = decide(support, transition("done"), Target(item_id=1, status=status, source="support"))
+        assert not d.ok and d.hidden
+    assert decide(support, transition("done"), Target(item_id=1, status="in_review")).not_found
+
+
 def test_unknown_action_is_denied():
     assert decide(Actor(ME, "admin"), "launch_rockets").code == "unknown_action"

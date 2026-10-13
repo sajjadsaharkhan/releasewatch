@@ -362,6 +362,14 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
     if key in _QUEUE_ACTIONS and target.queue_owner_id not in (None, actor.id):
         roles = _CTO_ADMIN
 
+    # Support may close out a fix it can see: In review → Done, and no other move.
+    if (
+        _role(actor.role) == Role.support.value
+        and action == transition("done")
+        and target.status == "in_review"
+    ):
+        return ALLOWED
+
     if not _matrix_allows(actor, roles, target):
         return _deny_role(actor, action, roles)
 

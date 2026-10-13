@@ -753,7 +753,12 @@ async def update_issue(
 ) -> IssueResponse:
     """Partially update editable fields of an issue; emits a timeline event per changed field."""
     data = payload.model_dump(exclude_unset=True)
-    issue = await authorize_issue(db, issue_id, current_user, Action.edit_item)
+    # A status-only change needs just its transition — Support may mark In review
+    # work Done without being able to edit the item.
+    if data.keys() == {"status"} and data["status"] is not None:
+        issue = await authorize_issue(db, issue_id, current_user, transition(data["status"]))
+    else:
+        issue = await authorize_issue(db, issue_id, current_user, Action.edit_item)
     if data.get("project_id") not in (None, issue.project_id):
         raise DomainError(
             status.HTTP_409_CONFLICT,
