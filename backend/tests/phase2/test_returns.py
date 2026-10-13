@@ -241,7 +241,9 @@ async def test_ac_71_support_has_no_production_action(factories, rig, client_for
 
 
 @pytest.mark.asyncio
-async def test_support_hears_nothing_about_a_return(factories, rig):
+async def test_support_hears_a_return_only_as_a_status_change(factories, rig):
+    """Support follows progress (2026-10-14): it hears the item leave Done, but
+    never the return itself — no ``item_returned``, no reason."""
     template = await factories.support_template(project_id=rig["project"].id)
     report = await factories.support_report(rig["support_client"], template=template)
     admin = factories.admin_client
@@ -252,8 +254,9 @@ async def test_support_hears_nothing_about_a_return(factories, rig):
     await _move(admin, report.id, "in_progress", "in_review", "done")
     before = [i["type"] for i in await _inbox(rig["support_client"])]
     await rig["qa_client"].post(f"/issues/{report.id}/returns", json={"comment": "Again."})
-    after = [i["type"] for i in await _inbox(rig["support_client"])]
-    assert after == before
+    after = await _inbox(rig["support_client"])
+    assert [i["type"] for i in after] == ["status_changed", *before]
+    assert after[0]["meta"]["to"] == "rejected"
     assert "item_returned" in [i["type"] for i in await _inbox(rig["dev_client"])]
 
 

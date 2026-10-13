@@ -176,7 +176,8 @@ async def test_already_subscribed_reporter_is_not_duplicated(factories, rig):
     assert (await recur(rig["support_client"], bug.id)).status_code == 201
     await rig["lead_client"].post(f"/issues/{bug.id}/triage", json={"outcome": "accept", "priority": "high"})
     await to_status(rig["admin"], bug.id, "done")
-    assert await inbox_types(rig["support_client"]) == ["support_done"]
+    # One subscription, so each notice arrives once: the move to To do, then Done.
+    assert await inbox_types(rig["support_client"]) == ["support_done", "status_changed"]
 
 
 # ── AC-11 — Cancelled bug: lead notified, stays Cancelled ────────────────────

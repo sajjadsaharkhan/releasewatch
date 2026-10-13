@@ -47,6 +47,16 @@ async def inbox_types(client) -> list[str]:
     return [i["type"] for i in await inbox(client)]
 
 
+async def support_feed(client) -> list[str]:
+    """Inbox types, newest first, with a status change's destination spelled
+    out (``status_changed:todo``) — Support hears every move except into the
+    three statuses it gets a ``support_*`` notice for."""
+    return [
+        f"status_changed:{i['meta']['to']}" if i["type"] == "status_changed" else i["type"]
+        for i in await inbox(client)
+    ]
+
+
 async def triage(client, issue_id, **body):
     return await client.post(f"/issues/{issue_id}/triage", json=body)
 
@@ -377,13 +387,16 @@ async def test_ac_20_duplicate_cancels_increments_and_subscribes(factories, rig,
     unrelated = await factories.issue(project_id=rig["project"].id)
     assert (await rig["support_client"].get(f"/issues/{unrelated.id}")).status_code == 404
 
-    # …and now hears the original's future Support notices (BR-20, AC-20).
+    # …and now hears the original's progress and Support notices (BR-20, AC-20).
     await triage(rig["lead_client"], original.id, outcome="accept", priority="high")
     await to_status(rig["admin"], original.id, "done")
-    items = await inbox(rig["support_client"])
-    assert [i["type"] for i in items] == ["support_done", "support_cancelled"]
-    assert items[0]["issueId"] == f"issue-{original.issue_number}"
-    assert [t for t, _ in telegram.sent_to(rig["support"])] == ["support_merged", "support_done"]
+    assert await support_feed(rig["support_client"]) == [
+        "support_done", "status_changed:todo", "support_cancelled",
+    ]
+    assert (await inbox(rig["support_client"]))[0]["issueId"] == f"issue-{original.issue_number}"
+    assert [t for t, _ in telegram.sent_to(rig["support"])] == [
+        "support_merged", "status_changed", "support_done",
+    ]
 
 
 @pytest.mark.asyncio
@@ -561,14 +574,20 @@ async def test_ac_54_merged_support_reporter_gets_done_after_return(factories, r
     a = await support_report(factories, rig)
     await telegram.link_telegram(rig["support"])
     await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)
-    # The return itself sends Support nothing (§13) — only A's cancellation.
-    assert await inbox_types(rig["support_client"]) == ["support_cancelled"]
+    # Support hears A's cancellation and B leaving Done — the work came back.
+    assert await support_feed(rig["support_client"]) == [
+        "status_changed:rejected", "support_cancelled",
+    ]
     assert (await get(rig["admin"], b.id))["status"] == "rejected"
 
     await to_status(rig["admin"], b.id, "in_review")
     await to_status(rig["admin"], b.id, "done")
-    assert await inbox_types(rig["support_client"]) == ["support_done", "support_cancelled"]
-    assert [t for t, _ in telegram.sent_to(rig["support"])] == ["support_merged", "support_done"]
+    assert await support_feed(rig["support_client"]) == [
+        "support_done", "status_changed:in_review", "status_changed:rejected", "support_cancelled",
+    ]
+    assert [t for t, _ in telegram.sent_to(rig["support"])] == [
+        "support_merged", "status_changed", "status_changed", "support_done",
+    ]
 
 
 @pytest.mark.asyncio
@@ -651,11 +670,13 @@ async def test_move_refusals(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_support_subscriber_gets_only_the_three_events_and_mentions(factories, rig, telegram):
+async def test_support_subscriber_hears_progress_notices_and_mentions(factories, rig, telegram):
     """filed → needs info → replied → accepted → in progress → in review → done.
 
-    Support hears the three Support notices, plus a public @mention (the
-    2026-09-24 decision) — never plain comments or status changes.
+    Support hears the three Support notices, a public @mention (the 2026-09-24
+    decision) and every other status change (2026-10-14) — never plain
+    comments, never its own reply, and never a status change twice: a move
+    into Needs info or Done arrives as its Support notice only.
     """
     await telegram.link_telegram(rig["support"])
     bug = await support_report(factories, rig)
@@ -680,14 +701,20 @@ async def test_support_subscriber_gets_only_the_three_events_and_mentions(factor
     await rig["qa_client"].post(f"/issues/{bug.id}/verify", json={"outcome": "pass"})
     assert (await get(rig["admin"], bug.id))["status"] == "done"
 
-    assert await inbox_types(rig["support_client"]) == ["support_done", "mention", "support_needs_info"]
-    assert [t for t, _ in telegram.sent_to(rig["support"])] == ["support_needs_info", "mention", "support_done"]
+    assert await support_feed(rig["support_client"]) == [
+        "support_done", "status_changed:in_review", "status_changed:in_progress", "mention",
+        "status_changed:todo", "support_needs_info",
+    ]
+    assert [t for t, _ in telegram.sent_to(rig["support"])] == [
+        "support_needs_info", "status_changed", "mention", "status_changed", "status_changed",
+        "support_done",
+    ]
 
     # The third event, on a second report.
     rejected = await support_report(factories, rig)
     await triage(rig["lead_client"], rejected.id, outcome="reject", comment="User error.")
     assert set(await inbox_types(rig["support_client"])) == {
-        "support_needs_info", "support_cancelled", "support_done", "mention",
+        "support_needs_info", "support_cancelled", "support_done", "mention", "status_changed",
     }
 
 
@@ -735,8 +762,9 @@ async def test_support_done_off_in_matrix_sends_no_telegram(factories, rig, tele
     bug = await support_report(factories, rig)
     await triage(rig["lead_client"], bug.id, outcome="accept", priority="low")
     await to_status(rig["admin"], bug.id, "done")
-    assert await inbox_types(rig["support_client"]) == ["support_done"]  # inbox still gets it
-    assert telegram.sent_to(rig["support"]) == []
+    # The inbox still gets it; Telegram only has the move into To do.
+    assert await support_feed(rig["support_client"]) == ["support_done", "status_changed:todo"]
+    assert [t for t, _ in telegram.sent_to(rig["support"])] == ["status_changed"]
 
 
 # ── Mentions and the Support reports list (2026-09-24 follow-up) ─────────────

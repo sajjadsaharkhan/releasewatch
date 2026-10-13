@@ -11,7 +11,8 @@ mention              → mentioned users (parsed from body)
 item_returned        → assignee (08a: work came back — reason + comment)
 blocker_filed        → all triage leads + CTOs
 blocker_cleared      → all triage leads + CTOs + assignee + reporter
-status_changed       → assignee + reporter
+status_changed       → assignee + reporter (Support too, unless the move is
+                       into Needs info / Done / Cancelled — its support_* notice covers it)
 verified             → reporter + assignee
 filed                → triage leads
 environment_changed  → assignee + reporter
@@ -34,8 +35,8 @@ while the project has none (AC-23). Whatever the event, a recipient who may
 not see the item — or, for an internal note, anyone who isn't a tech role —
 is dropped before any row, WebSocket push, or Telegram send exists
 (slice 04, BR-30/31). Support users are also dropped from every event except
-the three ``support_*`` ones and ``mention`` (slice 06), so Support never gets
-internal content by notification.
+the three ``support_*`` ones, ``mention`` (slice 06) and ``status_changed``
+(2026-10-14), so Support never gets internal content by notification.
 """
 
 import html as html_lib
@@ -50,7 +51,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.notification_defaults import resolve_matrix
 from app.db.models.inbox_item import (
-    ASSIGNEE_EVENTS, SUPPORT_EVENTS, SUPPORT_RECEIVABLE, InboxItem, InboxEventType,
+    ASSIGNEE_EVENTS, SUPPORT_EVENTS, SUPPORT_NOTICE_STATUSES, SUPPORT_RECEIVABLE, InboxItem,
+    InboxEventType,
 )
 from app.db.models.issue import Issue, IssueSource
 from app.db.models.issue_timeline import IssueTimeline
@@ -297,7 +299,9 @@ class InboxFanOutService:
         recipients.update(forced_recipients)
         if suppress_user_ids:
             recipients -= suppress_user_ids
-        recipients = await self._drop_invisible(db, recipients, issue, timeline_event, trigger)
+        recipients = await self._drop_invisible(
+            db, recipients, issue, timeline_event, trigger, meta=meta,
+        )
         logger.info("[fan_out] trigger=%s final_recipients=%s", trigger, recipients)
 
         # ── Create InboxItem rows ─────────────────────────────────────────────
@@ -847,11 +851,14 @@ class InboxFanOutService:
         issue: Issue,
         timeline_event: IssueTimeline | None,
         trigger: InboxEventType | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> set[str]:
         """Keep only recipients who may see ``issue`` (and the note, if it's internal).
 
-        Support users keep only the three ``support_*`` events and mentions
-        (slice 06) — never comments, status changes, or anything else.
+        Support users keep only ``SUPPORT_RECEIVABLE``: the three ``support_*``
+        events, mentions, and status changes — except a move into Needs info,
+        Done or Cancelled, which Support hears as its ``support_*`` notice
+        instead. Never comments or anything else.
         """
         from app.policy import Action, allows, is_tech
         from app.services.authz import actor_of, issue_target
@@ -861,7 +868,10 @@ class InboxFanOutService:
         result = await db.execute(select(User).where(User.id.in_([int(r) for r in recipients])))
         target = issue_target(issue)
         internal = timeline_event is not None and timeline_event.is_internal
-        support_may_receive = trigger in SUPPORT_RECEIVABLE
+        support_may_receive = trigger in SUPPORT_RECEIVABLE and not (
+            trigger == InboxEventType.status_changed
+            and (meta or {}).get("to") in SUPPORT_NOTICE_STATUSES
+        )
         return {
             str(u.id)
             for u in result.scalars().all()

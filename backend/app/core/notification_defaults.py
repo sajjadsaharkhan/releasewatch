@@ -21,7 +21,7 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "assigned":            _row(assignee=True),
     "mention":             _row(reporter=True, assignee=True, triage=True, cto=True),
     "comment":             _row(reporter=True, assignee=True),
-    "status_changed":      _row(reporter=True, assignee=True),
+    "status_changed":      _row(reporter=True, assignee=True, subscriber=True),
     "item_returned":       _row(assignee=True),
     "blocker_filed":       _row(triage=True, cto=True),
     "blocker_cleared":     _row(reporter=True, assignee=True, triage=True, cto=True),

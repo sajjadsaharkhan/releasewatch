@@ -36,7 +36,7 @@ Each project's **triage queue** lists its New and Needs info bugs. A triager (an
 15. As a triager, I want to **Reject** a bug with a comment saying why, so that the reporter learns why. (FR-18; amended 2026-10-02: the structured reason was dropped — the comment is the reason)
 16. As a Support reporter, I want a Telegram message when my report is cancelled, with the reason, so that I can tell the customer. (§13)
 17. As a Support reporter, I want a Telegram message when my report is Done, so that I can tell the customer it's fixed. (§13)
-18. As a Support reporter, I want no other status messages, so that the ones I get are worth reading. (§13)
+18. ~~As a Support reporter, I want no other status messages, so that the ones I get are worth reading.~~ (§13; amended 2026-10-14: Support hears every status change on items it reported or follows, so it can follow progress — a move into Needs info, Done or Cancelled still arrives only as its Support notice above)
 19. As a triager, I want to move a New or Needs info bug to another project, so that misfiled reports reach the right team. (FR-20)
 20. As a triage lead, I want to be notified when a bug is moved into my project's queue. (AC-22)
 21. As a user, I want a cancelled bug never to be reopened, so that history stays clear; a new occurrence is reported again. (BR-21)
@@ -51,7 +51,7 @@ Each project's **triage queue** lists its New and Needs info bugs. A triager (an
 - New table `issue_subscribers`: `issue_id, user_id, reason (reporter | recurrence | duplicate), created_at`. Unique `(issue_id, user_id)`; the first reason wins.
 - The reporter is subscribed when the item is created. Backfill existing items with their reporter.
 - **Support-audience events** are `needs_info`, `cancelled`, and `done`. They are three new `InboxEventType`s: `support_needs_info`, `support_cancelled`, and `support_done`. Their audience is subscribers with role `support`. Add matrix rows with a new relationship key `subscriber: true`, and extend the matrix loader and settings UI for that key.
-- **Support users receive only those three events.** `fan_out` drops Support-role recipients from every other trigger, including `comment`, `mention`, and `status_changed`. This single rule guarantees Support never gets internal content by notification (BR-31).
+- **Support users receive only those three events** — plus `mention` (2026-09-24) and `status_changed` (2026-10-14). `fan_out` drops Support-role recipients from every other trigger, including `comment`. A `status_changed` into `needs_info`, `done` or `cancelled` is also dropped for Support, because its `support_*` notice already says it. The status-change timeline event is always public, so Support still never gets internal content by notification (BR-31). The default matrix switches `status_changed` on for subscribers, so a Support user who follows an item (not only its reporter) hears its moves.
 - Tech reporters keep the Phase 1 matrix unchanged.
 
 ### Outcomes

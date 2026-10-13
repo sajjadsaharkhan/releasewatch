@@ -65,9 +65,15 @@ SUPPORT_EVENTS = frozenset({
 
 #: Everything a Support user may be notified of: the three Support notices,
 #: plus being @mentioned in a public comment on an item they can see (the
-#: 2026-09-24 decision — a mention is someone asking them directly). Internal
-#: notes never reach Support (BR-31).
-SUPPORT_RECEIVABLE = SUPPORT_EVENTS | {InboxEventType.mention}
+#: 2026-09-24 decision — a mention is someone asking them directly), plus
+#: every status change on an item they reported or follow (the 2026-10-14
+#: decision — Support follows progress, not just the outcome). A move into
+#: Needs info, Done or Cancelled reaches Support as its Support notice only
+#: (``SUPPORT_NOTICE_STATUSES``). Internal notes never reach Support (BR-31).
+SUPPORT_RECEIVABLE = SUPPORT_EVENTS | {InboxEventType.mention, InboxEventType.status_changed}
+
+#: Statuses whose move Support hears as a ``support_*`` notice, not ``status_changed``.
+SUPPORT_NOTICE_STATUSES = frozenset({"needs_info", "done", "cancelled"})
 
 #: Events whose only audience is the item's assignee (slice 10).
 ASSIGNEE_EVENTS = frozenset({
