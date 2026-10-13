@@ -12,6 +12,14 @@ closed and a new one is created transparently — no restart needed.
 
 If no token is configured the loop sleeps 10 s between DB polls and starts
 as soon as a token appears.
+
+Self-healing
+------------
+A long-lived httpx client can wedge after a proxy or network blip — every
+request then times out waiting for a pooled connection, forever, while a fresh
+client works at once (2026-10-12: the poller failed for ~44 h until a restart).
+After ``_MAX_NETWORK_ERRORS`` consecutive network errors the client is closed
+and rebuilt. The offset is kept: same bot, so updates resume where they stopped.
 """
 
 import asyncio
@@ -28,6 +36,7 @@ logger = logging.getLogger(__name__)
 _DB_CHECK_INTERVAL = 10
 _LOCK_KEY = "rw:telegram:poller:lock"
 _LOCK_TTL = 45  # seconds — must exceed the 30 s long-poll timeout
+_MAX_NETWORK_ERRORS = 3  # consecutive failures before the client is rebuilt
 
 
 # ── Distributed lock helpers ───────────────────────────────────────────────────
@@ -75,6 +84,7 @@ async def start_polling() -> None:
     offset: int | None = None
     iteration: int = 0
     holds_lock: bool = False
+    network_errors: int = 0
 
     logger.info(
         "Telegram bot poller started — checking DB for token every %d iterations",
@@ -124,6 +134,9 @@ async def start_polling() -> None:
 
             # ── Long-poll for updates ────────────────────────────────────────
             updates = await client.get_updates(offset=offset, timeout=30)
+            if network_errors:
+                logger.info("Telegram polling recovered after %d network errors", network_errors)
+                network_errors = 0
             for update in updates:
                 msg = update.get("message")
                 if msg:
@@ -146,7 +159,23 @@ async def start_polling() -> None:
             break
 
         except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as exc:
-            logger.warning("Telegram network error: %s — retrying in 5s", exc)
+            # httpx timeouts often have an empty message — the type is what tells
+            # a pool timeout from a proxy that refuses the connection.
+            network_errors += 1
+            logger.warning(
+                "Telegram network error %d: %s %s — retrying in 5s",
+                network_errors, type(exc).__name__, exc,
+            )
+            if network_errors % _MAX_NETWORK_ERRORS == 0 and client is not None:
+                try:
+                    await client.close()
+                except Exception:
+                    logger.warning("Could not close the wedged Telegram client", exc_info=True)
+                client = TelegramClient(token=current_token, proxy_url=current_proxy)
+                logger.warning(
+                    "Telegram client rebuilt after %d consecutive network errors — proxy=%s",
+                    network_errors, current_proxy or "none",
+                )
             await asyncio.sleep(5)
 
         except TelegramAPIError as exc:

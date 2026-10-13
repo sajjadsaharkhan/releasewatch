@@ -12,6 +12,10 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# httpx logs every request URL at INFO, and a Bot API URL embeds the bot token
+# (``/bot<token>/sendMessage``). Keep httpx to warnings wherever this client runs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 _TELEGRAM_BASE = "https://api.telegram.org"
 
 
