@@ -7,11 +7,14 @@ import { downloadIssueMarkdown } from '../lib/issueMarkdown'
 
 export function canDeleteIssue(currentUser, issue) {
   if (!currentUser || !issue) return false
+  // /auth/me sends the id as a string, issues send numbers — compare as strings,
+  // or nobody but the CTO and admins ever sees Delete.
+  const me = String(currentUser.id)
   return (
     currentUser.role === 'admin' ||
     currentUser.role === 'cto' ||
-    currentUser.id === issue.reporter_id ||
-    (issue.project_triage_lead_id != null && currentUser.id === issue.project_triage_lead_id)
+    (issue.reporter_id != null && me === String(issue.reporter_id)) ||
+    (issue.project_triage_lead_id != null && me === String(issue.project_triage_lead_id))
   )
 }
 
