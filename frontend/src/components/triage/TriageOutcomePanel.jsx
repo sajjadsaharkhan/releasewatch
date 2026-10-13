@@ -9,6 +9,7 @@ import { Textarea } from '../ui/Textarea'
 import { DuplicatePicker } from './DuplicatePicker'
 import { BacklogCategoryPicker, ContainerPicker, UserPicker } from '../common'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
+import { useContainers } from '../../hooks/useContainers'
 
 // Each outcome has one hue, used for its button, icon, notes and submit button:
 // accept green, needs info sky (the Needs info status), duplicate amber (the
@@ -86,7 +87,12 @@ export function TriageOutcomePanel({ issue, assignable, onDone, toast, presetOri
 
   const [priority, setPriority] = useState(null)
   const [assigneeId, setAssigneeId] = useState(null)
-  const [releaseId, setReleaseId] = useState(null)
+  // `undefined` until the triager picks: a bug already in a release stays
+  // there, anything else defaults to the project's Stream (2026-10-14) —
+  // resolved once the Stream's id has loaded. `null` is an explicit Backlog.
+  const [pickedRelease, setReleaseId] = useState(undefined)
+  const { streamId, isLoading: containersLoading } = useContainers(issue.project_id)
+  const releaseId = pickedRelease !== undefined ? pickedRelease : (issue.release_id ?? streamId)
   const [category, setCategory] = useState(null)
   const { categories } = useBacklogCategories(issue.project_id)
   const intoBacklog = releaseId == null
@@ -98,7 +104,7 @@ export function TriageOutcomePanel({ issue, assignable, onDone, toast, presetOri
     setOutcome(null)
     setPriority(issue.priority ?? null)
     setAssigneeId(issue.assignee_id ?? null)
-    setReleaseId(issue.release_id ?? null)
+    setReleaseId(undefined)
     setCategory(issue.backlog_category_id ?? null)
     setComment('')
     setOriginal(null)
@@ -124,8 +130,8 @@ export function TriageOutcomePanel({ issue, assignable, onDone, toast, presetOri
         outcome,
         priority,
         assignee_id: assigneeId,
-        // Always sent: the picker is prefilled with the bug's container, so
-        // "Backlog" is an explicit choice.
+        // Always sent: the picker is prefilled with the bug's container (or
+        // the Stream), so "Backlog" is an explicit choice.
         release_id: releaseId,
         // Only for the backlog, and only when changed — otherwise the bug keeps
         // its category (Default).
@@ -140,7 +146,8 @@ export function TriageOutcomePanel({ issue, assignable, onDone, toast, presetOri
 
   const tone = OUTCOMES.find(o => o.value === outcome)?.tone
   const canSubmit = {
-    accept: !!priority,
+    // Wait for the Stream's id, or an untouched picker would send Backlog.
+    accept: !!priority && !(pickedRelease === undefined && containersLoading),
     needs_info: comment.trim().length > 0,
     duplicate: !!original,
     reject: comment.trim().length > 0,
