@@ -7,6 +7,11 @@ rows, ``same`` first. Support sees only ``same`` ≥ ``T_SAME`` (a panel worth
 reading, FR-S09); the tech form also shows ``related`` ≥ ``T_RELATED`` for
 information (FR-S08).
 
+The tech form searches every project the actor can see, not just the one
+picked: the title is usually typed before the project is corrected, and the
+same problem is often filed under a neighbouring project. Support stays on its
+own project's open support reports (BR-S07).
+
 ``None`` means "behave as if Jev were off" — Jev disabled, or the call failed
 (BR-S02): the route answers 204 and the UI shows no panel, never an error and
 never a stale one. The support draft is composed with ``compose_report`` (05),
@@ -22,7 +27,13 @@ from app.db.models.support_template import SupportTemplate
 from app.db.models.user import User
 from app.schemas.search import SimilarItemsRequest
 from app.search import jev_settings
-from app.search.constants import SIMILAR_LIMIT, T_RELATED, T_SAME
+from app.search.constants import (
+    SIMILAR_CANDIDATES,
+    SIMILAR_CANDIDATES_ALL_PROJECTS,
+    SIMILAR_LIMIT,
+    T_RELATED,
+    T_SAME,
+)
 from app.search.jev import JevItem
 from app.search.normalize import normalize, strip_markdown
 from app.search.retrieval import Filters, same_problem_candidates
@@ -63,15 +74,14 @@ async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> l
             sources=[IssueSource.support.value],
             exclude_statuses=[IssueStatus.done.value, IssueStatus.cancelled.value],
         )
+        k = SIMILAR_CANDIDATES
     else:
         description = body.description or ""
-        filters = Filters(
-            project_id=body.project_id,
-            exclude_statuses=[IssueStatus.cancelled.value],
-        )
+        filters = Filters(exclude_statuses=[IssueStatus.cancelled.value])
+        k = SIMILAR_CANDIDATES_ALL_PROJECTS
 
     hits = await same_problem_candidates(
-        db, actor, " ".join(p for p in (body.title, description) if p), filters=filters,
+        db, actor, " ".join(p for p in (body.title, description) if p), filters=filters, k=k,
     )
     if not hits:
         return []

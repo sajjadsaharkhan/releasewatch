@@ -218,6 +218,28 @@ async def test_support_panel_shows_same_only_not_related(factories, rig, reactio
     assert resp.json()["items"] == []
 
 
+async def test_tech_panel_searches_every_project(factories, rig, reaction_world, jev):
+    """The title is typed before the project is corrected: the tech form finds
+    the same problem in another project, and says which project it is in."""
+    await enable_jev(factories.admin_client)
+    other, other_project = reaction_world["other"], reaction_world["other_project"]
+
+    resp = await similar(rig["qa_client"], {
+        "context": "tech", "project_id": rig["project"].id, "title": REACTION_SEEDED,
+    })
+    assert resp.status_code == 200, resp.text
+    match = next(i for i in resp.json()["items"] if i["issue"]["id"] == other.id)
+    assert match["issue"]["project"]["id"] == other_project.id
+    assert match["issue"]["project"]["name"] == other_project.name
+
+    # The support panel keeps its own project only (AC-S08).
+    resp = await similar(rig["support_client"], {
+        "context": "support", "project_id": rig["project"].id,
+        "title": REACTION_SEEDED, "template_id": rig["template"].id,
+    })
+    assert all(i["issue"]["id"] != other.id for i in resp.json()["items"])
+
+
 async def test_support_cannot_use_the_tech_context(factories, rig, reaction_world):
     resp = await similar(rig["support_client"], {
         "context": "tech", "project_id": rig["project"].id, "title": REACTION_DRAFT,

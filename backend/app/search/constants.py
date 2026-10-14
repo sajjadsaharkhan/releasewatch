@@ -57,6 +57,11 @@ T_RELEVANT = 0.5
 #: (at the old 0.6 only ~20% of shown ones were relevant, ~1.9 extra per draft; no
 #: threshold reaches 80%), so it takes the highest-precision value, 0.90.
 SIMILAR_CANDIDATES = 10
+#: The tech form searches every project (a draft is often typed before its
+#: project is corrected), so its pool is wider: the same 10 spread over all
+#: projects would crowd out same-project paraphrases. Set by: 2026-10-15,
+#: not yet re-measured — re-run ``search_eval stage2 --part similar``.
+SIMILAR_CANDIDATES_ALL_PROJECTS = 15
 T_SAME = 0.74
 T_RELATED = 0.90
 #: Suggestions returned to a form, and stored hints per New item (A.4/A.5).

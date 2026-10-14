@@ -185,6 +185,7 @@ function CandidateRow({ item, onDismiss }) {
           <TypeIcon type={issue.type} aria-hidden />
           <span className="font-mono">{issue.key}</span>
           <StatusBadge status={issue.status} />
+          {issue.project?.name && <span className="truncate">· {issue.project.name}</span>}
           <span className={cn('font-medium', band.high ? 'text-amber-700 dark:text-amber-300' : '')}>· {band.label}</span>
         </div>
         <a
