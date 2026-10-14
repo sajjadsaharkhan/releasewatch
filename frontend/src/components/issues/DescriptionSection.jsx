@@ -3,7 +3,7 @@ import { Copy, Check, Plus, Trash2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { renderMarkdown } from '../../lib/markdown'
-import { MarkdownComposer } from './MarkdownComposer'
+import { CommentComposer } from './CommentComposer'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { isBug } from '../../lib/constants'
@@ -86,7 +86,7 @@ export function DescriptionSection({ issue, onDescriptionUpdate, onCurlUpdate, o
       </div>
 
       {isEditing ? (
-        <MarkdownComposer
+        <CommentComposer
           initialValue={issue?.description || ''}
           mode="edit"
           onSubmit={(value) => { onDescriptionUpdate?.(value); setIsEditing(false); }}

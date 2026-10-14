@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Bold, Italic, Strikethrough, Code, Link2, List, ListOrdered,
   Quote, Eye, Edit3, Heading, SquareCode, Workflow, ChevronDown,
-  GitBranch, ArrowRightLeft, Spline, Table
+  GitBranch, ArrowRightLeft, Spline, Table, Maximize2, Minimize2
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
@@ -86,6 +87,7 @@ export function CommentComposer({
   mode = 'create',
   onCancelEdit,
   showInternal = true,
+  showMentions = true,
   hideFooter = false,
   users = []
 }) {
@@ -93,7 +95,17 @@ export function CommentComposer({
   const [body, setBody] = useState(initialValue)
   const [isInternal, setIsInternal] = useState(initialInternal)
   const [mentionedUserIds, setMentionedUserIds] = useState(initialMentionedUsers)
+  const [expanded, setExpanded] = useState(false)
   const taRef = useRef(null)
+
+  // Full-screen: lock page scroll behind the overlay and keep the caret in the editor.
+  useEffect(() => {
+    if (!expanded) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    taRef.current?.focus()
+    return () => { document.body.style.overflow = prev }
+  }, [expanded])
 
   useEffect(() => {
     if (mode === 'edit') {
@@ -133,6 +145,7 @@ export function CommentComposer({
   function handleSubmit() {
     if (!body.trim()) return
     onSubmit?.(body, showInternal && isInternal, mentionedUserIds)
+    setExpanded(false)
     if (mode === 'create') {
       setBody('')
       setIsInternal(false)
@@ -145,14 +158,32 @@ export function CommentComposer({
     setBody(initialValue)
     setIsInternal(initialInternal)
     setMentionedUserIds(initialMentionedUsers)
+    setExpanded(false)
     onCancelEdit?.()
   }
 
   const preview = useMemo(() => (tab === 'preview' ? renderMarkdown(body) : null), [body, tab])
   const internal = showInternal && isInternal
 
-  return (
-    <div className={cn('rounded-xl border border-border overflow-hidden', internal && 'border-amber-300 dark:border-amber-700')}>
+  const composer = (
+    <div
+      role={expanded ? 'dialog' : undefined}
+      aria-modal={expanded || undefined}
+      aria-label={expanded ? 'Comment editor' : undefined}
+      onKeyDown={(e) => {
+        // Stop the native event too: Dialog closes on a document-level Escape listener
+        if (expanded && e.key === 'Escape') {
+          e.stopPropagation()
+          e.nativeEvent.stopPropagation()
+          setExpanded(false)
+        }
+      }}
+      className={cn(
+        'rounded-xl border border-border overflow-hidden',
+        expanded && 'flex h-full w-full max-w-5xl flex-col bg-card shadow-2xl',
+        internal && 'border-amber-300 dark:border-amber-700'
+      )}
+    >
       {/* Tab bar + toolbar */}
       <div className="flex items-center gap-1 border-b border-border bg-muted/50 px-2 py-1">
         <div role="tablist" aria-label="Editor mode" className="flex shrink-0 items-center gap-0.5">
@@ -213,6 +244,14 @@ export function CommentComposer({
             </Dropdown>
           </div>
         )}
+
+        <div className="ml-auto shrink-0 pl-1">
+          <ToolbarBtn
+            icon={expanded ? Minimize2 : Maximize2}
+            label={expanded ? 'Exit full screen (Esc)' : 'Full screen'}
+            onClick={() => setExpanded((v) => !v)}
+          />
+        </div>
       </div>
 
       {/* Body */}
@@ -227,11 +266,12 @@ export function CommentComposer({
           dir="auto"
           className={cn(
             'rounded-none border-0 focus-visible:ring-0 resize-y',
+            expanded && 'min-h-0 flex-1 resize-none',
             internal && 'bg-amber-50 dark:bg-amber-900/10'
           )}
         />
       ) : (
-        <div dir="auto" className="min-h-[120px] px-4 py-3 text-sm">
+        <div dir="auto" className={cn('min-h-[120px] px-4 py-3 text-sm', expanded && 'min-h-0 flex-1 overflow-y-auto scrollbar-thin')}>
           {body.trim() ? preview : <p className="text-muted-foreground italic">Nothing to preview.</p>}
         </div>
       )}
@@ -239,11 +279,13 @@ export function CommentComposer({
       {/* Footer */}
       {!hideFooter && (
         <div className={cn('border-t border-border', internal && 'bg-amber-50 dark:bg-amber-900/10')}>
-          <UserMentionSelector
-            users={users}
-            selectedIds={mentionedUserIds}
-            onChange={setMentionedUserIds}
-          />
+          {showMentions && (
+            <UserMentionSelector
+              users={users}
+              selectedIds={mentionedUserIds}
+              onChange={setMentionedUserIds}
+            />
+          )}
           <div className={cn('flex items-center gap-3 px-3 py-2', internal && 'bg-amber-50 dark:bg-amber-900/10')}>
             {showInternal && (
               <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer select-none">
@@ -266,5 +308,19 @@ export function CommentComposer({
         </div>
       )}
     </div>
+  )
+
+  if (!expanded) return composer
+
+  // Portal so the overlay escapes any transformed/overflow-clipped ancestor;
+  // z-[60] sits above Dialog (z-50) since the composer can live inside one.
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex items-stretch justify-center bg-black/50 p-4 sm:p-8"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) setExpanded(false) }}
+    >
+      {composer}
+    </div>,
+    document.body
   )
 }
