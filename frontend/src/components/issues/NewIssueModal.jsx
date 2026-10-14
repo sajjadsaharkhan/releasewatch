@@ -7,6 +7,7 @@ import { DatePicker } from '../ui/DatePicker'
 import { Switch } from '../ui/Switch'
 import { CommentComposer } from './CommentComposer'
 import { AttachmentsSection } from './AttachmentsSection'
+import { CurlEditor } from './CurlEditor'
 import { SimilarityRing, similarityBand } from '../triage/SimilarityRing'
 import { useSimilarItems } from '../../hooks/useSimilarItems'
 import { issueSlug } from '../../lib/issueSlug'
@@ -306,8 +307,8 @@ function Skeleton() {
 }
 
 // ───────────────────────── shared field pieces ─────────────────────────
-const Label = ({ children, hint, className }) => (
-  <label className={cn('mb-1.5 block text-xs font-medium text-muted-foreground', className)}>
+const Label = ({ children, hint, className, htmlFor }) => (
+  <label htmlFor={htmlFor} className={cn('mb-1.5 block text-xs font-medium text-muted-foreground', className)}>
     {children} {hint && <span className="font-normal text-muted-foreground/70">{hint}</span>}
   </label>
 )
@@ -452,11 +453,8 @@ function Steps({ s }) {
 function Curl({ s }) {
   return (
     <div>
-      <Label hint="(optional)">cURL command</Label>
-      <textarea
-        value={s.form.curlCommand} onChange={(e) => s.set('curlCommand', e.target.value)} rows={3} placeholder="curl -X POST …"
-        className="flex w-full resize-none rounded-[var(--radius)] border border-input bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      />
+      <Label htmlFor="new-issue-curl" hint="(optional)">cURL command</Label>
+      <CurlEditor id="new-issue-curl" value={s.form.curlCommand} onChange={(v) => s.set('curlCommand', v)} />
     </div>
   )
 }
