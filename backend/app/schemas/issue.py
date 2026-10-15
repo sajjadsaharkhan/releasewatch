@@ -335,6 +335,8 @@ class IssueResponse(IssueBase):
     backlog_category: BacklogCategoryOut | None = None
     backlog_rank: float | None = None
     is_tech_debt: bool = False
+    #: Filed through MCP — the Agent badge (slice 17). The token is never exposed.
+    via_agent: bool = False
     cancel_reason: IssueCancelReason | None = None
     blocked_from_status: str | None = None
     review_requested_by_id: int | None = None

@@ -64,6 +64,8 @@ class TimelineEventResponse(BaseModel):
     is_internal: bool
     meta: Optional[Dict[str, Any]] = None
     created_at: datetime
+    #: Written through MCP — the Agent badge (slice 17).
+    via_agent: bool = False
 
     # Derived from meta — populated by the validator below
     mentioned_user_ids: List[int] = Field(default_factory=list)

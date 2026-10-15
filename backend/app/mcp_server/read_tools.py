@@ -7,9 +7,8 @@ display keys, project keys, release versions and usernames to rows, and shapes
 the answer. Inputs never carry ids, except ``attachment_id``.
 
 Every answer is structured content plus its Markdown rendering
-(``app/mcp_server/markdown.py``), built from the same dict. ``via_agent`` is
-always ``false`` until slice 17 stores who wrote what through MCP; the field
-exists now so the output shape doesn't change then.
+(``app/mcp_server/markdown.py``), built from the same dict. ``via_agent`` says
+whether an item, timeline entry or attachment was written through MCP (slice 17).
 """
 
 import asyncio
@@ -18,6 +17,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
+from fastapi import HTTPException
 from mcp.server.mcpserver.exceptions import ResourceNotFoundError
 from mcp.types import CallToolResult, ImageContent
 from pydantic import Field
@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.errors import DomainError
 from app.core.s3 import s3_service
 from app.db.models.issue import Issue, IssueStatus, IssueType, issue_key
 from app.db.models.issue_attachment import IssueAttachment
@@ -87,16 +88,25 @@ def _row(issue: Issue) -> dict:
         "assignee": _person(issue.assignee),
         "is_release_blocker": issue.is_release_blocker,
         "due_date": issue.due_date,
+        "via_agent": issue.via_agent,
     }
 
 
 async def _run(build: Callable[[AsyncSession, User], Awaitable[CallToolResult]]) -> CallToolResult:
-    """Run one read as the token's owner; a refusal becomes a tool error (A.8)."""
+    """Run one tool call as the token's owner, in one transaction: committed when
+    ``build`` returns, rolled back when it refuses. A refusal — the tool's own,
+    a service's ``DomainError``, or a 404 — becomes a tool error (A.8)."""
     try:
         async with db_session() as db:
             return await build(db, await principal_user(db))
     except ToolRefusal as refusal:
         return error_result(refusal)
+    except DomainError as err:
+        return error_result(ToolRefusal(err.code, err.detail))
+    except HTTPException as err:
+        if err.status_code == 404:
+            return error_result(not_found("It"))
+        raise
 
 
 async def _project_by_key(db: AsyncSession, key: str) -> Project:
@@ -189,7 +199,7 @@ def _entry(event: IssueTimeline) -> dict:
         "internal": event.is_internal,
         "body": event.body,
         "meta": event.meta or {},
-        "via_agent": False,
+        "via_agent": event.via_agent,
     }
 
 
@@ -261,6 +271,7 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
         "cancel_reason": _value(issue.cancel_reason),
         "reporter": _person(issue.reporter),
         "assignee": _person(issue.assignee),
+        "via_agent": issue.via_agent,
         "created_at": issue.created_at,
         "updated_at": issue.updated_at,
         "completed_at": issue.completed_at,
@@ -288,7 +299,7 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
                 "kind": _value(a.attachment_type),
                 "author": _person(a.uploader),
                 "at": a.created_at,
-                "via_agent": False,
+                "via_agent": a.via_agent,
             }
             for a in attachments
         ],
@@ -456,6 +467,18 @@ def _candidate(row: dict) -> dict:
     }
 
 
+async def duplicate_check(
+    db: AsyncSession, user: User, title: str, description: str | None,
+) -> dict:
+    """The duplicate check (FR-M21–M23): Jev's verdicts when it is on, else the
+    closest local matches with no verdict. ``rw_find_similar`` and every filing
+    (``rw_file_bug``, ``rw_file_tech_debt``) run exactly this."""
+    judged = await similar.tech_suggestions(db, user, title, description)
+    jev_used = judged is not None
+    rows = judged if jev_used else await similar.local_candidates(db, user, title, description)
+    return {"jev_used": jev_used, "items": [_candidate(r) for r in rows]}
+
+
 @server.tool(
     name="rw_find_similar",
     description=(
@@ -471,10 +494,7 @@ async def rw_find_similar(
     description: Annotated[str | None, Field(description="The draft's description.")] = None,
 ) -> CallToolResult:
     async def build(db: AsyncSession, user: User) -> CallToolResult:
-        judged = await similar.tech_suggestions(db, user, title, description)
-        jev_used = judged is not None
-        rows = judged if jev_used else await similar.local_candidates(db, user, title, description)
-        data = {"jev_used": jev_used, "items": [_candidate(r) for r in rows]}
+        data = await duplicate_check(db, user, title, description)
         return tool_result(data, markdown.similar(data))
 
     return await _run(build)
@@ -512,6 +532,7 @@ async def rw_triage_queue(
                 "reporter": _person(issue.reporter),
                 "assignee": _person(issue.assignee),
                 "recurrence_count": issue.recurrence_count or 1,
+                "via_agent": issue.via_agent,
                 "created_at": issue.created_at,
                 "possible_duplicates": [
                     {

@@ -59,6 +59,8 @@ class AttachmentResponse(BaseModel):
     is_large_file: Optional[bool] = None  # True if subject to auto-deletion
     retention_days: Optional[int] = None  # Days until auto-deletion for large files
     created_at: datetime
+    #: Attached through MCP — the Agent badge (slice 17).
+    via_agent: bool = False
 
 
 class MultipartPresignRequest(BaseModel):

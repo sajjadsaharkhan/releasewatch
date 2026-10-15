@@ -24,6 +24,7 @@ from app.db.models.release import Release
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.policy import Action
+from app.services.attachment_service import attachment_service
 from app.services.authz import authorize, issue_target, load_visible_issue
 from app.schemas.attachment import (
     AttachmentResponse,
@@ -105,31 +106,22 @@ async def confirm_upload(
 ) -> AttachmentResponse:
     """Create an ``IssueAttachment`` record after the client has uploaded to S3.
 
-    Also enqueues the ``validate_attachment`` Celery task for MIME re-check
-    and thumbnail generation.
+    ``AttachmentService.add`` enqueues the ``validate_attachment`` Celery task
+    for MIME re-check and thumbnail generation.
     """
     await _get_issue_or_404(db, issue_id, current_user, write=True)
 
-    attachment = IssueAttachment(
-        issue_id=issue_id,
-        uploaded_by_id=current_user.id,
+    attachment = await attachment_service.add(
+        db, issue_id, current_user.id,
         file_name=payload.filename,
         s3_key=payload.s3_key,
         mime_type=payload.mime_type,
         file_size_bytes=payload.file_size_bytes,
         attachment_type=payload.attachment_type,
     )
-    db.add(attachment)
+    # Commit enqueues the validation job (``AttachmentService``).
     await db.commit()
     await db.refresh(attachment)
-
-    # Enqueue background validation
-    from app.tasks.attachments import validate_attachment
-
-    validate_attachment.apply_async(
-        kwargs={"attachment_id": str(attachment.id), "s3_key": payload.s3_key},
-        queue="attachments",
-    )
 
     # Fan-out: notify assignee + reporter of new attachment
     from app.db.models.inbox_item import InboxEventType
@@ -262,16 +254,15 @@ async def complete_multipart_upload(
             detail=f"Failed to complete multipart upload: {str(exc)}",
         )
 
-    attachment = IssueAttachment(
-        issue_id=issue_id,
-        uploaded_by_id=current_user.id,
+    attachment = await attachment_service.add(
+        db, issue_id, current_user.id,
         file_name=payload.filename,
         s3_key=payload.s3_key,
         mime_type=payload.mime_type,
         file_size_bytes=payload.file_size_bytes,
         attachment_type=payload.attachment_type,
     )
-    db.add(attachment)
+    # Commit enqueues the validation job (``AttachmentService``).
     await db.commit()
     await db.refresh(attachment)
 

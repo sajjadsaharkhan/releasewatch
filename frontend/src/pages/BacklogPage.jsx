@@ -10,6 +10,7 @@ import { useApp } from '../hooks/useApp'
 import { backlogApi, issuesApi } from '../lib/api'
 import { useContainers } from '../hooks/useContainers'
 import { issueSlug } from '../lib/issueSlug'
+import { parseOrigin } from '../lib/constants'
 import { Button, Empty, useToast } from '../components/ui'
 import {
   BACKLOG_FILTERS, BacklogGroupHeader, BacklogHeader, BacklogRail, BacklogRow, BacklogRowsSkeleton,
@@ -55,6 +56,8 @@ export default function BacklogPage() {
 
   const view = searchParams.get('view') === 'ranked' ? 'ranked' : 'grouped'
   const showDebt = searchParams.get('debt') === '1'
+  // Origin filter (slice 17, FR-M30): `?origin=agent|people`, absent = all.
+  const origin = parseOrigin(searchParams.get('origin'))
   const showParam = searchParams.get('show')
   const filter = BACKLOG_FILTERS[showParam] ? showParam : 'all'
   const project = projects?.find((p) => p.slug === slug)
@@ -104,6 +107,7 @@ export default function BacklogPage() {
       const res = await backlogApi.get(project.id, {
         group_by: 'category',
         include_tech_debt: showDebt || undefined,
+        origin: origin || undefined,
       })
       setData(res.data)
       setLoadError(null)
@@ -113,7 +117,7 @@ export default function BacklogPage() {
     } finally {
       setLoading(false)
     }
-  }, [project?.id, showDebt, toast]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project?.id, showDebt, origin, toast]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
@@ -153,7 +157,8 @@ export default function BacklogPage() {
     unassigned: items.filter((i) => !i.assignee_user).length,
   }), [items, stale])
   // Filters hide rows, so ranking waits until they're cleared.
-  const canDrag = canManage && filter === 'all'
+  // Filters hide rows, and a rank among hidden rows can't be shown — so no drag.
+  const canDrag = canManage && filter === 'all' && !origin
 
   // The order rows appear in — shift-click ranges follow it.
   const visibleOrder = view === 'ranked'
@@ -370,6 +375,11 @@ export default function BacklogPage() {
         <Button size="sm" variant="outline" onClick={() => load()}>Try again</Button>
       </Empty>
     </div>
+  ) : total === 0 && origin ? (
+    <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[13px] text-muted-foreground">
+      {origin === 'agent' ? 'Nothing here was filed by an agent' : 'Everything here was filed by an agent'}
+      {!showDebt && hidden > 0 ? ' — technical debt is hidden.' : '.'}
+    </p>
   ) : total === 0 ? (
     <div className="rounded-xl border border-border bg-card shadow-sm">
       {hidden > 0 ? (
@@ -468,6 +478,8 @@ export default function BacklogPage() {
         showDebt={showDebt}
         onShowDebt={(v) => setParam('debt', v ? '1' : null)}
         hidden={hidden}
+        origin={origin}
+        onOrigin={(v) => setParam('origin', v || null)}
         onOpenDebt={() => navigate(`/tech-debt?project=${project.id}`)}
       />
 

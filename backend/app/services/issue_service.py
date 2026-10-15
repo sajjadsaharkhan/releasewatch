@@ -19,6 +19,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.agent_context import current_agent_token_id
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import (
@@ -51,6 +52,13 @@ async def ensure_assignable(db: AsyncSession, assignee_id: int | None) -> None:
             "That user can't be assigned work.",
             "not_assignable",
         )
+
+
+#: The environment fields of a bug; any change is one ``environment_changed`` event.
+ENVIRONMENT_FIELDS = (
+    "environment_name", "environment_browser", "environment_os",
+    "environment_build_hash", "environment_staging_url",
+)
 
 
 #: How the reject popover and the notification name each reason (cycle-model §3).
@@ -86,6 +94,7 @@ class IssueService:
         *,
         source: IssueSource = IssueSource.internal,
         filed_meta: dict | None = None,
+        into_triage: bool = False,
     ) -> Issue:
         """File a new issue (bug or task) against a project, optionally a release.
 
@@ -100,6 +109,10 @@ class IssueService:
         05) — ``/issues`` always files ``internal`` items. ``filed_meta`` is
         merged into the ``filed`` event's meta (the template submission's
         forensic copy).
+
+        ``into_triage`` (the MCP ``rw_file_bug``, BR-M08) files a bug into New
+        even with an assignee. Through MCP the item is stamped with the agent
+        context's token (slice 17).
         """
         from app.db.models.project import Project
         from app.services.inbox_service import InboxFanOutService
@@ -117,7 +130,7 @@ class IssueService:
             containers.ensure_blocker_allowed(issue_type_value(data.type), container)
 
         is_task = issue_type_value(data.type) == IssueType.task.value
-        pre_triaged = not is_task and data.assignee_id is not None
+        pre_triaged = not is_task and data.assignee_id is not None and not into_triage
         if pre_triaged and data.priority is None:
             raise DomainError(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -168,6 +181,7 @@ class IssueService:
             reproduction_steps=reproduction_steps_json or [],
             backlog_category_id=category.id,
             is_tech_debt=data.is_tech_debt,
+            via_mcp_token_id=current_agent_token_id(),
         )
         db.add(issue)
         await db.flush()
@@ -193,18 +207,10 @@ class IssueService:
         )
 
         if data.pending_attachments:
-            from app.db.models.issue_attachment import IssueAttachment
+            from app.services.attachment_service import attachment_service
 
             for pending in data.pending_attachments:
-                db.add(IssueAttachment(
-                    issue_id=issue.id,
-                    uploaded_by_id=current_user.id,
-                    file_name=pending.filename,
-                    s3_key=pending.s3_key,
-                    mime_type=pending.mime_type,
-                    file_size_bytes=pending.file_size_bytes,
-                    attachment_type=pending.attachment_type,
-                ))
+                await attachment_service.add_pending(db, issue.id, current_user.id, pending)
 
         await db.flush()
 
@@ -735,18 +741,31 @@ class IssueService:
                 issue.priority = new_priority
                 priority_changed = True
 
-        # ── Environment name ──────────────────────────────────────────────────
-        if "environment_name" in payload and payload["environment_name"] != issue.environment_name:
-            _old_env = issue.environment_name
-            _new_env = payload["environment_name"]
+        # ── Environment (slice 17: every field leaves an event) ───────────────
+        # An emptied field is null, so a form that sends "" for an untouched
+        # field records no change.
+        env_changes = {
+            field: {"from": getattr(issue, field), "to": payload[field] or None}
+            for field in ENVIRONMENT_FIELDS
+            if field in payload and (payload[field] or None) != getattr(issue, field)
+        }
+        if env_changes:
             events_to_emit.append((
                 TimelineEventType.environment_changed,
-                {"from": _old_env, "to": _new_env},
+                {"fields": list(env_changes), "changes": env_changes},
             ))
-            inbox_triggers.append((
-                InboxEventType.environment_changed, {"from": _old_env, "to": _new_env},
-            ))
-            issue.environment_name = _new_env
+            if "environment_name" in env_changes:
+                # Only the named environment notifies, as before.
+                inbox_triggers.append((
+                    InboxEventType.environment_changed, env_changes["environment_name"],
+                ))
+            for field, change in env_changes.items():
+                setattr(issue, field, change["to"])
+
+        # ── cURL ──────────────────────────────────────────────────────────────
+        if "curl_command" in payload and (payload["curl_command"] or None) != issue.curl_command:
+            events_to_emit.append((TimelineEventType.curl_changed, {}))
+            issue.curl_command = payload["curl_command"] or None
 
         # ── Release blocker ───────────────────────────────────────────────────
         if (
@@ -864,11 +883,6 @@ class IssueService:
                 # Its rank belongs to the old project's backlog — re-place it.
                 issue.backlog_rank = None
 
-        # ── Passthrough fields with no timeline event ─────────────────────────
-        for field in ("environment_browser", "environment_os", "environment_build_hash",
-                      "environment_staging_url", "curl_command"):
-            if field in payload:
-                setattr(issue, field, payload[field])
         if "due_date" in payload and payload["due_date"] != issue.due_date:
             events_to_emit.append((
                 TimelineEventType.due_date_changed,

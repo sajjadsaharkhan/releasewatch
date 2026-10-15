@@ -6,6 +6,7 @@ import { timelineApi } from '../../lib/api'
 import { issueKey } from '../../lib/issueSlug'
 import { relTime, formatDay } from '../../lib/relTime'
 import { CYCLE_REASON, PRIORITY, TECH_DEBT, TYPE } from '../../lib/constants'
+import { AgentBadge } from './AgentBadge'
 import { Avatar } from '../ui/Avatar'
 import { StatusBadge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
@@ -228,6 +229,8 @@ function HoverDetails({ item }) {
           <HoverRow icon="user-pen">
             <span className="inline-flex items-center gap-1">
               Reported by <Avatar user={item.reporter} size={14} /> {item.reporter.name}
+              {/* On hover only — the card face stays quiet (slice 17, FR-M29). */}
+              <AgentBadge show={item.via_agent} className="ml-0.5" />
             </span>
           </HoverRow>
         )}

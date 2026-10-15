@@ -2,18 +2,19 @@ import React from 'react'
 import { cn } from '../../lib/cn'
 import { categoryColor } from '../../lib/constants'
 import { Button, Icon, Segmented, Switch } from '../ui'
+import { OriginFilter } from '../common/OriginFilter'
 import { groupMeta } from './BacklogGroupHeader'
 
 /**
  * The Backlog header (redesigned 2026-10-02, prototype H3): title and project,
  * "N items · M untouched 6+ months", the controls (Show technical debt, Grouped
- * / Ranked, the Technical debt page), and one bar showing how the list splits
+ * / Ranked, the Technical debt page, and the Origin filter — slice 17), and one bar showing how the list splits
  * across categories with a count legend. The bar is a picture of the same
  * numbers the rail lists, so it carries an `aria-label` with them.
  */
 export function BacklogHeader({
   project, loading, total, staleCount, groups,
-  view, onView, showDebt, onShowDebt, hidden, onOpenDebt,
+  view, onView, showDebt, onShowDebt, hidden, onOpenDebt, origin, onOrigin,
 }) {
   const parts = (groups ?? []).filter((g) => g.count > 0).map((g) => ({
     key: g.key,
@@ -44,6 +45,7 @@ export function BacklogHeader({
         </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
+          <OriginFilter value={origin} onChange={onOrigin} />
           <label className="flex cursor-pointer items-center gap-2 text-[12.5px]">
             <Switch checked={showDebt} onCheckedChange={onShowDebt} aria-label="Show technical debt" />
             Show technical debt

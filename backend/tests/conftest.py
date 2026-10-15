@@ -506,6 +506,19 @@ class McpSession:
                 raise McpRefused(data.get("code", ""), leaf.error.message) from exc
             raise
 
+    async def tools(self) -> list:
+        """The server's tools (``Tool`` objects, with their input schemas)."""
+        import httpx2
+        from mcp.client.client import Client
+        from mcp.client.streamable_http import streamable_http_client
+
+        http = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=fastapi_app),
+            headers={"Authorization": f"Bearer {self.bearer}"},
+        )
+        async with http, Client(streamable_http_client("http://test/mcp", http_client=http)) as c:
+            return (await c.list_tools()).tools
+
     async def refusal(self, tool: str = "rw_context") -> McpRefused:
         with pytest.raises(McpRefused) as info:
             await self.call(tool)

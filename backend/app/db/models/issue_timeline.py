@@ -32,7 +32,13 @@ class TimelineEventType(str, enum.Enum):
     steps_changed = "steps_changed"
     release_changed = "release_changed"
     project_changed = "project_changed"
+    #: Any of the five environment fields changed — ``meta.fields`` lists the
+    #: changed field names, ``meta.changes[field] = {from, to}`` (slice 17). Only
+    #: an ``environment_name`` change still notifies; older rows carry ``from``/``to``.
     environment_changed = "environment_changed"
+    #: The cURL command set, changed or cleared (slice 17). ``meta`` is empty —
+    #: the value can be long and is on the item.
+    curl_changed = "curl_changed"
     needs_clarification = "needs_clarification"
     #: A triage outcome (slice 06) — ``meta.outcome`` plus the outcome's inputs.
     triaged = "triaged"
@@ -103,6 +109,11 @@ class IssueTimeline(Base):
         DateTime(timezone=True), nullable=False,
         default=lambda: datetime.now(tz=timezone.utc)
     )
+    #: The MCP token the entry was written through — agent content (slice 17).
+    #: Set once by ``TimelineService.create_event``; never changes.
+    via_mcp_token_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("mcp_tokens.id", ondelete="RESTRICT"), nullable=True, default=None,
+    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     issue = relationship("Issue", back_populates="timeline")
@@ -118,6 +129,10 @@ class IssueTimeline(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+
+    @property
+    def via_agent(self) -> bool:
+        return self.via_mcp_token_id is not None
 
     def __repr__(self) -> str:
         return f"<IssueTimeline issue={self.issue_id} type={self.event_type}>"

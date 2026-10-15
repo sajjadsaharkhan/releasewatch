@@ -149,9 +149,7 @@ async def create_comment(
     """Append a comment (or internal note) to the issue timeline."""
     from sqlalchemy.orm import selectinload as _sel
 
-    from app.db.models.inbox_item import InboxEventType
     from app.db.models.issue import Issue
-    from app.services.inbox_service import inbox_service
 
     visible = await load_visible_issue(db, issue_id, current_user, _sel(Issue.project))
     authorize(
@@ -160,67 +158,18 @@ async def create_comment(
         issue_target(visible, visible.project),
     )
 
-    event = await timeline_service.create_event(
-        db=db,
-        issue_id=issue_id,
-        actor_id=current_user.id,
-        event_type=TimelineEventType.comment,
-        body=payload.body,
-        meta=None,
+    event = await timeline_service.add_comment(
+        db, visible, current_user, payload.body,
         is_internal=payload.is_internal,
         mentioned_user_ids=payload.mentioned_user_ids or [],
     )
-    # FR-19 — a reporter or Support reply sends a Needs info item back to New,
-    # in the same transaction as the comment.
-    from app.services.triage_service import triage_service
-
-    await triage_service.on_comment(
-        db, visible, current_user, body=payload.body, is_internal=payload.is_internal,
-    )
     await db.commit()
 
-    result = await db.execute(
+    event = (await db.execute(
         select(IssueTimeline)
         .options(selectinload(IssueTimeline.actor))
         .where(IssueTimeline.id == event.id)
-    )
-    event = result.scalar_one()
-
-    # Fan-out inbox notifications inline — simple, synchronous, traceable
-    issue_result = await db.execute(select(Issue).where(Issue.id == issue_id))
-    issue = issue_result.scalar_one_or_none()
-
-    if issue is not None:
-        mentioned_ids = [str(u) for u in (payload.mentioned_user_ids or [])]
-        body = payload.body or ""
-        extra = {"body": body, "mentioned_user_ids": mentioned_ids}
-
-        body_snippet = (body[:200] + "…") if body and len(body) > 200 else (body or None)
-        snippet_meta = {"body_snippet": body_snippet} if body_snippet else None
-
-        await inbox_service.fan_out(
-            db=db,
-            trigger=InboxEventType.comment,
-            issue=issue,
-            actor=current_user,
-            timeline_event=event,
-            extra_meta=extra,
-            meta=snippet_meta,
-        )
-
-        if mentioned_ids or "@" in body:
-            await inbox_service.fan_out(
-                db=db,
-                trigger=InboxEventType.mention,
-                issue=issue,
-                actor=current_user,
-                timeline_event=event,
-                extra_meta=extra,
-                meta=snippet_meta,
-            )
-
-        await db.commit()
-
+    )).scalar_one()
     return _enrich_event(event, current_user.id)
 
 

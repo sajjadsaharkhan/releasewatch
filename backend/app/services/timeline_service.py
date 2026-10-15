@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.agent_context import current_agent_token_id
 from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.user import User
 from app.tasks import search_index
@@ -54,7 +55,8 @@ class TimelineService:
         Returns
         -------
         IssueTimeline
-            The newly created, flushed event row.
+            The newly created, flushed event row — stamped with the agent
+            context's token when the request came through MCP (slice 17).
         """
         if mentioned_user_ids:
             meta = {**(meta or {}), "mentioned_user_ids": [str(u) for u in mentioned_user_ids]}
@@ -66,11 +68,59 @@ class TimelineService:
             body=body,
             meta=meta,
             is_internal=is_internal,
+            via_mcp_token_id=current_agent_token_id(),
         )
         db.add(event)
         await db.flush()
         if getattr(event_type, "value", event_type) in search_index.TALK_EVENTS:
             search_index.enqueue(db, issue_id)
+        return event
+
+    async def add_comment(
+        self,
+        db: AsyncSession,
+        issue,
+        actor: User,
+        body: str,
+        *,
+        is_internal: bool,
+        mentioned_user_ids: list[int] | None = None,
+    ) -> IssueTimeline:
+        """A comment or internal note with its side effects, in ``db``'s
+        transaction: the Needs-info auto-return (FR-19), then the ``comment``
+        and ``mention`` notices. ``POST /issues/{id}/timeline`` and the MCP tool
+        ``rw_add_note`` both come through here. The caller authorizes."""
+        from app.db.models.inbox_item import InboxEventType
+        from app.services.inbox_service import inbox_service
+        from app.services.triage_service import triage_service
+
+        event = await self.create_event(
+            db=db,
+            issue_id=issue.id,
+            actor_id=actor.id,
+            event_type=TimelineEventType.comment,
+            body=body,
+            meta=None,
+            is_internal=is_internal,
+            mentioned_user_ids=mentioned_user_ids or [],
+        )
+        await triage_service.on_comment(db, issue, actor, body=body, is_internal=is_internal)
+
+        mentioned_ids = [str(u) for u in (mentioned_user_ids or [])]
+        body = body or ""
+        extra = {"body": body, "mentioned_user_ids": mentioned_ids}
+        body_snippet = (body[:200] + "…") if body and len(body) > 200 else (body or None)
+        snippet_meta = {"body_snippet": body_snippet} if body_snippet else None
+
+        await inbox_service.fan_out(
+            db=db, trigger=InboxEventType.comment, issue=issue, actor=actor,
+            timeline_event=event, extra_meta=extra, meta=snippet_meta,
+        )
+        if mentioned_ids or "@" in body:
+            await inbox_service.fan_out(
+                db=db, trigger=InboxEventType.mention, issue=issue, actor=actor,
+                timeline_event=event, extra_meta=extra, meta=snippet_meta,
+            )
         return event
 
     # ── Listing ───────────────────────────────────────────────────────────────

@@ -68,6 +68,8 @@ class WorkItemCard(BaseModel):
     labels: list[CardLabel] = Field(default_factory=list)
     reporter: UserSummary | None = None
     assignee: UserSummary | None = None
+    #: Filed through MCP — the Agent badge, on hover only (slice 17, FR-M29).
+    via_agent: bool = False
     created_at: datetime
     completed_at: datetime | None = None
 

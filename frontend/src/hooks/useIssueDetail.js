@@ -49,6 +49,7 @@ function normalizeTimelineItems(apiItems) {
         editedAt: e.edited_at,
         reactions: e.reactions || [],
         meta: e.meta,
+        via_agent: e.via_agent,
       })
     } else {
       events.push({
@@ -62,6 +63,7 @@ function normalizeTimelineItems(apiItems) {
         to: e.meta?.to,
         detail: e.meta?.assignee_id,
         body: e.body ?? null,
+        via_agent: e.via_agent,
       })
     }
   }

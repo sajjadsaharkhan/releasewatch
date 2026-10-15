@@ -7,7 +7,9 @@ stateless streamable-HTTP transport with the principal set in a context
 variable. A refusal before any tool runs is an HTTP error carrying a JSON-RPC
 error body, so clients relay its message. Once authenticated, tool errors are
 MCP tool errors with ``{code, message}`` (A.8, ``app/mcp_server/results.py``),
-never HTTP errors. ``rw_context`` is here; the read tools are in ``read_tools``.
+never HTTP errors. ``rw_context`` is here; the read tools are in ``read_tools``,
+the write tools in ``write_tools``. The endpoint also sets the agent context
+(``app/core/agent_context.py``), so what a tool writes is agent content.
 
 Each request gets its own session manager: the server is stateless, and a
 manager per request needs no long-lived task group in the app's lifespan (or
@@ -31,6 +33,7 @@ from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
 from app.config import settings
+from app.core.agent_context import agent_token_id
 from app.core.clock import get_now
 from app.db.models.project import Project
 from app.db.models.user import User
@@ -134,8 +137,8 @@ async def rw_context() -> ContextResult:
         )
 
 
-# The read tools (slice 16) register themselves on ``server``.
-from app.mcp_server import read_tools  # noqa: E402,F401
+# The read tools (slice 16) and write tools (slice 17) register themselves on ``server``.
+from app.mcp_server import read_tools, write_tools  # noqa: E402,F401
 
 # ── The endpoint ──────────────────────────────────────────────────────────────
 
@@ -184,6 +187,8 @@ class McpEndpoint:
 
         reset = current_principal.set(principal)
         reset_now = current_now.set(now)
+        # Everything this request writes is agent content (slice 17, A.4).
+        reset_agent = agent_token_id.set(principal.token_id)
         try:
             manager = StreamableHTTPSessionManager(
                 app=server._lowlevel_server,  # the SDK's own accessor is private too
@@ -194,6 +199,7 @@ class McpEndpoint:
             async with manager.run():
                 await manager.handle_request(scope, receive, send)
         finally:
+            agent_token_id.reset(reset_agent)
             current_now.reset(reset_now)
             current_principal.reset(reset)
 

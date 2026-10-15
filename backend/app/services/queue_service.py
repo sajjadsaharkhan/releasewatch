@@ -150,6 +150,7 @@ async def build_cards(
             cycle_count=cycle.cycle_number if cycle is not None else 0,
             reject_reason=_value(cycle.start_reason) if cycle is not None and rejected else None,
             reject_comment_id=cycle.start_comment_id if cycle is not None and rejected else None,
+            via_agent=issue.via_agent,
             container=(
                 CardContainer(
                     kind=_value(release.kind), name=release.version,

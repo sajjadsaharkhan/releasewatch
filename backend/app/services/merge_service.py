@@ -87,7 +87,7 @@ class MergeService:
         attach to the original — recurrence (07) passes them; the Duplicate
         outcome leaves the duplicate's own attachments where they are.
         """
-        from app.db.models.issue_attachment import IssueAttachment
+        from app.services.attachment_service import attachment_service
         from app.services.inbox_service import InboxFanOutService
         from app.services.issue_service import issue_service
         from app.services.subscriber_service import subscribe
@@ -121,15 +121,7 @@ class MergeService:
             mentioned_user_ids=[reporter.id] if reporter is not None else None,
         )
         for pending in attachments:
-            db.add(IssueAttachment(
-                issue_id=original.id,
-                uploaded_by_id=reporter_id or actor.id,
-                file_name=pending.filename,
-                s3_key=pending.s3_key,
-                mime_type=pending.mime_type,
-                file_size_bytes=pending.file_size_bytes,
-                attachment_type=pending.attachment_type,
-            ))
+            await attachment_service.add_pending(db, original.id, reporter_id or actor.id, pending)
 
         await subscribe(db, original.id, reporter_id, reason)
         await db.flush()

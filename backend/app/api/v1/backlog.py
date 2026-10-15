@@ -21,7 +21,7 @@ from app import policy
 from app.core.auth import get_current_user
 from app.core.clock import get_now
 from app.db.models.backlog_category import BacklogCategory
-from app.db.models.issue import Issue
+from app.db.models.issue import Issue, Origin
 from app.db.models.project import Project
 from app.db.models.user import User
 from app.db.session import get_db
@@ -82,6 +82,7 @@ async def get_backlog(
     project_id: int,
     include_tech_debt: bool = Query(False, description="Show technical-debt tasks (FR-24)."),
     group_by: str | None = Query(None, pattern="^category$"),
+    origin: Origin | None = Query(None, description="agent or people; omit for all (FR-M30)."),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     now: datetime = Depends(get_now),
@@ -93,7 +94,7 @@ async def get_backlog(
     authorize(current_user, Action.view_backlog, project_target(project))
 
     page = await backlog_service.page(
-        db, project_id, include_tech_debt=include_tech_debt, now=now,
+        db, project_id, include_tech_debt=include_tech_debt, now=now, origin=origin,
     )
     manage = policy.decide(actor_of(current_user), Action.manage_backlog, project_target(project))
     return BacklogResponse(
@@ -203,6 +204,7 @@ async def list_tech_debt(
     status_: str | None = Query(None, alias="status", description="Comma-separated statuses"),
     assignee_id: int | None = Query(None),
     unassigned: bool | None = Query(None),
+    origin: Origin | None = Query(None, description="agent or people; omit for all (FR-M30)."),
     page: int = Query(1, ge=1),
     size: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -219,6 +221,7 @@ async def list_tech_debt(
         statuses=[s.value for s in statuses or []],
         assignee_id=assignee_id,
         unassigned=bool(unassigned),
+        origin=origin,
         page=page,
         size=size,
     )

@@ -15,6 +15,7 @@ import { TriageOutcomePanel } from './TriageOutcomePanel'
 import { DuplicateCandidateCard } from './DuplicateCandidateCard'
 import { DuplicateCompareDialog } from './DuplicateCompareDialog'
 import { DuplicateMergeDialog } from './DuplicateMergeDialog'
+import { AgentBadge } from '../common/AgentBadge'
 
 /**
  * The right-hand pane of the triage page (slice 06, 14): a sticky header
@@ -80,6 +81,7 @@ export function TriageDetail({
           <Avatar user={reporter} size={14} />
           <span>{reporter?.name ?? 'Unknown reporter'}</span>
           {reporter?.role && !(reporter.role === 'support' && issue.source === 'support') && <RoleBadge role={reporter.role} />}
+          <AgentBadge show={issue.via_agent} />
           <span aria-hidden="true">·</span>
           <span title={fullTime(issue.created_at)}>{relTime(issue.created_at)}</span>
           {showProject && issue.project_name && (<><span aria-hidden="true">·</span><span>{issue.project_name}</span></>)}

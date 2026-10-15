@@ -571,6 +571,35 @@ class S3Service:
             "public_url": public_url,
         }
 
+    def presign_upload_part(
+        self, s3_key: str, upload_id: str, part_number: int, expiry_seconds: int | None = None,
+    ) -> str:
+        """A presigned ``PUT`` URL for one part of a multipart upload."""
+        return self._client.generate_presigned_url(
+            "upload_part",
+            Params={
+                "Bucket": self.bucket, "Key": s3_key,
+                "UploadId": upload_id, "PartNumber": part_number,
+            },
+            ExpiresIn=expiry_seconds or settings.S3_PRESIGN_EXPIRY,
+        )
+
+    def complete_uploaded_parts(self, s3_key: str, upload_id: str) -> bool:
+        """Complete a multipart upload from the parts S3 holds — for an uploader
+        that never reports ETags (the MCP agent's shell, slice 17). False when
+        no part was uploaded or the upload is gone."""
+        try:
+            listed = self._client.list_parts(Bucket=self.bucket, Key=s3_key, UploadId=upload_id)
+        except ClientError:
+            return False
+        parts = [
+            {"PartNumber": p["PartNumber"], "ETag": p["ETag"]} for p in listed.get("Parts", [])
+        ]
+        if not parts:
+            return False
+        self.complete_multipart_upload(s3_key, upload_id, parts)
+        return True
+
     def abort_multipart_upload(self, s3_key: str, upload_id: str) -> None:
         """Abort a multipart upload, cleaning up any uploaded parts."""
         self._client.abort_multipart_upload(

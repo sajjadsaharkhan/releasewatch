@@ -49,10 +49,19 @@ class IssueAttachment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"
     )
+    #: The MCP token the file was attached through — agent content (slice 17).
+    #: Set once by ``AttachmentService.add``; never changes.
+    via_mcp_token_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("mcp_tokens.id", ondelete="RESTRICT"), nullable=True, default=None,
+    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     issue = relationship("Issue", back_populates="attachments")
     uploader = relationship("User", foreign_keys=[uploaded_by_id])
+
+    @property
+    def via_agent(self) -> bool:
+        return self.via_mcp_token_id is not None
 
     def __repr__(self) -> str:
         return f"<IssueAttachment id={self.id} file={self.file_name!r} type={self.attachment_type}>"

@@ -15,6 +15,7 @@ import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
 import { useApp } from '../../hooks/useApp'
 import { ContainerBadge } from '../common/ContainerBadge'
+import { AgentBadge } from '../common/AgentBadge'
 
 const TABS = ['activity', 'attachments', 'cycles']
 
@@ -96,6 +97,7 @@ export function IssueMainContent({
         <Avatar user={reporter} size={16} />
         <span className="text-zinc-700 dark:text-zinc-200">{reporter?.name}</span>
         {reporter?.role && <RoleBadge role={reporter.role} />}
+        <AgentBadge show={issue.via_agent} />
         <span>·</span>
         <span>{relTime(issue.created_at)}</span>
         <span>·</span>

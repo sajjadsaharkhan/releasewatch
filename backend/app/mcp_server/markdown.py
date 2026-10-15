@@ -1,4 +1,4 @@
-"""Markdown renderings of the read tools' answers (slice 16).
+"""Markdown renderings of the read and write tools' answers (slices 16–17).
 
 Each function takes the exact dict a tool returns as structured content and
 renders it for clients that show only text. Nothing here reads the database
@@ -56,6 +56,8 @@ def _line(row: dict) -> str:
         parts.append("release blocker")
     if row.get("due_date"):
         parts.append(f"due {_when(row['due_date'])}")
+    if row.get("via_agent"):
+        parts.append("filed by an agent")
     return " · ".join(parts)
 
 
@@ -77,7 +79,8 @@ def queue(data: dict) -> str:
 
 
 def _event(e: dict) -> str:
-    head = f"- **{_who(e['author'])}** · {_when(e['at'])} · "
+    agent = " (agent)" if e.get("via_agent") else ""
+    head = f"- **{_who(e['author'])}**{agent} · {_when(e['at'])} · "
     if e["type"] == "comment":
         kind = "internal note" if e["internal"] else "comment"
         quoted = _quote(e["body"]).splitlines()
@@ -86,6 +89,8 @@ def _event(e: dict) -> str:
     detail = ""
     if "from" in meta or "to" in meta:
         detail = f": {_status(meta.get('from'))} → {_status(meta.get('to'))}"
+    elif meta.get("fields"):
+        detail = ": " + ", ".join(f.replace("_", " ") for f in meta["fields"])
     elif meta.get("outcome"):
         detail = f": {meta['outcome']}"
     text = f"{head}{e['type'].replace('_', ' ')}{detail}"
@@ -109,7 +114,8 @@ def item(data: dict) -> str:
     assignee = _who(data["assignee"]) if data["assignee"] else "—"
     lines.append(
         f"**Container:** {where} · **Assignee:** {assignee}"
-        f" · **Reporter:** {_who(data['reporter'])} · **Due:** {_when(data['due_date'])}"
+        f" · **Reporter:** {_who(data['reporter'])}{' (agent)' if data['via_agent'] else ''}"
+        f" · **Due:** {_when(data['due_date'])}"
     )
     flags = [
         label for label, on in (
@@ -163,7 +169,8 @@ def item(data: dict) -> str:
         for a in data["attachments"]:
             lines.append(
                 f"- [{a['id']}] {a['file_name']} ({a['mime_type']}, {_size(a['size'])}) "
-                f"by {_who(a['author'])} — read with rw_get_attachment"
+                f"by {_who(a['author'])}{' (agent)' if a['via_agent'] else ''}"
+                " — read with rw_get_attachment"
             )
 
     scope = "every event" if data["full_timeline"] else (
@@ -229,7 +236,8 @@ def triage_queue(data: dict) -> str:
     for row in data["items"]:
         lines.append(
             f"- **{row['key']}** {row['title']} · {_status(row['status'])} · {row['source']} · "
-            f"reported by {_who(row['reporter'])} · ×{row['recurrence_count']}"
+            f"reported by {_who(row['reporter'])}{' (agent)' if row['via_agent'] else ''}"
+            f" · ×{row['recurrence_count']}"
         )
         for d in row["possible_duplicates"]:
             effect = _MERGE_EFFECTS.get(d["merge_effect"], d["merge_effect"])
@@ -273,4 +281,52 @@ def tech_debt(data: dict) -> str:
     shown = len(data["items"])
     lines = [f"# Technical debt ({shown} of {data['total']})", ""]
     lines += [f"- {_line(i)}" for i in data["items"]]
+    return "\n".join(lines)
+
+
+# ── Write tools (slice 17) ────────────────────────────────────────────────────
+
+
+def upload(data: dict, file_name: str) -> str:
+    lines = [
+        f"Upload `{data['upload_id']}` is ready for {file_name}. Upload the file with your "
+        f"shell before {_when(data['upload_url_expires_at'])}, then pass the upload_id to "
+        "rw_file_bug, rw_file_tech_debt, or rw_attach. Unused, it expires at "
+        f"{_when(data['expires_at'])}.",
+        "",
+    ]
+    if "post" in data:
+        form = " ".join(f"-F '{k}={v}'" for k, v in data["post"]["fields"].items())
+        lines += [
+            "```sh",
+            f"curl -sS -X POST '{data['post']['url']}' {form} -F 'file=@{file_name}'",
+            "```",
+        ]
+    else:
+        mp = data["multipart"]
+        lines += [
+            f"Multipart: split the file into parts of {mp['part_size']} bytes "
+            f"(`split -b {mp['part_size']} {file_name} part-`) and PUT each part, in order:",
+            "",
+            "```sh",
+        ]
+        lines += [
+            f"curl -sS -X PUT --upload-file <part {p['part_number']}> '{p['url']}'"
+            for p in mp["parts"]
+        ]
+        lines.append("```")
+    return "\n".join(lines)
+
+
+def filed(data: dict) -> str:
+    where = (
+        f"the backlog of {data['project']['name']} as technical debt"
+        if data["type"] == "task" else f"the triage queue of {data['project']['name']}"
+    )
+    lines = [f"Filed **{data['key']}** {data['title']} into {where} ({_status(data['status'])})."]
+    if data["assignee"]:
+        lines.append(f"Assignee: {_who(data['assignee'])}.")
+    if data["attachments"]:
+        lines.append("Attachments: " + ", ".join(a["file_name"] for a in data["attachments"]) + ".")
+    lines.append(data["url"])
     return "\n".join(lines)

@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../hooks/useApp'
 import { backlogApi, teamApi } from '../lib/api'
-import { OPEN_STATUSES, TECH_DEBT } from '../lib/constants'
+import { OPEN_STATUSES, TECH_DEBT, parseOrigin } from '../lib/constants'
 import { issueKey, issueSlug } from '../lib/issueSlug'
 import { fullTime, relTime } from '../lib/relTime'
 import {
   Avatar, Empty, Icon, PriorityBadge, StatusBadge, Tooltip, TypeIcon, UserHoverCard, useToast,
 } from '../components/ui'
-import { FilterDropdown, MultiSelectFilterDropdown, ReportedCount } from '../components/common'
+import { AgentBadge, FilterDropdown, MultiSelectFilterDropdown, OriginFilter, ReportedCount } from '../components/common'
 
 /**
  * Technical debt (slice 08, FR-27/28): every task flagged as debt, across
@@ -63,6 +63,8 @@ export default function TechDebtPage() {
   const projectIds = (searchParams.get('project') || '').split(',').filter(Boolean).map(Number)
   const status = searchParams.get('status') || 'open'
   const assignee = searchParams.get('assignee') || 'all'
+  // Origin filter (slice 17, FR-M30): `?origin=agent|people`, absent = all.
+  const origin = parseOrigin(searchParams.get('origin'))
   const paramsKey = searchParams.toString()
 
   const update = (key, value, fallback) => {
@@ -84,6 +86,7 @@ export default function TechDebtPage() {
       status: STATUS_PARAM[status],
       assignee_id: assignee !== 'all' && assignee !== 'unassigned' ? assignee : undefined,
       unassigned: assignee === 'unassigned' || undefined,
+      origin: origin || undefined,
     })
       .then((res) => {
         if (cancelled) return
@@ -108,7 +111,7 @@ export default function TechDebtPage() {
     { value: 'unassigned', label: 'Unassigned' },
     ...team.filter((u) => u.role !== 'support').map((u) => ({ value: String(u.id), label: u.name })),
   ]
-  const filtered = projectIds.length > 0 || status !== 'open' || assignee !== 'all'
+  const filtered = projectIds.length > 0 || status !== 'open' || assignee !== 'all' || !!origin
 
   return (
     <div className="space-y-4 p-6">
@@ -145,6 +148,7 @@ export default function TechDebtPage() {
           options={assigneeOptions}
           onChange={(v) => update('assignee', v, 'all')}
         />
+        <OriginFilter value={origin} onChange={(v) => update('origin', v, '')} />
         {filtered && (
           <button
             type="button"
@@ -208,6 +212,7 @@ export default function TechDebtPage() {
                         >
                           {i.title}
                         </Link>
+                        <AgentBadge show={i.via_agent} />
                         <ReportedCount count={i.recurrence_count} />
                       </div>
                     </td>

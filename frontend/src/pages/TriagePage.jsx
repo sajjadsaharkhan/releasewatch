@@ -11,6 +11,7 @@ import { Dropdown, DropdownItem } from '../components/ui/Dropdown'
 import { SourceBadge } from '../components/common/SourceBadge'
 import { ReportedCount } from '../components/common/ReportedCount'
 import { PossibleDuplicates } from '../components/common/PossibleDuplicates'
+import { AgentBadge, OriginFilter } from '../components/common'
 import { TriageDetail } from '../components/triage'
 import { issuesApi, teamApi, attachmentsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
@@ -48,6 +49,8 @@ export default function TriagePage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('new')
   const [sort, setSort] = useState('oldest')
+  // All · Agent · People (slice 17, FR-M30) — '' is all.
+  const [origin, setOrigin] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const location = useLocation()
   const navigate = useNavigate()
@@ -57,9 +60,10 @@ export default function TriagePage() {
   const loadQueue = useCallback(async () => {
     const params = { statuses: TRIAGE_STATUSES.join(','), sort, size: 500 }
     if (activeProjectId) params.project_id = activeProjectId
+    if (origin) params.origin = origin
     const res = await issuesApi.list(params)
     setIssues(res.data.items)
-  }, [activeProjectId, sort])
+  }, [activeProjectId, sort, origin])
 
   useEffect(() => {
     let cancelled = false
@@ -74,7 +78,8 @@ export default function TriagePage() {
     new: issues.filter(i => i.status === 'new').length,
     needs_info: issues.filter(i => i.status === 'needs_info').length,
   }), [issues])
-  useEffect(() => { if (!loading) setTriageCount(counts.new) }, [counts.new, loading, setTriageCount])
+  // The sidebar count is the whole queue's, so a filtered view leaves it alone.
+  useEffect(() => { if (!loading && !origin) setTriageCount(counts.new) }, [counts.new, loading, origin, setTriageCount])
   const queue = useMemo(() => issues.filter(i => i.status === tab), [issues, tab])
   const selected = queue.find(i => i.id === selectedId) ?? null
   const project = projects.find(p => String(p.id) === String(selected?.project_id))
@@ -136,6 +141,8 @@ export default function TriagePage() {
                 {activeProjectId ? (projects.find(p => String(p.id) === String(activeProjectId))?.name ?? 'This project') : 'All projects'}
               </p>
             </div>
+            <div className="flex items-center gap-2">
+            <OriginFilter value={origin} onChange={setOrigin} />
             <Dropdown width={148}
               trigger={
                 <button className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background hover:bg-muted text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -151,6 +158,7 @@ export default function TriagePage() {
                 </DropdownItem>
               ))}
             </Dropdown>
+            </div>
           </div>
           <Tabs
             className="mt-2 border-b-0"
@@ -193,6 +201,7 @@ export default function TriagePage() {
                       <span>{r?.name ?? 'Unknown reporter'}</span>
                       {/* A Support reporter is already said by the source badge. */}
                       {r?.role && !(r.role === 'support' && i.source === 'support') && <RoleBadge role={r.role} />}
+                      <AgentBadge show={i.via_agent} />
                       {!activeProjectId && i.project_name && <span className="ml-auto truncate">{i.project_name}</span>}
                     </div>
                   </button>

@@ -6,7 +6,7 @@ import { cn } from '../../lib/cn'
 import { issueKey, issueSlug } from '../../lib/issueSlug'
 import { fullTime } from '../../lib/relTime'
 import { Avatar, Checkbox, Icon, Tooltip, UserHoverCard } from '../ui'
-import { BacklogCategoryBadge, ReportedCount, TechDebtMarker } from '../common'
+import { AgentBadge, BacklogCategoryBadge, ReportedCount, TechDebtMarker } from '../common'
 import { PriorityPicker } from '../queue/QueueItemRow'
 import { TypeMark, ageOf } from '../queue/QueueMarks'
 
@@ -123,6 +123,7 @@ export function BacklogRow({
               {item.title}
             </Link>
             <TechDebtMarker item={item} />
+            <AgentBadge show={item.via_agent} />
             <ReportedCount count={item.recurrence_count} />
             {error && (
               <Tooltip content={error}>

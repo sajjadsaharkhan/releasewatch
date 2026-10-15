@@ -45,7 +45,8 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import get_current_user, require_role
 from app.core.errors import DomainError
 from app.db.models.issue import (
-    PRIORITY_ORDER, Issue, IssueStatus, IssueType, Priority, issue_key, issue_type_value,
+    PRIORITY_ORDER, Issue, IssueStatus, IssueType, Origin, Priority, issue_key,
+    issue_type_value, origin_clause,
 )
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
@@ -143,6 +144,7 @@ def _apply_filters(
     type=None,
     container=None,
     is_tech_debt=None,
+    origin=None,
 ):
     query = query.where(Issue.deleted_at.is_(None), visibility_clause(actor))
     if project_id:
@@ -181,6 +183,8 @@ def _apply_filters(
         query = query.where(Issue.release_id == int(container))
     if is_tech_debt is not None:
         query = query.where(Issue.is_tech_debt == is_tech_debt)
+    if origin is not None:
+        query = query.where(origin_clause(origin))
     if search:
         from sqlalchemy import String as SAString
         from sqlalchemy import cast
@@ -383,6 +387,9 @@ async def list_issues(
         description="backlog (no container), stream (any project's Stream), or a container id.",
     ),
     is_tech_debt: bool | None = Query(None),
+    origin: Origin | None = Query(
+        None, description="agent (filed through MCP) or people; omit for all (FR-M30).",
+    ),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -406,6 +413,7 @@ async def list_issues(
         type=type,
         container=container,
         is_tech_debt=is_tech_debt,
+        origin=origin,
     )
 
     count_q = _apply_filters(select(func.count(Issue.id)), **filter_kwargs)

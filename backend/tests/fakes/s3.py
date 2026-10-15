@@ -31,7 +31,8 @@ class FakeS3:
         for name in (
             "generate_presigned_upload", "upload_file", "get_object_bytes",
             "generate_presigned_download", "get_download_url", "object_exists",
-            "get_file_info", "delete_file",
+            "get_file_info", "delete_file", "create_multipart_upload", "presign_upload_part",
+            "complete_uploaded_parts",
         ):
             monkeypatch.setattr(service, name, getattr(self, name))
 
@@ -88,3 +89,20 @@ class FakeS3:
 
     def delete_file(self, s3_key: str) -> None:
         self.objects.pop(s3_key, None)
+
+    # Multipart: a test stands in for the uploader by ``put``-ting the whole
+    # object; completing then succeeds when the object is there.
+
+    def create_multipart_upload(
+        self, file_type, filename: str, mime_type: str, **context: Any,
+    ) -> dict[str, Any]:
+        s3_key, file_id = self._service.build_key(file_type, filename=filename, **context)
+        return {"upload_id": f"mpu-{file_id}", "s3_key": s3_key, "file_id": file_id}
+
+    def presign_upload_part(
+        self, s3_key: str, upload_id: str, part_number: int, expiry_seconds: int | None = None,
+    ) -> str:
+        return f"{BASE_URL}/{quote(s3_key)}?uploadId={upload_id}&partNumber={part_number}"
+
+    def complete_uploaded_parts(self, s3_key: str, upload_id: str) -> bool:
+        return s3_key in self.objects

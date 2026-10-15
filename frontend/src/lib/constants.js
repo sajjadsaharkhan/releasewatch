@@ -283,6 +283,25 @@ export const TECH_DEBT = {
   iconClass: 'text-stone-500 dark:text-stone-400',
 }
 
+// Agent content (slice 17, FR-M29): written through MCP by the owner's coding
+// agent. Zinc outline — outside every priority, status, type and role hue.
+export const AGENT = {
+  label: 'Agent',
+  tooltip: 'Written by the owner’s coding agent',
+  icon: 'square-terminal',
+  chip: 'border border-zinc-300 bg-card text-zinc-600 dark:border-zinc-600 dark:text-zinc-300',
+  iconClass: 'text-zinc-500 dark:text-zinc-400',
+}
+
+// Origin filter (slice 17, FR-M30) — `origin` on the triage, backlog and tech-debt lists.
+export const ORIGIN_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'people', label: 'People' },
+]
+// `?origin=` as the API takes it: 'agent' | 'people', or '' for all.
+export const parseOrigin = (raw) => (ORIGIN_OPTIONS.some((o) => o.value && o.value === raw) ? raw : '')
+
 // Mirrors UserRole (backend/app/db/models/user.py). Tech roles = everyone but support
 // (lib/roles.js); per-item permissions come from the API's allowed_actions, not from here.
 export const ROLE = {

@@ -4,7 +4,7 @@ import enum
 import re
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, case, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint, func, Integer, JSON, SmallInteger, String, Text, text
+from sqlalchemy import Boolean, case, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint, func, Integer, JSON, SmallInteger, String, Text, text, true
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -336,6 +336,11 @@ class Issue(Base):
     deleted_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None
     )
+    #: The MCP token that filed the item — agent content (slice 17, BR-M05). Set
+    #: once by ``IssueService.create`` from the agent context; never changes.
+    via_mcp_token_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("mcp_tokens.id", ondelete="RESTRICT"), nullable=True, default=None,
+    )
 
     # ── Relationships ─────────────────────────────────────────────────────────
     project = relationship("Project", back_populates="issues")
@@ -372,6 +377,11 @@ class Issue(Base):
         passive_deletes=True,
     )
 
+    @property
+    def via_agent(self) -> bool:
+        """Filed through MCP — the Agent badge. The token itself is never exposed."""
+        return self.via_mcp_token_id is not None
+
     def __repr__(self) -> str:
         return f"<Issue #{self.issue_number} status={self.status} priority={self.priority}>"
 
@@ -381,3 +391,22 @@ PRIORITY_ORDER = case(
     *((Issue.priority == p.value, rank) for p, rank in PRIORITY_RANK.items()),
     else_=len(PRIORITY_RANK) + 1,
 )
+
+
+class Origin(str, enum.Enum):
+    """Who filed an item, for the origin filter (slice 17, FR-M30)."""
+
+    agent = "agent"
+    people = "people"
+
+
+def origin_clause(origin: "Origin | str | None"):
+    """SQL for the origin filter: ``agent`` = filed through MCP, ``people`` = the
+    rest, ``None`` = no filter. The triage queue, the backlog and the Technical
+    debt page all filter through it."""
+    value = getattr(origin, "value", origin)
+    if value == Origin.agent.value:
+        return Issue.via_mcp_token_id.is_not(None)
+    if value == Origin.people.value:
+        return Issue.via_mcp_token_id.is_(None)
+    return true()

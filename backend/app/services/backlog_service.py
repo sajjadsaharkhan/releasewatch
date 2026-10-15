@@ -32,7 +32,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import DomainError
 from app.db.models.backlog_category import BacklogCategory
-from app.db.models.issue import BACKLOG_STATUSES, PRIORITY_ORDER, Issue, IssueType
+from app.db.models.issue import (
+    BACKLOG_STATUSES, PRIORITY_ORDER, Issue, IssueType, Origin, origin_clause,
+)
 from app.db.models.project import Project
 from app.db.models.release import Release
 from app.db.models.user import User
@@ -244,9 +246,12 @@ class BacklogService:
         *,
         include_tech_debt: bool,
         now: datetime,
+        origin: Origin | None = None,
     ) -> BacklogPage:
+        """The backlog page; ``origin`` narrows the items listed (FR-M30), not
+        the hidden technical-debt count."""
         items = list((await db.execute(
-            backlog_items(project_id, include_tech_debt).options(
+            backlog_items(project_id, include_tech_debt).where(origin_clause(origin)).options(
                 selectinload(Issue.assignee),
                 selectinload(Issue.reporter),
                 selectinload(Issue.release),
@@ -377,6 +382,7 @@ async def tech_debt_page(
     statuses: list[str] | None = None,
     assignee_id: int | None = None,
     unassigned: bool = False,
+    origin: Origin | None = None,
     page: int = 1,
     size: int = 100,
 ) -> tuple[list[Issue], int]:
@@ -385,7 +391,7 @@ async def tech_debt_page(
     The route and the MCP tool ``rw_tech_debt`` both read it here."""
     from app.services.authz import visibility_clause
 
-    filters = [tech_debt_clause(), visibility_clause(user)]
+    filters = [tech_debt_clause(), visibility_clause(user), origin_clause(origin)]
     if project_ids:
         filters.append(Issue.project_id.in_(project_ids))
     if statuses:

@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { formatEventTime, fullTime } from '../../lib/relTime'
+import { AgentBadge } from './AgentBadge'
 
 // Local utility function for formatting file sizes
 function formatSize(bytes) {
@@ -351,8 +352,9 @@ export function MediaCard({ attachment, onClick, onDelete, onPreview, href, uplo
         </div>
       </div>
 
-      {/* Type badge - top right */}
-      <div className="absolute top-2 right-2 z-30">
+      {/* Type badge - top right, with the Agent badge (slice 17) before it */}
+      <div className="absolute top-2 right-2 z-30 flex items-center gap-1">
+        <AgentBadge show={attachment.via_agent} />
         <span className={cn(
           'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium',
           attachment.type === 'image' && 'bg-blue-500/90 text-white',

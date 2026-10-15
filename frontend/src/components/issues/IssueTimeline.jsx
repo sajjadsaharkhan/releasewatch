@@ -14,6 +14,7 @@ import { ReactionBar } from './ReactionBar'
 import { TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { IssueHoverCard } from '../common/IssueHoverCard'
+import { AgentBadge } from '../common/AgentBadge'
 
 const EVENT_STYLES = {
   filed:               { dot: 'bg-blue-500',   label: (e, item) => (isBug(item) ? 'filed this bug' : 'created this task') },
@@ -36,6 +37,7 @@ const EVENT_STYLES = {
   release_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to ${e.meta?.to_version ?? 'the backlog'}` },
   project_changed:     { dot: 'bg-sky-500',    label: (e) => `moved to project ${e.meta?.to_name ?? ''}` },
   environment_changed: { dot: 'bg-amber-400',  label: (e) => null },
+  curl_changed:        { dot: 'bg-zinc-400',   label: 'changed the cURL command' },
   needs_clarification: { dot: 'bg-orange-500', label: 'requested clarification from reporter' },
   triaged:             { dot: 'bg-indigo-500', label: (e) => TRIAGE_LABELS[e.meta?.outcome]?.(e.meta) ?? 'triaged this bug' },
   // Slice 08 — backlog category and the technical-debt flag.
@@ -90,6 +92,14 @@ function DueChip({ day, side }) {
   )
 }
 
+// The non-named environment fields, as the timeline names them (slice 17).
+const ENV_FIELD_LABELS = {
+  environment_browser: 'browser',
+  environment_os: 'OS',
+  environment_build_hash: 'build hash',
+  environment_staging_url: 'staging URL',
+}
+
 const REJECT_REASON_LABELS = {
   user_error: 'user error',
   expected_behavior: 'expected behavior',
@@ -125,6 +135,7 @@ const EVENT_ICONS = {
   release_changed:     'package',
   project_changed:     'folder',
   environment_changed: 'monitor',
+  curl_changed:        'terminal',
   comment:             'message-square',
   needs_clarification: 'help-circle',
   triaged:             'inbox',
@@ -363,6 +374,43 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
       )
     }
 
+    // Slice 17: any environment field — `meta.fields` lists what changed,
+    // `meta.changes[field]` holds from/to. A named environment keeps its badge.
+    if (event.type === 'environment_changed' && event.meta?.fields) {
+      const changes = event.meta.changes ?? {}
+      const named = changes.environment_name
+      const others = event.meta.fields.filter((f) => f !== 'environment_name')
+      const envBadge = (value) => {
+        const env = ENVIRONMENT[value]
+        return <Badge tone={env?.tone ?? 'default'} className="align-middle">{env?.label ?? value}</Badge>
+      }
+      return (
+        <>
+          {named && (named.to ? (
+            named.from ? (
+              <>
+                changed environment {envBadge(named.from)}
+                <Icon name="arrow-right" size={11} className="inline mx-0.5 text-zinc-400" />
+                {envBadge(named.to)}
+              </>
+            ) : <>set environment to {envBadge(named.to)}</>
+          ) : <>cleared the environment</>)}
+          {named && others.length > 0 && <span> and </span>}
+          {others.length > 0 && (
+            <>
+              updated{' '}
+              {others.map((f, i) => (
+                <React.Fragment key={f}>
+                  {i > 0 && ', '}
+                  <span className="text-zinc-700 dark:text-zinc-200">{ENV_FIELD_LABELS[f] ?? f}</span>
+                </React.Fragment>
+              ))}
+            </>
+          )}
+        </>
+      )
+    }
+
     if (event.type === 'environment_changed' && to) {
       const fromEnv = from ? ENVIRONMENT[from] : null
       const toEnv = ENVIRONMENT[to]
@@ -524,6 +572,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{actor?.name ?? actorId}</span>
                         <RoleBadge role={actor?.role} />
+                        <AgentBadge show={item.via_agent} />
                         {item.isRecurrence && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-700 dark:text-violet-300">
                             <Icon name="repeat" size={10} aria-hidden="true" /> Recurrence
@@ -632,6 +681,7 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                 <EventDot type={item.type} to={item.to ?? item.meta?.to} />
                 <div className="flex items-baseline gap-1.5 text-[13px] flex-wrap text-zinc-500 dark:text-zinc-400">
                   <span className="font-medium text-zinc-700 dark:text-zinc-200">{actor?.name ?? actorId}</span>
+                  <AgentBadge show={item.via_agent} className="self-center" />
                   <span>{getLabel(item)}</span>
                   <span className="text-zinc-400 dark:text-zinc-500 text-[11px] ml-auto" title={fullTime(time)}>
                     {formatEventTime(time)}

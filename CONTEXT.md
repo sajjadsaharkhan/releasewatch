@@ -192,7 +192,7 @@ _Avoid_: "AI-detected duplicate" — stage 1 narrows, Jev decides, a human merge
 ### MCP (slice 15)
 
 **MCP server**:
-The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 added `rw_context`; slice 16 the read tools (`rw_my_queue`, `rw_get_item`, `rw_get_attachment`, `rw_search`, `rw_find_similar`, `rw_triage_queue`, `rw_board`, `rw_tech_debt`) and the resource `rw://item/{key}`. Tools take display keys (`BUG-42`), project keys and release versions, never ids (except `attachment_id`), and answer with JSON plus a Markdown rendering of it.
+The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 added `rw_context`; slice 16 the read tools (`rw_my_queue`, `rw_get_item`, `rw_get_attachment`, `rw_search`, `rw_find_similar`, `rw_triage_queue`, `rw_board`, `rw_tech_debt`) and the resource `rw://item/{key}`; slice 17 the write tools (`rw_upload_prepare`, `rw_file_bug`, `rw_file_tech_debt`, `rw_add_note`, `rw_attach`, `rw_fill_field`, `rw_report_recurrence`) — none changes status, placement, labels, flags, assignee or priority after filing, or a queue (BR-M01). Tools take display keys (`BUG-42`), project keys and release versions, never ids (except `attachment_id`), and answer with JSON plus a Markdown rendering of it.
 _Avoid_: "API", "integration", "bot" — it is a separate entry point with its own credential.
 
 **Significant timeline event**:
@@ -206,6 +206,26 @@ _Avoid_: "duplicates" for the Jev-off list — nothing has judged them.
 **MCP token**:
 The credential an agent holds: `rwm_` + 43 base62 characters, accepted only by the MCP server — `get_current_user` refuses any `rwm_` bearer, and the MCP server refuses anything else (BR-M02). Named by its owner, it lives 30 days, 90 days or 1 year and is never renewed; the value is shown once and stored only as its sha256 (`mcp_tokens`). Its status — active, expired, revoked — is derived, never stored; rows are never deleted, but revoked tokens drop out of both lists (D19). Only tech users hold tokens, and a deactivated owner's tokens stop working without being revoked.
 _Avoid_: "API key", "PAT", "personal access token", "secret".
+
+**Agent content**:
+An item, timeline entry or attachment created through the MCP server (slice 17). It records the token it came through (`via_mcp_token_id`, set once by the three writers that read the agent context — `TimelineService.create_event`, `IssueService.create`, `AttachmentService.add` — and never changed); responses expose only `via_agent`. Side effects of an agent action (the `subscribed` event on filing, the status move of a recurrence) are agent content too. Independent of `source`: an agent-filed bug is source Internal and agent content.
+_Avoid_: "AI label", "bot", "source" (`source` already means internal/support).
+
+**Agent badge**:
+The `AgentBadge` pill ("Agent", `square-terminal`) next to the owner's name on agent content: the item page, triage, backlog and Technical debt rows, timeline entries, attachments, and the card's hover details (never the card face). It says nothing else — no client, device, model or token. Not a label: removing labels or editing the item keeps it.
+_Avoid_: "AI badge", "bot tag".
+
+**Origin filter**:
+All · Agent · People on the triage queue, the backlog and the Technical debt page (`origin=agent|people` on `/issues`, `/projects/{id}/backlog`, `/tech-debt`) — for reviewing or cleaning up what agents filed. There is no limit on how much an agent can file; cleanup relies on this filter.
+_Avoid_: "source filter".
+
+**File anyway**:
+`file_anyway=true` on `rw_file_bug` / `rw_file_tech_debt`. Every filing runs the duplicate check first; when it finds candidates, nothing is filed and the call fails with `duplicates_found` and the candidates — the agent asks the developer, and passes `file_anyway` only after they decide to file.
+_Avoid_: "force", "skip duplicate check" — the check always runs.
+
+**Pending upload**:
+A file an agent is uploading: `rw_upload_prepare` presigns S3 (multipart above the large-file threshold) and keeps `{owner, s3_key, name, type, size}` in Redis under an `upload_id` for one hour. A filing or `rw_attach` consumes it — its owner only, once, and only once the file is in S3 (`unknown_upload` otherwise). The API never receives the bytes.
+_Avoid_: "draft attachment", "pre-upload" (that's the web form's flow, with no server record).
 
 **Kill switch**:
 Settings → MCP → **Enabled** (`system_settings` category `mcp`; off on a new installation). Off, every MCP request is refused with "MCP is disabled by the administrator" and no token can be created; tokens are left untouched and work again when it is switched back on.
