@@ -88,7 +88,10 @@ server = MCPServer(
     version=settings.APP_VERSION,
     instructions=(
         "Releasewatch is the team's release-scoped QA tracker. Call rw_context first: "
-        "it says who you act as and which projects you can see."
+        "it says who you act as and which projects you can see. Write by the Agent "
+        "Writing Standard (rw://standards/writing). Never change an item's status or "
+        "placement; ask the developer before you file, or set an assignee, a priority, "
+        "or a recurrence."
     ),
 )
 
@@ -137,8 +140,9 @@ async def rw_context() -> ContextResult:
         )
 
 
-# The read tools (slice 16) and write tools (slice 17) register themselves on ``server``.
-from app.mcp_server import read_tools, write_tools  # noqa: E402,F401
+# The read tools (slice 16), write tools (slice 17), and prompts and the writing
+# standard (slice 18) register themselves on ``server``.
+from app.mcp_server import prompts, read_tools, write_tools  # noqa: E402,F401
 
 # ── The endpoint ──────────────────────────────────────────────────────────────
 

@@ -240,11 +240,42 @@ class TimelineService:
             **(event.meta or {}),
             "edited_by": str(current_user.id),
             "edited_at": datetime.now(tz=timezone.utc).isoformat(),
+            # The last writer (slice 18, A.5): a UI edit writes null and takes
+            # the note away from the agent.
+            "edited_via_mcp_token_id": current_agent_token_id(),
         }
         db.add(event)
         await db.flush()
         search_index.enqueue(db, event.issue_id)
         return event
+
+    # ── Delete comment ────────────────────────────────────────────────────────
+
+    async def delete_comment(
+        self, db: AsyncSession, event: IssueTimeline, current_user: User,
+    ) -> None:
+        """Delete a comment (flushed, not committed). Only the author or an admin
+        may. ``DELETE /issues/{id}/timeline/{event_id}`` and ``rw_delete_own``
+        come through here."""
+        from app.db.models.user import UserRole
+
+        if event.event_type != TimelineEventType.comment:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Only comments can be deleted",
+            )
+
+        is_admin = current_user.role == UserRole.admin
+        is_author = event.actor_id == current_user.id
+        if not (is_author or is_admin):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the author or admin can delete this comment",
+            )
+
+        issue_id = event.issue_id
+        await db.delete(event)
+        await db.flush()
+        search_index.enqueue(db, issue_id)
 
 
 # Module-level singleton

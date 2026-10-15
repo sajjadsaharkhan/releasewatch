@@ -26,6 +26,8 @@ WRITE_TOOLS = {
     "rw_upload_prepare", "rw_file_bug", "rw_file_tech_debt", "rw_add_note", "rw_attach",
     "rw_fill_field", "rw_report_recurrence",
 }
+#: Slice 18: content the agent owns.
+OWN_TOOLS = {"rw_update_own", "rw_delete_own"}
 BUG_TITLE = "Chat reactions disappear after a page refresh"
 DEBT_TITLE = "Replace the hand-written retry loop in the S3 client"
 
@@ -114,10 +116,10 @@ async def _bug(factories, rig, *steps, **overrides):
 # ── Boundaries (BR-M01, AC-M01) ──────────────────────────────────────────────
 
 
-async def test_ac_m01_the_server_offers_exactly_nine_read_and_seven_write_tools(rig):
+async def test_ac_m01_the_server_offers_exactly_these_eighteen_tools(rig):
     names = {t.name for t in await rig["mcp"].tools()}
-    assert names == READ_TOOLS | WRITE_TOOLS
-    assert len(names) == 16
+    assert names == READ_TOOLS | WRITE_TOOLS | OWN_TOOLS
+    assert len(names) == 18
 
 
 async def test_ac_m01_write_tools_change_no_placement_status_flags_or_queue(
@@ -239,7 +241,8 @@ async def test_ac_m09_a_filed_bug_enters_triage_and_notifies_the_triage_lead(rig
         environment={"name": "staging", "browser": "Chrome 130"},
     )
     assert filed["status"] == "new" and filed["via_agent"] is True
-    assert filed["url"].endswith(f"/#/issue/{filed['key'].lower()}")
+    assert filed["url"].endswith(f"/issue/{filed['key'].lower()}")
+    assert "#" not in filed["url"]
     bug = await _get(rig["admin"], filed["key"])
     assert bug["type"] == "bug" and bug["status"] == "new"
     assert bug["release_id"] is None and bug["source"] == "internal"

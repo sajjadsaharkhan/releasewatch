@@ -83,6 +83,7 @@ def _event(e: dict) -> str:
     head = f"- **{_who(e['author'])}**{agent} · {_when(e['at'])} · "
     if e["type"] == "comment":
         kind = "internal note" if e["internal"] else "comment"
+        kind += f" {e['id']}" + (" · you can edit" if e.get("you_can_edit") else "")
         quoted = _quote(e["body"]).splitlines()
         return f"{head}{kind}\n\n" + "\n".join(f"  {line}" for line in quoted)
     meta = e["meta"]
@@ -128,6 +129,12 @@ def item(data: dict) -> str:
         flags.append("labels: " + ", ".join(data["labels"]))
     if flags:
         lines.append("**Flags:** " + " · ".join(flags))
+    can = data.get("you_can_edit") or {}
+    editable = [n for n in ("title", "description") if can.get(n)] + [
+        name.replace("_", " ") for name, ok in (can.get("fields") or {}).items() if ok
+    ]
+    if editable:
+        lines.append("**You can edit (rw_update_own):** " + ", ".join(editable))
 
     if data["reject"]:
         lines += ["", "## Rejected", "", f"Reason: {data['reject']['reason']}."]
@@ -170,6 +177,7 @@ def item(data: dict) -> str:
             lines.append(
                 f"- [{a['id']}] {a['file_name']} ({a['mime_type']}, {_size(a['size'])}) "
                 f"by {_who(a['author'])}{' (agent)' if a['via_agent'] else ''}"
+                f"{' · you can edit' if a.get('you_can_edit') else ''}"
                 " — read with rw_get_attachment"
             )
 

@@ -21,7 +21,7 @@ from app.db.models.issue import Issue
 from app.db.models.issue_attachment import IssueAttachment
 from app.db.models.project import Project
 from app.db.models.release import Release
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 from app.db.session import get_db
 from app.policy import Action
 from app.services.attachment_service import attachment_service
@@ -361,13 +361,7 @@ async def delete_attachment(
     if attachment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
 
-    is_uploader = attachment.uploaded_by_id == current_user.id
-    is_admin = current_user.role == UserRole.admin
-    if not (is_uploader or is_admin):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
-
-    s3_service.delete_file(attachment.s3_key)
-    await db.delete(attachment)
+    await attachment_service.delete(db, attachment, current_user)
     await db.commit()
 
 

@@ -192,7 +192,7 @@ _Avoid_: "AI-detected duplicate" — stage 1 narrows, Jev decides, a human merge
 ### MCP (slice 15)
 
 **MCP server**:
-The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 added `rw_context`; slice 16 the read tools (`rw_my_queue`, `rw_get_item`, `rw_get_attachment`, `rw_search`, `rw_find_similar`, `rw_triage_queue`, `rw_board`, `rw_tech_debt`) and the resource `rw://item/{key}`; slice 17 the write tools (`rw_upload_prepare`, `rw_file_bug`, `rw_file_tech_debt`, `rw_add_note`, `rw_attach`, `rw_fill_field`, `rw_report_recurrence`) — none changes status, placement, labels, flags, assignee or priority after filing, or a queue (BR-M01). Tools take display keys (`BUG-42`), project keys and release versions, never ids (except `attachment_id`), and answer with JSON plus a Markdown rendering of it.
+The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 added `rw_context`; slice 16 the read tools (`rw_my_queue`, `rw_get_item`, `rw_get_attachment`, `rw_search`, `rw_find_similar`, `rw_triage_queue`, `rw_board`, `rw_tech_debt`) and the resource `rw://item/{key}`; slice 17 the write tools (`rw_upload_prepare`, `rw_file_bug`, `rw_file_tech_debt`, `rw_add_note`, `rw_attach`, `rw_fill_field`, `rw_report_recurrence`); slice 18 `rw_update_own`, `rw_delete_own`, the three MCP prompts and the resource `rw://standards/writing` — none changes status, placement, labels, flags, assignee or priority after filing, or a queue (BR-M01). Tools take display keys (`BUG-42`), project keys and release versions, never ids (except `attachment_id`), and answer with JSON plus a Markdown rendering of it.
 _Avoid_: "API", "integration", "bot" — it is a separate entry point with its own credential.
 
 **Significant timeline event**:
@@ -230,6 +230,22 @@ _Avoid_: "draft attachment", "pre-upload" (that's the web form's flow, with no s
 **Kill switch**:
 Settings → MCP → **Enabled** (`system_settings` category `mcp`; off on a new installation). Off, every MCP request is refused with "MCP is disabled by the administrator" and no token can be created; tokens are left untouched and work again when it is switched back on.
 _Avoid_: "maintenance mode", "MCP off" as a token state — tokens have no such state.
+
+**Last writer**:
+Who changed a piece of content last, read from the record that changed it (prd-mcp.md A.5): the latest `title_changed` / `description_changed` / `steps_changed` / `environment_changed` / `curl_changed` event, else `filed`; for a note, its edit stamp (`meta.edited_by` + `meta.edited_via_mcp_token_id`, written by `TimelineService.edit_comment`) else its author and token; for an attachment, its uploader and token. A UI change makes a person the last writer, with no token. There are no ownership columns.
+_Avoid_: "author" or "creator" for this — a person's edit of an agent note changes the last writer, not the author.
+
+**Agent ownership**:
+The pure module `app/agent_ownership.py` (slice 18), beside Workflow and Policy, and the only place the last-writer rule is written: an agent may edit or delete a piece only while its last writer is the same user through MCP, with any of their tokens, active or not (BR-M07). Fields also only while the bug is not Done or Cancelled (`item_closed`); title and description also only on an item the agent filed, while the bug is New or the task is in the backlog (`item_triaged`, BR-M14); otherwise `not_owner`. `app/services/agent_ownership_loader.py` gathers the records for one item; `rw_update_own`, `rw_delete_own` and `rw_get_item`'s `you_can_edit` all use it, so the flags and the tools agree. The UI rules do not change: the owner already edits and deletes their own notes and attachments (FR-M28).
+_Avoid_: "permission" — Policy decides what a user may do; Agent ownership only what their agent may still undo.
+
+**Agent Writing Standard**:
+How an agent writes in Releasewatch: English in ASD-STE100 unless the developer explicitly asks for another language (BR-M18), the templates for bugs, technical debt, notes and recurrences, the evidence table (Source, Locator, Time range), attachment and length rules. Product content, the same for every installation: one file, `backend/app/mcp_server/content/agent-writing-standard.md` (linked from `docs/phase-2/`), served as `rw://standards/writing`, embedded by `rw-work` and `rw-report`, and summarized in every write tool's description. The server enforces only its §9 checks; the rest is guidance.
+_Avoid_: "style guide", "template" for the whole standard.
+
+**MCP prompt**:
+One of the three working methods the MCP server ships (`app/mcp_server/prompts.py`, text in `content/`): `rw-next` (load the next queue item), `rw-work` with `key` (load one item; PR note), `rw-report` (gather evidence, draft, show, check duplicates, file). Each ends with the same boundaries: never change status or placement; ask before filing, an assignee, a priority, a recurrence, or `file_anyway`.
+_Avoid_: "slash command" for the server side — clients may show them as `/rw-next`.
 
 ## Decisions
 

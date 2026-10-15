@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
-from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
-from app.db.models.user import User, UserRole
+from app.db.models.issue_timeline import IssueTimeline
+from app.db.models.user import User
 from app.db.session import get_db
 from app.policy import Action
 from app.schemas.issue import UserSummary
@@ -35,7 +35,6 @@ from app.schemas.timeline import (
 from app.services.authz import authorize, issue_target, load_visible_issue, sees_internal
 from app.services.reaction_service import reaction_service
 from app.services.timeline_service import timeline_service
-from app.tasks import search_index
 
 router = APIRouter()
 
@@ -213,17 +212,7 @@ async def delete_comment(
 ) -> None:
     """Delete a comment from the timeline. Only the author or admin may delete."""
     event = await _visible_event(db, issue_id, event_id, current_user)
-
-    if event.event_type != TimelineEventType.comment:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only comments can be deleted")
-
-    is_admin = current_user.role == UserRole.admin
-    is_author = event.actor_id == current_user.id
-    if not (is_author or is_admin):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the author or admin can delete this comment")
-
-    await db.delete(event)
-    search_index.enqueue(db, issue_id)
+    await timeline_service.delete_comment(db, event, current_user)
     await db.commit()
 
 

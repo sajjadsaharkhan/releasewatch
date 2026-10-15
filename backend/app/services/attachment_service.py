@@ -5,7 +5,7 @@ recurrence (``MergeService.merge_into``), and the two upload-confirm endpoints
 in ``api/v1/attachments.py``. All of them come through ``add``, which stamps
 the agent context's token (agent content, BR-M05) and enqueues the existing
 ``validate_attachment`` job once the transaction commits. The MCP tools
-``rw_file_*`` and ``rw_attach`` use it too.
+``rw_file_*`` and ``rw_attach`` use it too. ``delete`` is the one remover.
 """
 
 from sqlalchemy import event
@@ -60,6 +60,24 @@ class AttachmentService:
             file_size_bytes=pending.file_size_bytes,
             attachment_type=pending.attachment_type,
         )
+
+    async def delete(self, db: AsyncSession, attachment: IssueAttachment, current_user) -> None:
+        """Delete an attachment from S3 and the database (flushed, not committed).
+        Only the uploader or an admin may. ``DELETE /issues/{id}/attachments/{aid}``
+        and ``rw_delete_own`` come through here."""
+        from fastapi import HTTPException, status
+
+        from app.core.s3 import s3_service
+        from app.db.models.user import UserRole
+
+        is_uploader = attachment.uploaded_by_id == current_user.id
+        is_admin = current_user.role == UserRole.admin
+        if not (is_uploader or is_admin):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+        s3_service.delete_file(attachment.s3_key)
+        await db.delete(attachment)
+        await db.flush()
 
 
 @event.listens_for(Session, "after_commit")

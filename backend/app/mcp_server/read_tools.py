@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.agent_ownership import FIELDS
 from app.core.errors import DomainError
 from app.core.s3 import s3_service
 from app.db.models.issue import Issue, IssueStatus, IssueType, issue_key
@@ -39,6 +40,7 @@ from app.mcp_server.results import ToolRefusal, error_result, not_found, tool_re
 from app.mcp_server.server import db_session, principal_user, request_now, server
 from app.search import duplicate_hints, jev_settings, similar
 from app.search.retrieval import Filters, search
+from app.services import agent_ownership_loader
 from app.services import container_service as containers
 from app.services.authz import find_visible_issue_by_key, sees_internal
 from app.services.backlog_service import tech_debt_page
@@ -190,8 +192,8 @@ async def _whole_timeline(db: AsyncSession, issue_id: int, user: User) -> list[I
         page += 1
 
 
-def _entry(event: IssueTimeline) -> dict:
-    return {
+def _entry(event: IssueTimeline, ownership=None) -> dict:
+    entry = {
         "id": event.id,
         "type": _value(event.event_type),
         "author": _person(event.actor),
@@ -201,6 +203,10 @@ def _entry(event: IssueTimeline) -> dict:
         "meta": event.meta or {},
         "via_agent": event.via_agent,
     }
+    if ownership is not None and entry["type"] == "comment":
+        # Whether this user's agent may still edit or delete the note (slice 18).
+        entry["you_can_edit"] = ownership.note(event).allowed
+    return entry
 
 
 async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bool) -> dict:
@@ -224,13 +230,14 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
         .order_by(IssueAttachment.created_at, IssueAttachment.id)
     )).scalars().all()
 
+    ownership = await agent_ownership_loader.load(db, issue, user)
     reject = None
     current = next((c for c in cycles if c.id == issue.current_cycle_id), None)
     if _value(issue.status) == IssueStatus.rejected.value and current is not None:
         comment = next((e for e in events if e.id == current.start_comment_id), None)
         reject = {
             "reason": _value(current.start_reason),
-            "comment": _entry(comment) if comment is not None else None,
+            "comment": _entry(comment, ownership) if comment is not None else None,
         }
 
     significant = {t.value for t in SIGNIFICANT_TIMELINE_EVENTS}
@@ -272,6 +279,15 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
         "reporter": _person(issue.reporter),
         "assignee": _person(issue.assignee),
         "via_agent": issue.via_agent,
+        # What this user's agent may still edit (BR-M07, slice 18). Notes and
+        # attachments carry their own flag.
+        "you_can_edit": {
+            "title": ownership.title().allowed,
+            "description": ownership.description().allowed,
+            "fields": {
+                name: ownership.field(name).allowed for name in FIELDS
+            } if _value(issue.type) == IssueType.bug.value else {},
+        },
         "created_at": issue.created_at,
         "updated_at": issue.updated_at,
         "completed_at": issue.completed_at,
@@ -300,11 +316,12 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
                 "author": _person(a.uploader),
                 "at": a.created_at,
                 "via_agent": a.via_agent,
+                "you_can_edit": ownership.attachment(a).allowed,
             }
             for a in attachments
         ],
         "full_timeline": full_timeline,
-        "timeline": [_entry(e) for e in shown],
+        "timeline": [_entry(e, ownership) for e in shown],
     }
 
 
@@ -315,7 +332,10 @@ async def item_context(db: AsyncSession, user: User, key: str, full_timeline: bo
         "description, reproduction steps, the full cURL command, environment — its container, "
         "cycles, the reject comment of a Rejected item, attachments, and the timeline. By "
         "default the timeline has comments, internal notes and significant events (filed, "
-        "triaged, status changes, recurrences, duplicates); full_timeline=true returns every event."
+        "triaged, status changes, recurrences, duplicates); full_timeline=true returns every "
+        "event. you_can_edit says what your agent may still change with rw_update_own or "
+        "rw_delete_own: the title, the description and each field, and on every note and "
+        "attachment."
     ),
 )
 async def rw_get_item(

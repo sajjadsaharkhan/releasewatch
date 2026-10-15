@@ -4,7 +4,9 @@ docs/phase-2/17-mcp-agent-origin-and-write-tools.md, prd-mcp.md FR-M10–FR-M20,
 FR-M32, BR-M01, BR-M06, BR-M08–M13, BR-M15, BR-M16, BR-M19, A.6–A.8.
 
 Seven tools: ``rw_upload_prepare``, ``rw_file_bug``, ``rw_file_tech_debt``,
-``rw_add_note``, ``rw_attach``, ``rw_fill_field``, ``rw_report_recurrence``.
+``rw_add_note``, ``rw_attach``, ``rw_fill_field``, ``rw_report_recurrence`` — and
+from slice 18 two more for content the agent owns, ``rw_update_own`` and
+``rw_delete_own`` (Agent ownership, ``app/agent_ownership.py``).
 Each acts as the token's owner (BR-M03) through the services the web app uses;
 this module only checks the agent-specific rules (writing checks, fixed
 placement, empty fields), resolves keys and usernames, and shapes the answer.
@@ -33,12 +35,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.agent_ownership import FIELDS
 from app.config import settings
 from app.core.redis_client import get_redis_raw
 from app.core.s3 import s3_service
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import Issue, IssueStatus, IssueType, Priority
 from app.db.models.issue_attachment import AttachmentType, IssueAttachment
+from app.db.models.issue_timeline import IssueTimeline, TimelineEventType
 from app.db.models.project import Project
 from app.db.models.user import User
 from app.mcp_server import markdown
@@ -47,6 +51,7 @@ from app.mcp_server.results import ToolRefusal, not_found, tool_result
 from app.mcp_server.server import request_now, server
 from app.policy import Action, Target
 from app.schemas.issue import IssueCreate, RecurrenceCreate
+from app.services import agent_ownership_loader
 from app.services.attachment_service import attachment_service
 from app.services.authz import authorize, find_visible_issue_by_key, issue_target
 from app.services.inbox_service import inbox_service
@@ -74,6 +79,27 @@ def _value(v):
     return getattr(v, "value", v)
 
 
+# ── The standard in the tool descriptions (slice 18, FR-M31, M5) ─────────────
+# The relevant lines of agent-writing-standard.md; the whole standard is the
+# resource rw://standards/writing. Each description stays under ~1,500 characters.
+
+_LANGUAGE = (
+    " Write English in ASD-STE100 — one idea per sentence, active voice, no "
+    "'should' or 'may' — unless the developer explicitly asked for another language. "
+    "Full standard: rw://standards/writing."
+)
+_EVIDENCE = (
+    " Evidence is a table: Source | Locator | Time range | What it shows. Every claim "
+    "has a row, or starts with **Hypothesis:**, or says Unknown. Never guess a link."
+)
+_ASK_FIRST = (
+    " Show the developer the draft first. Set an assignee or a priority only when the "
+    "developer asked or confirmed. If the duplicate check finds candidates, nothing is "
+    "filed: read them with rw_get_item and ask the developer; pass file_anyway=true only "
+    "if they decide to file."
+)
+
+
 def _check_title(title: str) -> str:
     title = title.strip()
     if not TITLE_MIN <= len(title) <= TITLE_MAX:
@@ -96,20 +122,27 @@ def _check_description(description: str | None) -> str | None:
 
 
 def _item_url(issue: Issue) -> str:
-    return f"{settings.FRONTEND_URL.rstrip('/')}/#/issue/{_key(issue).lower()}"
+    return f"{settings.FRONTEND_URL.rstrip('/')}/issue/{_key(issue).lower()}"
 
 
 # ── Inputs ────────────────────────────────────────────────────────────────────
 
 
 class StepInput(BaseModel):
-    """One reproduction step; steps are numbered in the order given."""
+    """One reproduction step — one action; steps are numbered in the order given."""
 
     model_config = ConfigDict(extra="forbid")
 
-    description: str = Field(min_length=1, description="What to do.")
-    expected_result: str | None = Field(None, description="What should happen.")
-    actual_result: str | None = Field(None, description="What happens instead.")
+    description: str = Field(min_length=1, description=(
+        "One action, as one imperative sentence, e.g. 'Sign in as a user of customer 1327.' "
+        "A precondition is its own step. The environment is not a step."
+    ))
+    expected_result: str | None = Field(
+        None, description="What must happen — only on the step where the problem shows.",
+    )
+    actual_result: str | None = Field(
+        None, description="What happens instead — only on the step where the problem shows.",
+    )
 
 
 class EnvironmentInput(BaseModel):
@@ -280,8 +313,11 @@ async def _item(db: AsyncSession, user: User, key: str) -> Issue:
         "Start a file upload — a log, screenshot, script, or export. Returns an upload_id "
         "and where to upload the file with your shell; then pass the upload_id to "
         "rw_file_bug, rw_file_tech_debt, or rw_attach. An unused upload expires after one "
-        "hour. Name files <source>-<content>-<yyyymmdd>.<ext>, e.g. "
-        "kibana-chat-errors-20261014.log."
+        "hour. Attach a file for a screenshot or recording, a log, script, query or result "
+        "set over 20 lines, or a trace, HAR or dump. Cut a log to the relevant time range "
+        "and lines. Name files <source>-<content>-<yyyymmdd>.<ext>, e.g. "
+        "kibana-chat-errors-20261014.log. Upload only a file the description or a note "
+        "refers to by name."
     ),
 )
 async def rw_upload_prepare(
@@ -395,13 +431,16 @@ async def _file(
     name="rw_file_bug",
     description=(
         "File a bug into the project's triage queue: New, no container, source Internal, no "
-        "priority. Write it by the Agent Writing Standard; the developer reviews the draft "
-        "first. Title 15–90 characters; description at most 12,000 — put logs and long "
-        "output in attachments (upload_ids from rw_upload_prepare). The duplicate check "
-        "runs first across every project: if it finds candidates, nothing is filed and you "
-        "get them back — read them, ask the developer, and pass file_anyway=true only if "
-        "they decide to file. Set assignee only when the developer asked for one. For a "
-        "problem in a Done item, file a new bug and name the Done item in the description."
+        "priority. Title '<Area>: <observed problem>', 15–90 characters, no period. "
+        "Description sections (## headings only): Summary, Observed behavior, Expected "
+        "behavior, Evidence (required); Impact, Suspected cause, Code references, Related "
+        "items. 150–400 words, 12,000 characters at most. Reproduction steps, cURL and "
+        "environment go in their fields, not the description: one action per step, each "
+        "precondition (the user, the data) its own step, the environment never a step. Logs and scripts over 20 "
+        "lines, screenshots and dumps go in attachments (upload_ids from rw_upload_prepare), "
+        "each named in the description." + _EVIDENCE + _ASK_FIRST + " The duplicate check "
+        "runs across every project. For a problem in a Done item, file a new bug and name "
+        "the Done item under Related items." + _LANGUAGE
     ),
 )
 async def rw_file_bug(
@@ -411,7 +450,8 @@ async def rw_file_bug(
         str | None, Field(description="Markdown, at most 12,000 characters."),
     ] = None,
     reproduction_steps: Annotated[
-        list[StepInput] | None, Field(description="The steps, in order."),
+        list[StepInput] | None,
+        Field(description="The steps, in order — one action per step."),
     ] = None,
     curl: Annotated[str | None, Field(description="A cURL command that shows the problem.")] = None,
     environment: Annotated[
@@ -450,9 +490,13 @@ async def rw_file_bug(
     name="rw_file_tech_debt",
     description=(
         "File a technical-debt task into the project's backlog: To do, category Default, "
-        "technical-debt flag set, no container. Check rw_tech_debt first. Priority is Medium "
-        "unless the developer confirmed another. Same writing checks, duplicate check, "
-        "file_anyway, upload_ids and assignee rules as rw_file_bug."
+        "technical-debt flag set, no container. Check rw_tech_debt first. Title "
+        "'<Area>: <what is wrong>', 15–90 characters. Description sections (## headings "
+        "only): Summary, Current state, Evidence, Risk, Suggested approach (required); Code "
+        "references, Related items. 200–500 words, 12,000 characters at most; long logs and "
+        "scripts go in attachments (upload_ids from rw_upload_prepare)." + _EVIDENCE
+        + " Priority is Medium: propose one and pass it only if the developer confirmed it."
+        + _ASK_FIRST + _LANGUAGE
     ),
 )
 async def rw_file_tech_debt(
@@ -498,10 +542,13 @@ async def rw_file_tech_debt(
 @server.tool(
     name="rw_add_note",
     description=(
-        "Add an internal note to an item — e.g. the PR link, what you found, what you "
-        "changed. Always internal: Support never sees it. Markdown; at most 3,000 "
-        "characters. New information about an item you did not file goes here, never into "
-        "its description."
+        "Add an internal note to an item. Always internal: Support never sees it. Markdown; "
+        "30–150 words, 3,000 characters at most. New information about an item you did not "
+        "file goes here, never into its description. Shapes: a PR link is "
+        "'PR: [<PR title>](<url>)' and one sentence on what the PR changes; new evidence is "
+        "one sentence with the finding, then an Evidence table; a correction is one sentence "
+        "on what was wrong in earlier agent content and what is correct now."
+        + _EVIDENCE + _LANGUAGE
     ),
 )
 async def rw_add_note(
@@ -537,7 +584,8 @@ async def rw_add_note(
     name="rw_attach",
     description=(
         "Attach an uploaded file (upload_id from rw_upload_prepare) to an existing item. "
-        "On a bug reported by Support, Support sees it."
+        "On a bug reported by Support, Support sees it. Refer to the file by its name in a "
+        "note (rw_add_note) that says what it shows."
     ),
 )
 async def rw_attach(
@@ -570,7 +618,10 @@ FillField = Literal["reproduction_steps", "curl", "environment"]
         "Fill an empty field of a bug that is not Done or Cancelled: reproduction_steps (a "
         "list of steps), curl (a cURL command), or environment (an object; every sub-field "
         "you give must be empty). A field that has a value is never changed — add a note "
-        "instead."
+        "instead. One action per step, as an imperative sentence of 20 words at most; each "
+        "precondition (the user, the data) is its own step; the environment is not a step. "
+        "Give the expected and actual result on the step where the problem shows. Copy a "
+        "cURL command exactly." + _LANGUAGE
     ),
 )
 async def rw_fill_field(
@@ -645,7 +696,9 @@ def _fill_payload(issue: Issue, field: str, value) -> dict:
         "Report that the problem of an open or Cancelled bug happened again — only after the "
         "developer confirmed it is the same problem. The comment says what happened this "
         "time; it is public, like a recurrence from the web app, and has the same effects. "
-        "Not allowed on Done items: file a new bug that names the Done item instead."
+        "Not allowed on Done items: file a new bug that names the Done item instead. "
+        "Comment: one or two sentences on when and where it happened again (30–100 words), "
+        "then an Evidence table with one row at minimum." + _EVIDENCE + _LANGUAGE
     ),
 )
 async def rw_report_recurrence(
@@ -674,5 +727,201 @@ async def rw_report_recurrence(
         return tool_result(
             data, f"Reported a recurrence on {data['key']} (now ×{data['recurrence_count']}).",
         )
+
+    return await _run(build)
+
+
+# ── Own content: rw_update_own, rw_delete_own (slice 18, FR-M25–M27) ─────────
+# Agent ownership (``app/agent_ownership.py``) decides; the loader gathers the
+# records. The edits and deletes then go through the same service paths as the UI.
+
+_FIELD_TARGETS = {f"field:{name}": name for name in FIELDS}
+_FIELD_COLUMNS = {
+    "reproduction_steps": "reproduction steps", "curl": "cURL", "environment": "environment",
+}
+
+
+def _target(target: str, allowed: tuple[str, ...]) -> tuple[str, str | int | None]:
+    """``(kind, detail)`` for a target string: ``("note", 12)``, ``("field", "curl")``,
+    ``("title", None)``. ``invalid_target`` when it is not one of ``allowed``."""
+    kind, _, rest = target.strip().partition(":")
+    kind = kind.lower()
+    if kind in ("note", "attachment") and kind in allowed and rest.strip().isdigit():
+        return kind, int(rest)
+    if kind == "field" and kind in allowed and f"field:{rest.strip()}" in _FIELD_TARGETS:
+        return kind, rest.strip()
+    if kind in ("title", "description") and kind in allowed and not rest:
+        return kind, None
+    shapes = {
+        "note": "note:<id>", "attachment": "attachment:<id>",
+        "field": "field:reproduction_steps|curl|environment",
+        "title": "title", "description": "description",
+    }
+    raise ToolRefusal(
+        "invalid_target",
+        f"{target!r} is not a target. Use one of: {', '.join(shapes[a] for a in allowed)}.",
+    )
+
+
+def _owned(verdict) -> None:
+    if not verdict.allowed:
+        raise ToolRefusal(verdict.code, verdict.reason)
+
+
+async def _note(db: AsyncSession, issue: Issue, note_id: int) -> IssueTimeline:
+    note = (await db.execute(
+        select(IssueTimeline).where(
+            IssueTimeline.id == note_id, IssueTimeline.issue_id == issue.id,
+            IssueTimeline.event_type == TimelineEventType.comment.value,
+        )
+    )).scalar_one_or_none()
+    if note is None:
+        raise ToolRefusal(
+            "note_not_found",
+            f"{_key(issue)} has no note {note_id}. Read its notes with rw_get_item.",
+        )
+    return note
+
+
+async def _own_attachment(db: AsyncSession, issue: Issue, attachment_id: int) -> IssueAttachment:
+    attachment = (await db.execute(
+        select(IssueAttachment).where(
+            IssueAttachment.id == attachment_id, IssueAttachment.issue_id == issue.id,
+        )
+    )).scalar_one_or_none()
+    if attachment is None:
+        raise ToolRefusal(
+            "attachment_not_found",
+            f"{_key(issue)} has no attachment {attachment_id}. "
+            "Read its attachments with rw_get_item.",
+        )
+    return attachment
+
+
+def _field_payload(field: str, value) -> dict:
+    """The ``IssueService.update`` payload for an edit of a field the agent owns."""
+    def wrong(expected: str) -> ToolRefusal:
+        return ToolRefusal("invalid_value", f"field:{field} takes {expected}.")
+
+    if field == "reproduction_steps":
+        if not isinstance(value, list) or not value:
+            raise wrong("a non-empty list of steps")
+        return {"reproduction_steps": _steps(value)}
+    if field == "curl":
+        if not isinstance(value, str) or not value.strip():
+            raise wrong("a cURL command as a string")
+        return {"curl_command": value.strip()}
+    if not isinstance(value, EnvironmentInput) or not value.fields():
+        raise wrong("an object with at least one of name, browser, os, build_hash, staging_url")
+    return value.fields()
+
+
+def _text(value, target: str) -> str:
+    if not isinstance(value, str):
+        raise ToolRefusal("invalid_value", f"{target} takes a string.")
+    return value
+
+
+@server.tool(
+    name="rw_update_own",
+    description=(
+        "Correct content your agent wrote and still owns: a note (note:<id>), a field you "
+        "filled while the bug is not Done or Cancelled (field:reproduction_steps, "
+        "field:curl, field:environment), or the title or description of an item you filed "
+        "while the bug is New or the task is in the backlog. rw_get_item says per piece "
+        "whether you may (you_can_edit). Once a person changes a piece in the UI, it is "
+        "theirs: you get not_owner and add a note instead. The edit shows the edited "
+        "marker. Same limits as on filing: title 15–90 characters, description 12,000, "
+        "note 3,000." + _LANGUAGE
+    ),
+)
+async def rw_update_own(
+    key: Annotated[str, Field(description="The item's key, e.g. BUG-42.")],
+    target: Annotated[str, Field(description=(
+        "note:<id>, field:reproduction_steps, field:curl, field:environment, title, or "
+        "description."
+    ))],
+    value: Annotated[
+        list[StepInput] | EnvironmentInput | str,
+        Field(description=(
+            "The new value: text for a note, title, description or curl; steps for "
+            "reproduction_steps; an object for environment (only the sub-fields you give change)."
+        )),
+    ],
+) -> CallToolResult:
+    async def build(db: AsyncSession, user: User) -> CallToolResult:
+        issue = await _item(db, user, key)
+        kind, detail = _target(target, ("note", "field", "title", "description"))
+        ownership = await agent_ownership_loader.load(db, issue, user)
+
+        if kind == "note":
+            note = await _note(db, issue, detail)
+            _owned(ownership.note(note))
+            text = _text(value, "A note").strip()
+            if not text:
+                raise ToolRefusal("note_empty", "The note is empty.")
+            if len(text) > NOTE_MAX:
+                raise ToolRefusal(
+                    "note_too_long",
+                    f"The note has {len(text)} characters; the limit is {NOTE_MAX:,}. "
+                    "Move long output to an attachment.",
+                )
+            await timeline_service.edit_comment(db, note.id, text, user)
+            data = {"key": _key(issue), "target": f"note:{note.id}", "edited": True}
+            return tool_result(data, f"Edited note {note.id} on {data['key']}.")
+
+        authorize(user, Action.edit_item, issue_target(issue, issue.project))
+        if kind == "field":
+            if _value(issue.type) != IssueType.bug.value:
+                raise ToolRefusal(
+                    "bug_only", f"{_key(issue)} is a task; only bugs have these fields.",
+                )
+            _owned(ownership.field(detail))
+            payload = _field_payload(detail, value)
+            what = _FIELD_COLUMNS[detail]
+        elif kind == "title":
+            _owned(ownership.title())
+            payload = {"title": _check_title(_text(value, "title"))}
+            what = "the title"
+        else:
+            _owned(ownership.description())
+            payload = {"description": _check_description(_text(value, "description"))}
+            what = "the description"
+        await issue_service.update(db, issue.id, payload, user)
+        data = {"key": _key(issue), "target": target.strip(), "edited": True}
+        return tool_result(data, f"Edited {what} of {data['key']}.")
+
+    return await _run(build)
+
+
+@server.tool(
+    name="rw_delete_own",
+    description=(
+        "Delete a note (note:<id>) or an attachment (attachment:<id>) your agent created and "
+        "still owns — for example a log from the wrong environment. rw_get_item says per "
+        "note and attachment whether you may (you_can_edit). Once a person edits a note in "
+        "the UI, it is theirs: you get not_owner. Deletion is final, as in the UI. To "
+        "correct a note, prefer rw_update_own."
+    ),
+)
+async def rw_delete_own(
+    key: Annotated[str, Field(description="The item's key, e.g. BUG-42.")],
+    target: Annotated[str, Field(description="note:<id> or attachment:<id>.")],
+) -> CallToolResult:
+    async def build(db: AsyncSession, user: User) -> CallToolResult:
+        issue = await _item(db, user, key)
+        kind, item_id = _target(target, ("note", "attachment"))
+        ownership = await agent_ownership_loader.load(db, issue, user)
+        if kind == "note":
+            note = await _note(db, issue, item_id)
+            _owned(ownership.note(note))
+            await timeline_service.delete_comment(db, note, user)
+        else:
+            attachment = await _own_attachment(db, issue, item_id)
+            _owned(ownership.attachment(attachment))
+            authorize(user, Action.edit_item, issue_target(issue, issue.project))
+            await attachment_service.delete(db, attachment, user)
+        data = {"key": _key(issue), "target": f"{kind}:{item_id}", "deleted": True}
+        return tool_result(data, f"Deleted {kind} {item_id} from {data['key']}.")
 
     return await _run(build)

@@ -519,6 +519,36 @@ class McpSession:
         async with http, Client(streamable_http_client("http://test/mcp", http_client=http)) as c:
             return (await c.list_tools()).tools
 
+    async def prompts(self) -> list:
+        """The server's prompts (``Prompt`` objects, with their arguments)."""
+        async with self._client() as c:
+            return (await c.list_prompts()).prompts
+
+    async def prompt(self, name: str, arguments: dict | None = None):
+        """Render one prompt — the ``GetPromptResult``."""
+        async with self._client() as c:
+            return await c.get_prompt(name, arguments or {})
+
+    def _client(self):
+        import contextlib
+
+        import httpx2
+        from mcp.client.client import Client
+        from mcp.client.streamable_http import streamable_http_client
+
+        @contextlib.asynccontextmanager
+        async def session():
+            http = httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=fastapi_app),
+                headers={"Authorization": f"Bearer {self.bearer}"},
+            )
+            async with http, Client(
+                streamable_http_client("http://test/mcp", http_client=http),
+            ) as c:
+                yield c
+
+        return session()
+
     async def refusal(self, tool: str = "rw_context") -> McpRefused:
         with pytest.raises(McpRefused) as info:
             await self.call(tool)

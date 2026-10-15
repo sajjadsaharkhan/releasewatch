@@ -95,7 +95,7 @@ Phase 1 already puts domain logic in services and keeps routes thin. Phase 2 add
 | Release lifecycle | Allowed release status changes, and why one is refused | 09 |
 | Queue ordering | Default order, insertion point, pin grouping, dormant entries | 10 |
 | Search text | Normalization, document building, comment rules (`app/search/normalize.py`, `documents.py`, `comment_rules.py`) | 12 |
-| Agent ownership | Whether an agent may still edit or delete a piece of content (the last-writer rule) | 18 |
+| Agent ownership | Whether an agent may still edit or delete a piece of content (the last-writer rule; `app/agent_ownership.py`) | 18 |
 
 Services that own one rule each, so it is written once: `MergeService.merge_into` (effects on an original for a merge or a recurrence, PRD BR-49/50; 06, reworked in 08a), `CycleService` (every write to `issue_cycles` and `issues.current_cycle_id`; 08a), `ReleaseService.ship` (ship effects; 09), and `JevClient` (every Jev call, its timeout, and the fallback; 13).
 
