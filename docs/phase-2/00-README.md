@@ -1,6 +1,6 @@
 # Phase 2 — Implementation Specs
 
-These specs turn [`prd-v2.md`](prd-v2.md) (**v3**), its companion [`cycle-model.md`](cycle-model.md), and [`prd-search-engine.md`](prd-search-engine.md) into work Claude Code can carry out in this repo. Each numbered file is **one vertical slice**: schema, API, UI, and tests together. Each slice is sized for one Claude Code session and ends with the app shippable.
+These specs turn [`prd-v2.md`](prd-v2.md) (**v3**), its companion [`cycle-model.md`](cycle-model.md), [`prd-search-engine.md`](prd-search-engine.md), and [`prd-mcp.md`](prd-mcp.md) into work Claude Code can carry out in this repo. Each numbered file is **one vertical slice**: schema, API, UI, and tests together. Each slice is sized for one Claude Code session and ends with the app shippable.
 
 The PRD is the product authority. When a spec and the PRD disagree, the spec wins, because the spec has been checked against the code. Every such difference is listed in the **Decisions** section of [`CONTEXT.md`](../../CONTEXT.md).
 
@@ -29,8 +29,14 @@ Slices must be built in order. Each one depends on everything above it.
 | 12 | [Search engine core (local)](12-search-engine-core.md) | 11 | Engine FR-S01–07, FR-S16/17/19; AC-S01, S05, S06, S15, S16, S18, S21, S22; Q1, Q2 |
 | 13 | [Jev integration](13-jev-integration.md) | 12 | Engine FR-S03, FR-S16/18; AC-S02–S04, S17, S19, S20; Q4, Q5 |
 | 14 | [Similar-item suggestions and triage merge hints](14-similar-item-suggestions.md) | 13 | PRD FR-12; Engine FR-S08–S15; AC-S07–S14; Q3 |
+| 15 | [MCP connection and tokens](15-mcp-connection-and-tokens.md) | 14 | MCP FR-M01, FR-M38–M45; BR-M02–M04, BR-M20–M24; AC-M02, M04, M36–M40 |
+| 16 | [MCP read tools](16-mcp-read-tools.md) | 15 | MCP FR-M02–M09, FR-M21–M23, FR-M36; BR-M16/17; AC-M03, M05–M08, M12–M14 |
+| 17 | [Agent origin and MCP write tools](17-mcp-agent-origin-and-write-tools.md) | 16 | MCP FR-M10–M24, FR-M29/30, FR-M32; BR-M01, M05/06, M08–M13, M15/16, M19; AC-M01, M09–M11, M15–M26, M34/35 |
+| 18 | [MCP own content, prompts, writing standard](18-mcp-own-content-and-prompts.md) | 17 | MCP FR-M25–M28, FR-M31, FR-M33–M37; BR-M07, M14, M18; AC-M27–M33 |
 
 Slices 12–14 are the Search & Ranking Engine part. Before starting 12, build the evaluation dataset with [search-eval-dataset-spec.md](search-eval-dataset-spec.md) (an agent with read access to a database snapshot). Slices 12–14 each check an evaluation report into `eval/`.
+
+Slices 15–18 are the MCP server ([prd-mcp.md](prd-mcp.md), with the [Agent Writing Standard](agent-writing-standard.md)). Slice 16 adds the one new test fake, FakeS3; every other MCP test runs at `/mcp` through an in-process MCP client.
 
 ## How to run a slice in Claude Code
 
@@ -89,6 +95,7 @@ Phase 1 already puts domain logic in services and keeps routes thin. Phase 2 add
 | Release lifecycle | Allowed release status changes, and why one is refused | 09 |
 | Queue ordering | Default order, insertion point, pin grouping, dormant entries | 10 |
 | Search text | Normalization, document building, comment rules (`app/search/normalize.py`, `documents.py`, `comment_rules.py`) | 12 |
+| Agent ownership | Whether an agent may still edit or delete a piece of content (the last-writer rule) | 18 |
 
 Services that own one rule each, so it is written once: `MergeService.merge_into` (effects on an original for a merge or a recurrence, PRD BR-49/50; 06, reworked in 08a), `CycleService` (every write to `issue_cycles` and `issues.current_cycle_id`; 08a), `ReleaseService.ship` (ship effects; 09), and `JevClient` (every Jev call, its timeout, and the fallback; 13).
 
