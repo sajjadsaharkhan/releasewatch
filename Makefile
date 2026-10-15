@@ -1,4 +1,4 @@
-.PHONY: dev dev-build stop migrate migrate-down seed seed-lite seed-admin db-reset \
+.PHONY: dev dev-build stop migrate migrate-down seed seed-lite seed-agent seed-admin db-reset \
 	dup-dataset-import dup-dataset-reset dup-dataset-probe test test-local lint format shell logs \
 	e2e e2e-up e2e-down e2e-ui e2e-headed backend-dev-deps embeddings-fetch
 
@@ -31,6 +31,11 @@ seed:
 
 seed-lite:
 	docker compose exec api python -m scripts.seed --no-dup-dataset
+
+# Agent content (slice 17) on top of `make seed`: items, notes, field fills and a
+# recurrence written through MCP tokens. Additive; a second run does nothing.
+seed-agent:
+	docker compose exec api python -m scripts.seed_agent
 
 # Rebuild the dev database from scratch: drop, create, upgrade head, seed.
 # Also drops the pytest database so the next `make test` re-migrates it.

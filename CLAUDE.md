@@ -196,6 +196,7 @@ backend/
 | `make migrate` | Run pending Alembic migrations |
 | `make migrate-new` | Generate a new migration from model changes |
 | `make seed` | Populate DB with sample data + the duplicate-detection dataset (`dd-*` projects; `make seed-lite` skips it) |
+| `make seed-agent` | Add agent content (MCP-filed items, notes, field fills, a recurrence) on top of `make seed`; safe to re-run |
 | `make test` | Run pytest suite (inside the api container) |
 | `make test-local` | Run pytest from a local venv against the compose Postgres/Redis |
 | `make e2e` | Bring up an isolated E2E stack, seed it, run the Playwright suite headless, tear down |
