@@ -37,7 +37,7 @@ from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -45,7 +45,7 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import get_current_user, require_role
 from app.core.errors import DomainError
 from app.db.models.issue import (
-    PRIORITY_RANK, Issue, IssueStatus, IssueType, Priority, issue_key, issue_type_value,
+    PRIORITY_ORDER, Issue, IssueStatus, IssueType, Priority, issue_key, issue_type_value,
 )
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
@@ -98,10 +98,7 @@ from app.workflow import Workflow
 router = APIRouter()
 
 #: Highest priority first; unrated items last (FR-37).
-_PRIORITY_ORDER = case(
-    *((Issue.priority == p.value, rank) for p, rank in PRIORITY_RANK.items()),
-    else_=len(PRIORITY_RANK) + 1,
-)
+_PRIORITY_ORDER = PRIORITY_ORDER
 
 
 def _parse_statuses(raw: str | None) -> list[IssueStatus] | None:

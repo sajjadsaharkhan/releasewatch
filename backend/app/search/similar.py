@@ -16,6 +16,10 @@ own project's open support reports (BR-S07).
 (BR-S02): the route answers 204 and the UI shows no panel, never an error and
 never a stale one. The support draft is composed with ``compose_report`` (05),
 so the query is the body the report would have.
+
+The MCP tool ``rw_find_similar`` (slice 16) asks ``tech_suggestions`` — the tech
+form's judgment for a draft — and, when that is ``None``, ``local_candidates``:
+the one place Jev-off candidates are returned at all (BR-M17, MCP only).
 """
 
 from sqlalchemy import select
@@ -26,7 +30,7 @@ from app.db.models.issue import Issue, IssueSource, IssueStatus, issue_key
 from app.db.models.support_template import SupportTemplate
 from app.db.models.user import User
 from app.schemas.search import SimilarItemsRequest
-from app.search import jev_settings
+from app.search import jev_settings, retrieval
 from app.search.constants import (
     SIMILAR_CANDIDATES,
     SIMILAR_CANDIDATES_ALL_PROJECTS,
@@ -62,6 +66,39 @@ async def _support_description(db: AsyncSession, body: SimilarItemsRequest) -> s
     return compose_report(template_spec(template), body.values, body.description).markdown
 
 
+def _tech_filters() -> Filters:
+    """The tech candidate rule (FR-S08 as built, FR-M21): every project the
+    actor can see, any type, never Cancelled."""
+    return Filters(exclude_statuses=[IssueStatus.cancelled.value])
+
+
+def _issue_row(issue: Issue) -> dict:
+    return {
+        "id": issue.id,
+        "key": issue_key(_value(issue.type), issue.issue_number),
+        "type": _value(issue.type),
+        "title": issue.title,
+        "status": _value(issue.status),
+        "issue_number": issue.issue_number,
+        "project": {
+            "id": issue.project_id,
+            "name": issue.project.name if issue.project else None,
+            "slug": issue.project.slug if issue.project else None,
+        },
+    }
+
+
+async def _candidate_issues(db: AsyncSession, hits) -> dict[int, Issue]:
+    """The hits' items with their projects, minus any cancelled since the last
+    index refresh — a cancelled item is never suggested (AC-S14, AC-M14)."""
+    issues = (await db.execute(
+        select(Issue)
+        .where(Issue.id.in_([h.issue_id for h in hits]))
+        .options(selectinload(Issue.project))
+    )).scalars().all()
+    return {i.id: i for i in issues if _value(i.status) != IssueStatus.cancelled.value}
+
+
 async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> list[dict] | None:
     jev = await jev_settings.client(db)
     if jev is None:
@@ -77,22 +114,70 @@ async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> l
         k = SIMILAR_CANDIDATES
     else:
         description = body.description or ""
-        filters = Filters(exclude_statuses=[IssueStatus.cancelled.value])
+        filters = _tech_filters()
         k = SIMILAR_CANDIDATES_ALL_PROJECTS
+    return await _judged(
+        db, jev, actor, body.title, description,
+        filters=filters, k=k, show_related=body.context == "tech",
+    )
 
+
+async def tech_suggestions(
+    db: AsyncSession, actor: User, title: str, description: str | None,
+) -> list[dict] | None:
+    """The tech form's suggestions for a draft — what the MCP tool
+    ``rw_find_similar`` asks first. ``None`` exactly when ``suggest`` would be."""
+    jev = await jev_settings.client(db)
+    if jev is None:
+        return None
+    return await _judged(
+        db, jev, actor, title, description or "",
+        filters=_tech_filters(), k=SIMILAR_CANDIDATES_ALL_PROJECTS, show_related=True,
+    )
+
+
+async def local_candidates(
+    db: AsyncSession, actor: User, title: str, description: str | None,
+) -> list[dict]:
+    """**MCP only — the exception to BR-S03 (BR-M17, FR-M23).** With Jev off or
+    failing, an agent still gets the tech form's stage-1 candidates: above the
+    minimum similarity (``T_FLOOR``, FR-S04), at most ``SIMILAR_LIMIT``, best
+    first, with no verdict — the agent judges them and the developer confirms.
+    The web panels stay hidden with Jev off; nothing else calls this."""
     hits = await same_problem_candidates(
-        db, actor, " ".join(p for p in (body.title, description) if p), filters=filters, k=k,
+        db, actor, " ".join(p for p in (title, description) if p),
+        filters=_tech_filters(), k=SIMILAR_CANDIDATES_ALL_PROJECTS,
+    )
+    hits = [h for h in hits if h.best_dense >= retrieval.T_FLOOR]
+    if not hits:
+        return []
+    by_id = await _candidate_issues(db, hits)
+    return [
+        {"issue": _issue_row(by_id[h.issue_id])} for h in hits if h.issue_id in by_id
+    ][:SIMILAR_LIMIT]
+
+
+async def _judged(
+    db: AsyncSession,
+    jev,
+    actor: User,
+    title: str,
+    description: str,
+    *,
+    filters: Filters,
+    k: int,
+    show_related: bool,
+) -> list[dict] | None:
+    """Stage-1 candidates for the draft, judged by Jev: ``same`` ≥ ``T_SAME``,
+    plus ``related`` ≥ ``T_RELATED`` when ``show_related``; ``same`` first, at
+    most ``SIMILAR_LIMIT``. ``None`` when the Jev call failed."""
+    hits = await same_problem_candidates(
+        db, actor, " ".join(p for p in (title, description) if p), filters=filters, k=k,
     )
     if not hits:
         return []
 
-    issues = (await db.execute(
-        select(Issue)
-        .where(Issue.id.in_([h.issue_id for h in hits]))
-        .options(selectinload(Issue.project))
-    )).scalars().all()
-    by_id = {i.id: i for i in issues}
-    # A candidate cancelled since its last index refresh is never suggested (AC-S14).
+    by_id = await _candidate_issues(db, hits)
     items = [
         JevItem(
             id=i.id, title=i.title,
@@ -100,10 +185,10 @@ async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> l
             type=_value(i.type),
         )
         for i in (by_id.get(h.issue_id) for h in hits)
-        if i is not None and _value(i.status) != IssueStatus.cancelled.value
+        if i is not None
     ]
     outcome, verdicts = await jev.judge_same(
-        body.title, normalize(strip_markdown(description)), items,
+        title, normalize(strip_markdown(description)), items,
     )
     if not outcome.ok:
         return None
@@ -112,7 +197,7 @@ async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> l
         label, confidence = verdict[0], verdict[1]
         return (
             label == "same" and confidence >= T_SAME
-            or (body.context == "tech" and label == "related" and confidence >= T_RELATED)
+            or (show_related and label == "related" and confidence >= T_RELATED)
         )
 
     picked = [h for h in hits if h.issue_id in verdicts and shown(verdicts[h.issue_id])]
@@ -126,18 +211,6 @@ async def suggest(db: AsyncSession, actor: User, body: SimilarItemsRequest) -> l
         out.append({
             "verdict": verdict,
             "confidence": round(confidence, 4),
-            "issue": {
-                "id": issue.id,
-                "key": issue_key(_value(issue.type), issue.issue_number),
-                "type": _value(issue.type),
-                "title": issue.title,
-                "status": _value(issue.status),
-                "issue_number": issue.issue_number,
-                "project": {
-                    "id": issue.project_id,
-                    "name": issue.project.name if issue.project else None,
-                    "slug": issue.project.slug if issue.project else None,
-                },
-            },
+            "issue": _issue_row(issue),
         })
     return out

@@ -182,7 +182,10 @@ backend/
 - **Thin routes** — route handlers validate input and call a service. No business logic in routes.
 - **Services** own state transitions: `IssueService`, `RegressionService`, `InboxFanOutService`, `ReportService`, `TimelineService`
 - **Background tasks** via Celery: Telegram notifications, attachment validation, inbox fan-out, report cache invalidation
-- **Presigned S3 uploads** — client uploads directly to S3, API server never handles file bytes
+- **Presigned S3 uploads** — client uploads directly to S3, API server never handles file bytes.
+  One deliberate exception: the MCP tool `rw_get_attachment` reads an image of 5 MB or less
+  from S3 (`S3Service.get_object_bytes`) and returns it inline so the agent can see it; every
+  other file is a presigned download link (prd-mcp.md A.6)
 - **WebSockets** backed by Redis pub/sub channels: `rw:dashboard` and `rw:inbox:{user_id}`
 
 ### Makefile targets

@@ -32,7 +32,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import DomainError
 from app.db.models.backlog_category import BacklogCategory
-from app.db.models.issue import BACKLOG_STATUSES, Issue, IssueType
+from app.db.models.issue import BACKLOG_STATUSES, PRIORITY_ORDER, Issue, IssueType
 from app.db.models.project import Project
 from app.db.models.release import Release
 from app.db.models.user import User
@@ -367,6 +367,49 @@ def tech_debt_clause():
         Issue.is_tech_debt.is_(True),
         Issue.type == IssueType.task.value,
     )
+
+
+async def tech_debt_page(
+    db: AsyncSession,
+    user: User,
+    *,
+    project_ids: list[int] | None = None,
+    statuses: list[str] | None = None,
+    assignee_id: int | None = None,
+    unassigned: bool = False,
+    page: int = 1,
+    size: int = 100,
+) -> tuple[list[Issue], int]:
+    """The Technical debt page (FR-27): flagged tasks ``user`` can see, in any
+    project, highest priority first, then oldest. Returns ``(page, total)``.
+    The route and the MCP tool ``rw_tech_debt`` both read it here."""
+    from app.services.authz import visibility_clause
+
+    filters = [tech_debt_clause(), visibility_clause(user)]
+    if project_ids:
+        filters.append(Issue.project_id.in_(project_ids))
+    if statuses:
+        filters.append(Issue.status.in_(statuses))
+    if assignee_id is not None:
+        filters.append(Issue.assignee_id == assignee_id)
+    if unassigned:
+        filters.append(Issue.assignee_id.is_(None))
+
+    total = (await db.execute(select(func.count(Issue.id)).where(*filters))).scalar_one()
+    rows = (await db.execute(
+        select(Issue)
+        .options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        )
+        .where(*filters)
+        .order_by(PRIORITY_ORDER, Issue.created_at.asc(), Issue.id.asc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )).scalars().all()
+    return list(rows), total
 
 
 backlog_service = BacklogService()

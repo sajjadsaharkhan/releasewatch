@@ -124,6 +124,24 @@ async def load_visible_issue(db: AsyncSession, issue_id: int, user: User, *optio
     return issue
 
 
+async def find_visible_issue_by_key(
+    db: AsyncSession, key: str | None, user: User, *options,
+) -> Issue | None:
+    """The non-deleted item ``user`` may see behind a display key — ``BUG-42``,
+    ``task-118``, ``issue-42``, any case — resolved by number as the
+    ``/issue/:slug`` route does; ``None`` for anything else, so an unknown and
+    an invisible item look the same (no probing)."""
+    from app.db.models.issue import parse_issue_key
+
+    number = parse_issue_key(key)
+    if number is None:
+        return None
+    q = visible_issues(user).where(Issue.issue_number == number)
+    if options:
+        q = q.options(*options)
+    return (await db.execute(q.limit(1))).scalar_one_or_none()
+
+
 async def authorize_issue(
     db: AsyncSession, issue_id: int, user: User, action: Any, **extra: Any,
 ) -> Issue:

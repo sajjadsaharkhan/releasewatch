@@ -92,6 +92,26 @@ def merge_comment(duplicate: Issue, note: str | None = None) -> str:
 
 class TriageService:
 
+    @staticmethod
+    async def queue(db: AsyncSession, user: User, project_id: int) -> list[Issue]:
+        """The project's Triage queue (FR-17): its New and Needs info bugs that
+        ``user`` can see, oldest first, with reporter and assignee loaded."""
+        from sqlalchemy.orm import selectinload
+
+        from app.db.models.issue import IssueType
+        from app.services.authz import visible_issues
+
+        return list((await db.execute(
+            visible_issues(user)
+            .where(
+                Issue.project_id == project_id,
+                Issue.type == IssueType.bug.value,
+                Issue.status.in_(list(_TRIAGE_VALUES)),
+            )
+            .options(selectinload(Issue.reporter), selectinload(Issue.assignee))
+            .order_by(Issue.created_at.asc(), Issue.issue_number.asc())
+        )).scalars().all())
+
     async def apply(
         self, db: AsyncSession, issue: Issue, payload: TriageRequest, actor: User,
     ) -> Issue:

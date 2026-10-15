@@ -1,9 +1,10 @@
 """Issue ORM model — the core entity in Releasewatch."""
 
 import enum
+import re
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint, func, Integer, JSON, SmallInteger, String, Text, text
+from sqlalchemy import Boolean, case, Date, DateTime, Float, ForeignKey, ForeignKeyConstraint, func, Integer, JSON, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,6 +33,18 @@ def issue_key(item_type: "IssueType | str | None", issue_number: int) -> str:
     place that builds one (IssueResponse, CSV export, search, reports)."""
     prefix = ISSUE_TYPE_KEY_PREFIX.get(IssueType(issue_type_value(item_type)))
     return f"{prefix}-{issue_number}"
+
+
+#: A key as people type it — ``BUG-42``, ``task-118``, or the old ``issue-42``,
+#: any case. The prefix is not checked against the type: numbers are global,
+#: and the ``/issue/:slug`` route resolves every spelling by number alone.
+_KEY_RE = re.compile(r"^(?:bug|task|issue)-(\d+)$", re.IGNORECASE)
+
+
+def parse_issue_key(key: str | None) -> int | None:
+    """The issue number in a display key or slug, or ``None`` if it isn't one."""
+    match = _KEY_RE.match((key or "").strip())
+    return int(match.group(1)) if match else None
 
 
 class Priority(str, enum.Enum):
@@ -361,3 +374,10 @@ class Issue(Base):
 
     def __repr__(self) -> str:
         return f"<Issue #{self.issue_number} status={self.status} priority={self.priority}>"
+
+
+#: SQL sort key: highest priority first, unrated items last (FR-37).
+PRIORITY_ORDER = case(
+    *((Issue.priority == p.value, rank) for p, rank in PRIORITY_RANK.items()),
+    else_=len(PRIORITY_RANK) + 1,
+)

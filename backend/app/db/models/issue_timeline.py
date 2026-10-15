@@ -51,6 +51,24 @@ class TimelineEventType(str, enum.Enum):
     unsubscribed = "unsubscribed"
 
 
+#: The default timeline of the MCP tool ``rw_get_item`` (slice 16, FR-M03): comments
+#: and internal notes, plus the events that change what the work is or where it
+#: stands — filed, triaged, status changes (a Reject is one, with its comment),
+#: recurrences, duplicate links, and the Phase 1 events that started a new pass
+#: (``regression``, ``reopened``). Priority, label, assignment, due-date and
+#: field edits are left to ``full_timeline``. Declared once; nothing re-derives it.
+SIGNIFICANT_TIMELINE_EVENTS: frozenset[TimelineEventType] = frozenset({
+    TimelineEventType.comment,
+    TimelineEventType.filed,
+    TimelineEventType.triaged,
+    TimelineEventType.status_changed,
+    TimelineEventType.recurrence,
+    TimelineEventType.duplicate_linked,
+    TimelineEventType.regression,
+    TimelineEventType.reopened,
+})
+
+
 class IssueTimeline(Base):
     """A single entry on the issue's immutable event log.
 

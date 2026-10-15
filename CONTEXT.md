@@ -192,8 +192,16 @@ _Avoid_: "AI-detected duplicate" — stage 1 narrows, Jev decides, a human merge
 ### MCP (slice 15)
 
 **MCP server**:
-The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 has one tool, `rw_context`.
+The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 added `rw_context`; slice 16 the read tools (`rw_my_queue`, `rw_get_item`, `rw_get_attachment`, `rw_search`, `rw_find_similar`, `rw_triage_queue`, `rw_board`, `rw_tech_debt`) and the resource `rw://item/{key}`. Tools take display keys (`BUG-42`), project keys and release versions, never ids (except `attachment_id`), and answer with JSON plus a Markdown rendering of it.
 _Avoid_: "API", "integration", "bot" — it is a separate entry point with its own credential.
+
+**Significant timeline event**:
+What `rw_get_item` shows by default (slice 16): comments and internal notes, plus filed, triaged, status changes (a Reject is one, its comment beside it), recurrences, duplicate links, and the Phase 1 `regression`/`reopened` events. Priority, label, assignment, due-date and field edits appear only with `full_timeline`. Declared once as `SIGNIFICANT_TIMELINE_EVENTS` next to `TimelineEventType`.
+_Avoid_: "important events", "the short timeline".
+
+**MCP duplicate candidates**:
+What `rw_find_similar` returns for a draft, across every project the user can see, never Cancelled. With Jev on: Jev's `same`/`related` verdicts, as in the tech create form. With Jev off or failing: the stage-1 candidates above `T_FLOOR`, at most five, **with no verdict** — the agent judges them and the developer confirms (BR-M17). This is the one exception to BR-S03, and it is MCP-only (`similar.local_candidates`): the web panels and triage hints stay hidden with Jev off.
+_Avoid_: "duplicates" for the Jev-off list — nothing has judged them.
 
 **MCP token**:
 The credential an agent holds: `rwm_` + 43 base62 characters, accepted only by the MCP server — `get_current_user` refuses any `rwm_` bearer, and the MCP server refuses anything else (BR-M02). Named by its owner, it lives 30 days, 90 days or 1 year and is never renewed; the value is shown once and stored only as its sha256 (`mcp_tokens`). Its status — active, expired, revoked — is derived, never stored; rows are never deleted, but revoked tokens drop out of both lists (D19). Only tech users hold tokens, and a deactivated owner's tokens stop working without being revoked.

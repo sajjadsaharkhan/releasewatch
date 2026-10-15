@@ -65,6 +65,7 @@ from app.search import embeddings  # noqa: E402
 from app.tasks import search_index  # noqa: E402
 from tests.fakes.embedding_endpoint import FakeEmbeddings, fake as fake_embedding_endpoint  # noqa: E402
 from tests.fakes.jev import FakeJev  # noqa: E402
+from tests.fakes.s3 import FakeS3  # noqa: E402
 from tests.factories import Factories  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -383,6 +384,18 @@ def jev(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeJev]:
     jev_settings._bust()
 
 
+@pytest.fixture
+def fake_s3(monkeypatch: pytest.MonkeyPatch) -> FakeS3:
+    """An in-memory S3 behind ``s3_service`` (slice 16): put, get, presign
+    upload, presign download. Not autouse — attachment tests that only record
+    the presign call keep their recorder."""
+    from app.core.s3 import s3_service
+
+    fake = FakeS3()
+    fake.install(monkeypatch, s3_service)
+    return fake
+
+
 class SearchJobs:
     """Runs the recorded search jobs by calling their bodies directly — the
     scheduled-job seam from slice 01."""
@@ -467,8 +480,9 @@ class McpSession:
         self.bearer = bearer
 
     async def call(self, tool: str, arguments: dict | None = None):
-        """Call one tool. Returns the ``CallToolResult``; raises ``McpRefused``
-        when the gate refuses the connection."""
+        """Call one tool — or, given an ``rw://`` URI, read that resource.
+        Returns the ``CallToolResult`` (``ReadResourceResult``); raises
+        ``McpRefused`` when the gate refuses the connection."""
         import httpx2
         from mcp.client.client import Client
         from mcp.client.streamable_http import streamable_http_client
@@ -480,6 +494,8 @@ class McpSession:
         )
         try:
             async with http, Client(streamable_http_client("http://test/mcp", http_client=http)) as c:
+                if tool.startswith("rw://"):
+                    return await c.read_resource(tool)
                 return await c.call_tool(tool, arguments or {})
         except BaseException as exc:  # the SDK wraps transport errors in task-group groups
             leaf = exc

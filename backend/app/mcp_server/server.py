@@ -6,8 +6,8 @@ resolves ``Authorization: Bearer rwm_…`` through ``McpTokenService`` (the
 stateless streamable-HTTP transport with the principal set in a context
 variable. A refusal before any tool runs is an HTTP error carrying a JSON-RPC
 error body, so clients relay its message. Once authenticated, tool errors are
-MCP tool errors with ``{code, message}`` (A.8), never HTTP errors — slice 15's
-one tool has none.
+MCP tool errors with ``{code, message}`` (A.8, ``app/mcp_server/results.py``),
+never HTTP errors. ``rw_context`` is here; the read tools are in ``read_tools``.
 
 Each request gets its own session manager: the server is stateless, and a
 manager per request needs no long-lived task group in the app's lifespan (or
@@ -19,6 +19,7 @@ import inspect
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
@@ -55,6 +56,10 @@ class McpPrincipal:
 current_principal: contextvars.ContextVar[McpPrincipal | None] = contextvars.ContextVar(
     "mcp_principal", default=None,
 )
+#: The request's ``now`` — the clock seam, so time-based reads match the UI's.
+current_now: contextvars.ContextVar[datetime | None] = contextvars.ContextVar(
+    "mcp_now", default=None,
+)
 
 
 async def principal_user(db: AsyncSession) -> User:
@@ -63,6 +68,13 @@ async def principal_user(db: AsyncSession) -> User:
     if principal is None:
         raise RuntimeError("An MCP tool ran outside McpEndpoint.")
     return await db.get_one(User, principal.user_id)
+
+
+def request_now() -> datetime:
+    now = current_now.get()
+    if now is None:
+        raise RuntimeError("An MCP tool ran outside McpEndpoint.")
+    return now
 
 
 # ── Server and tools ──────────────────────────────────────────────────────────
@@ -122,6 +134,9 @@ async def rw_context() -> ContextResult:
         )
 
 
+# The read tools (slice 16) register themselves on ``server``.
+from app.mcp_server import read_tools  # noqa: E402,F401
+
 # ── The endpoint ──────────────────────────────────────────────────────────────
 
 #: The bearer token is the protection here, not the Host header: DNS-rebinding
@@ -168,6 +183,7 @@ class McpEndpoint:
             return
 
         reset = current_principal.set(principal)
+        reset_now = current_now.set(now)
         try:
             manager = StreamableHTTPSessionManager(
                 app=server._lowlevel_server,  # the SDK's own accessor is private too
@@ -178,6 +194,7 @@ class McpEndpoint:
             async with manager.run():
                 await manager.handle_request(scope, receive, send)
         finally:
+            current_now.reset(reset_now)
             current_principal.reset(reset)
 
 

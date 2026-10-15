@@ -39,7 +39,7 @@ from app.schemas.backlog_category import BacklogCategoryOut
 from app.schemas.issue import BlockedAction
 from app.services.authz import actor_of, authorize, project_target, visibility_clause
 from app.services.backlog_category_service import backlog_category_service
-from app.services.backlog_service import backlog_service, tech_debt_clause
+from app.services.backlog_service import backlog_service, tech_debt_page
 
 router = APIRouter()
 
@@ -209,37 +209,20 @@ async def list_tech_debt(
     current_user: User = Depends(get_current_user),
 ) -> TechDebtListResponse:
     """Every technical-debt task, across projects (FR-27). Highest priority first, then oldest."""
-    from app.api.v1.issues import _PRIORITY_ORDER, _build_enriched_responses, _parse_statuses
+    from app.api.v1.issues import _build_enriched_responses, _parse_statuses
 
     authorize(current_user, Action.view_backlog)
-    project_ids = _int_list(project_id, "project_id")
     statuses = _parse_statuses(status_)
-
-    filters = [tech_debt_clause(), visibility_clause(current_user)]
-    if project_ids:
-        filters.append(Issue.project_id.in_(project_ids))
-    if statuses:
-        filters.append(Issue.status.in_([s.value for s in statuses]))
-    if assignee_id is not None:
-        filters.append(Issue.assignee_id == assignee_id)
-    if unassigned:
-        filters.append(Issue.assignee_id.is_(None))
-
-    total = (await db.execute(select(func.count(Issue.id)).where(*filters))).scalar_one()
-    rows = (await db.execute(
-        select(Issue)
-        .options(
-            selectinload(Issue.assignee),
-            selectinload(Issue.reporter),
-            selectinload(Issue.release),
-            selectinload(Issue.project),
-        )
-        .where(*filters)
-        .order_by(_PRIORITY_ORDER, Issue.created_at.asc(), Issue.id.asc())
-        .offset((page - 1) * size)
-        .limit(size)
-    )).scalars().all()
+    rows, total = await tech_debt_page(
+        db, current_user,
+        project_ids=_int_list(project_id, "project_id"),
+        statuses=[s.value for s in statuses or []],
+        assignee_id=assignee_id,
+        unassigned=bool(unassigned),
+        page=page,
+        size=size,
+    )
     return TechDebtListResponse(
-        items=await _build_enriched_responses(list(rows), db, current_user),
+        items=await _build_enriched_responses(rows, db, current_user),
         total=total,
     )

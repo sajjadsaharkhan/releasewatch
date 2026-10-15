@@ -75,6 +75,7 @@ The engine runs in two stages:
 | Tech create form | "Possibly the same" panel (informational) | No panel |
 | Support form | Similar open reports with **Record recurrence** | No panel |
 | Triage queue | "Possible duplicate" hints on New bugs | No hints (stored hints are hidden) |
+| MCP `rw_find_similar` (prd-mcp.md FR-M21–M23) | Same-problem and related candidates with Jev's verdict, as the tech create form | **Exception to BR-S03, MCP only (BR-M17):** stage-1 candidates above `T_FLOOR`, at most `SIMILAR_LIMIT`, with no verdict — the agent judges them |
 | Comment indexing | Jev classifies each comment | Rule-based filter |
 
 ---
@@ -139,7 +140,7 @@ The engine runs in two stages:
 
 **BR-S02** When Jev is disabled, unreachable, returns an error, or does not answer within the timeout, the request is served with the Jev-disabled behavior of §4. The user sees no error.
 
-**BR-S03** Similar-item panels and triage hints are never shown while Jev is disabled. Hints computed earlier are kept but hidden.
+**BR-S03** Similar-item panels and triage hints are never shown while Jev is disabled. Hints computed earlier are kept but hidden. Exception, MCP only: `rw_find_similar` returns local candidates without verdicts (prd-mcp.md BR-M17, §4).
 
 **BR-S04** Jev only reorders, cuts, or labels stage-1 candidates. It never introduces an item.
 

@@ -392,6 +392,25 @@ class S3Service:
         )
         return url
 
+    # ── Reading bytes (MCP only) ─────────────────────────────────────────────
+
+    def get_object_bytes(self, s3_key: str, max_bytes: int) -> bytes | None:
+        """The object's bytes, or ``None`` when it is missing or larger than
+        ``max_bytes``. The one place the server reads a file: the MCP tool
+        ``rw_get_attachment`` returns small images inline (prd-mcp.md A.6).
+        Nothing else uses it — every other read is a presigned download."""
+        try:
+            response = self._client.get_object(Bucket=self.bucket, Key=s3_key)
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
+                return None
+            raise
+        if response.get("ContentLength", 0) > max_bytes:
+            response["Body"].close()
+            return None
+        data = response["Body"].read(max_bytes + 1)
+        return data if len(data) <= max_bytes else None
+
     # ── Deletion ──────────────────────────────────────────────────────────────
 
     def delete_file(self, s3_key: str) -> None:
