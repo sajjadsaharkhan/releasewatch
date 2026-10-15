@@ -12,6 +12,11 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
+      // MCP server (slice 15) — so the profile's base URL works in dev too.
+      '/mcp': {
+        target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
       '/ws': {
         target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8080',
         changeOrigin: true,

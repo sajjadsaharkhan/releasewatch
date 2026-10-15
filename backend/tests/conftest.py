@@ -445,3 +445,85 @@ def clock() -> Iterator[Clock]:
     fastapi_app.dependency_overrides[get_now] = c
     yield c
     fastapi_app.dependency_overrides.pop(get_now, None)
+
+
+# ── MCP (slice 15) ─────────────────────────────────────────────────────────
+
+
+class McpRefused(Exception):
+    """``/mcp`` refused the request before any tool ran (the auth gate)."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class McpSession:
+    """An in-process MCP client for one bearer value: streamable HTTP over the
+    app's ASGI transport, the way a coding agent reaches ``/mcp``."""
+
+    def __init__(self, bearer: str):
+        self.bearer = bearer
+
+    async def call(self, tool: str, arguments: dict | None = None):
+        """Call one tool. Returns the ``CallToolResult``; raises ``McpRefused``
+        when the gate refuses the connection."""
+        import httpx2
+        from mcp.client.client import Client
+        from mcp.client.streamable_http import streamable_http_client
+        from mcp.shared.exceptions import MCPError
+
+        http = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=fastapi_app),
+            headers={"Authorization": f"Bearer {self.bearer}"},
+        )
+        try:
+            async with http, Client(streamable_http_client("http://test/mcp", http_client=http)) as c:
+                return await c.call_tool(tool, arguments or {})
+        except BaseException as exc:  # the SDK wraps transport errors in task-group groups
+            leaf = exc
+            while isinstance(leaf, BaseExceptionGroup) and len(leaf.exceptions) == 1:
+                leaf = leaf.exceptions[0]
+            if isinstance(leaf, MCPError):
+                data = leaf.error.data or {}
+                raise McpRefused(data.get("code", ""), leaf.error.message) from exc
+            raise
+
+    async def refusal(self, tool: str = "rw_context") -> McpRefused:
+        with pytest.raises(McpRefused) as info:
+            await self.call(tool)
+        return info.value
+
+
+@pytest_asyncio.fixture
+async def mcp_token(factories, client_for):
+    """Factory — create an MCP token for ``user`` through the profile API,
+    switching MCP on first (it is off on a new installation)."""
+
+    async def _make(user, *, name: str = "Claude Code — laptop", lifetime_days: int = 90):
+        from types import SimpleNamespace
+
+        resp = await factories.admin_client.put("/settings/mcp", json={"enabled": True})
+        resp.raise_for_status()
+        resp = await (await client_for(user)).post(
+            "/me/mcp/tokens", json={"name": name, "lifetime_days": lifetime_days},
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        return SimpleNamespace(**body["token"], value=body["value"], configs=body["configs"])
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def mcp_client_for(mcp_token):
+    """``mcp_client_for(user, token=None)`` — an ``McpSession`` holding ``token``
+    (a value string or an ``mcp_token`` result), or a fresh token for ``user``."""
+
+    async def _make(user, token=None) -> McpSession:
+        if token is None:
+            token = await mcp_token(user)
+        return McpSession(getattr(token, "value", token))
+
+    return _make

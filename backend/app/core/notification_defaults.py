@@ -47,6 +47,10 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "queue_changed":       _row(assignee=True),
     "due_soon":            _row(assignee=True),
     "overdue":             _row(assignee=True),
+    # Slice 15 — to the token's owner only; ``assignee`` stands for the owner,
+    # as it stands for the queue owner above.
+    "mcp_token_created":   _row(assignee=True),
+    "mcp_token_expiring":  _row(assignee=True),
 }
 
 

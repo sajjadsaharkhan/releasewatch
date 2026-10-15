@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Camera, CheckCircle2, Copy, Loader2, Send } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../components/ui/Avatar'
 import { RoleBadge } from '../components/ui/Badge'
 import { Tabs } from '../components/ui/Tabs'
+import { McpProfileSection } from '../components/mcp'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Textarea } from '../components/ui/Textarea'
@@ -78,7 +79,9 @@ export default function ProfilePage() {
   const [assignedIssues, setAssignedIssues] = useState([])
   const [activityData, setActivityData] = useState([])
 
-  const [activeTab, setActiveTab] = useState('public')
+  // `?tab=` opens a tab directly — the MCP token notices link to `?tab=mcp` (slice 15).
+  const [searchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'public')
   const [editForm, setEditForm] = useState({})
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
   const [cropperImage, setCropperImage] = useState(null)
@@ -243,6 +246,8 @@ export default function ProfilePage() {
       { value: 'edit', label: 'Edit Profile' },
       { value: 'security', label: 'Security' },
       { value: 'telegram', label: 'Telegram' },
+      // Slice 15 (FR-M38): tech users connect coding agents; Support has no MCP section.
+      ...(isTech(user.role) ? [{ value: 'mcp', label: 'MCP' }] : []),
     ] : []),
   ]
   // The remembered tab may not exist for this profile (e.g. 'public' on a Support profile).
@@ -626,6 +631,7 @@ export default function ProfilePage() {
             )}
           </div>
         )}
+        {currentTab === 'mcp' && isOwnProfile && isTech(user.role) && <McpProfileSection />}
       </div>
 
       <input

@@ -54,6 +54,10 @@ class InboxEventType(str, enum.Enum):
     #: The scheduled due-date notices (§13), once each; ``actor_id`` is null.
     due_soon = "due_soon"
     overdue = "overdue"
+    # Slice 15 — about the owner's MCP token, not an item or a release
+    # (``issue_id`` and ``release_id`` null): meta ``{token_id, token_name, expires_at}``.
+    mcp_token_created = "mcp_token_created"
+    mcp_token_expiring = "mcp_token_expiring"
 
 
 #: Events whose audience is Support subscribers (§13).
@@ -82,6 +86,9 @@ ASSIGNEE_EVENTS = frozenset({
 
 #: Events about a release rather than an item (slice 09): ``issue_id`` is null.
 RELEASE_EVENTS = frozenset({InboxEventType.release_shipped, InboxEventType.release_overdue})
+
+#: Events about the recipient themself (slice 15): ``issue_id`` and ``release_id`` are null.
+USER_EVENTS = frozenset({InboxEventType.mcp_token_created, InboxEventType.mcp_token_expiring})
 
 
 class TelegramDeliveryStatus(str, enum.Enum):

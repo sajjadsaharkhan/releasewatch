@@ -13,7 +13,9 @@ export function Segmented({ value, onValueChange, options = [], className }) {
         const isActive = opt.value === value
         return (
           <button
+            type="button"
             key={opt.value}
+            aria-pressed={isActive}
             onClick={() => onValueChange?.(opt.value)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-all',

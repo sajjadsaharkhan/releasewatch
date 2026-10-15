@@ -20,6 +20,7 @@ from app.db.models.issue_subscriber import IssueSubscriber
 from app.db.models.issue_recurrence import IssueRecurrence
 from app.db.models.backlog_category import BacklogCategory, register_default_category_hook
 from app.db.models.queue import QueueEntry, QueueHistory
+from app.db.models.mcp_token import McpToken
 
 # Every project gets its fixed Default backlog category on insert, and every
 # issue inserted without a category gets that Default — whatever creates them.
@@ -52,4 +53,5 @@ __all__ = [
     "BacklogCategory",
     "QueueEntry",
     "QueueHistory",
+    "McpToken",
 ]

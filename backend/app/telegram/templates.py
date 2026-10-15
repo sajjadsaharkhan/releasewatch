@@ -10,6 +10,15 @@ key.  Dynamic fields are filled in by the sender:
 """
 
 MESSAGE_TEMPLATES: dict[str, str] = {
+    # Slice 15 — about the owner's MCP token (§8): token_name, expires_on, profile_url.
+    "mcp_token_created": (
+        "🔑 MCP token \"<b>{token_name}</b>\" was created on your account. "
+        "It expires on <b>{expires_on}</b>. "
+        "If this wasn't you, revoke it in your <a href=\"{profile_url}\">profile</a>."
+    ),
+    "mcp_token_expiring": (
+        "⏳ MCP token \"<b>{token_name}</b>\" expires on <b>{expires_on}</b>."
+    ),
     # Slice 09 — release-only notices (no item): release_name, release_url,
     # project_name, release_deadline, actor, moved_count.
     "release_shipped": (

@@ -94,6 +94,11 @@ def create_app() -> FastAPI:
 
     application.include_router(api_router, prefix="/api/v1")
 
+    # ── MCP server (slice 15): its own auth, never get_current_user (BR-M02) ──
+    from app.mcp_server.server import mcp_endpoint
+
+    application.add_route("/mcp", mcp_endpoint, methods=["GET", "POST", "DELETE"])
+
     # ── Domain errors (Workflow, Policy) ────────────────────────────────────────
     from app.core.errors import DomainError, domain_error_handler
 

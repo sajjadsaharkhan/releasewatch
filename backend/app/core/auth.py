@@ -40,6 +40,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
+#: The prefix of every MCP token value (slice 15). Declared here, the lowest
+#: layer that needs it: it lets this module refuse MCP tokens (BR-M02), and
+#: secret scanners recognise a leaked value.
+MCP_TOKEN_PREFIX = "rwm_"
+
 # ── OAuth2 bearer scheme (reads token from Authorization: Bearer <token>) ─────
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -195,6 +200,13 @@ async def get_current_user(
     HTTPException(403)
         If the user account has been deactivated.
     """
+    # BR-M02: an MCP token is accepted only by /mcp — refuse it before any JWT decoding.
+    if token.startswith(MCP_TOKEN_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MCP tokens are accepted only by the MCP server",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     payload = verify_token(token)
     user_id_str: str | None = payload.get("sub")
     if user_id_str is None:

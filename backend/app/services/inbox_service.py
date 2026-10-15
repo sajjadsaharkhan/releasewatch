@@ -414,7 +414,6 @@ class InboxFanOutService:
         try:
             from sqlalchemy.orm import attributes as sa_attrs
 
-            from app.config import settings as app_settings
             from app.db.models.project import Project
             from app.db.models.system_setting import SystemSetting
             from app.db.models.telegram_integration import TelegramIntegration
@@ -429,23 +428,10 @@ class InboxFanOutService:
             row = resolve_matrix(setting.value if setting else None).get(trigger.value)
             if not row or trigger.value not in MESSAGE_TEMPLATES:
                 return
-            tg_cfg = (await db.execute(
-                select(SystemSetting).where(
-                    SystemSetting.category == "telegram", SystemSetting.key == "config",
-                )
-            )).scalar_one_or_none()
-            bot_token = (tg_cfg.value or {}).get("bot_token") if tg_cfg else None
-            if not bot_token:
+            transport = await self._telegram_transport(db)
+            if transport is None:
                 return
-            proxy_cfg = (await db.execute(
-                select(SystemSetting).where(
-                    SystemSetting.category == "proxy", SystemSetting.key == "config",
-                    SystemSetting.is_active.is_(True),
-                )
-            )).scalar_one_or_none()
-            proxy_url = None
-            if proxy_cfg and (proxy_cfg.value or {}).get("enabled"):
-                proxy_url = proxy_cfg.value.get("http") or proxy_cfg.value.get("https") or None
+            bot_token, proxy_url, frontend_base = transport
 
             tg_by_user = {
                 t.user_id: t for t in (await db.execute(
@@ -456,10 +442,6 @@ class InboxFanOutService:
                 )).scalars().all()
             }
             project = await db.get(Project, release.project_id)
-            frontend_base = (
-                ((tg_cfg.value or {}).get("frontend_url") if tg_cfg else None)
-                or app_settings.FRONTEND_URL
-            ).rstrip("/")
 
             def _esc(v: object) -> str:
                 return html_lib.escape(str(v)) if v is not None else ""
@@ -505,7 +487,119 @@ class InboxFanOutService:
         except Exception:
             logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
 
+    async def fan_out_user(
+        self,
+        db: AsyncSession,
+        trigger: InboxEventType,
+        recipient: User,
+        meta: dict[str, Any],
+    ) -> InboxItem | None:
+        """The user-scoped variant of ``fan_out`` (slice 15): one ``InboxItem``
+        about the recipient themself — ``issue_id`` and ``release_id`` null, no
+        actor. Telegram goes out when the matrix row's ``assignee`` column (the
+        owner) is on. ``meta`` carries ``token_name`` and ``expires_at``.
+        """
+        if not recipient.is_active:
+            return None
+        item = InboxItem(
+            user_id=recipient.id, actor_id=None, issue_id=None, release_id=None,
+            event_type=trigger, is_read=False, meta=meta,
+        )
+        db.add(item)
+        await db.flush()
+
+        try:
+            from app.core.redis_client import publish
+
+            await publish(f"rw:inbox:{recipient.id}", {
+                "type": "inbox_item", "event_type": trigger.value,
+                "issue_id": None, "release_id": None, "item_id": str(item.id),
+            })
+        except Exception:
+            pass
+
+        await self._dispatch_user_telegram(db, trigger, recipient, item, meta)
+        return item
+
+    async def _dispatch_user_telegram(
+        self, db: AsyncSession, trigger: InboxEventType, recipient: User, item: InboxItem,
+        meta: dict[str, Any],
+    ) -> None:
+        """Telegram for a user-scoped notice — same matrix, same outbox as items."""
+        try:
+            from sqlalchemy.orm import attributes as sa_attrs
+
+            from app.db.models.telegram_integration import TelegramIntegration
+            from app.tasks.notifications import send_telegram_notification
+            from app.telegram.templates import MESSAGE_TEMPLATES
+
+            row = await self._matrix_row(db, trigger)
+            if not row or not row.get("assignee") or trigger.value not in MESSAGE_TEMPLATES:
+                item.telegram_status = "skipped"
+                return
+            tg = (await db.execute(
+                select(TelegramIntegration).where(
+                    TelegramIntegration.user_id == recipient.id,
+                    TelegramIntegration.is_active.is_(True),
+                )
+            )).scalar_one_or_none()
+            if tg is None:
+                return
+            transport = await self._telegram_transport(db)
+            if transport is None:
+                return
+            bot_token, proxy_url, frontend_base = transport
+            expires_at = datetime.fromisoformat(meta["expires_at"])
+            context = {
+                "token_name": html_lib.escape(str(meta.get("token_name", ""))),
+                "expires_on": expires_at.strftime("%b %d, %Y"),
+                "profile_url": f"{frontend_base}/u/{recipient.username}?tab=mcp",
+            }
+            item_meta = dict(item.meta or {})
+            send_token = uuid4().hex
+            item_meta.update(tg_context=context, tg_template=trigger.value, send_token=send_token)
+            item.meta = item_meta
+            sa_attrs.flag_modified(item, "meta")
+            item.telegram_status = "pending"
+            send_telegram_notification.apply_async(
+                args=[tg.chat_id, trigger.value, context],
+                kwargs={
+                    "bot_token": bot_token, "proxy_url": proxy_url,
+                    "inbox_item_id": item.id, "send_token": send_token,
+                },
+                countdown=2,
+                queue="notifications",
+            )
+        except Exception:
+            logger.warning("Telegram dispatch skipped (best-effort)", exc_info=True)
+
     # ── Internal helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _telegram_transport(db: AsyncSession) -> tuple[str, str | None, str] | None:
+        """``(bot_token, proxy_url, frontend_base)`` for a Telegram send, or None
+        when no bot is configured — shared by the release and user notices."""
+        from app.config import settings as app_settings
+
+        tg_cfg = (await db.execute(
+            select(SystemSetting).where(
+                SystemSetting.category == "telegram", SystemSetting.key == "config",
+            )
+        )).scalar_one_or_none()
+        tg = (tg_cfg.value or {}) if tg_cfg else {}
+        if not tg.get("bot_token"):
+            return None
+        proxy_cfg = (await db.execute(
+            select(SystemSetting).where(
+                SystemSetting.category == "proxy", SystemSetting.key == "config",
+                SystemSetting.is_active.is_(True),
+            )
+        )).scalar_one_or_none()
+        proxy_url = None
+        if proxy_cfg and (proxy_cfg.value or {}).get("enabled"):
+            proxy_url = proxy_cfg.value.get("http") or proxy_cfg.value.get("https") or None
+        frontend_base = (tg.get("frontend_url") or app_settings.FRONTEND_URL).rstrip("/")
+        return tg["bot_token"], proxy_url, frontend_base
 
     async def _dispatch_telegram(
         self,

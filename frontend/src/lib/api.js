@@ -383,6 +383,19 @@ export const searchApi = {
   testJev: () => api.post('/settings/search/jev/test'),
 }
 
+// ─── MCP tokens (slice 15) ────────────────────────────────────────────────────
+export const mcpApi = {
+  // → { enabled, base_url, clients: [{key, name, supports_prompts, supports_resources, where, language}], tokens }
+  mine: () => api.get('/me/mcp'),
+  // { name, lifetime_days } → { token, value, configs: {claude_code, codex, zcode} } — the value only here
+  create: (data) => api.post('/me/mcp/tokens', data),
+  revoke: (id) => api.post(`/me/mcp/tokens/${id}/revoke`),
+  // CTO + Admin → { enabled, tokens: [...with user] }
+  settings: () => api.get('/settings/mcp'),
+  setEnabled: (enabled) => api.put('/settings/mcp', { enabled }),
+  revokeAny: (id) => api.post(`/settings/mcp/tokens/${id}/revoke`),
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export const settingsApi = {
   getTelegramIntegration: () => api.get('/settings/integrations/telegram'),

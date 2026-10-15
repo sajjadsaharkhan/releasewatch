@@ -71,6 +71,8 @@ class Action(str, Enum):
     manage_users = "manage_users"
     manage_projects = "manage_projects"
     manage_search = "manage_search"
+    use_mcp = "use_mcp"
+    manage_mcp_tokens = "manage_mcp_tokens"
 
 
 TRANSITION_PREFIX = "transition:"
@@ -174,6 +176,10 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.manage_users: _CTO_ADMIN,
     Action.manage_projects: _CTO_ADMIN,
     Action.manage_search: _CTO_ADMIN,
+    # Slice 15 (BR-M04): MCP is for the tech team; Settings → MCP (the switch
+    # and everyone's tokens) follows the CTO-has-what-Admin-has rule.
+    Action.use_mcp: _T,
+    Action.manage_mcp_tokens: _CTO_ADMIN,
     # Field edits on an item a tech user can see.
     Action.edit_item: _T,
     Action.assign: _T,
@@ -218,6 +224,8 @@ _LABELS: dict[str, str] = {
     Action.manage_users: "manage users",
     Action.manage_projects: "manage projects",
     Action.manage_search: "manage search settings",
+    Action.use_mcp: "connect coding agents over MCP",
+    Action.manage_mcp_tokens: "manage MCP settings",
     Action.edit_item: "edit items",
     Action.assign: "assign items",
     Action.set_priority: "set priority",

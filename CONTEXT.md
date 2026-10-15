@@ -189,6 +189,20 @@ _Avoid_: "comment classification" for the rule alone.
 A stored possible duplicate of a New bug (`duplicate_hints`, slice 14): what `compute_duplicate_hints` found — stage-1 body/title candidates of the project, Jev judging each `same`/`related`/`unrelated`, at most three `same` verdicts at `T_SAME`. Tech-only, shown in the triage queue and on the item page while the item is New; each hint says what merging will do, computed with the merge's own reason function so hint and merge never disagree. A **dismissal** ("Not a duplicate", `duplicate_dismissals`) outlives every recomputation. With Jev off, stored hints are hidden, not deleted. The form panels (Support's **Similar reports** with record-recurrence, the create form's **Possibly the same**) are the live, un-stored version of the same judgment.
 _Avoid_: "AI-detected duplicate" — stage 1 narrows, Jev decides, a human merges.
 
+### MCP (slice 15)
+
+**MCP server**:
+The `/mcp` endpoint coding agents (Claude Code, Codex, ZCode) connect to, in the same FastAPI app (`app/mcp_server/`): the MCP Python SDK over stateless streamable HTTP, a thin adapter that calls services like a route does. Every request acts as the token's owner and sees exactly what that user sees in the UI (BR-M03); it exposes only its own tools, never the REST status operations. Slice 15 has one tool, `rw_context`.
+_Avoid_: "API", "integration", "bot" — it is a separate entry point with its own credential.
+
+**MCP token**:
+The credential an agent holds: `rwm_` + 43 base62 characters, accepted only by the MCP server — `get_current_user` refuses any `rwm_` bearer, and the MCP server refuses anything else (BR-M02). Named by its owner, it lives 30 days, 90 days or 1 year and is never renewed; the value is shown once and stored only as its sha256 (`mcp_tokens`). Its status — active, expired, revoked — is derived, never stored; rows are never deleted, but revoked tokens drop out of both lists (D19). Only tech users hold tokens, and a deactivated owner's tokens stop working without being revoked.
+_Avoid_: "API key", "PAT", "personal access token", "secret".
+
+**Kill switch**:
+Settings → MCP → **Enabled** (`system_settings` category `mcp`; off on a new installation). Off, every MCP request is refused with "MCP is disabled by the administrator" and no token can be created; tokens are left untouched and work again when it is switched back on.
+_Avoid_: "maintenance mode", "MCP off" as a token state — tokens have no such state.
+
 ## Decisions
 
 Where Phase 2 deliberately departs from the PRD. Each came up while checking the PRD against the code and was decided before building, so the code follows the decision, not the PRD. Moved here from the Phase 2 specs' README after slice 11 so the decisions outlive the specs. Later product overrides (the free workflow, 2026-09-22/23) are noted where they changed a row.
@@ -209,3 +223,6 @@ Where Phase 2 deliberately departs from the PRD. Each came up while checking the
 | D12 | A merge into a Done bug records a regression cycle, possibly without a release (BR-49) | `regression_history.release_id` is `NOT NULL` | Made nullable with `source` in 06. **v3:** `regression_history` is replaced by `issue_cycles` with a `start_reason`, and every cycle has a container (08a Part 2). |
 | D13 | One `issues` table with type-specific and derived columns | Bug-only, task-only, lifecycle and duration columns all live on `issues` | Split into `issues` + `issue_bugs` + `issue_tasks` + `issue_timestamps`; `time_to_*_h` are computed by `DurationService` (03a Part 2). The API response shape does not change. |
 | D16 | The fix belongs to whoever did the work (v3 BR-63) | `record_regression` credits the actor of the last `fixed` event | Replaced by `delivered_by_id`, a snapshot of the assignee at In review (08a Part 2). |
+| D17 | Settings → MCP (the switch and every user's tokens) is Admin-only (prd-mcp.md FR-M44) | CTO has everything Admin has in Settings (2026-10-05) | `manage_mcp_tokens` is CTO and Admin, like `manage_search` (slice 15). |
+| D18 | `rw_context` lists "the projects the user can see" (FR-M01) | Tech roles see every project; there is no per-project membership | Every non-archived project for every tech user; archived ones are left out because an agent can't work in them (slice 15). |
+| D19 | The token lists show every token with its status, revoked included (FR-M39, FR-M44) | — | Revoked tokens are left out of Profile → MCP and Settings → MCP (2026-10-15 product decision); expired ones stay listed. The rows are kept (BR-M24) (slice 15). |

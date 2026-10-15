@@ -11,7 +11,8 @@ import { Icon } from '../components/ui/Icon'
 import { inboxApi } from '../lib/api'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../hooks/useToast'
-import { relTime } from '../lib/relTime'
+import { formatDay, relTime } from '../lib/relTime'
+import { MCP_TOKEN_EVENTS } from '../lib/constants'
 import { CheckCheck, Loader2 } from 'lucide-react'
 
 const PAGE_SIZE = 25
@@ -119,6 +120,60 @@ function ReleaseInboxRow({ item, onRead }) {
         <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
           <span>{r.projectName}</span>
           <span>·</span>
+          <span>{relTime(item.createdAt)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A notice about one of your MCP tokens (slice 15): no item, no release, no actor.
+function McpTokenInboxRow({ item, onRead }) {
+  const { user } = useApp()
+  const created = item.type === 'mcp_token_created'
+  const expires = item.meta?.expires_at ? formatDay(item.meta.expires_at) : '—'
+  return (
+    <div
+      className={cn(
+        'flex gap-3 px-4 py-3.5 cursor-pointer transition-colors',
+        !item.read
+          ? 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+          : 'hover:bg-accent'
+      )}
+      onClick={onRead}
+    >
+      <div className="flex w-2 shrink-0 mt-[7px]">
+        {!item.read && <span className="h-2 w-2 rounded-full bg-blue-500" />}
+      </div>
+      <span
+        className={cn(
+          'flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full mt-0.5',
+          created ? 'bg-muted text-muted-foreground' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+        )}
+        aria-hidden
+      >
+        <Icon name={created ? 'key-round' : 'hourglass'} size={16} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm leading-snug">
+          <span className="text-muted-foreground">MCP token</span>{' '}
+          <span className="font-medium">{item.meta?.token_name}</span>{' '}
+          <span className="text-muted-foreground">
+            {created ? `was created on your account. It expires on ${expires}.` : `expires on ${expires}.`}
+          </span>
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {created ? 'If this wasn\u2019t you, ' : 'Create a new one before then in '}
+          <Link
+            to={`/u/${user?.username}?tab=mcp`}
+            className="font-medium text-foreground hover:text-primary transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {created ? 'revoke it in your profile' : 'your profile'}
+          </Link>
+          .
+        </p>
+        <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
           <span>{relTime(item.createdAt)}</span>
         </div>
       </div>
@@ -321,6 +376,9 @@ export default function InboxPage() {
             // Release-only notices (slice 09): no item — `release` instead of `issueId`.
             if (item.release && !item.issueId) {
               return <ReleaseInboxRow key={item.id} item={item} onRead={() => markRead(item.id)} />
+            }
+            if (MCP_TOKEN_EVENTS.has(item.type)) {
+              return <McpTokenInboxRow key={item.id} item={item} onRead={() => markRead(item.id)} />
             }
             const actor = item.actor
             // A recurrence reaches the assignee and reporter as a comment (slice 07).

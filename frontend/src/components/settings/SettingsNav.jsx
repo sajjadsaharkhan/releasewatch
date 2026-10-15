@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   SlidersHorizontal, Users, Folder, Headset, Shapes, Tag, Plug, Search,
-  Server, Bell,
+  Server, Bell, Bot,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 
@@ -12,7 +12,7 @@ import { cn } from '../../lib/cn'
 export const SETTINGS_GROUPS = [
   { value: 'workspace', label: 'Workspace', tabs: ['general', 'team', 'projects'] },
   { value: 'workflow', label: 'Workflow', tabs: ['support', 'backlog', 'labels'] },
-  { value: 'system', label: 'System', tabs: ['integrations', 'search', 'configuration', 'notifications'] },
+  { value: 'system', label: 'System', tabs: ['integrations', 'search', 'mcp', 'configuration', 'notifications'] },
 ]
 
 export const SETTINGS_TAB_META = {
@@ -24,6 +24,7 @@ export const SETTINGS_TAB_META = {
   labels:         { label: 'Labels',             icon: 'tag',                Component: Tag,               description: 'Issue labels and colors.' },
   integrations:   { label: 'Integrations',       icon: 'plug',               Component: Plug,              description: 'Telegram bot and connectivity.' },
   search:         { label: 'Search',             icon: 'search',             Component: Search,            description: 'Embeddings, rerank, and duplicate hints.' },
+  mcp:            { label: 'MCP',                icon: 'bot',                Component: Bot,               description: 'Coding-agent access: the switch and every token.' },
   configuration:  { label: 'Configuration',      icon: 'server',             Component: Server,            description: 'Outgoing HTTP proxy.' },
   notifications:  { label: 'Notifications',      icon: 'bell',               Component: Bell,              description: 'Who gets notified for each event.' },
 }

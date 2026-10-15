@@ -24,6 +24,7 @@ celery_app = Celery(
         "app.tasks.search_index",
         "app.tasks.releases",
         "app.tasks.queue",
+        "app.tasks.mcp",
     ],
 )
 
@@ -81,6 +82,12 @@ celery_app.conf.beat_schedule = {
     "notify-due-items-hourly": {
         "task": "app.tasks.queue.notify_due_items",
         "schedule": crontab(minute=5),
+        "options": {"queue": "default"},
+    },
+    # Slice 15 (§8): one notice per token, seven days before it expires.
+    "notify-expiring-mcp-tokens-daily": {
+        "task": "app.tasks.mcp.notify_expiring_mcp_tokens",
+        "schedule": crontab(hour=6, minute=30),
         "options": {"queue": "default"},
     },
     "invalidate-stale-report-cache-hourly": {

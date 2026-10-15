@@ -19,6 +19,7 @@ import { CreateProjectModal, EditProjectModal, ArchiveProjectConfirmModal, Needs
 import { SupportIntakeTab } from '../components/support/SupportIntakeTab'
 import { BacklogCategoriesTab } from '../components/backlog/BacklogCategoriesTab'
 import { SearchSettingsTab, SettingsSideNav, SettingsSectionHeader, ProxyTest } from '../components/settings'
+import { McpSettingsTab } from '../components/mcp'
 import { teamApi, labelsApi, projectsApi, settingsApi } from '../lib/api'
 import { GatedButton } from '../components/common'
 import { canManageTemplates, canManageUsersAndProjects, ONLY_ADMINS_MANAGE_PROJECTS, ONLY_ADMINS_MANAGE_USERS } from '../lib/roles'
@@ -32,6 +33,7 @@ const TAB_OPTIONS = [
   { value: 'labels', label: 'Labels' },
   { value: 'integrations', label: 'Integrations' },
   { value: 'search', label: 'Search' },
+  { value: 'mcp', label: 'MCP' },
   { value: 'configuration', label: 'Configuration' },
   { value: 'notifications', label: 'Notifications' },
 ]
@@ -1014,6 +1016,7 @@ export default function SettingsPage() {
 
       {/* Search (slice 12) */}
       {activeTab === 'search' && <SearchSettingsTab />}
+      {activeTab === 'mcp' && <McpSettingsTab />}
 
       {/* Configuration */}
       {activeTab === 'configuration' && (

@@ -311,3 +311,22 @@ export const ROLE = {
     pill: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
   },
 }
+
+// Mirrors McpTokenStatus and MCP_TOKEN_LIFETIME_DAYS (backend/app/db/models/mcp_token.py,
+// slice 15). Status is derived on the server; these are only its labels and tones.
+export const MCP_TOKEN_STATUS = {
+  active:  { label: 'Active',  tone: 'green' },
+  expired: { label: 'Expired', tone: 'zinc' },
+  revoked: { label: 'Revoked', tone: 'red' },
+}
+
+// No "never expires" (BR-M20); 90 days is preselected (AC-M37).
+export const MCP_TOKEN_LIFETIMES = [
+  { days: 30, label: '30 days' },
+  { days: 90, label: '90 days' },
+  { days: 365, label: '1 year' },
+]
+export const MCP_TOKEN_DEFAULT_LIFETIME = 90
+
+// Inbox notices about the reader's own MCP token (USER_EVENTS in inbox_item.py).
+export const MCP_TOKEN_EVENTS = new Set(['mcp_token_created', 'mcp_token_expiring'])
