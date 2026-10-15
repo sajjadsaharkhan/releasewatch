@@ -258,8 +258,20 @@ pre code {
   animation: reaction-pop 180ms ease-out;
 }
 
+/* The Agent badge's gradient word (AgentBadge): still, sweeping only while the
+   badge is hovered — motion marks attention, never decorates. */
+@keyframes agent-sheen {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+.agent-sheen { background-size: 200% 100%; }
+.group\/agent:hover .agent-sheen { animation: agent-sheen 1.6s linear infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .reaction-pop {
+    animation: none;
+  }
+  .group\/agent:hover .agent-sheen {
     animation: none;
   }
 }

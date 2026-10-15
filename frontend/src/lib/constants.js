@@ -284,13 +284,16 @@ export const TECH_DEBT = {
 }
 
 // Agent content (slice 17, FR-M29): written through MCP by the owner's coding
-// agent. Zinc outline — outside every priority, status, type and role hue.
+// agent. A sky → violet → fuchsia gradient — the only gradient pill in the app,
+// so it reads as its own thing beside the flat priority, status and role pills.
 export const AGENT = {
   label: 'Agent',
   tooltip: 'Written by the owner’s coding agent',
   icon: 'square-terminal',
-  chip: 'border border-zinc-300 bg-card text-zinc-600 dark:border-zinc-600 dark:text-zinc-300',
-  iconClass: 'text-zinc-500 dark:text-zinc-400',
+  chip: 'bg-gradient-to-r from-sky-50 via-violet-50 to-fuchsia-50 ring-1 ring-inset ring-violet-200/80 dark:from-sky-500/10 dark:via-violet-500/10 dark:to-fuchsia-500/10 dark:ring-violet-400/25',
+  iconClass: 'text-violet-500 dark:text-violet-300',
+  // Repeats its first stop so the hover sweep (`agent-sheen`) loops seamlessly.
+  gradient: 'bg-[linear-gradient(90deg,#0ea5e9,#8b5cf6,#d946ef,#0ea5e9)]',
 }
 
 // Origin filter (slice 17, FR-M30) — `origin` on the triage, backlog and tech-debt lists.
