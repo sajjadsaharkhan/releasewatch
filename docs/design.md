@@ -641,7 +641,11 @@ instead of `Dialog`'s title bar. Order: borderless 18px title (autofocused), the
 composer, a **possibly-the-same** panel, one property box (Project, Place in, **Backlog
 category** — shown whenever Place in is Backlog, Priority, Assignee, Due date), the task's
 Technical debt box, then a drawer that starts open (Environment, Release blocker, Steps, cURL,
-Labels, Attachments). ⌘/Ctrl+Enter creates. The panel is collapsed by default: a summary row
+Labels, Attachments). ⌘/Ctrl+Enter creates. Creating doesn't close the dialog: it turns into
+`IssueCreated` (chosen from a prototype 2026-10-24) — a green check, "Bug created", type icon +
+mono key + title, the item's full link with **Copy link**, then **Done**, **Create another** (a
+fresh form keeping type, project, place and category) and **Open bug**, which is focused so Enter
+opens it. The panel is collapsed by default: a summary row
 (count + top similarity %, amber from 90%) opens horizontal candidate cards — `SimilarityRing`,
 type/key/status, band, title — with **Open** and a local **Not the same** (no Merge; that is
 triage). It renders nothing while Jev is off. `ContainerPicker colorize` tints its icons like

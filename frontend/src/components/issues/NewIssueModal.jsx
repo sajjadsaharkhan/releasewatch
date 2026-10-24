@@ -18,6 +18,8 @@ import { issuesApi, projectsApi, releasesApi, labelsApi, teamApi } from '../../l
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { useApp } from '../../hooks/useApp'
 import { StatusBadge, TypeIcon } from '../ui'
+import { useNavigate } from 'react-router-dom'
+import { IssueCreated } from './IssueCreated'
 
 const INITIAL_FORM = {
   type: 'bug', title: '', projectId: '', releaseId: null, priority: null, environment: null,
@@ -41,6 +43,9 @@ function useNewIssueForm({ open, onClose, onCreated }) {
   const [teamUsers, setTeamUsers] = useState([])
   const [assignableUsers, setAssignableUsers] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
+  // The item just filed — the modal shows IssueCreated until it closes or the
+  // next one starts.
+  const [created, setCreated] = useState(null)
 
   const isTask = form.type === 'task'
   const priority = form.priority ?? (isTask ? TASK_DEFAULT_PRIORITY : null)
@@ -87,7 +92,7 @@ function useNewIssueForm({ open, onClose, onCreated }) {
 
   useEffect(() => {
     if (!open) {
-      setAttachments([]); setPendingAttachments([]); setForm(INITIAL_FORM); setErrors({})
+      setAttachments([]); setPendingAttachments([]); setForm(INITIAL_FORM); setErrors({}); setCreated(null)
     }
   }, [open])
 
@@ -145,7 +150,7 @@ function useNewIssueForm({ open, onClose, onCreated }) {
         }
       const res = await issuesApi.create(payload)
       onCreated?.(res.data)
-      onClose?.()
+      setCreated(res.data)
       return true
     } catch (err) {
       const body = err.response?.data
@@ -156,7 +161,19 @@ function useNewIssueForm({ open, onClose, onCreated }) {
     }
   }
 
+  // Create another: a fresh form in the same type, project and place.
+  function createAnother() {
+    setForm((f) => ({
+      ...INITIAL_FORM, type: f.type, projectId: f.projectId, releaseId: f.releaseId,
+      backlogCategoryId: f.backlogCategoryId, isTechDebt: f.isTechDebt,
+    }))
+    setAttachments([]); setPendingAttachments([]); setErrors({})
+    setComposerKey((k) => k + 1)
+    setCreated(null)
+  }
+
   return {
+    created, createAnother,
     form, set, setType, setProject, setContainer, addStep, updateStep, removeStep, toggleLabel,
     errors, loading, dataLoading, isUploading, setIsUploading, isTask, priority, inRelease, skipsTriage, categories,
     projects, labels, teamUsers, assignableUsers, composerKey, submit,
@@ -516,8 +533,27 @@ const Blocker = ({ s }) => !s.isTask && s.inRelease && (
 // that starts open. Quick capture (chosen from a prototype, 2026-10-02).
 export function NewIssueModal({ open, onClose, onCreated }) {
   const s = useNewIssueForm({ open, onClose, onCreated })
+  const navigate = useNavigate()
   const [more, setMore] = useState(true)
   const extras = s.stepsCount + s.pendingCount + (s.form.curlCommand ? 1 : 0)
+
+  if (s.created) {
+    const { created } = s
+    return (
+      <Shell
+        open={open} onClose={onClose} size="max-w-lg" ariaLabel={`${TYPE[created.type]?.label ?? 'Item'} created`}
+        header={<div className="flex shrink-0 justify-end px-3 pt-3"><CloseButton onClose={onClose} /></div>}
+      >
+        <IssueCreated
+          issue={created}
+          onOpen={() => { onClose?.(); navigate(`/issue/${issueSlug(created)}`) }}
+          onCreateAnother={s.createAnother}
+          onDone={onClose}
+        />
+      </Shell>
+    )
+  }
+
   return (
     <Shell
       open={open} onClose={onClose} size="max-w-2xl" ariaLabel={s.isTask ? 'New task' : 'New bug'} onSubmitShortcut={s.submit}
