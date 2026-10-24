@@ -113,7 +113,10 @@ export function CommentComposer({
       setIsInternal(initialInternal)
       setMentionedUserIds(initialMentionedUsers)
     }
-  }, [mode, initialValue, initialInternal, initialMentionedUsers])
+    // initialMentionedUsers is left out on purpose: callers pass a fresh [] each render,
+    // which would re-run this reset on every keystroke and wipe what was just typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, initialValue, initialInternal])
 
   const apply = useCallback((edit) => {
     const ta = taRef.current
