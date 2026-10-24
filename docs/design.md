@@ -803,13 +803,22 @@ Always: `block text-xs font-medium text-muted-foreground mb-1.5`
 
 ```
 <div className="flex h-screen bg-background">
-  <Sidebar />                          {/* w-56, hidden below lg, border-r, bg-card */}
+  <Sidebar />                          {/* w-56 (w-14 rail when collapsed), hidden below lg, border-r, bg-card */}
   <div className="flex flex-1 flex-col min-w-0">
     <Topbar />                          {/* h-12 shrink-0, border-b, bg-card */}
     <main className="flex-1 overflow-y-auto scrollbar-thin"><Outlet /></main>
   </div>
 </div>
 ```
+
+**Collapsing the sidebar** (TASK-748, chosen from a prototype 2026-10-24; the round is on
+`prototype/sidebar-collapse`): a `panel-left-close` button at the right of the logo row, or `[`,
+shrinks it to a 56px icon rail — logo, then the expand button (`panel-left-open`) under it; each
+link is an icon-only `NavItem collapsed` with its label as `aria-label` and a portaled tooltip to
+its right on hover/focus, and a count badge moves to the icon's corner; section headers become a
+hairline divider and their links always show; the profile row is the avatar alone. The choice is
+one app-wide value kept in `localStorage` (`rw.sidebarCollapsed`, `hooks/useSidebarCollapsed`).
+The rail pushes `<main>` — it never overlays it.
 
 The **page never scrolls — `<main>` does.** Anything that must stay put (table headers,
 dialog headers/footers) uses `sticky` or `shrink-0` inside that scroller, not `position: fixed`.
@@ -969,6 +978,7 @@ All keyframes live in `globals.css`. Signature easing for entrances is
 | `timeline-highlight` (amber flash on deep link) | 3s | ease-out, separate light/dark keyframes |
 | `reaction-pop` (0.8 → 1.15 → 1) | 180ms | ease-out |
 | Switch thumb | 200ms | ease-in-out |
+| Sidebar width (collapse / expand) | 200ms | signature; none under `prefers-reduced-motion` |
 | `agent-sheen` (the Agent badge's gradient word, hover only) | 1.6s loop | linear |
 
 Everything else is `transition-colors` (Tailwind's 150ms default) on hover and focus.
@@ -1046,7 +1056,9 @@ beyond the shell-level projects/releases it already owns.
 
 **Keyboard.** Global handlers in `App.jsx`: `⌘K`/`Ctrl+K` opens the command palette, `c`
 opens New Issue (suppressed while focus is in an `input`, `textarea`, or `select`), `Esc`
-closes both. Any new global shortcut needs the same input-focus guard.
+closes both, and `[` collapses or expands the sidebar (for every role; also suppressed while
+typing — contenteditable included — or while a dialog is open). Any new global shortcut needs the
+same input-focus guard.
 
 ---
 
@@ -1128,9 +1140,6 @@ Real inconsistencies in the current code. Fix opportunistically; do not propagat
 8. **`Icon.jsx` reads `process.env.NODE_ENV`** in a Vite app; the idiomatic guard is
    `import.meta.env.DEV`.
 9. **`kebabToPascal` is duplicated** in `ui/Icon.jsx` and `ui/Tabs.jsx`.
-10. **`Sidebar` imports `cn`, `ProjectSwitcher`, `activeProjectId` and `switchProject`
-    and uses none of them** — leftovers from when the project switcher lived in the
-    sidebar rather than the topbar. Lint noise, not a design issue.
-11. **`MoveDialog`'s Project field is a `Select`**, not `ProjectSwitcher` (see §7 Item
+10. **`MoveDialog`'s Project field is a `Select`**, not `ProjectSwitcher` (see §7 Item
     placement) — it predates the searchable switcher and carries a "· current" suffix and a
     Reset link the switcher doesn't have yet.

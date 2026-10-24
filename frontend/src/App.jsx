@@ -6,6 +6,7 @@ import { AppShell } from './components/layout/AppShell'
 import { CommandPalette } from './components/common/CommandPalette'
 import { CreateProjectModal } from './components/project'
 import { useTrackNavOrigin } from './hooks/useNavOrigin'
+import { setSidebarCollapsed } from './hooks/useSidebarCollapsed'
 import { canSubmitSupportReport, homePath, isSupport } from './lib/roles'
 import { loginPath, safeNext } from './lib/authRedirect'
 
@@ -142,6 +143,15 @@ function AppInner() {
 
   useEffect(() => {
     function handleKey(e) {
+      // '[' → collapse or expand the sidebar (TASK-748), for everyone; not while
+      // typing or with a dialog open.
+      if (e.key === '[' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const el = document.activeElement
+        const tag = el?.tagName?.toLowerCase()
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select' && !el?.isContentEditable && !document.querySelector('.dialog-enter')) {
+          setSidebarCollapsed((c) => !c)
+        }
+      }
       if (support) return
       // Cmd+K / Ctrl+K → command palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
