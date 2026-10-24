@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LogOut, User, Settings, Menu, X, Loader2, Plus, Sun, Moon } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, X, Loader2, Plus, Sun, Moon, Sparkles } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useApp } from '../../hooks/useApp'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
@@ -9,11 +9,13 @@ import { Button } from '../ui/Button'
 import { ProjectSwitcher } from '../common/ProjectSwitcher'
 import { ReleaseSwitcher } from '../common/ReleaseSwitcher'
 import { canManageUsersAndProjects, isSupport } from '../../lib/roles'
+import { useOpenChangelog } from '../whatsnew'
 
 export function Topbar() {
   const { theme, toggleTheme, setCommandPaletteOpen, activeProjectId, switchProject, activeReleaseId, setActiveReleaseId, setCreateProjectOpen, setNewIssueOpen, user, logout, projects, projectsLoading, releases, releasesLoading } = useApp()
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
+  const openChangelog = useOpenChangelog()
 
   // Use authenticated user if available, otherwise fall back to mock user
   const currentUser = user ? { ...user, avatar_color: user.avatar_color || '#6366f1' } : null
@@ -118,6 +120,7 @@ export function Topbar() {
         size="sm"
         onClick={() => setNewIssueOpen(true)}
         className="hidden sm:flex items-center gap-1.5 shrink-0"
+        data-tour="new-issue"
       >
         <Plus className="h-3.5 w-3.5" />
         <span className="hidden md:inline">New issue</span>
@@ -138,6 +141,9 @@ export function Topbar() {
         </div>
         <DropdownItem icon={User} onClick={() => navigate(`/u/${currentUser?.username}`)}>
           Profile
+        </DropdownItem>
+        <DropdownItem icon={Sparkles} onClick={openChangelog}>
+          What’s new
         </DropdownItem>
         <DropdownItem icon={theme === 'dark' ? Sun : Moon} onClick={toggleTheme}>
           {theme === 'dark' ? 'Light mode' : 'Dark mode'}

@@ -171,6 +171,7 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Search projects…"
+          data-tour="project-search"
           aria-label="Search projects"
           aria-controls="project-switcher-options"
           aria-activedescendant={options[active] ? `project-switcher-option-${active}` : undefined}
@@ -230,6 +231,7 @@ export function ProjectSwitcher({ projects = [], activeProjectId, onChange, comp
         onClick={() => (open ? close() : setOpen(true))}
         aria-haspopup="listbox"
         aria-expanded={open}
+        data-tour="project-picker"
         className={cn(
           'flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium',
           'transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',

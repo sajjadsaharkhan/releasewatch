@@ -47,6 +47,16 @@ ROLE_USERS = [
     ("e2e-admin", "E2E Admin", UserRole.admin),
 ]
 
+#: What's new (TASK-575): the role users above join at seed time, so every
+#: shipped note predates them and its modal never opens — the suite isn't
+#: interrupted. These two joined long before any note, so it opens for them
+#: (e2e/tests/whats-new.spec.ts), one per team.
+VETERAN_USERS = [
+    ("e2e-veteran", "E2E Veteran", UserRole.developer),
+    ("e2e-veteran-support", "E2E Veteran Support", UserRole.support),
+]
+VETERAN_JOINED = datetime(2026, 1, 1, tzinfo=UTC)
+
 
 async def _wipe(session: AsyncSession) -> None:
     table_names = [t.name for t in Base.metadata.sorted_tables if t.name != "alembic_version"]
@@ -68,6 +78,17 @@ async def seed(session: AsyncSession) -> None:
             hashed_password=get_password_hash(E2E_PASSWORD),
             role=role,
             is_active=True,
+        )
+        session.add(user)
+        users[username] = user
+    for username, name, role in VETERAN_USERS:
+        user = User(
+            name=name,
+            username=username,
+            hashed_password=get_password_hash(E2E_PASSWORD),
+            role=role,
+            is_active=True,
+            created_at=VETERAN_JOINED,
         )
         session.add(user)
         users[username] = user

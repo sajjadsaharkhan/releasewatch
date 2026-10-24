@@ -29,6 +29,8 @@ dependencies = [
     "cryptography>=42",
     # Slice 15 — the /mcp server. 2.x still resolves against FastAPI 0.111's Starlette pin.
     "mcp>=2.3,<3",
+    # TASK-575 — What's new notes are YAML front matter (app/whats_new/notes.py).
+    "pyyaml>=6",
 ]
 
 [project.optional-dependencies]

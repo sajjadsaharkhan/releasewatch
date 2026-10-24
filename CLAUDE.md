@@ -8,6 +8,9 @@ A release-scoped QA issue tracker for software teams.
 > current list of known drift. This file only summarises the frontend; `docs/design.md` is
 > the authority on how it should look and behave.
 
+> **What's new notes and feature tours** — before writing a release note, a What's new
+> highlight or a feature tour, read [`backend/app/whats_new/AUTHORING.md`](backend/app/whats_new/AUTHORING.md).
+
 ## Monorepo Structure
 
 ```
@@ -173,6 +176,7 @@ backend/
 | `/api/v1/projects/{id}/templates` | `api/v1/support_templates.py` |
 | `/api/v1/settings` | `api/v1/settings.py` |
 | `/api/v1/search`, `/api/v1/search/similar`, `/api/v1/features`, `/api/v1/settings/search(/reindex, /jev, /jev/test)` | `api/v1/search.py` (engine in `app/search/`, Jev client `app/search/jev.py`, suggestions `app/search/similar.py`) |
+| `/api/v1/whats-new(/seen)` | `api/v1/whats_new.py` (notes in `app/whats_new/notes/`, written by `app/whats_new/AUTHORING.md`) |
 | `/api/v1/telegram/webhook` | `api/v1/telegram.py` |
 | `/ws/dashboard`, `/ws/inbox` | `api/v1/ws.py` |
 | `GET /health` | `main.py` |

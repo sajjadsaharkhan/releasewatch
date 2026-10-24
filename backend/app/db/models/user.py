@@ -4,7 +4,7 @@ from datetime import datetime
 
 import enum
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -67,8 +67,9 @@ class User(Base):
         doc="Hex colour used for the avatar fallback, e.g. #6366f1"
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # func.now(), not the string "now()": Postgres froze that one at CREATE TABLE.
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────

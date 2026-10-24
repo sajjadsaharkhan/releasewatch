@@ -7,6 +7,7 @@ import { Avatar } from '../ui/Avatar'
 import { useApp } from '../../hooks/useApp'
 import { setSidebarCollapsed, useSidebarCollapsed } from '../../hooks/useSidebarCollapsed'
 import { homePath, isSupport } from '../../lib/roles'
+import { WhatsNewNavItem } from '../whatsnew'
 import logoUrl from '../../assets/logo.svg'
 
 const ADMIN_ROLES = ['admin', 'cto']
@@ -50,6 +51,7 @@ function CollapseToggle({ collapsed }) {
         aria-label={label}
         aria-expanded={!collapsed}
         aria-keyshortcuts="["
+        data-tour="sidebar-toggle"
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onFocus={() => setHover(true)}
@@ -113,7 +115,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin space-y-0.5', rail ? 'px-2 py-2' : 'p-2')}>
+      <nav data-tour="sidebar-nav" className={cn('flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin space-y-0.5', rail ? 'px-2 py-2' : 'p-2')}>
         {support ? (
           <>
             <NavItem collapsed={rail} to="/inbox" icon="inbox" label="Inbox" badge={inboxUnreadCount} />
@@ -160,6 +162,7 @@ export function Sidebar() {
       <div className={cn('border-t border-border space-y-0.5', rail ? 'px-2 py-2' : 'p-2')}>
         {!support && <NavItem collapsed={rail} to="/team" icon="users" label="Team" />}
         {isAdmin && <NavItem collapsed={rail} to="/settings" icon="settings" label="Settings" />}
+        <WhatsNewNavItem collapsed={rail} />
         <Link
           to={`/u/${user?.username ?? 'me'}`}
           aria-label={rail ? (user?.name ?? 'Profile') : undefined}

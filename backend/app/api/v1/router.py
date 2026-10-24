@@ -30,6 +30,7 @@ from app.api.v1 import (
     backlog_categories,
     queue,
     mcp,
+    whats_new,
 )
 
 api_router = APIRouter()
@@ -62,3 +63,4 @@ api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(search.features_router, prefix="/features", tags=["search"])
 api_router.include_router(search.settings_router, prefix="/settings/search", tags=["search"])
 api_router.include_router(support.router, prefix="/support", tags=["support"])
+api_router.include_router(whats_new.router, prefix="/whats-new", tags=["whats-new"])

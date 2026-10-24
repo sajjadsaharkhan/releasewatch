@@ -396,6 +396,14 @@ export const mcpApi = {
   revokeAny: (id) => api.post(`/settings/mcp/tokens/${id}/revoke`),
 }
 
+// ─── What's new (TASK-575) ────────────────────────────────────────────────────
+export const whatsNewApi = {
+  // → { notes: [{id, date, title, summary, seen, highlights: [{kind, title, icon, body, tour}]}], show }
+  //   — only the reader's team's highlights; `show` is the note whose modal opens now.
+  list: () => api.get('/whats-new'),
+  markSeen: (noteIds) => api.post('/whats-new/seen', { note_ids: noteIds }),
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export const settingsApi = {
   getTelegramIntegration: () => api.get('/settings/integrations/telegram'),

@@ -5,6 +5,9 @@ services:
   api:
     volumes:
       - ./backend:/app
+      # Read-only, for `make test`: the What's new notes test checks that every
+      # tour anchor exists as a data-tour attribute (tests/test_whats_new.py).
+      - ./frontend/src:/frontend-src:ro
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       ENVIRONMENT: development

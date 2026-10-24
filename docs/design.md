@@ -900,6 +900,8 @@ entirely on the border.
 
 `z-50` dialog root, tooltip, mobile menu overlay · `z-[100]` portaled dropdowns, select
 panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing else does.
+The feature tour is the one exception above it: its dim layer is `z-[90]` and its card
+`z-[101]`, so the card stays readable over a menu the tour has just opened (TASK-575).
 
 ---
 
@@ -944,6 +946,24 @@ should use the primitive rather than re-declaring the classes. **Choosing a proj
 always a searchable picker** — `ProjectSwitcher` or `UserPicker` — never a `Select` or `Dropdown`
 listing them; `Select` is for short fixed lists (timezone, environment, backlog category).
 
+### What's new and feature tours — `components/whatsnew` (TASK-575)
+
+Chosen from prototype preset A (2026-10-24, branch `prototype/whats-new`). Notes are
+Markdown files in `backend/app/whats_new/notes/`, written per team (Support / Tech, admin is
+Tech) by `backend/app/whats_new/AUTHORING.md`; `GET /whats-new` sends only the reader's
+team's highlights. **Modal** (`WhatsNewModal`): the newest unseen note with something new
+or improved opens once, after the page goes idle — sparkle chip, "What's new · date", the
+team's title and summary, highlight rows (icon chip, title, New blue / Improved purple pill,
+one line, **Show me**), then "Fixed" with green checks; footer **All updates**, **Got it**,
+**Take the tour**. Any close counts as seen. **Changelog** (`WhatsNewSheet`): a right sheet
+of every note, "New" on those unseen when it opened, **Take the tour** per note; opened from
+the sidebar's **What's new** (blue dot while anything is unseen) or the avatar menu.
+**Tour** (`FeatureTour`): an SVG-mask spotlight on the `data-tour` control and a 300px card
+(step count, gliding dot, title, one line, Skip / Back / Next or "Click it to go on" on a
+click step). The page stays live; a person does click steps for real. Moving to the next
+highlight's journey closes open overlays; a control that never appears is skipped after
+1.5s. Dev only: `?whats-new=replay` reopens the newest note.
+
 ### Overlay convention
 
 `Dropdown` and `Select` both: render into `document.body` via `createPortal`, position
@@ -980,6 +1000,11 @@ All keyframes live in `globals.css`. Signature easing for entrances is
 | Switch thumb | 200ms | ease-in-out |
 | Sidebar width (collapse / expand) | 200ms | signature; none under `prefers-reduced-motion` |
 | `agent-sheen` (the Agent badge's gradient word, hover only) | 1.6s loop | linear |
+| What's new modal / changelog / tour (`motion/react`, tokens in `lib/motion.js`) | modal 300ms, sheet 400ms, tour glide `spring.morph` | `ease.out` / `ease.soft`; dismiss `ease.away` |
+
+Motion-driven surfaces animate only opacity and `transform` strings (run on the compositor)
+and dim with a flat colour fade — no animated `backdrop-filter` or blur on large surfaces;
+that is what made the first What's new modal lag.
 
 Everything else is `transition-colors` (Tailwind's 150ms default) on hover and focus.
 Motion marks state change; it never decorates.

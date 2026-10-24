@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { NewIssueModal } from '../issues/NewIssueModal'
 import { useApp } from '../../hooks/useApp'
+import { WhatsNew } from '../whatsnew'
 
 export function AppShell() {
   const { newIssueOpen, setNewIssueOpen, onIssueCreated } = useApp()
@@ -23,6 +24,7 @@ export function AppShell() {
         </main>
       </div>
       <NewIssueModal open={newIssueOpen} onClose={handleClose} />
+      <WhatsNew />
     </div>
   )
 }

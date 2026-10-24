@@ -306,7 +306,7 @@ function Footer({ s, onClose, hint = true, extra }) {
       <div className="flex items-center gap-2">
         {extra}
         <Button variant="ghost" onClick={onClose} disabled={s.loading}>Cancel</Button>
-        <Button onClick={s.submit} loading={s.loading} disabled={s.isUploading || s.dataLoading}>
+        <Button onClick={s.submit} loading={s.loading} disabled={s.isUploading || s.dataLoading} data-tour="new-issue-submit">
           {s.loading ? 'Creating…' : s.isTask ? 'Create task' : 'Create bug'}
         </Button>
       </div>
@@ -417,7 +417,7 @@ function TitleInput({ s, big, autoFocus = true }) {
       <input
         ref={ref} value={s.form.title} onChange={(e) => s.set('title', e.target.value)}
         placeholder={s.isTask ? 'What needs doing?' : 'What went wrong?'}
-        aria-label="Title" aria-invalid={!!s.errors.title}
+        aria-label="Title" aria-invalid={!!s.errors.title} data-tour="new-issue-title"
         className={cn(
           'w-full bg-transparent placeholder:text-muted-foreground/60 focus:outline-none',
           big ? 'text-lg font-semibold' : 'h-9 rounded-md border border-input px-3 text-sm focus-visible:ring-1 focus-visible:ring-ring',

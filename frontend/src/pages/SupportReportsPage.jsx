@@ -138,7 +138,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
           </p>
         </div>
         {canSubmitSupportReport(user?.role) && (
-          <Button onClick={() => navigate('/support/new')}>
+          <Button onClick={() => navigate('/support/new')} data-tour="support-new-report">
             <Icon name="plus" size={14} aria-hidden />
             New report
           </Button>
