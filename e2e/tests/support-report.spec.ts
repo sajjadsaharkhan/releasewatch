@@ -40,9 +40,10 @@ test('support files a report that reaches the triage queue', async ({ browser })
   // 1. Only projects with an active template are offered (same picker as New issue).
   //    With a single project and a single template, both are preselected.
   await modal.getByRole('button', { name: /E2E Product/ }).click()
-  await expect(page.getByRole('button', { name: 'E2E Product', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'E2E Internal Tools', exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'E2E Product', exact: true }).click()
+  const projects = page.getByRole('listbox', { name: 'Projects' })
+  await expect(projects.getByRole('option', { name: /E2E Product/ })).toBeVisible()
+  await expect(projects.getByRole('option', { name: /E2E Internal Tools/ })).toHaveCount(0)
+  await projects.getByRole('option', { name: /E2E Product/ }).click()
   await expect(modal.getByText('Online class problem', { exact: true })).toBeVisible()
   await expect(modal.getByText('When the class started.')).toBeVisible()
 

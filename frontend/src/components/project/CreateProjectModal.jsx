@@ -4,7 +4,8 @@ import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Dialog } from '../ui/Dialog'
-import { Select, SelectItem } from '../ui/Select'
+// Direct path: common/ProjectSwitcher imports ../project, so the barrel would cycle.
+import { UserPicker } from '../common/UserPicker'
 import { teamApi } from '../../lib/api'
 
 const PROJECT_COLORS = [
@@ -89,28 +90,13 @@ export function CreateProjectModal({ open, onClose, onCreate }) {
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Triage lead</label>
-          <Select
-            value={form.triageLeadId}
-            onChange={(val) => setForm((f) => ({ ...f, triageLeadId: val }))}
+          <UserPicker
+            users={teamMembers}
+            value={form.triageLeadId || null}
+            onChange={(id) => setForm((f) => ({ ...f, triageLeadId: id }))}
+            emptyLabel={null}
             placeholder="Choose a triage lead"
-          >
-            {teamMembers.map((member) => (
-              <SelectItem key={member.id} value={member.id}>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
-                    style={{ backgroundColor: member.avatar_color || '#6b7280' }}
-                  >
-                    {(member.name || member.username || '?')[0].toUpperCase()}
-                  </span>
-                  <span>{member.name || member.username}</span>
-                  {member.title && (
-                    <span className="text-muted-foreground text-xs">· {member.title}</span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </Select>
+          />
         </div>
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

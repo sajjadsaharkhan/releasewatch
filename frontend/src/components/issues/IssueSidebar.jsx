@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, CheckCheck, Clock, Eye, RotateCcw, Undo2, Play, Unlock } from 'lucide-react'
+import { CheckCheck, Clock, Eye, RotateCcw, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -8,6 +8,7 @@ import { Switch } from '../ui/Switch'
 import { DatePicker } from '../ui/DatePicker'
 import { Icon } from '../ui/Icon'
 import { LabelChip } from '../common/LabelChip'
+import { UserPicker } from '../common/UserPicker'
 import { BacklogCategoryBadge } from '../common/BacklogCategoryBadge'
 import { ContainerBadge } from '../common/ContainerBadge'
 import { useContainers } from '../../hooks/useContainers'
@@ -159,40 +160,24 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             </span>
           }
         >
-        <Dropdown
-          width={220}
-          trigger={
-            <button className="inline-flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-              {assignee
-                ? <><Avatar user={assignee} size={18} /><span>{assignee.name}</span></>
-                : <span className="text-zinc-400">Unassigned</span>}
-              <ChevronDown size={12} className="text-zinc-400 ml-1" />
-            </button>
-          }
-        >
-          {({ close }) => (
-            <>
-              <DropdownLabel>Assign to</DropdownLabel>
-              {teamUsers.map(u => (
-                <DropdownItem key={u.id} onClick={() => {
-                  close()
-                  if (String(u.id) === String(issue.assignee_id)) return
-                  onConfirm({
-                    title: `Reassign ${noun}?`,
-                    body: <span>Assign this {noun} to <strong>{u.name}</strong>{assignee ? <> (currently <strong>{assignee.name}</strong>)</> : ''}?</span>,
-                    confirmLabel: 'Reassign',
-                    onConfirm: () => applyUpdate({ assignee_id: u.id }, 'Assignee updated'),
-                  })
-                }}>
-                  <Avatar user={u} size={18} />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span>{u.name}</span>
-                  </div>
-                </DropdownItem>
-              ))}
-            </>
-          )}
-        </Dropdown>
+        <UserPicker
+          variant="inline"
+          // A current assignee who's no longer assignable is still named on the trigger.
+          users={assignee && !teamUsers.some((u) => String(u.id) === String(assignee.id)) ? [assignee, ...teamUsers] : teamUsers}
+          value={issue.assignee_id ?? null}
+          emptyLabel={null}
+          placeholder="Unassigned"
+          onChange={(id) => {
+            const u = teamUsers.find((x) => String(x.id) === String(id))
+            if (!u || String(u.id) === String(issue.assignee_id)) return
+            onConfirm({
+              title: `Reassign ${noun}?`,
+              body: <span>Assign this {noun} to <strong>{u.name}</strong>{assignee ? <> (currently <strong>{assignee.name}</strong>)</> : ''}?</span>,
+              confirmLabel: 'Reassign',
+              onConfirm: () => applyUpdate({ assignee_id: u.id }, 'Assignee updated'),
+            })
+          }}
+        />
         </Editable>
       </MetaRow>
 

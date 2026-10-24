@@ -913,7 +913,8 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `Avatar` / `AvatarGroup` | `size` in px; group overlaps −8px, `max` then `+N` |
 | `Switch` · `Slider` · `Calendar` · `DatePicker` · `Popover` · `Icon` | — |
 | `IssueHoverCard` (`components/common`) | A work item's key as a chip link — type icon in its hue + mono key (`issueId`, `label`) that shows its card on hover or focus — key, status, priority, source, title, assignee, project. Fetched on first hover. The item-side twin of `UserHoverCard`; use it wherever copy names another item |
-| `UserPicker` (`components/common`) | Single-select person picker with search by full name or username (`@username` shown per row); `users`, `value` (id or null), `onChange`, `emptyLabel` (default "Unassigned"; falsy makes a choice required). Arrow keys + Enter, Escape closes. Use it wherever a list of people is long enough to scan |
+| `UserPicker` (`components/common`) | Single-select person picker with search by full name or username (`@username` shown per row); `users`, `value` (id or null), `onChange`, `emptyLabel` (default "Unassigned"; falsy makes a choice required). Arrow keys + Enter; Escape closes the menu only, not a dialog around it. `variant="inline"` is the borderless text trigger of the item sidebar's rows (avatar + name + 12px chevron) — the sidebar's Assignee row uses it and still confirms before reassigning; the menu is at least 280px wide. **Prefer it for every person field** (assignee in New issue, triage and the item sidebar; triage lead in Create/Edit project) over a `Select` or `Dropdown` of people |
+| `ProjectSwitcher` (`components/common`) | The one project picker — topbar (`compact`, `width`), New issue, New support report. Search by name, slug or description; rows are colour tile + name + mono slug (+ `NeedsTriageLeadBadge`). With more than five projects, the last three picked (`localStorage` `rw.recentProjects`, shared by every switcher) sit under **Recent** above **All projects**. Arrow keys + Enter; Escape closes the menu only, not a dialog around it. **Prefer it for every project field** over a `Select` or `Dropdown` of projects — a plain list stops scaling past a handful of projects (BUG-574) |
 | `ActionButton` / `GatedButton` (`components/common`) | `ActionButton`: `action` + `item`, see §3 Role. `GatedButton`: `allowed` + `reason`, for role-level gates. Both render a disabled `Button` inside a focusable wrapper so the tooltip still opens |
 
 | `Checkbox` (`components/ui`) | `checked`, `indeterminate` ("mixed"), `onCheckedChange(next, event)` — the event carries `shiftKey` for ranges; clicks don't bubble, so it sits inside clickable rows |
@@ -926,7 +927,9 @@ panels, toast stack. Overlays that must clear a dialog get `z-[100]`; nothing el
 | `ReportedCount` (`components/common`) | `count` — `repeat` icon + `×N` in violet, tooltip and screen-reader text "Reported N times"; renders nothing at 1. The one way lists show `recurrence_count`: inline after the title in `IssueTable` and Support reports rows, beside the key on board cards and in the triage queue. Never a column — most rows would read 1. Violet matches recurrence timeline entries and stays clear of the Rejected pill's amber→red scale and the priority pills |
 | `ReportRecurrenceButton` / `RecurrenceDialog` (`components/issues`) | The Report recurrence control for one bug (slice 07): `item`, `onReported(updatedItem)`, `compact` (icon-only with tooltip, for table rows). State and reason come from `report_recurrence` in the item's `allowed_actions` / `blocked_actions`; on a Done bug it's disabled with the FR-16 text (no "New report referencing this" link — removed 2026-09-30; `/support/new?ref=<key>` still prefills if linked to). Recurrence timeline entries are comment cards in violet with a `repeat` icon, no edit/delete/reactions |
 Compose from these. A new one-off panel that is really a card, a dialog, or an empty state
-should use the primitive rather than re-declaring the classes.
+should use the primitive rather than re-declaring the classes. **Choosing a project or a person is
+always a searchable picker** — `ProjectSwitcher` or `UserPicker` — never a `Select` or `Dropdown`
+listing them; `Select` is for short fixed lists (timezone, environment, backlog category).
 
 ### Overlay convention
 
@@ -1124,3 +1127,6 @@ Real inconsistencies in the current code. Fix opportunistically; do not propagat
 10. **`Sidebar` imports `cn`, `ProjectSwitcher`, `activeProjectId` and `switchProject`
     and uses none of them** — leftovers from when the project switcher lived in the
     sidebar rather than the topbar. Lint noise, not a design issue.
+11. **`MoveDialog`'s Project field is a `Select`**, not `ProjectSwitcher` (see §7 Item
+    placement) — it predates the searchable switcher and carries a "· current" suffix and a
+    Reset link the switcher doesn't have yet.

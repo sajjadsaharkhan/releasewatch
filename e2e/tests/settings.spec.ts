@@ -130,6 +130,50 @@ test('the timezone select opens anchored to its trigger and saves', async ({ bro
   await ctx.close()
 })
 
+test('the triage lead is picked by searching people', async ({ browser }) => {
+  const { ctx, page } = await asRole(browser, 'admin')
+  const team = await api(page, 'GET', '/team')
+  const idOf = (username: string) => team.find((m: { username: string }) => m.username === username).id
+  await page.goto('/settings?tab=projects')
+
+  // The innermost element holding both the project's name and an Edit button is its row.
+  const row = page.locator('div')
+    .filter({ has: page.getByText('E2E Internal Tools', { exact: true }) })
+    .filter({ has: page.getByRole('button', { name: 'Edit', exact: true }) })
+    .last()
+  await row.getByRole('button', { name: 'Edit', exact: true }).click()
+  const modal = page.getByRole('heading', { name: 'Edit project' }).locator('xpath=ancestor::div[contains(@class,"dialog-enter")]')
+  const lead = modal.getByRole('button', { name: /E2E QA/ })
+  await expect(lead).toBeVisible()
+
+  // Escape in the search closes the menu, not the dialog.
+  await lead.click()
+  const search = page.getByLabel('Search people')
+  await expect(search).toBeFocused()
+  await search.press('Escape')
+  await expect(search).toBeHidden()
+  await expect(modal).toBeVisible()
+
+  // A lead is required, so there's no "Unassigned" row; search narrows the list.
+  await lead.click()
+  await expect(page.getByRole('option', { name: /Unassigned/ })).toHaveCount(0)
+  await search.fill('developer')
+  await expect(page.getByRole('option')).toHaveCount(1)
+  await search.press('Enter')
+  await expect(modal.getByRole('button', { name: /E2E Developer/ })).toBeVisible()
+
+  await modal.getByRole('button', { name: 'Save changes' }).click()
+  await expect.poll(async () => {
+    const projects = await api(page, 'GET', '/projects')
+    return projects.find((p: { slug: string }) => p.slug === 'e2e-internal-tools').triage_lead_id
+  }).toBe(idOf('e2e-developer'))
+
+  // Projects are shared fixtures — put the seeded lead back.
+  await api(page, 'PATCH', '/projects/e2e-internal-tools', { triage_lead_id: idOf('e2e-qa') })
+
+  await ctx.close()
+})
+
 test('non-admins are redirected away from Settings', async ({ browser }) => {
   const { ctx, page } = await asRole(browser, 'developer')
   await page.goto('/settings')

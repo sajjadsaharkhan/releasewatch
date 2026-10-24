@@ -13,9 +13,11 @@ const MENU_MAX_HEIGHT = 300
  * mousedown and Escape, follows the trigger on scroll.
  *
  * `value` is a user id or null; `onChange(id | null)`. `emptyLabel` names the
- * "no user" option (omit it to make a choice required).
+ * "no user" option (omit it to make a choice required). `variant="inline"` is
+ * the borderless text trigger of the item sidebar's rows (avatar, name, small
+ * chevron); the menu is the same.
  */
-export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassigned', placeholder = 'Choose a person…', className }) {
+export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassigned', placeholder = 'Choose a person…', variant = 'field', className }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -45,7 +47,7 @@ export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassign
     const rect = triggerRef.current.getBoundingClientRect()
     if (rect.bottom < 0 || rect.top > window.innerHeight) return false
     const padding = 12
-    const width = Math.max(rect.width, 240)
+    const width = Math.max(rect.width, 280)
     const left = Math.max(padding, Math.min(rect.left, window.innerWidth - width - padding))
     const spaceBelow = window.innerHeight - rect.bottom
     const flip = spaceBelow < MENU_MAX_HEIGHT + 8 && rect.top > spaceBelow
@@ -106,7 +108,9 @@ export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassign
       e.preventDefault()
       if (options[active]) choose(options[active])
     } else if (e.key === 'Escape') {
+      // Close the menu only, not the dialog it sits in.
       e.preventDefault()
+      e.stopPropagation()
       close()
       triggerRef.current?.focus()
     }
@@ -179,13 +183,21 @@ export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassign
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 px-3 py-1 text-left text-sm',
-          'rounded-[var(--radius)] border border-input bg-transparent transition-colors hover:bg-accent/50',
+          variant === 'inline'
+            ? 'inline-flex items-center gap-2 rounded text-zinc-800 dark:text-zinc-200'
+            : 'flex h-9 w-full items-center justify-between gap-2 px-3 py-1 text-left text-sm rounded-[var(--radius)] border border-input bg-transparent transition-colors hover:bg-accent/50',
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
           className,
         )}
       >
-        {selected ? (
+        {variant === 'inline' ? (
+          <>
+            {selected
+              ? <><Avatar user={selected} size={18} /><span>{selected.name}</span></>
+              : <span className="text-zinc-400">{emptyLabel || placeholder}</span>}
+            <ChevronDown size={12} className="ml-1 text-zinc-400" aria-hidden="true" />
+          </>
+        ) : selected ? (
           <span className="flex min-w-0 items-center gap-2">
             <Avatar user={selected} size={18} />
             <span className="truncate text-foreground">{selected.name}</span>
@@ -196,7 +208,7 @@ export function UserPicker({ users = [], value, onChange, emptyLabel = 'Unassign
             {emptyLabel || placeholder}
           </span>
         )}
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {variant !== 'inline' && <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
       </button>
       {menu && createPortal(menu, document.body)}
     </>
