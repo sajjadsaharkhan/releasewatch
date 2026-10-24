@@ -55,7 +55,7 @@ test('Move an item from the Stream to the backlog, then to a release', async ({ 
 
   // ── Stream → backlog, with a category ────────────────────────────────────
   await openMove()
-  const destinations = page.getByRole('radiogroup', { name: 'Destination' })
+  const destinations = page.getByRole('radiogroup', { name: 'Placement' })
   await expect(destinations.getByRole('radio', { name: /Stream/ })).toHaveCount(0) // it's there already
   await expect(destinations.getByRole('group', { name: 'Releases' })).toContainText(version)
   await destinations.getByRole('radio', { name: /Backlog/ }).click()

@@ -1,11 +1,13 @@
 import { test, expect, type Browser, type Page, type Locator } from '@playwright/test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { PASSWORD } from '../roles.js'
 
 // Key screen 3 — My Work (docs/phase-2/10-personal-queue.md, redesigned
 // 2026-10-01 from prototype variant D). Each test seeds its own items with a
 // unique stamp; other specs also assign work to E2E Developer, so every order
-// check is relative to this test's items.
+// check is relative to this test's items, and polls: the server re-sorts after
+// each action, and under the full parallel run that can land after a one-shot read.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const auth = (role: string) => path.join(__dirname, '..', '.auth', `${role}.json`)
@@ -30,6 +32,18 @@ async function asRole(browser: Browser, role: string) {
   const ctx = await browser.newContext({ storageState: auth(role) })
   const page = await ctx.newPage()
   await page.goto('/inbox')
+  return { ctx, page }
+}
+
+/** Signs in as a seeded user that isn't one of the global-setup roles. */
+async function asUser(browser: Browser, username: string) {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await page.goto('/login')
+  await page.getByLabel('Username').fill(username)
+  await page.getByLabel('Password').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.waitForURL(/\/(dashboard|inbox)$/)
   return { ctx, page }
 }
 
@@ -70,7 +84,9 @@ test('list: default order, drag to reorder, pin, and change priority', async ({ 
   const run = Date.now()
   const [first, second, third] = [`Crit ${run}`, `High ${run}`, `Med ${run}`]
   const mine = [first, second, third]
-  const { ctx, page: dev } = await asRole(browser, 'developer')
+  // Its own queue owner: Unpin re-places above the first lower-ranked item in
+  // the whole queue, so a parallel test's item in between would move it.
+  const { ctx, page: dev } = await asUser(browser, 'e2e-queue')
   const { make } = await seed(dev)
   await make(first, 'critical')
   await make(third, 'medium')
@@ -79,7 +95,7 @@ test('list: default order, drag to reorder, pin, and change priority', async ({ 
   // ── Default order: priority first ──────────────────────────────────────
   await dev.goto('/my-work')
   await expect(row(dev, third)).toBeVisible()
-  expect(await orderOf(dev.locator('main'), mine)).toEqual([first, second, third])
+  await expect.poll(() => orderOf(dev.locator('main'), mine)).toEqual([first, second, third])
 
   // ── Move the third above the first with the keyboard; it survives a reload ─
   // (Space lifts, arrows move one slot, Space drops — dnd-kit's keyboard sensor.)
@@ -98,26 +114,26 @@ test('list: default order, drag to reorder, pin, and change priority', async ({ 
   await saved
   await dev.reload()
   await expect(row(dev, third)).toBeVisible()
-  expect(await orderOf(dev.locator('main'), mine)).toEqual([third, first, second])
+  await expect.poll(() => orderOf(dev.locator('main'), mine)).toEqual([third, first, second])
 
   // ── Pin the second: it moves to Pinned, and the slot count says so ─────
   await row(dev, second).getByRole('button', { name: `Pin ${second}` }).click()
   const pinned = dev.getByTestId('section-pinned')
   await expect(pinned.getByTestId('queue-row').filter({ hasText: second })).toBeVisible()
   await expect(pinned).toContainText(/Pinned · \d of 4/)
-  expect(await orderOf(dev.locator('main'), mine)).toEqual([second, third, first])
+  await expect.poll(() => orderOf(dev.locator('main'), mine)).toEqual([second, third, first])
 
   // ── Change the third's priority to Low: the default rule re-places it ──
   await row(dev, third).getByRole('button', { name: /^Priority: Medium/ }).click()
   await dev.getByRole('button', { name: 'Low', exact: true }).click()
   await expect(dev.getByText(/is Low now/)).toBeVisible()
   await expect(row(dev, third).getByRole('button', { name: /^Priority: Low/ })).toBeVisible()
-  expect(await orderOf(dev.locator('main'), mine)).toEqual([second, first, third])
+  await expect.poll(() => orderOf(dev.locator('main'), mine)).toEqual([second, first, third])
 
   // ── Unpin: it goes back by the default rule ────────────────────────────
   await row(dev, second).getByRole('button', { name: `Unpin ${second}` }).click()
   await expect(pinned.getByTestId('queue-row').filter({ hasText: second })).toHaveCount(0)
-  expect(await orderOf(dev.locator('main'), mine)).toEqual([first, second, third])
+  await expect.poll(() => orderOf(dev.locator('main'), mine)).toEqual([first, second, third])
   await ctx.close()
 })
 
@@ -220,7 +236,9 @@ test('board: same order as the list, drag changes status, hover shows key and du
   const run = Date.now()
   const [one, two] = [`Board one ${run}`, `Board two ${run}`]
   const due = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10)
-  const { ctx, page: dev } = await asRole(browser, 'developer')
+  // Its own queue owner: an item another test adds mid-drag reflows the column
+  // and the drag lands on the wrong spot.
+  const { ctx, page: dev } = await asUser(browser, 'e2e-board')
   const { make } = await seed(dev)
   const oneItem = await make(one, 'critical', { due_date: due })
   await make(two, 'high')
@@ -233,7 +251,7 @@ test('board: same order as the list, drag changes status, hover shows key and du
   await expect(dev).toHaveURL(/view=board/)
   const todo = dev.getByTestId('board-column-todo')
   await expect(todo.getByText(two)).toBeVisible()
-  expect(await boardOrder(todo, [one, two])).toEqual(listOrder)
+  await expect.poll(() => boardOrder(todo, [one, two])).toEqual(listOrder)
 
   // Hover a card: its key and due date.
   await todo.getByTestId('work-item').filter({ hasText: one }).hover()
@@ -242,6 +260,9 @@ test('board: same order as the list, drag changes status, hover shows key and du
   await expect(details).toContainText(oneItem.key)
   await expect(details).toContainText('Due ')
   await dev.mouse.move(5, 5)
+  // The details card sits over the next card until it closes; a drag that
+  // starts on it selects text instead of picking the card up.
+  await expect(details).toBeHidden()
 
   // Drag the second card into In progress.
   const card = todo.getByTestId('work-item').filter({ hasText: two })

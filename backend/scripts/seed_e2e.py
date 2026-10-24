@@ -57,6 +57,14 @@ VETERAN_USERS = [
 ]
 VETERAN_JOINED = datetime(2026, 1, 1, tzinfo=UTC)
 
+#: Queues no other scenario writes to, one per personal-board.spec.ts test that
+#: depends on the whole queue (its order, or cards staying put while dragged):
+#: every spec runs in parallel, and other scenarios assign work to E2E Developer.
+QUEUE_OWNERS = [
+    ("e2e-queue", "E2E Queue Owner", UserRole.developer),
+    ("e2e-board", "E2E Board Owner", UserRole.developer),
+]
+
 
 async def _wipe(session: AsyncSession) -> None:
     table_names = [t.name for t in Base.metadata.sorted_tables if t.name != "alembic_version"]
@@ -81,6 +89,12 @@ async def seed(session: AsyncSession) -> None:
         )
         session.add(user)
         users[username] = user
+    for username, name, role in QUEUE_OWNERS:
+        users[username] = User(
+            name=name, username=username, hashed_password=get_password_hash(E2E_PASSWORD),
+            role=role, is_active=True,
+        )
+        session.add(users[username])
     for username, name, role in VETERAN_USERS:
         user = User(
             name=name,
