@@ -10,7 +10,7 @@ import enum
 from datetime import date, datetime
 
 from sqlalchemy import (
-    CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, event, text,
+    CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, event, func, text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -124,10 +124,10 @@ class Release(Base):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()", onupdate=datetime.utcnow
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=datetime.utcnow
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None

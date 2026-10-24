@@ -8,7 +8,7 @@ local password *and* a Keycloak or LDAP login).  The durable link is the pair
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -35,7 +35,7 @@ class UserIdentity(Base):
         doc="Stable id from the provider (Keycloak 'sub' UUID, AD objectGUID/UPN)",
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────

@@ -157,7 +157,10 @@ async def _numbers(factories, fx, db_session):
     }
 
 
-#: Captured from the Phase 1 implementation (2026-09-30), before the port.
+#: Captured from the Phase 1 implementation (2026-09-30), before the port. The
+#: per-release series run oldest to newest; they were pinned newest-first while
+#: releases.created_at was frozen (every release the same time, so the order was
+#: a tie-break) — fixed 2026-10-24 (migration c0d1e2f3a4b5).
 PHASE1_NUMBERS = {
     "release_regression_count": {"r1": 2, "r2": 1},
     "global_rate": 100.0,
@@ -165,12 +168,12 @@ PHASE1_NUMBERS = {
     "most_fragile": "ui",
     "rate_by_release": {"9.2.0": 100.0, "9.1.0": 100.0},
     "priority_by_release": [
-        {"release": "9.2.0", "critical": 0, "high": 0, "medium": 0, "low": 1},
         {"release": "9.1.0", "critical": 1, "high": 1, "medium": 0, "low": 0},
+        {"release": "9.2.0", "critical": 0, "high": 0, "medium": 0, "low": 1},
     ],
     "label_rates": [
-        {"release": "9.2.0", "ui": 0.0, "api": 0.0, "db": 33.3},
         {"release": "9.1.0", "ui": 100.0, "api": 50.0, "db": 0.0},
+        {"release": "9.2.0", "ui": 0.0, "api": 0.0, "db": 33.3},
     ],
     "detectors": [("admin", 1), ("qa", 4)],
     "rework_regressions": [("dev", 5)],
@@ -227,8 +230,8 @@ async def test_stream_and_task_cycles_do_not_change_phase1_reports(
         **PHASE1_NUMBERS,
         "metrics_rate": round(3 / 7 * 100, 1),
         "label_rates": [
-            {"release": "9.2.0", "ui": 0.0, "api": 0.0, "db": 33.3},
             {"release": "9.1.0", "ui": 66.7, "api": 33.3, "db": 0.0},
+            {"release": "9.2.0", "ui": 0.0, "api": 0.0, "db": 33.3},
         ],
     }
     assert numbers == expected
