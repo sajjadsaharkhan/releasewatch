@@ -152,6 +152,8 @@ function AppInner() {
       if (e.key === 'c' && !e.metaKey && !e.ctrlKey) {
         const tag = document.activeElement?.tagName?.toLowerCase()
         if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+          // Without this the same keypress types a "c" into the title it focuses.
+          e.preventDefault()
           setNewIssueOpen(true)
         }
       }
