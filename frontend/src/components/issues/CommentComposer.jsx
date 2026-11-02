@@ -122,8 +122,17 @@ export function CommentComposer({
     const ta = taRef.current
     if (!ta) return
     const { newVal, cursor } = edit(ta)
-    setBody(newVal)
-    onChange?.(newVal)
+    // Replace the text through the browser's own edit pipeline so Ctrl+Z still
+    // undoes toolbar edits; a programmatic value change wipes the undo stack.
+    // The resulting input event reaches onChange, so state follows by itself.
+    ta.focus()
+    ta.setSelectionRange(0, ta.value.length)
+    let done = false
+    try { done = document.execCommand('insertText', false, newVal) } catch { done = false }
+    if (!done || ta.value !== newVal) {
+      setBody(newVal)
+      onChange?.(newVal)
+    }
     setTimeout(() => {
       ta.focus()
       ta.setSelectionRange(cursor, cursor)

@@ -305,7 +305,8 @@ export function renderMarkdown(text, { diagramDelay = 0 } = {}) {
           // column, never widen it — a 677-char token once gave <main> an
           // h-scrollbar (bug-344, 2026-10-06)
           { key: key(), className: 'text-sm leading-relaxed my-2 break-words' },
-          inlineMd(paraLines.join(' '))
+          // a single newline is a line break (comment-box semantics, bug-812)
+          paraLines.flatMap((l, idx) => (idx === 0 ? inlineMd(l) : [React.createElement('br', { key: key() }), ...inlineMd(l)]))
         )
       )
     }
