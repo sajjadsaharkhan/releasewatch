@@ -182,6 +182,7 @@ class TimelineService:
         event_id: int,
         body: str,
         current_user: User,
+        mentioned_user_ids: list[int] | None = None,
     ) -> IssueTimeline:
         """Edit the body of a ``comment`` timeline event.
 
@@ -197,6 +198,8 @@ class TimelineService:
             New comment body text.
         current_user:
             The authenticated user making the edit.
+        mentioned_user_ids:
+            Replaces the stored mentions when given; ``None`` keeps them.
 
         Returns
         -------
@@ -244,6 +247,8 @@ class TimelineService:
             # the note away from the agent.
             "edited_via_mcp_token_id": current_agent_token_id(),
         }
+        if mentioned_user_ids is not None:
+            event.meta = {**event.meta, "mentioned_user_ids": [str(u) for u in mentioned_user_ids]}
         db.add(event)
         await db.flush()
         search_index.enqueue(db, event.issue_id)

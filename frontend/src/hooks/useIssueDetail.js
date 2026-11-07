@@ -303,7 +303,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
   const updateComment = async (commentId, body, isInternal, mentionedUserIds, editedAt) => {
     const id = issueIdRef.current
     try {
-      await timelineApi.updateComment(id, commentId, { body })
+      await timelineApi.updateComment(id, commentId, { body, mentioned_user_ids: mentionedUserIds || [] })
       const patchItem = (item) =>
         item.id === commentId
           ? { ...item, body, is_internal: isInternal, mentioned_user_ids: mentionedUserIds || [], edited_at: editedAt }

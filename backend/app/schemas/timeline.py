@@ -26,6 +26,10 @@ class TimelineEventUpdate(BaseModel):
     """Payload for PATCH /issues/{id}/timeline/{event_id}."""
 
     body: str = Field(min_length=1)
+    mentioned_user_ids: Optional[List[int]] = Field(
+        default=None,
+        description="User IDs @mentioned in the edited body. Omit to leave mentions unchanged.",
+    )
 
 
 class ReactionCreate(BaseModel):

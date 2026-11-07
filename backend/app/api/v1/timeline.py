@@ -186,7 +186,10 @@ async def edit_comment(
 ) -> TimelineEventResponse:
     """Edit the body of a comment. Only the author (or admin) may edit."""
     await _visible_event(db, issue_id, event_id, current_user)
-    event = await timeline_service.edit_comment(db, event_id, payload.body, current_user)
+    event = await timeline_service.edit_comment(
+        db, event_id, payload.body, current_user,
+        mentioned_user_ids=payload.mentioned_user_ids,
+    )
     await db.commit()
 
     result = await db.execute(
