@@ -20,7 +20,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.db.models.inbox_item import InboxItem
-from app.db.models.issue import Issue
+from app.db.models.issue import Issue, issue_key
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.user import User
 from app.db.session import get_db
@@ -60,7 +60,7 @@ def _build_response(item: InboxItem) -> InboxItemResponse:
     issue_id = None
     issue_title = None
     if item.issue:
-        issue_id = f"issue-{item.issue.issue_number}"
+        issue_id = issue_key(item.issue.type, item.issue.issue_number).lower()
         issue_title = item.issue.title
 
     release_info = None

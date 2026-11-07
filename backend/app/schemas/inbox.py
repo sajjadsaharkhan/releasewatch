@@ -38,7 +38,7 @@ class InboxItemResponse(BaseModel):
     type: InboxEventType
     read: bool
     actor: Optional[ActorInfo] = None
-    issue_id: Optional[str] = None   # "issue-{number}" format
+    issue_id: Optional[str] = None   # URL slug, e.g. "bug-12" / "task-13"
     issue_title: Optional[str] = None
     #: Set for release-only items (``release_shipped``, ``release_overdue``); ``issue_id`` is null.
     release: Optional[InboxReleaseInfo] = None

@@ -12,7 +12,7 @@ export function issueSlug(issue) {
   return `${prefix}-${issue.issue_number}`
 }
 
-const SLUG_RE = /^(?:bug|task|issue)-(\d+)$/
+const SLUG_RE = /^(?:bug|task|issue)-(\d+)$/i
 
 export function parseIssueSlug(slug) {
   const match = SLUG_RE.exec(slug ?? '')

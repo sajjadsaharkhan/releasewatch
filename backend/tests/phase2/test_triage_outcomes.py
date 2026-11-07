@@ -393,7 +393,7 @@ async def test_ac_20_duplicate_cancels_increments_and_subscribes(factories, rig,
     assert await support_feed(rig["support_client"]) == [
         "support_done", "status_changed:todo", "support_cancelled",
     ]
-    assert (await inbox(rig["support_client"]))[0]["issueId"] == f"issue-{original.issue_number}"
+    assert (await inbox(rig["support_client"]))[0]["issueId"] == f"bug-{original.issue_number}"
     assert [t for t, _ in telegram.sent_to(rig["support"])] == [
         "support_merged", "status_changed", "support_done",
     ]
@@ -781,7 +781,7 @@ async def test_support_mentioned_on_a_teammates_report_is_notified(factories, ri
     )
     items = await inbox(rig["other_support_client"])
     assert [i["type"] for i in items] == ["mention"]
-    assert items[0]["issueId"] == f"issue-{bug.issue_number}"
+    assert items[0]["issueId"] == f"bug-{bug.issue_number}"
 
 
 @pytest.mark.asyncio
@@ -810,7 +810,7 @@ async def test_merge_comment_credits_reporter(factories, rig):
     assert support_comment["mentioned_user_ids"] == [rig["support"].id]
 
     qa_mentions = [i for i in await inbox(rig["qa_client"]) if i["type"] == "mention"]
-    assert [i["issueId"] for i in qa_mentions] == [f"issue-{original.issue_number}"]
+    assert [i["issueId"] for i in qa_mentions] == [f"bug-{original.issue_number}"]
     assert await inbox_types(rig["support_client"]) == ["support_cancelled"]
 
 

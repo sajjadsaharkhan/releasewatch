@@ -54,7 +54,7 @@ from app.db.models.inbox_item import (
     ASSIGNEE_EVENTS, SUPPORT_EVENTS, SUPPORT_NOTICE_STATUSES, SUPPORT_RECEIVABLE, InboxItem,
     InboxEventType,
 )
-from app.db.models.issue import Issue, IssueSource
+from app.db.models.issue import Issue, IssueSource, issue_key
 from app.db.models.issue_timeline import IssueTimeline
 from app.db.models.system_setting import SystemSetting
 from app.db.models.user import User, UserRole
@@ -717,7 +717,7 @@ class InboxFanOutService:
 
             tg_frontend_url = (tg_cfg_setting.value or {}).get("frontend_url") if tg_cfg_setting else None
             frontend_base = (tg_frontend_url or app_settings.FRONTEND_URL).rstrip("/")
-            issue_slug = f"issue-{issue.issue_number}"
+            issue_slug = issue_key(issue.type, issue.issue_number).lower()
             issue_url = f"{frontend_base}/issue/{issue_slug}"
 
             # Build direct comment URL when a timeline event is linked.
@@ -782,8 +782,8 @@ class InboxFanOutService:
                 "due_date": _esc(_meta.get("due_date", "")),
                 "queue_url": f"{frontend_base}/my-work",
                 "merged_into_url": (
-                    f"{frontend_base}/issue/issue-{_meta['merged_into_number']}"
-                    if _meta.get("merged_into_number") else issue_url
+                    f"{frontend_base}/issue/{_meta['merged_into_key'].lower()}"
+                    if _meta.get("merged_into_key") else issue_url
                 ),
             }
 

@@ -32,7 +32,7 @@ async def test_explicit_mentioned_user_ids_creates_one_inbox_item(factories, cli
     inbox = await mentioned_client.get("/inbox", params={"event_type": "mention"})
     items = inbox.json()["items"]
     assert len(items) == 1
-    assert items[0]["issueId"] == f"issue-{issue.issue_number}"
+    assert items[0]["issueId"] == f"bug-{issue.issue_number}"
 
 
 @pytest.mark.asyncio

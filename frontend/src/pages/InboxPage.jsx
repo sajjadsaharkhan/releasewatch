@@ -455,7 +455,7 @@ export default function InboxPage() {
 
                   {/* Meta row */}
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="font-mono text-[11px] text-muted-foreground">{item.issueId}</span>
+                    <span className="font-mono text-[11px] text-muted-foreground uppercase">{item.issueId}</span>
                     {item.type === 'queue_changed' && item.meta?.old_index != null && (
                       <>
                         <span className="text-[11px] text-muted-foreground">·</span>
