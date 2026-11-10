@@ -271,5 +271,41 @@ test('board: same order as the list, drag changes status, hover shows key and du
   await dev.mouse.up()
   await moved
   await expect(dev.getByTestId('board-column-in_progress').getByText(two)).toBeVisible()
+  // The drop is not a click: the card is a link, and the page stays put.
+  await expect(dev).toHaveURL(/\/my-work\?view=board/)
+  await ctx.close()
+})
+
+test('items open in a new tab from the list and the board; a plain click stays in the tab', async ({ browser }) => {
+  const run = Date.now()
+  const title = `New tab ${run}`
+  const { ctx, page: dev } = await asRole(browser, 'developer')
+  const { make } = await seed(dev)
+  const item = await make(title, 'medium')
+  const href = `/issue/task-${item.issue_number}`
+
+  // ── List: the title is a link to the item's page ──────────────────────
+  await dev.goto('/my-work')
+  const link = row(dev, title).getByRole('link', { name: title })
+  await expect(link).toHaveAttribute('href', href)
+  const [listTab] = await Promise.all([ctx.waitForEvent('page'), link.click({ modifiers: ['ControlOrMeta'] })])
+  await listTab.waitForLoadState()
+  await expect(listTab).toHaveURL(new RegExp(`${href}$`))
+  await expect(listTab.getByText(title).first()).toBeVisible()
+  await listTab.close()
+  await expect(dev).toHaveURL(/\/my-work$/)
+
+  // ── Board: the card is a link too ──────────────────────────────────────
+  await dev.getByRole('button', { name: 'Board', exact: true }).click()
+  const card = dev.getByTestId('board-column-todo').getByRole('link', { name: new RegExp(title) })
+  await expect(card).toHaveAttribute('href', href)
+  const [boardTab] = await Promise.all([ctx.waitForEvent('page'), card.click({ button: 'middle' })])
+  await boardTab.waitForLoadState()
+  await expect(boardTab).toHaveURL(new RegExp(`${href}$`))
+  await boardTab.close()
+
+  // ── A plain click opens it here ────────────────────────────────────────
+  await card.click()
+  await expect(dev).toHaveURL(new RegExp(`${href}$`))
   await ctx.close()
 })

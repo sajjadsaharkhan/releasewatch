@@ -6,7 +6,10 @@ import { WorkItemCard } from './WorkItemCard'
 // A board card (Stream, release and personal boards): `WorkItemCard` made
 // draggable between columns (slice 10, P3 — cards look the same everywhere).
 export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  // Only the pointer listeners go on the card's link: the board has no keyboard
+  // drag, and dnd-kit's attributes (role="button" and its instructions) would
+  // hide that the card is a link.
+  const { listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: issue.id,
     disabled: readOnly,
     data: {
@@ -36,7 +39,7 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
         item={issue}
         onOpen={onOpen}
         dragging={isDragging}
-        buttonProps={{ ...listeners, ...attributes }}
+        linkProps={listeners}
       />
     </div>
   )

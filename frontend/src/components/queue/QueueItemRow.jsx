@@ -6,8 +6,11 @@ import {
   SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { PRIORITY } from '../../lib/constants'
+import { issuePath } from '../../lib/issueSlug'
+import { isPlainClick } from '../../lib/linkClick'
 import { relTime } from '../../lib/relTime'
 import { Dropdown, DropdownItem, DropdownLabel, DropdownSep } from '../ui/Dropdown'
 import { Icon } from '../ui/Icon'
@@ -196,13 +199,18 @@ export function QueueItemRow({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <TypeMark type={item.type} />
-            <button
-              type="button"
-              onClick={() => onOpen(item)}
+            {/* A real link, so Ctrl/Cmd-click, middle-click and "Open in new tab" work. */}
+            <Link
+              to={issuePath(item)}
+              onClick={(e) => {
+                if (!onOpen || !isPlainClick(e)) return
+                e.preventDefault()
+                onOpen(item)
+              }}
               className="truncate rounded text-left text-[13.5px] font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {item.title}
-            </button>
+            </Link>
             <BlockerBadge item={item} />
             <RejectedTag item={item} />
           </div>

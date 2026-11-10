@@ -40,3 +40,8 @@ export function parseIssueRef(text) {
   const prefix = match[1]?.toLowerCase()
   return { number: parseInt(match[2], 10), type: prefix === 'bug' || prefix === 'task' ? prefix : null }
 }
+
+// The app path of an item's own page: `/issue/bug-12`.
+export function issuePath(issue) {
+  return `/issue/${issueSlug(issue)}`
+}
