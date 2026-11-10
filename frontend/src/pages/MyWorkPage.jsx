@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { issuesApi, queueApi, userApi } from '../lib/api'
-import { issueSlug } from '../lib/issueSlug'
+import { issuePath } from '../lib/issueSlug'
 import { PRIORITY } from '../lib/constants'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
@@ -321,7 +321,7 @@ export default function MyWorkPage() {
     setSearchParams(next, { replace: true })
   }
   const setDoneRange = (range) => setSearchParams(writeDoneRange(searchParams, range), { replace: true })
-  const openItem = (issue) => navigate(`/issue/${issueSlug(issue)}`)
+  const openItem = (issue) => navigate(issuePath(issue))
   const historyPath = isOwner ? '/my-work/history' : `/u/${username}/work/history`
 
   const items = useMemo(() => (queue ? flatten(queue) : []), [queue])

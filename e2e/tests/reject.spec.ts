@@ -58,7 +58,7 @@ test('Reject an In review item, find it Rejected in To do, pick it up', async ({
   await page.goto(`/projects/${SLUG}/stream`)
   const todo = page.getByTestId('board-column-todo')
   const rejectedArea = todo.getByTestId('todo-area-rejected')
-  const card = rejectedArea.getByRole('button', { name: new RegExp(title) })
+  const card = rejectedArea.getByRole('link', { name: new RegExp(title) })
   await expect(card).toBeVisible()
   await expect(todo).toContainText(/\d+ rejected/)
   // The Rejected area comes before the plain To do area.
@@ -84,7 +84,7 @@ test('Reject an In review item, find it Rejected in To do, pick it up', async ({
     .toBe('in_progress')
   await page.goto(`/projects/${SLUG}/stream`)
   const inProgress = page.getByTestId('board-column-in_progress')
-  const picked = inProgress.getByRole('button', { name: new RegExp(title) })
+  const picked = inProgress.getByRole('link', { name: new RegExp(title) })
   await expect(picked).toBeVisible()
   await expect(picked.getByText('Cycle 2')).toBeAttached()
 })

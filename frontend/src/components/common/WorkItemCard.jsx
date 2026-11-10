@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '../../lib/cn'
 import { timelineApi } from '../../lib/api'
-import { issueKey } from '../../lib/issueSlug'
+import { issueKey, issuePath } from '../../lib/issueSlug'
+import { isPlainClick } from '../../lib/linkClick'
 import { relTime, formatDay } from '../../lib/relTime'
 import { CYCLE_REASON, PRIORITY, TECH_DEBT, TYPE } from '../../lib/constants'
 import { AgentBadge } from './AgentBadge'
@@ -290,8 +292,17 @@ function useHoverDetails() {
   return { open, pos, ref, show, hide, close, keep: () => clearTimeout(timer.current) }
 }
 
-/** A board card. `dragging` suppresses the hover details. */
-export function WorkItemCard({ item: raw, onOpen, dragging = false, className, buttonProps = {} }) {
+// How far the pointer may move between press and release and still count as a
+// click — the board's drag starts at 5px, so anything further was a drag.
+const CLICK_SLOP = 5
+
+/**
+ * A board card. It is a real link to the item's page, so Ctrl/Cmd-click,
+ * middle-click and "Open in new tab" work; a plain click runs `onOpen` instead.
+ * `dragging` suppresses the hover details. `linkProps` carries the drag
+ * listeners from `DraggableIssueCard`.
+ */
+export function WorkItemCard({ item: raw, onOpen, dragging = false, className, linkProps = {} }) {
   const item = normalize(raw)
   const hover = useHoverDetails()
   useEffect(() => { if (dragging) hover.close() }, [dragging]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -310,7 +321,21 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
     document.body,
   ) : null
 
-  const open = () => { hover.close(); onOpen?.(raw) }
+  const pressedAt = useRef(null)
+  const onPointerDownCapture = (e) => { pressedAt.current = { x: e.clientX, y: e.clientY } }
+  const onClick = (e) => {
+    const press = pressedAt.current
+    pressedAt.current = null
+    // The release that ends a drag is not a click: no navigation, no new tab.
+    if (e.detail > 0 && press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > CLICK_SLOP) {
+      e.preventDefault()
+      return
+    }
+    hover.close()
+    if (!onOpen || !isPlainClick(e)) return
+    e.preventDefault()
+    onOpen(raw)
+  }
   const label = `${item.key} ${item.title}`
   const cardType = TYPE[item.type] ?? TYPE.bug
 
@@ -323,14 +348,16 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
       data-testid="work-item"
       data-item-id={item.id}
     >
-      <button
-        type="button"
-        onClick={open}
+      <Link
+        to={issuePath(raw)}
+        draggable={false}
+        onPointerDownCapture={onPointerDownCapture}
+        onClick={onClick}
         onFocus={hover.show}
         onBlur={hover.hide}
         aria-label={label}
-        className="w-full rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        {...buttonProps}
+        className="block w-full rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        {...linkProps}
       >
         {(item.container || item.is_release_blocker) && (
           <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -358,7 +385,7 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, b
             <Assignee user={item.assignee} />
           </span>
         </div>
-      </button>
+      </Link>
       {details}
     </div>
   )
