@@ -8,7 +8,7 @@ const key = () => `md-${_keyCounter++}`
 // ─── Inline parser ────────────────────────────────────────────────────────────
 /**
  * Parse inline markdown into React elements.
- * Handles: **bold**, _italic_, ~~strike~~, `code`, @mention, [text](url), and
+ * Handles: **bold**, _italic_ (not inside a word: snake_case_names stay literal), ~~strike~~, `code`, @mention, [text](url), and
  * backslash escapes (`\*` → literal `*`) — support reports escape user-entered
  * values this way (backend/app/support_report.py).
  */
@@ -17,7 +17,7 @@ export function inlineMd(text) {
 
   // Tokenise with a combined regex
   const pattern =
-    /(\*\*(.+?)\*\*)|(_(.+?)_)|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/))[^)]+)\)|(@[\w]+)|\\([\\`*_[\]()~@<>#|!])/g
+    /(\*\*(.+?)\*\*)|((?<![\p{L}\p{N}_])_(.+?)_(?![\p{L}\p{N}_]))|(~~(.+?)~~)|(`(.+?)`)|\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/))[^)]+)\)|(@[\w]+)|\\([\\`*_[\]()~@<>#|!])/gu
 
   const elements = []
   let lastIndex = 0

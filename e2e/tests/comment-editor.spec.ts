@@ -61,3 +61,13 @@ test('Ctrl+Z undoes a keyboard-shortcut edit', async ({ browser }) => {
   await box.press('ControlOrMeta+z')
   await expect(box).toHaveValue('world')
 })
+
+test('underscores inside an identifier stay literal; _word_ is still italic (BUG-904)', async ({ browser }) => {
+  const { page, box } = await openComposer(browser)
+  await box.fill('app_Teacher_Select_Educational_Calendar_1 and _emphasis_')
+  await page.getByRole('tab', { name: 'Preview' }).click()
+  const p = page.locator('p', { hasText: 'app_Teacher' })
+  await expect(p).toContainText('app_Teacher_Select_Educational_Calendar_1')
+  await expect(p.locator('em')).toHaveCount(1)
+  await expect(p.locator('em')).toHaveText('emphasis')
+})
