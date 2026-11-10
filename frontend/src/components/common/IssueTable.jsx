@@ -1,8 +1,10 @@
 import React from 'react'
+import { Link, useHref } from 'react-router-dom'
 import { StatusBadge, Badge, Avatar, UserHoverCard, TypeIcon, PriorityBadge } from '../ui'
 import { LabelChip } from './LabelChip'
 import { relTime } from '../../lib/relTime'
-import { issueKey } from '../../lib/issueSlug'
+import { issueKey, issuePath } from '../../lib/issueSlug'
+import { isPlainClick } from '../../lib/linkClick'
 import { SourceBadge } from './SourceBadge'
 import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
@@ -56,6 +58,104 @@ export function IssueTableSkeleton({ rows = 10, hideAssignee = false, hideReport
   )
 }
 
+// One row. The ID and the title are real links to the item's page, so
+// Ctrl/Cmd-click, middle-click and the context menu's "Open in new tab" work
+// on them; the rest of the row does the same for Ctrl/Cmd/Shift-click and
+// middle-click. A plain click anywhere runs `onOpen` in this tab.
+function IssueRow({ issue: i, onOpen, hideAssignee, hideReporter, hideRelease, showProject }) {
+  const path = issuePath(i)
+  const href = useHref(path)
+  const assignee = i.assignee_user
+  const reporter = i.reporter_user
+  const labelsList = i.labels_detail ?? []
+
+  const openInNewTab = () => window.open(href, '_blank', 'noopener')
+  // Clicks on the links are theirs: the browser opens the new tab.
+  const onLink = (e) => e.target.closest('a') != null
+
+  const onLinkClick = (e) => {
+    if (!onOpen || !isPlainClick(e)) return
+    e.preventDefault()
+    onOpen(i)
+  }
+  const onRowClick = (e) => {
+    if (onLink(e) || e.button !== 0) return
+    if (isPlainClick(e)) onOpen?.(i)
+    else if (e.ctrlKey || e.metaKey || e.shiftKey) openInNewTab()
+  }
+  const onRowAuxClick = (e) => {
+    if (onLink(e) || e.button !== 1) return
+    e.preventDefault()
+    openInNewTab()
+  }
+
+  return (
+    <tr onClick={onRowClick} onAuxClick={onRowAuxClick} data-testid="issue-row"
+      className="border-b border-border cursor-pointer hover:bg-muted/50">
+      <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">
+        <Link to={path} onClick={onLinkClick} tabIndex={-1} className="inline-flex items-center gap-1">
+          <TypeIcon type={i.type} />
+          {issueKey(i)}
+        </Link>
+      </td>
+      <td className="px-2 py-2">
+        <div className="flex items-center gap-1.5">
+          {i.is_release_blocker && (
+            <Badge tone="red">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              Blocker
+            </Badge>
+          )}
+          {!i.is_release_blocker && <PriorityBadge priority={i.priority} />}
+          <Link to={path} onClick={onLinkClick}
+            className="text-foreground font-medium truncate max-w-[420px] rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {i.title}
+          </Link>
+          <SourceBadge source={i.source} />
+          <ReportedCount count={i.recurrence_count} />
+          <TechDebtMarker item={i} />
+          <CycleBadge item={i} />
+          {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        {i.status === 'rejected' ? <RejectedPill item={i} /> : <StatusBadge status={i.status} />}
+      </td>
+      {!hideAssignee && (
+        <td className="px-2 py-2">
+          {assignee ? (
+            <UserHoverCard user={assignee} size={25}>
+              <Avatar user={assignee} size={25} />
+            </UserHoverCard>
+          ) : <span className="text-[11px] text-muted-foreground italic">unassigned</span>}
+        </td>
+      )}
+      {!hideReporter && (
+        <td className="px-2 py-2">
+          {reporter ? (
+            <UserHoverCard user={reporter} size={25}>
+              <div className="flex items-center gap-1.5">
+                <Avatar user={reporter} size={25} />
+              </div>
+            </UserHoverCard>
+          ) : <span className="text-[11px] text-muted-foreground italic">—</span>}
+        </td>
+      )}
+      {!hideRelease && (
+        <td className="px-2 py-2 font-mono text-muted-foreground">
+          {i.release_version ?? <span className="opacity-40">—</span>}
+        </td>
+      )}
+      {showProject && (
+        <td className="px-2 py-2 text-[12px] text-muted-foreground truncate max-w-[100px]">
+          {i.project_name ?? <span className="opacity-40">—</span>}
+        </td>
+      )}
+      <td className="px-7 py-2 text-right tabular-nums text-muted-foreground">{relTime(i.created_at)}</td>
+    </tr>
+  )
+}
+
 export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideReporter = false, hideRelease = false, showProject = false }) {
   if (issues.length === 0) {
     return (
@@ -80,74 +180,10 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
         </tr>
       </thead>
       <tbody>
-        {issues.map(i => {
-          const assignee = i.assignee_user
-          const reporter = i.reporter_user
-          const labelsList = i.labels_detail ?? []
-
-          return (
-            <tr key={i.id} onClick={() => onOpen(i)}
-              className="border-b border-border cursor-pointer hover:bg-muted/50">
-              <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <TypeIcon type={i.type} />
-                  {issueKey(i)}
-                </span>
-              </td>
-              <td className="px-2 py-2">
-                <div className="flex items-center gap-1.5">
-                  {i.is_release_blocker && (
-                    <Badge tone="red">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                      Blocker
-                    </Badge>
-                  )}
-                  {!i.is_release_blocker && <PriorityBadge priority={i.priority} />}
-                  <span className="text-foreground font-medium truncate max-w-[420px]">{i.title}</span>
-                  <SourceBadge source={i.source} />
-                  <ReportedCount count={i.recurrence_count} />
-                  <TechDebtMarker item={i} />
-                  <CycleBadge item={i} />
-                  {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
-                </div>
-              </td>
-              <td className="px-2 py-2">
-                {i.status === 'rejected' ? <RejectedPill item={i} /> : <StatusBadge status={i.status} />}
-              </td>
-              {!hideAssignee && (
-                <td className="px-2 py-2">
-                  {assignee ? (
-                    <UserHoverCard user={assignee} size={25}>
-                      <Avatar user={assignee} size={25} />
-                    </UserHoverCard>
-                  ) : <span className="text-[11px] text-muted-foreground italic">unassigned</span>}
-                </td>
-              )}
-              {!hideReporter && (
-                <td className="px-2 py-2">
-                  {reporter ? (
-                    <UserHoverCard user={reporter} size={25}>
-                      <div className="flex items-center gap-1.5">
-                        <Avatar user={reporter} size={25} />
-                      </div>
-                    </UserHoverCard>
-                  ) : <span className="text-[11px] text-muted-foreground italic">—</span>}
-                </td>
-              )}
-              {!hideRelease && (
-                <td className="px-2 py-2 font-mono text-muted-foreground">
-                  {i.release_version ?? <span className="opacity-40">—</span>}
-                </td>
-              )}
-              {showProject && (
-                <td className="px-2 py-2 text-[12px] text-muted-foreground truncate max-w-[100px]">
-                  {i.project_name ?? <span className="opacity-40">—</span>}
-                </td>
-              )}
-              <td className="px-7 py-2 text-right tabular-nums text-muted-foreground">{relTime(i.created_at)}</td>
-            </tr>
-          )
-        })}
+        {issues.map(i => (
+          <IssueRow key={i.id} issue={i} onOpen={onOpen}
+            hideAssignee={hideAssignee} hideReporter={hideReporter} hideRelease={hideRelease} showProject={showProject} />
+        ))}
       </tbody>
     </table>
   )
