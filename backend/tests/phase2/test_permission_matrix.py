@@ -179,7 +179,40 @@ async def test_manage_releases(world, role):
 async def test_release_go_nogo(world, role):
     c = await _as(world, role)
     resp = await c.post(f"/releases/{world.release.id}/approve")
-    assert resp.status_code == _expect(role, {"cto", "admin"}, 200, support_status=403), resp.text
+    assert resp.status_code == _expect(
+        role, {"product_manager", "cto", "admin"}, 200, support_status=403,
+    ), resp.text
+
+
+# ── Release lifecycle status (Development, QA) ────────────────────────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ROLES)
+async def test_release_status_change(world, role):
+    c = await _as(world, role)
+    resp = await c.post(f"/releases/{world.release.id}/status", json={"to": "development"})
+    allowed = {"product_manager", "cto", "admin"}
+    assert resp.status_code == _expect(role, allowed, 200, support_status=403), resp.text
+    if role in allowed:
+        resp = await c.post(f"/releases/{world.release.id}/status", json={"to": "qa"})
+        assert resp.status_code == 200, resp.text
+
+
+# ── Ship a release (PM, CTO, Admin, or the project's triage lead) ─────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ROLES + ["triage_lead"])
+async def test_ship_release(world, role):
+    for to in ("development", "qa"):
+        resp = await world.admin.post(f"/releases/{world.release.id}/status", json={"to": to})
+        assert resp.status_code == 200, resp.text
+    user = world.lead if role == "triage_lead" else world.users[role]
+    c = await world.client(user)
+    resp = await c.post(f"/releases/{world.release.id}/ship", json={"confirm": True})
+    allowed = {"product_manager", "cto", "admin", "triage_lead"}
+    assert resp.status_code == _expect(role, allowed, 200, support_status=403), resp.text
 
 
 # ── Manage users and projects ─────────────────────────────────────────────────

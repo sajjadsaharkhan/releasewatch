@@ -29,7 +29,7 @@ EXPECTED = {
     Action.manage_backlog: {"product_manager", "cto", "admin"},
     Action.manage_releases: {"product_manager", "cto", "admin"},
     Action.view_team_overview: {"cto", "admin"},
-    Action.go_nogo: {"cto", "admin"},
+    Action.go_nogo: {"product_manager", "cto", "admin"},
     Action.manage_templates: {"cto", "admin"},
     Action.manage_users: {"cto", "admin"},
     Action.manage_projects: {"cto", "admin"},

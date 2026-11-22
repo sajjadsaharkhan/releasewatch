@@ -163,13 +163,14 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_backlog: _T,  # the backlog and Technical debt pages (slice 08)
     Action.manage_backlog: _MANAGE,
     Action.manage_releases: _MANAGE,
-    # Slice 09 (FR-53): CTO, Admin, and the project's triage lead of any tech role.
-    Action.ship_release: frozenset({"cto", "admin", TRIAGE_LEAD}),
+    # Slice 09 (FR-53): CTO, Admin, and the project's triage lead of any tech role;
+    # PM added 2026-11-22.
+    Action.ship_release: frozenset({"product_manager", "cto", "admin", TRIAGE_LEAD}),
     Action.view_queue: _T,  # own queue; someone else's is CTO/Admin (decide)
     Action.reorder_queue: _T,
     Action.pin: _T,
     Action.view_team_overview: _CTO_ADMIN,
-    Action.go_nogo: _CTO_ADMIN,
+    Action.go_nogo: frozenset({"product_manager", "cto", "admin"}),  # PM added 2026-11-22
     Action.manage_templates: _CTO_ADMIN,
     Action.manage_backlog_categories: _CTO_ADMIN,  # Settings → Backlog categories (2026-09-28)
     # CTO has everything Admin has in Settings (2026-10-05).

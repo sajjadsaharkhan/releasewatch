@@ -56,6 +56,8 @@ Removed: FR-21, FR-22, FR-30–32, BR-02, BR-17, BR-24 (replaced), BR-25, BR-26 
 Changed: §1–§9, FR-02, FR-03, FR-05, FR-16, FR-18, FR-23, FR-25, FR-29, FR-35, FR-39, FR-42, BR-03–06, BR-13, BR-20, BR-23, BR-28, BR-45, BR-47–50, AC-24, AC-25, AC-35, AC-45, AC-46, AC-49–54, §13, §15–§18.
 Added: FR-46–FR-66, BR-51–BR-66, AC-55–AC-78.
 
+**2026-11-22 amendment:** the Product Manager may record the release go/no-go and ship a release (§7.1, §7.3, FR-52, FR-53). Before this, both were CTO and Admin only, plus the project's triage lead for ship.
+
 ### v2.2
 
 | Area | v2.1 | v2.2 |
@@ -186,7 +188,7 @@ Gantt, CPM, dependencies, working calendar, holidays, estimation fields, release
 | **Support** | Reports bugs through templates. Sees all support-reported items. Is never assigned work |
 | **QA Engineer** | Files bugs and tasks, verifies and rejects delivered work |
 | **Developer** | Files bugs and tasks, works assigned items, triages |
-| **Product Manager** | Manages backlog and releases |
+| **Product Manager** | Manages backlog and releases, release go/no-go and ship |
 | **CTO** | Reads everything, release go/no-go and ship, shapes any person's queue |
 | **Admin** | Everything, plus users, projects, templates, and search settings |
 
@@ -216,8 +218,8 @@ Gantt, CPM, dependencies, working calendar, holidays, estimation fields, release
 | Report a problem on production | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Flag / unflag technical debt | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Manage backlog and releases | — | — | ✓² | ✓ | ✓ | ✓ |
-| Release go/no-go | — | — | — | — | ✓ | ✓ |
-| Ship a release | — | ✓² | ✓² | ✓² | ✓ | ✓ |
+| Release go/no-go | — | — | — | ✓ | ✓ | ✓ |
+| Ship a release | — | ✓² | ✓² | ✓ | ✓ | ✓ |
 | Reorder / pin own queue | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reorder / pin anyone's queue | — | — | — | — | ✓ | ✓ |
 | View anyone's personal board and team overview | — | — | — | — | ✓ | ✓ |
@@ -482,9 +484,9 @@ Released and Cancelled are final.
 
 **FR-51** The release page has a Board tab (five columns), an Items table, and an Activity tab (lifecycle changes, date changes, items added or removed, go/no-go decisions, ship). It shows progress (Done ÷ non-cancelled items) and, when the target ship date has passed and the release is not Released or Cancelled, an **Overdue** marker.
 
-**FR-52** The release page shows the open release blockers. The CTO or Admin records **go** or **no-go** with an optional note.
+**FR-52** The release page shows the open release blockers. The PM, CTO or Admin records **go** or **no-go** with an optional note.
 
-**FR-53** **Ship.** CTO, Admin, and the project's triage lead can ship a release in QA. Before confirming, a notice shows the go/no-go decision and the number of items that are not Done, by status (for example "3 To do, 1 In progress, 1 In review"). Shipping does not require every item to be Done. On confirmation:
+**FR-53** **Ship.** PM, CTO, Admin, and the project's triage lead can ship a release in QA. Before confirming, a notice shows the go/no-go decision and the number of items that are not Done, by status (for example "3 To do, 1 In progress, 1 In review"). Shipping does not require every item to be Done. On confirmation:
 - the release becomes Released and records the ship time;
 - every Done item is on production;
 - every item that is not Done moves to the **backlog** with category **Default** and status **To do**, keeping its assignee and pins; its cycles are deleted (BR-62).

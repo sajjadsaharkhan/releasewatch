@@ -69,7 +69,7 @@ export function ShipDialog({ open, release, onClose, onShipped }) {
             {preview.go_nogo.status === 'blocked' && (
               <p className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-red-700 dark:bg-red-950/30 dark:text-red-400">
                 <Icon name="alert-triangle" size={14} className="mt-0.5 shrink-0" />
-                The CTO recorded a no-go. Shipping is still possible — make sure that’s intended.
+                A no-go is on record. Shipping is still possible — make sure that’s intended.
               </p>
             )}
 

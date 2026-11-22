@@ -24,8 +24,8 @@
 9. As a PM, I want a releases list per project showing lifecycle status, progress bar, target ship date, and the Overdue marker, sortable by date and progress. The Stream is not in this list.
 10. As a PM, I want a release page with Board, Items, and Activity tabs. (FR-51)
 11. As a PM, I want the Activity tab to show lifecycle changes, date changes, items added or removed, go/no-go decisions, and the ship. (FR-51)
-12. As a CTO, I want the release page to list open release blockers and let me record go or no-go with a note. (FR-52)
-13. As the CTO or the project's triage lead, I want to ship a release in QA. (FR-53, §7.3)
+12. As a PM or CTO, I want the release page to list open release blockers and let me record go or no-go with a note. (FR-52)
+13. As a PM, the CTO, or the project's triage lead, I want to ship a release in QA. (FR-53, §7.3)
 14. As a shipper, I want a notice before confirming that shows the go/no-go decision and the number of items that are not Done, by status. (FR-53, AC-60)
 15. As a shipper, I want shipping to mark the release Released, and to move every item that is not Done to the backlog with category Default and status To do, keeping assignees and pins. (FR-53, BR-56, AC-61)
 16. As a user, I want Ship unavailable on a release that is not in QA. (AC-62)
@@ -46,7 +46,7 @@
   3. fan out `release_shipped` to the release's item assignees and the CTO.
   Go/no-go is shown in the preview but not required (PRD §17.9).
 - **Cancel** — `POST /releases/{id}/cancel`: refused if any item is Done; otherwise open items move to the backlog exactly as in ship step 2.
-- **Policy (04):** `manage_releases` (PM, CTO, Admin, triage lead) for create, edit, and lifecycle; `ship_release` (CTO, Admin, the project's triage lead of any tech role); `go_nogo` (CTO, Admin).
+- **Policy (04):** `manage_releases` (PM, CTO, Admin, triage lead) for create, edit, and lifecycle; `ship_release` (PM, CTO, Admin, the project's triage lead of any tech role); `go_nogo` (PM, CTO, Admin). PM gained `ship_release` and `go_nogo` on 2026-11-22.
 - **Progress:** computed in the query, not stored: `done_count / nullif(total − cancelled_count, 0)`, `null` with no non-cancelled items. The response includes counts by board status.
 - **Overdue:** computed on read: `target_date < today (server time zone) and status not in (released, cancelled)`.
 - **Scheduled job:** `notify_overdue_releases(now)`, daily from Celery beat. For each overdue release with `overdue_notified_at` null, fan out `release_overdue` to active CTOs and set `overdue_notified_at`. Moving the date later clears it. Following 01, the job takes `now`.

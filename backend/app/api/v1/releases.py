@@ -257,7 +257,7 @@ async def go_nogo(
     current_user: User = Depends(get_current_user),
     now: datetime = Depends(get_now),
 ) -> ReleaseResponse:
-    """CTO or Admin records go (``approved``) or no-go (``blocked``) with a note (FR-52)."""
+    """PM, CTO or Admin records go (``approved``) or no-go (``blocked``) with a note (FR-52)."""
     release = await _get_release_or_404(db, release_id)
     refuse_stream(release)
     await _authorize(db, current_user, Action.go_nogo, release.project_id)

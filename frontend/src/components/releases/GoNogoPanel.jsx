@@ -22,7 +22,7 @@ export function GoNogoBadge({ status, className }) {
   )
 }
 
-// FR-52 — the decision on record, and (CTO/Admin, `go_nogo` in allowed_actions)
+// FR-52 — the decision on record, and (PM/CTO/Admin, `go_nogo` in allowed_actions)
 // a Go / No-go control with an optional note.
 // `bare` drops the card frame, for use inside another surface (the release Details menu).
 export function GoNogoPanel({ release, deciderName, onChange, toast, bare = false }) {

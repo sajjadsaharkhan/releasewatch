@@ -385,7 +385,7 @@ async def test_ship_requires_confirm(factories, rig):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role,lead,ok", [
-    ("cto", False, True), ("admin", False, True), ("product_manager", False, False),
+    ("cto", False, True), ("admin", False, True), ("product_manager", False, True),
     ("developer", False, False), ("qa", False, False),
     ("qa", True, True), ("developer", True, True),
 ])
