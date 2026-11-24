@@ -6,6 +6,7 @@
 > **Owner:** CTO
 > **Parent document:** [Phase 2 PRD v3](prd-v2.md). Rule numbers without an `S` (FR-12, BR-49…) refer to it. Cycles and returns: [cycle-model.md](cycle-model.md).
 > **v3:** merge targets may be bugs or tasks, and a merge into a Done item sends it back to To do with a new cycle instead of making it a regression.
+> **v3.1:** a merge into a Done item rejects it (`production` cycle, recurrence count unchanged); a merge into a Verified item leaves it Verified. Done means on production.
 > **Implementation slices:** [12](12-search-engine-core.md), [13](13-jev-integration.md), [14](14-similar-item-suggestions.md)
 
 ---
@@ -114,7 +115,7 @@ The engine runs in two stages:
 
 **FR-S12** With Jev enabled, every bug that enters **New** is checked in the background against the project's items (bugs of any source, and tasks) in any status except Cancelled. Up to three items that Jev judges the **same problem** at or above the confidence threshold are stored as **possible duplicates**.
 
-**FR-S13** Possible duplicates appear in the triage queue row as a compact marker and on the item page, for tech users only. Each shows the candidate's key, title, and status, and what a merge will do: "stays In progress" (or its current status), "stays Cancelled", "Done → back to To do (release QA)", or "Done → back to To do (production)" (PRD BR-49).
+**FR-S13** Possible duplicates appear in the triage queue row as a compact marker and on the item page, for tech users only. Each shows the candidate's key, title, and status, and what a merge will do: "stays In progress" (or its current status, Verified included), "stays Cancelled", or "Done → Rejected (production)" (PRD v3.1 BR-49).
 
 **FR-S14** Each possible duplicate offers **Merge into this**, which opens the Duplicate triage outcome with that item preselected, and **Not a duplicate**, which dismisses that pair.
 
@@ -206,7 +207,7 @@ The engine runs in two stages:
 
 **AC-S10** Given Jev is enabled and a same-problem bug exists in the project, when a new bug is filed, then the triage queue row shows a possible-duplicate marker naming that bug.
 
-**AC-S11** Given a possible duplicate whose candidate is Done, then the hint says the candidate will go back to To do (production or release QA), and "Merge into this" produces the result of PRD AC-50 or AC-51.
+**AC-S11** *(Changed for PRD v3.1.)* Given a possible duplicate whose candidate is Done, then the hint says the candidate will be rejected (production), and "Merge into this" produces the result of PRD AC-50; given the candidate is Verified, the hint says it stays Verified (PRD AC-51).
 
 **AC-S12** Given a dismissed pair, then it is never suggested again for that item, including after a full reindex.
 

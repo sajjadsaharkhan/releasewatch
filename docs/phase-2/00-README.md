@@ -1,6 +1,6 @@
 # Phase 2 — Implementation Specs
 
-These specs turn [`prd-v2.md`](prd-v2.md) (**v3**), its companion [`cycle-model.md`](cycle-model.md), [`prd-search-engine.md`](prd-search-engine.md), and [`prd-mcp.md`](prd-mcp.md) into work Claude Code can carry out in this repo. Each numbered file is **one vertical slice**: schema, API, UI, and tests together. Each slice is sized for one Claude Code session and ends with the app shippable.
+These specs turn [`prd-v2.md`](prd-v2.md) (**v3.1**), its companion [`cycle-model.md`](cycle-model.md), [`prd-search-engine.md`](prd-search-engine.md), and [`prd-mcp.md`](prd-mcp.md) into work Claude Code can carry out in this repo. Each numbered file is **one vertical slice**: schema, API, UI, and tests together. Each slice is sized for one Claude Code session and ends with the app shippable.
 
 The PRD is the product authority. When a spec and the PRD disagree, the spec wins, because the spec has been checked against the code. Every such difference is listed in the **Decisions** section of [`CONTEXT.md`](../../CONTEXT.md).
 
@@ -136,6 +136,10 @@ Add each slice's terms in that slice's session, using the existing `CONTEXT.md` 
 _Avoid_ (removed in v3): milestone, hotfix, regression cycle, merge regression, project kind.
 
 ---
+
+## v3.1 changes (not yet sliced)
+
+PRD v3.1 (2026-11-24) adds the **Verified** status (Done means on production), the Done gate in Releases, On production in the Stream, Reject from Verified, Support **return requests**, Support verification of support-sourced items, the per-project **Support channel** in Telegram, and the **To review** tab in My Work, and records the Phase 1 reports as product debt PD-1. It also states the 09a and free-workflow decisions as product rules. Slices 01–18 are built; the v3.1 work needs new slices, written against the code before building. [cycle-model.md](cycle-model.md) and [prd-search-engine.md](prd-search-engine.md) are already updated.
 
 ## v3 changes (for slices already built)
 
