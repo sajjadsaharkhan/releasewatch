@@ -75,8 +75,13 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const overdue = isOverdue(issue)
   const delivered = DELIVERED_STATUSES.includes(issue.status)
   // Done is a release's ship, never a move (BR-67): shown disabled, not hidden.
-  const doneAtShip = place === 'release' && issue.status !== 'done' && !allowedTransitions.includes('done')
-    && !['done', 'cancelled'].includes(issue.status)
+  // The server says so in `blocked_transitions` (done_at_ship) and gives the text;
+  // the placement-derived check stays as a fallback for older payloads.
+  const doneBlock = (issue.blocked_transitions || []).find((b) => b.to === 'done')
+  const doneAtShip = !allowedTransitions.includes('done') && (
+    !!doneBlock
+    || (place === 'release' && !['done', 'cancelled'].includes(issue.status)))
+  const doneAtShipText = doneBlock?.detail || DONE_AT_SHIP_TEXT
   // The Release row's choices: open releases, plus the current one if it's closed.
   const { releases: allReleases, openReleases } = useContainers(issue.project_id)
   const currentRelease = allReleases.find((r) => r.id === issue.release_id)
@@ -122,8 +127,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                 </DropdownItem>
               ))}
               {doneAtShip && (
-                <Tooltip content={DONE_AT_SHIP_TEXT} side="right" wrapperClassName="flex w-full">
-                  <span className="block w-full" tabIndex={0} aria-label={`Done — ${DONE_AT_SHIP_TEXT}`} data-testid="done-at-ship-option">
+                <Tooltip content={doneAtShipText} side="right" wrapperClassName="flex w-full">
+                  <span className="block w-full" tabIndex={0} aria-label={`Done — ${doneAtShipText}`} data-testid="done-at-ship-option">
                     <DropdownItem disabled>
                       <StatusBadge status="done" size="sm" />
                     </DropdownItem>

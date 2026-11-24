@@ -163,7 +163,7 @@ test('release: Done is empty until ship, the status control says why, ship makes
   const doneOption = page.getByTestId('done-at-ship-option')
   await expect(doneOption.getByRole('button')).toBeDisabled()
   await doneOption.hover()
-  await expect(page.getByText('Done when the release ships', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Done when the release ships\.?$/)).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Mark as verified' }).click()
   await expect(page.getByTestId('issue-sidebar').getByRole('button', { name: 'Verified' })).toBeVisible()
