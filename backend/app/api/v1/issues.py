@@ -56,7 +56,7 @@ from app.db.models.release import Release, ReleaseKind
 from app.db.models.search import DuplicateHint
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
-from app.policy import Action, Target, item_actions, transition
+from app.policy import Action, Target, is_tech, item_actions, transition
 from app.search import duplicate_hints, jev_settings
 from app.tasks import search_index
 from app.schemas.issue import (
@@ -251,6 +251,16 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
         b = blocked_by_policy.get(transition(to))
         if b is not None:
             blocked_transitions.append(BlockedTransition(to=to, code=b["code"], detail=b["detail"]))
+    if (
+        context["container_kind"] == "release"
+        and IssueStatus(getattr(issue.status, "value", issue.status)) != IssueStatus.done
+        and is_tech(current_user.role)
+    ):
+        # The Done gate (BR-68): say why Done isn't offered, so the UI needn't derive it.
+        blocked_transitions.append(BlockedTransition(
+            to=IssueStatus.done.value, code="done_at_ship",
+            detail="Done when the release ships.",
+        ))
     return {
         "allowed_transitions": [to for to in targets.allowed if transition(to) in allowed_set],
         "blocked_transitions": blocked_transitions,

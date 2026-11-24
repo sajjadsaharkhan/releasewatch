@@ -78,7 +78,8 @@ async def test_allowed_transitions_includes_every_other_status(factories, rig):
     assert set(body["allowed_transitions"]) == (
         {s.value for s in IssueStatus} - {"new", "rejected", "done"}
     )
-    assert body["blocked_transitions"] == []
+    # Only the Done gate is reported as blocked (BR-68).
+    assert [(b["to"], b["code"]) for b in body["blocked_transitions"]] == [("done", "done_at_ship")]
 
 
 # ── any status reaches any other status directly ────────────────────────────

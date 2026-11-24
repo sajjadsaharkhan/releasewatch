@@ -704,3 +704,14 @@ async def test_ac_85_migration_up_and_down(factories, rig, db_session):
         assert await _rows(engine, ids) == up
     finally:
         await asyncio.to_thread(command.upgrade, _alembic_config(), "head")
+
+
+@pytest.mark.asyncio
+async def test_release_item_blocks_done_with_done_at_ship(factories, rig):
+    task = await _task(factories, rig, container="release")
+    item = await _item(rig["dev_client"], task.id)
+    assert {"to": "done", "code": "done_at_ship", "detail": "Done when the release ships."} in (
+        item["blocked_transitions"]
+    )
+    stream = await _item(rig["dev_client"], (await _task(factories, rig)).id)
+    assert all(b["to"] != "done" for b in stream["blocked_transitions"])
