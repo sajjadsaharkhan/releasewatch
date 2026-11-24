@@ -33,6 +33,10 @@ Slices must be built in order. Each one depends on everything above it.
 | 16 | [MCP read tools](16-mcp-read-tools.md) | 15 | MCP FR-M02–M09, FR-M21–M23, FR-M36; BR-M16/17; AC-M03, M05–M08, M12–M14 |
 | 17 | [Agent origin and MCP write tools](17-mcp-agent-origin-and-write-tools.md) | 16 | MCP FR-M10–M24, FR-M29/30, FR-M32; BR-M01, M05/06, M08–M13, M15/16, M19; AC-M01, M09–M11, M15–M26, M34/35 |
 | 18 | [MCP own content, prompts, writing standard](18-mcp-own-content-and-prompts.md) | 17 | MCP FR-M25–M28, FR-M31, FR-M33–M37; BR-M07, M14, M18; AC-M27–M33 |
+| 19 | [Verified, and Done means on production](19-verified-and-production.md) | 18 | v3.1: §9, FR-50–53, FR-56, FR-59, FR-62, FR-64, FR-67, BR-38, BR-46/47, BR-49, BR-52, BR-54–57, BR-60/61, BR-67/68, BR-74–76, PD-1; AC-24/25, AC-39, AC-45, AC-50/51, AC-57–61, AC-74–76, AC-79–85 — **two sessions** |
+| 20 | [Support verification and return requests](20-support-verify-and-return-requests.md) | 19 | v3.1: §7.3³, §8.10, FR-11, FR-16/17, FR-68/69, BR-23, BR-69–71, §13; AC-12, AC-71, AC-86–93 |
+| 21 | [Support channel](21-support-channel.md) | 20 | v3.1: §8.11, FR-70/71, BR-72; AC-94–98 |
+| 22 | [To review tab in My Work](22-review-tab.md) | 19 | v3.1: FR-72/73, BR-73; AC-99/100 |
 
 Slices 12–14 are the Search & Ranking Engine part. Before starting 12, build the evaluation dataset with [search-eval-dataset-spec.md](search-eval-dataset-spec.md) (an agent with read access to a database snapshot). Slices 12–14 each check an evaluation report into `eval/`.
 
@@ -139,7 +143,7 @@ _Avoid_ (removed in v3): milestone, hotfix, regression cycle, merge regression, 
 
 ## v3.1 changes (not yet sliced)
 
-PRD v3.1 (2026-11-24) adds the **Verified** status (Done means on production), the Done gate in Releases, On production in the Stream, Reject from Verified, Support **return requests**, Support verification of support-sourced items, the per-project **Support channel** in Telegram, and the **To review** tab in My Work, and records the Phase 1 reports as product debt PD-1. It also states the 09a and free-workflow decisions as product rules. Slices 01–18 are built; the v3.1 work needs new slices, written against the code before building. [cycle-model.md](cycle-model.md) and [prd-search-engine.md](prd-search-engine.md) are already updated.
+PRD v3.1 (2026-11-24) adds the **Verified** status (Done means on production), the Done gate in Releases, On production in the Stream, Reject from Verified, Support **return requests**, Support verification of support-sourced items, the per-project **Support channel** in Telegram, and the **To review** tab in My Work, and records the Phase 1 reports as product debt PD-1. It also states the 09a and free-workflow decisions as product rules. Slices 01–18 are built. The v3.1 work is slices **19–22**, written against the code at `11a9dff`: 19 first (two sessions), then 20 → 21, and 22 any time after 19. [cycle-model.md](cycle-model.md) and [prd-search-engine.md](prd-search-engine.md) are already updated.
 
 ## v3 changes (for slices already built)
 
