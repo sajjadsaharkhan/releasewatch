@@ -501,7 +501,7 @@ Return-request outcomes are in FR-69.
 
 ### 10.9 Personal board (My Work)
 
-**FR-72** **Two tabs (v3.1).** My Work has two tabs, each with a counter: **My queue** (FR-33–FR-42) and **To review** (FR-73). QA opens on To review by default; every other tech role opens on My queue. Both tabs exist for every tech user, and the last one opened is remembered per user.
+**FR-72** **Two tabs (v3.1).** My Work has two tabs, each with a counter: **My queue** (FR-33–FR-42) and **To review** (FR-73). QA opens on To review by default; every other tech role opens on My queue. Both tabs exist for every tech user.
 
 **FR-33** **My queue** contains all the user's assigned items that are To do, Rejected, In progress, To review, In review, or Blocked, across all projects. Verified and Done items are not in the queue; the Kanban view shows them in their columns.
 

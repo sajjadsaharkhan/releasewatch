@@ -11,7 +11,7 @@ My Work (slice 10) shows a person's **assigned** items. QA is rarely the assigne
 
 - My Work gets two top-level tabs with counters: **My queue** (today's page, unchanged) and **To review**.
 - **To review** lists every item in **To review** or **In review**, in **every project**, regardless of assignee. No reviewer is assigned (BR-73).
-- QA lands on To review; everyone else lands on My queue. The last tab a user chose is remembered.
+- QA lands on To review; everyone else lands on My queue.
 
 ---
 
@@ -40,9 +40,7 @@ My Work (slice 10) shows a person's **assigned** items. QA is rarely the assigne
 
 ### Default tab
 
-- `users` has no preferences column today. Add `ui_prefs JSONB NOT NULL DEFAULT '{}'` (one migration with a downgrade), written through `PATCH /auth/me/ui-prefs`. It stores `my_work_tab: 'queue' | 'review'`. Later UI preferences go in the same column.
-- With no stored value, QA gets `review` and everyone else gets `queue`.
-- The URL `?mode=review` wins over the stored value and updates it.
+- QA opens on `review`, every other role on `queue`. Nothing is stored. `?mode=review|queue` in the URL selects a tab for that visit and for links; it is not remembered.
 
 ### Frontend (`MyWorkPage.jsx`)
 
@@ -64,7 +62,7 @@ My Work (slice 10) shows a person's **assigned** items. QA is rarely the assigne
 - Filters by project, type and status. Counts follow the project filter only.
 - `waiting_since` is the time of the latest move into the current status (a To review → In review move resets it).
 - `test_ac_100_*`: after Verify or Reject, the item is gone from the next response.
-- Default tab: QA without a preference → `review`; Developer → `queue`; the `?mode=` override persists.
+- Default tab: QA → `review`, Developer → `queue`; `?mode=` selects a tab without being stored.
 - E2E: as QA, open My Work, land on To review, open an item, move it to In review, verify it, and see it leave the list.
 
 ## Out of Scope
