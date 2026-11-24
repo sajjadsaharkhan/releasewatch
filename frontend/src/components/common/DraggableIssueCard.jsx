@@ -32,7 +32,9 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
         "w-full text-left rounded-lg border border-border bg-card p-3",
         readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing touch-none",
         "transition-all duration-200 ease-out hover:border-zinc-300 dark:hover:border-zinc-600",
-        isDragging && "opacity-50 shadow-xl rotate-1 scale-105 z-50"
+        // `relative` makes z-50 count: the card must stay above the columns it crosses,
+        // including a dimmed, locked one.
+        isDragging && "relative opacity-50 shadow-xl rotate-1 scale-105 z-50"
       )}
     >
       <WorkItemCard
