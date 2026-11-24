@@ -1,19 +1,19 @@
 # Releasewatch — Work Item Cycle Model
 
-> **Status:** Agreed (2026-09-30). Companion to [PRD v3](prd-v2.md) (§8.9, §10.14, BR-49, BR-51–BR-66).
+> **Status:** Agreed (2026-09-30), updated for PRD v3.1 (2026-11-24): Verified status, Done means on production, Reject from Verified, return requests. Companion to [PRD v3.1](prd-v2.md) (§8.9, §10.14, BR-49, BR-51–BR-76).
 > **Replaces:** the Phase 1 regression model (`regression_history`, `is_regression`, `regression_count`) and PRD v2.2 BR-24, BR-25, BR-49 (old), BR-50 (old).
-> **Implemented by:** [08a](08a-release-stream-cycles.md) Part 3; the queue rule in [10](10-personal-queue.md).
+> **Implemented by:** [08a](08a-release-stream-cycles.md) Part 3, [09a](09a-review-queue-and-rejected.md) (Rejected, one Reject); the queue rule in [10](10-personal-queue.md). The v3.1 changes are not built yet.
 
 ---
 
 ## 1. Context
 
-- Every project has **one Stream** (system-created, always open; each item ships on its own when Done) and any number of **Releases** (Planning → Development → QA → Released, or Cancelled; their items ship together). Milestones and project kinds do not exist.
+- Every project has **one Stream** (system-created, always open; each item ships on its own when someone moves it to Done) and any number of **Releases** (Planning → Development → QA → Released, or Cancelled; their items ship together). Milestones and project kinds do not exist.
 - The Stream is stored as a row in `releases` with `kind = stream`, so every container is a `release_id`.
 - The **backlog** is "no container". A backlog item cannot move to In progress: it is placed in the Stream or a Release first (as To do), and the developer then moves it to In progress.
-- Bugs and tasks share one QA gate: `To do → In progress → In review → Done`. `In review → Done` only by verification, by someone other than the person who sent it to review. There is no `In progress → Done`.
-- Done items never change container. A release with a Done item cannot be cancelled. Shipping a release moves every item that is not Done to the backlog.
-- There are no bulk status changes.
+- Bugs and tasks share one QA gate: `To do → In progress → To review → In review → Verified → Done` (v3.1). **Verified** means QA approved the work; **Done** means it is on production. In the Stream the deployer moves Verified to Done (or QA moves reviewed work straight to Done when it was checked on production); in a Release only ship makes an item Done. The workflow is otherwise free (PRD §9.3): only entering Rejected and entering Done in a Release are gated.
+- Verified and Done items never change container (except a Reject from Done in a Released release, CY-03). A release with a Verified or Done item cannot be cancelled. Shipping a release turns every Verified item into Done and moves every other item to the backlog.
+- There are no bulk status changes, except moving several Verified Stream items to Done at once (On production).
 
 ---
 
@@ -21,7 +21,7 @@
 
 The model has **one term: Cycle.** "Return" in the PRD names what starts a later cycle; it is not a separate entity.
 
-**Cycle.** One pass of work on an item until it is delivered: picked up, worked, sent to In review, verified. A cycle belongs to one item and one container.
+**Cycle.** One pass of work on an item until it is delivered: picked up, worked, sent to To review or In review, verified. A cycle belongs to one item and one container. Every later cycle starts with a **Reject** (09a): a direct Reject, a confirmed return request, or a merge into a Done item.
 
 - **A cycle exists only while the item has a container.** A backlog item has no cycle.
 - The first cycle starts when the item is **placed in a container** (created in one, accepted into one in triage, or moved into one from the backlog), with `start_reason = planned`. A bug filed directly into a container has its first cycle while it is still in triage.
@@ -35,7 +35,9 @@ The model has **one term: Cycle.** "Return" in the PRD names what starts a later
 | Item's container | Shipped when |
 |---|---|
 | Stream | The item is Done |
-| Release | The item is Done and the release is Released |
+| Release | The item is Done (it became Done at ship) |
+
+From v3.1, **shipped = Done**, in every container. A Verified item is never shipped.
 
 **Escape.** A problem that passed every QA layer and **reached production**, then was found there. It is the cycle reason `production`.
 
@@ -43,23 +45,24 @@ The model has **one term: Cycle.** "Return" in the PRD names what starts a later
 
 ## 3. Start reason
 
-| `start_reason` | When a cycle starts with it | Status move | What failed | UI name (proposed, PRD §17.10) |
+| `start_reason` | When a cycle starts with it | Rejected from | What failed | UI name |
 |---|---|---|---|---|
 | `planned` | The item is placed in a container. Always cycle 1 | — | — | — |
-| `review` | Item-level QA rejects the delivered work. Comment required | `In review → To do` | The delivered work | Reject |
-| `release_qa` | The item is Done in a Release that is not yet Released, and release-level QA finds a problem with it. Comment required | `Done → To do` | Item-level verification | Regression |
-| `production` | The item is shipped and a problem is found on production. Recorded through **Problem on production** (tech team) or a triage **merge** of a new report into the item | `Done → To do` | All of QA | Escape |
+| `review` | QA rejects the delivered work. Comment required | To review, In review | The delivered work | Rejected in review |
+| `release_qa` | A problem is found after verification, before production. Comment required. In a Release (release QA on staging) or in the Stream (found before the deploy) | Verified | Item-level verification | Caught before production |
+| `production` | The work is on production and a problem is found there: a Reject on a Done item, a confirmed **return request** from Support, or a triage **merge** of a new report into the Done item | Done | All of QA | Problem on production (Escape) |
 
 - `start_reason` is never null.
-- `release_qa` exists only in Releases. In the Stream, Done means shipped.
+- *(Changed in v3.1.)* `release_qa` means "rejected from Verified", in Releases and in the Stream. Before v3.1 it existed only in Releases, as a Reject from Done in an unshipped release; after the v3.1 data move those items are Verified (PRD BR-74), so the meaning is the same.
 - The reason is **computed and stored when the cycle starts**, never recomputed. The item can move to another container afterwards, and then the original state can no longer be derived.
 - Reasons are **not monotonic**. After an escape, the re-fix can be rejected in review again.
-- Every return sends the item to **To do**. The assignee picks it up again by moving it to In progress; that move is the explicit hand-back.
-- A merge into an item that is not Done (New, Needs info, To do, In progress, In review, Blocked) or is Cancelled starts **no** cycle.
+- Every Reject sends the item to **Rejected** (09a). The assignee picks it up again by moving it to In progress; that move is the explicit hand-back.
+- A merge into an item that is not Done (any open status, **Verified included**) or is Cancelled starts **no** cycle. A merge into Done starts a `production` cycle and does not change the recurrence count (v3.1).
+- A **return request** (PRD §8.10) starts no cycle while Pending. Confirming it is a Reject from Done (`production`); dismissing it starts nothing.
 
 ### Example
 
-Item placed in Release R1, rejected twice in review, shipped, escapes, moves to the Stream, re-fix rejected once, ships.
+Item placed in Release R1, rejected twice in review, verified, shipped (Done at ship), escapes, moves to the Stream, re-fix rejected once, verified, deployed.
 
 | Cycle | Container | `start_reason` |
 |---|---|---|
@@ -83,16 +86,18 @@ If a PM then moved the item to the backlog before cycle 5 was delivered, all fiv
 
 **CY-04** **Escape attribution.** An escape counts against the **container that shipped the failed work**: the `release_id` of the previous cycle (`cycle_no − 1`). Nothing extra is stored.
 
-**CY-05** **Who delivered the work.** When an item moves to In review (from 09a: to To review or In review, whichever comes first), the cycle snapshots the item's current assignee into `delivered_by_id`. It never changes afterwards.
+**CY-05** **Who delivered the work.** When an item first moves to To review or In review in the cycle, the cycle snapshots the item's current assignee into `delivered_by_id`. It never changes afterwards.
 - It is **never the actor** of the status change. An Admin or CTO changing the status does not become the author of the work.
 - If the item has no assignee at that moment, `delivered_by_id` stays empty and does not fall back to the actor.
 - "Whose work came back" for cycle N = `delivered_by_id` of cycle N − 1.
 
 **CY-06** **QA side has no per-person attribution.** `start_by_id` is kept as the actor, for audit and timeline display only.
 
-**CY-07** "A person cannot verify what they sent to review" is checked against the actor. It is a guard, not a metric.
+**CY-07** *(Removed by the free workflow, 2026-09-22/23.)* There is no self-verification guard.
 
-**CY-08** **There are no bulk status changes.** Returns happen one item at a time, with a reason.
+**CY-07a** *(v3.1)* **Verification and production times.** `verified_at` is written on the first move from To review or In review to **Verified**, or straight to **Done** in the Stream. The item's completion time (on production) is written when it reaches Done — at the deployer's move in the Stream, at ship in a Release. Both are kept; reports must say which one they use.
+
+**CY-08** **There are no bulk status changes,** except On production in the Stream (Verified → Done). Rejects happen one item at a time, with a reason.
 
 **CY-09** When reports are built (Phase 3), they never sum start reasons into one number. "5 regressions" is not reported; "3 review, 0 release_qa, 2 production" is.
 
@@ -100,9 +105,9 @@ If a PM then moved the item to the backlog before cycle 5 was delivered, all fiv
 
 **CY-11** *(Superseded by [09a](09a-review-queue-and-rejected.md) / [ADR 0004](../adr/0004-rejected-is-a-status.md): returned work has the status **Rejected**, and items past cycle 1 show a cycle badge.)* **Returned marker.** There is no Returned status and no extra Kanban column. An item whose current cycle has `start_reason <> planned` and `submitted_at IS NULL` shows a **returned marker** in To do and In progress: the reason, the return number (`cycle_no − 1`), and the reason comment on hover (loaded lazily). Both inputs are written once, so nothing has to be cleared.
 
-**CY-12** Starting a cycle with any reason other than `planned` notifies the assignee with the reason and the comment.
+**CY-12** Starting a cycle with any reason other than `planned` notifies the assignee with the reason and the comment. Support hears of it only when the cycle comes from its own return request (the decision notice).
 
-**CY-13** **Queue position.** A returned item re-enters its assignee's personal queue at the position it had before it left, never above the pinned items. An item rejected from In review never left the queue and keeps its place.
+**CY-13** **Queue position.** An item leaves its assignee's queue when it reaches Verified or Done and keeps a dormant position. Rejected from Verified or Done, it re-enters at that position, never above the pinned items. An item rejected from To review or In review never left the queue and keeps its place.
 
 **CY-14** **Backlog.** Moving an item to the backlog (by a PM, or by shipping its release) deletes its cycles and clears `current_cycle_id`.
 
@@ -122,7 +127,9 @@ Reports are deferred to Phase 3 (PRD §16). The data above supports:
 | Cycles per item | Release, project | Mean cycles before first ship (minimum 1) |
 | Pickup wait | Release, project | `picked_up_at − started_at` for cycles with `start_reason <> planned` |
 
-**Phase 1 reports** (release report, regressions, component fragility, dashboard, contributions) keep their meaning in Phase 2: they read cycles of **bugs** in containers with `kind = release` whose `start_reason` is `review` or `release_qa`. That is exactly the set Phase 1 recorded as regressions.
+**Phase 1 reports** (release report, regressions, component fragility, dashboard, contributions) are **not reliable** after Phase 2 (PRD §14, product debt PD-1). They read cycles of bugs in Releases with `start_reason` `review` or `release_qa`, but To review, Rejected, Verified, the meaning of Done and Stream work changed what those numbers mean. They are re-specified first in Phase 3.
+
+Phase 3 also gets: **Verified → Done wait** (completion time − `verified_at`) and **return requests confirmed / dismissed**.
 
 ---
 
@@ -174,16 +181,16 @@ erDiagram
         int delivered_by_id FK "snapshot at In review, immutable"
         timestamptz started_at
         timestamptz picked_up_at "first In progress in this cycle"
-        timestamptz submitted_at "In review"
-        timestamptz verified_at
+        timestamptz submitted_at "first To review or In review"
+        timestamptz verified_at "Verified, or Done straight from review"
         timestamptz closed_at "next cycle started or item cancelled"
     }
 ```
 
 | Need | Source |
 |---|---|
-| Returned marker in lists | `current_cycle.start_reason`, `current_cycle.submitted_at` (one PK join) |
-| "Returned N" | `current_cycle.cycle_no − 1` |
+| Rejected style in lists | status `rejected` + `current_cycle.start_reason` (09a) |
+| Cycle badge `↻ N` | `current_cycle.cycle_no` (shown when ≥ 2) |
 | Escape attribution | `release_id` of cycle `cycle_no − 1` |
 | Whose work came back | `delivered_by_id` of cycle `cycle_no − 1` |
 | Per-reason reports | `GROUP BY start_reason` on `issue_cycles` |
