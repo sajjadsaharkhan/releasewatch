@@ -76,7 +76,9 @@ function LockedNote({ reason }) {
 
 export function DroppableColumn({ status, issues, onOpen, readOnly = false, emptyText = 'No issues', headerExtra = null, lockedReason = null }) {
   const locked = !!lockedReason
-  const { setNodeRef, isOver } = useDroppable({ id: status, disabled: readOnly || locked })
+  // A locked column stays a drop target so a card released over it is refused there, not
+  // handed to whichever enabled column is nearest (the board reads `data.locked`).
+  const { setNodeRef, isOver } = useDroppable({ id: status, disabled: readOnly, data: { locked } })
   const { active } = useDndContext()
   const refusing = locked && !!active
 

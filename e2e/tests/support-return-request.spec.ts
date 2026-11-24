@@ -100,7 +100,8 @@ test('Support verifies from To review, then Problem is back is confirmed in Tria
   const detail = admin.getByTestId('return-request-detail')
   await expect(detail).toContainText('Still drops after ten minutes on the iOS app.')
   await detail.getByRole('button', { name: 'Confirm' }).click()
-  await expect(admin.getByTestId('return-requests-queue')).toHaveCount(0)
+  // Other specs may hold their own pending requests in this project: only this row must go.
+  await expect(admin.getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
 
   // The bug is Rejected, in the Stream, as a production return.
   const item = await api(admin, 'GET', `/issues/${bug.id}`)

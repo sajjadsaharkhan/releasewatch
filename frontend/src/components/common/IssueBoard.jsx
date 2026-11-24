@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, DragOverlay, PointerSensor, pointerWithin, rectIntersection, useSensor, useSensors } from '@dnd-kit/core'
 import { DragPreview } from './DraggableIssueCard'
 import { DroppableColumn } from './DroppableColumn'
 import { StatusBadge } from '../ui/Badge'
@@ -58,6 +58,13 @@ export function IssueBoardSkeleton({ cardsPerColumn = 3 }) {
   )
 }
 
+// The column under the pointer wins; the dragged card's rectangle only decides when the
+// pointer is over no column (a gap between them).
+const collisionDetection = (args) => {
+  const hits = pointerWithin(args)
+  return hits.length ? hits : rectIntersection(args)
+}
+
 // The column a card sits in — a Rejected card is on top of To do (09a).
 const columnOf = (issue) => BOARD_COLUMN_OF[issue.status] ?? issue.status
 
@@ -85,7 +92,8 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
     const swallow = (e) => { e.preventDefault(); e.stopPropagation() }
     document.addEventListener('click', swallow, true)
     setTimeout(() => document.removeEventListener('click', swallow, true), 250)
-    if (!over) return
+    // A locked column (a release's Done) refuses the drop outright.
+    if (!over || over.data.current?.locked) return
     const issue = issues.find(i => i.id === active.id)
     if (!issue) return
     // A Rejected card already sits in To do — dropping it there changes nothing.
@@ -95,7 +103,7 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={(e) => setActiveId(e.active.id)} onDragCancel={() => setActiveId(null)} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={(e) => setActiveId(e.active.id)} onDragCancel={() => setActiveId(null)} onDragEnd={handleDragEnd}>
       <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, minmax(220px, 1fr))` }}>
         {BOARD_COLUMNS.map(status => (
           <DroppableColumn
