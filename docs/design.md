@@ -621,9 +621,13 @@ whoever has `decide_return_request` the first report's quote with **Confirm** (p
 buttons, and **Problem is back** / **Add to pending request** in the sidebar (`request_return` in
 `allowed_actions`; the icon-only form is in the Support reports row). Support's status control is a
 plain badge plus one **Verify** button — a two-item menu (Verified · Done tested on production) in
-the Stream — and Reject; no other status control is drawn for it. The Triage page's third tab,
-**Return requests**, counts toward the sidebar badge; rows show key, title, an amber "Problem is back"
-/ "n reports" pill, the first report, the requesters, Done-since and the container. The Support
+the Stream — and Reject; no other status control is drawn for it. The Triage page has no separate tab: pending requests lead the **New** tab under a red
+"Came back from production · n" group header (`triage/ReturnRequestRows`), each a red-bordered card with a
+solid `bg-red-500` `rotate-ccw` tile, key, a red "Problem is back" pill, title and the first report, then a
+footer strip (`bg-red-50/60`, dark `bg-red-950/20`) with requesters, report count, "Done … in Stream" and a
+**waiting** chip — amber until 4 hours (`RETURN_REQUEST_HOT_HOURS`), solid `bg-red-600` after. They count as
+waiting decisions: the New tab's badge and the sidebar Triage badge are New bugs plus pending requests. The
+first is selected by default. The Support
 reports list marks a row with the amber "Return requested" pill and has a filter chip for it
 (`?returns=1`). Timeline events: `return_requested` / `return_request_added` (amber), `return_confirmed`
 (red), `return_dismissed` (zinc), each with a "see comment" jump to the public comment.

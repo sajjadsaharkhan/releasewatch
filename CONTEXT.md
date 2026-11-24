@@ -118,7 +118,7 @@ _Avoid_: "release" as a verb for this action; "deploy".
 ### Triage (slice 06)
 
 **Triage queue**:
-A project's New and Needs info bugs, oldest first, with source, reporter, recurrence count, and age (FR-17). The Triage page's New and Needs info tabs. Tasks never enter it. A third tab, **Return requests**, lists the project's Pending **return requests** (they aren't items, so they come from `GET /projects/{id}/return-requests`, or `GET /return-requests` for all projects); its count joins New in the sidebar's triage badge.
+A project's New and Needs info bugs, oldest first, with source, reporter, recurrence count, and age (FR-17). The Triage page's New and Needs info tabs. Tasks never enter it. The project's Pending **return requests** lead the New tab as urgent cards (they aren't items, so they come from `GET /projects/{id}/return-requests`, or `GET /return-requests` for all projects), and each counts as one waiting decision: the New tab's counter and the sidebar's triage badge are New bugs plus pending requests.
 _Avoid_: "unassigned issues" — the queue is about the decision, not the assignee.
 
 **Triage outcome**:

@@ -471,3 +471,122 @@ async def test_ac_12_71_recurrence_on_done_points_to_problem_is_back(factories, 
     item = await _item(rig["support_client"], bug.id)
     assert "request_return" in item["allowed_actions"] and "reject" not in item["allowed_actions"]
     assert "report_recurrence" not in item["allowed_actions"]
+
+
+# ── The triage queue and its badge (FR-69) ────────────────────────────────────
+
+
+async def _second_project(factories, rig):
+    """A second project with its own Stream, release and template, same lead."""
+    project = await factories.project(triage_lead_id=rig["lead"].id)
+    return {
+        **rig,
+        "project": project,
+        "release": await factories.release(project_id=project.id),
+        "stream_id": await factories.stream_id(project_id=project.id),
+        "template": await factories.support_template(project_id=project.id),
+    }
+
+
+async def _all_pending(client) -> dict:
+    resp = await client.get("/return-requests", params={"status": "pending"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+async def _triage_badge(client, project_id=None) -> int:
+    """What the sidebar's Triage badge shows: New bugs plus pending return requests."""
+    params = {"statuses": "new", "size": 1}
+    if project_id is not None:
+        params["project_id"] = project_id
+    new = (await client.get("/issues", params=params)).json()["total"]
+    if project_id is None:
+        returns = (await _all_pending(client))["total"]
+    else:
+        returns = (await _pending(client, project_id))["total"]
+    return new + returns
+
+
+@pytest.mark.asyncio
+async def test_return_requests_count_toward_the_triage_badge(factories, rig):
+    lead = rig["lead_client"]
+    other = await _second_project(factories, rig)
+    base_all = await _triage_badge(lead)
+    base_p1 = await _triage_badge(lead, rig["project"].id)
+    base_p2 = await _triage_badge(lead, other["project"].id)
+
+    # A New bug counts, a return request counts: both are decisions waiting.
+    await factories.issue(project_id=rig["project"].id)
+    assert await _triage_badge(lead, rig["project"].id) == base_p1 + 1
+
+    one = await _done_in_stream(factories, rig)
+    two = await _done_in_stream(factories, other)
+    r1 = (await _request(rig["support_client"], one.id)).json()
+    await _request(rig["support_client"], two.id)
+    assert await _triage_badge(lead, rig["project"].id) == base_p1 + 2
+    assert await _triage_badge(lead, other["project"].id) == base_p2 + 1
+    assert await _triage_badge(lead) == base_all + 3
+
+    # A second Support user's press adds to the request: still one decision.
+    await _request(rig["support2_client"], one.id, "Another customer")
+    assert await _triage_badge(lead) == base_all + 3
+
+    # Deciding it — confirm or dismiss — takes it off the badge.
+    assert (await lead.post(f"/return-requests/{r1['id']}/confirm")).status_code == 200
+    assert await _triage_badge(lead, rig["project"].id) == base_p1 + 1
+    r2 = (await _pending(lead, other["project"].id))["items"][0]
+    resp = await lead.post(f"/return-requests/{r2['id']}/dismiss", json={"comment": "Not this bug."})
+    assert resp.status_code == 200
+    assert await _triage_badge(lead, other["project"].id) == base_p2
+    assert await _triage_badge(lead) == base_all + 1  # the New bug remains
+
+
+@pytest.mark.asyncio
+async def test_all_projects_queue_lists_every_pending_request_oldest_first(factories, rig):
+    other = await _second_project(factories, rig)
+    older = await _done_in_stream(factories, rig)
+    newer = await _done_in_stream(factories, other)
+    await _request(rig["support_client"], older.id, "First")
+    await _request(rig["support_client"], newer.id, "Second")
+
+    queue = await _all_pending(rig["qa_client"])
+    assert [row["issue"]["id"] for row in queue["items"]] == [older.id, newer.id]
+    assert {row["issue"]["project_id"] for row in queue["items"]} == {
+        rig["project"].id, other["project"].id,
+    }
+    # One project's queue holds only its own.
+    only = await _pending(rig["lead_client"], other["project"].id)
+    assert [row["issue"]["id"] for row in only["items"]] == [newer.id]
+    # The row carries what the card shows: where it shipped, when, who asked.
+    row = queue["items"][0]
+    assert row["issue"]["container_kind"] == "stream" and row["issue"]["done_at"] is not None
+    assert [u["id"] for u in row["requesters"]] == [rig["support"].id]
+    assert row["requested_at"] and row["entry_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_return_request_queues_are_closed_to_support(factories, rig):
+    bug = await _done_in_stream(factories, rig)
+    await _request(rig["support_client"], bug.id)
+    sc = rig["support_client"]
+    assert (await sc.get("/return-requests")).status_code == 403
+    assert (await sc.get(f"/projects/{rig['project'].id}/return-requests")).status_code == 403
+    # Every tech role sees the all-projects queue.
+    for key in ("qa_client", "dev_client", "lead_client", "admin"):
+        assert (await _all_pending(rig[key]))["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_decided_request_leaves_the_queue_and_a_new_one_returns(factories, rig):
+    bug = await _done_in_stream(factories, rig)
+    first = (await _request(rig["support_client"], bug.id)).json()
+    resp = await rig["lead_client"].post(
+        f"/return-requests/{first['id']}/dismiss", json={"comment": "Different bug."},
+    )
+    assert resp.status_code == 200
+    assert (await _all_pending(rig["lead_client"]))["total"] == 0
+    # Support can press again on the still-Done item: a fresh request, a fresh notice.
+    second = (await _request(rig["support_client"], bug.id, "It really is back")).json()
+    assert second["id"] != first["id"]
+    assert (await _all_pending(rig["lead_client"]))["total"] == 1
+    assert (await _inbox_types(rig["lead_client"])).count("return_requested") == 2

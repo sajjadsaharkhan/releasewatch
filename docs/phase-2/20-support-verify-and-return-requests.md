@@ -99,7 +99,7 @@ Support's feedback after the Phase 2 release, against the code as it is:
   - Support never sees any other status control.
 - **Item page, tech:**
   - A pending request shows the same banner with **Confirm** and **Dismiss**. Dismiss requires a comment. The timeline renders the four new event types, with requester names and a link to each comment.
-- **Triage page:** a third tab, **Return requests (n)**, next to New and Needs info. Rows show the item key and title, Done since, the container, requesters, the first comment and the age. The detail pane has Confirm and Dismiss. The tab counter counts toward the sidebar triage badge.
+- **Triage page:** no separate tab (changed after the first build, decided with the user 2026-11-24). Pending return requests lead the **New** tab, above the ordinary rows, in a group headed "Came back from production · n", because a fixed item that came back is urgent. Each is a red-outlined card with a solid red icon tile, the item key, a "Problem is back" pill, the title and the first report; a footer strip holds the requesters, the report count and "Done 2d ago in Stream", and a **waiting** chip that is amber for the first 4 hours and solid red after. The first return is selected by default. The detail pane has Confirm and Dismiss. **A pending return request counts as one waiting decision, like a New bug:** the New tab's counter and the sidebar triage badge are New bugs plus pending requests (one per item, however many Support users pressed).
 - **Support reports list:** a "Return requested" amber badge on the row, and a filter chip.
 - Check both themes.
 
@@ -116,7 +116,7 @@ Support's feedback after the Phase 2 release, against the code as it is:
 - A tech Reject of an item with a pending request closes the request as `confirmed`.
 - Partial unique index: two concurrent first presses → one request, two entries.
 - `test_ac_12_*` / `test_ac_71_*`: on a Done bug, recurrence is refused with the new text, and Support's `allowed_actions` has `request_return`, not `reject`.
-- E2E: Support presses Problem is back on a Done bug, a triager confirms it in the Return requests tab, and the bug is Rejected.
+- E2E: Support presses Problem is back on a Done bug, a triager sees it at the top of the New tab and confirms it, and the bug is Rejected. The triage badge and the New tab count pending requests with New bugs.
 
 ## Out of Scope
 
@@ -126,7 +126,7 @@ Support's feedback after the Phase 2 release, against the code as it is:
 
 ## Changes to Later Specs
 
-- **CONTEXT.md:** add **Return request**, **Problem is back**, and **Support verification**. Update **Role**, **Subscriber** (new reason `return_request`), **Recurrence** (Done text), and the **Triage queue** (return requests tab).
+- **CONTEXT.md:** add **Return request**, **Problem is back**, and **Support verification**. Update **Role**, **Subscriber** (new reason `return_request`), **Recurrence** (Done text), and the **Triage queue** (return requests lead the New tab and count in the triage badge).
 - **prd-search-engine:** no change. Requests are not indexed; their comments are ordinary public comments and are indexed as such.
 
 ## Prompt
