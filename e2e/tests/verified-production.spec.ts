@@ -162,8 +162,13 @@ test('release: Done is empty until ship, the status control says why, ship makes
   await page.getByTestId('issue-sidebar').getByRole('button', { name: 'In Review' }).click()
   const doneOption = page.getByTestId('done-at-ship-option')
   await expect(doneOption.getByRole('button')).toBeDisabled()
-  await doneOption.hover()
-  await expect(page.getByText(/^Done when the release ships\.?$/)).toBeVisible()
+  // The reason is written in the menu itself, not in a hover tooltip.
+  const reason = doneOption.getByText(/^Done when the release ships\.?$/)
+  await expect(reason).toBeVisible()
+  const box = (await reason.boundingBox())!
+  const viewport = page.viewportSize()!
+  expect(box.x).toBeGreaterThanOrEqual(0)
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Mark as verified' }).click()
   await expect(page.getByTestId('issue-sidebar').getByRole('button', { name: 'Verified' })).toBeVisible()

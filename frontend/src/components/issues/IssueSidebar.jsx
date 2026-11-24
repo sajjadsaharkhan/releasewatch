@@ -127,13 +127,14 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                 </DropdownItem>
               ))}
               {doneAtShip && (
-                <Tooltip content={doneAtShipText} side="right" wrapperClassName="flex w-full">
-                  <span className="block w-full" tabIndex={0} aria-label={`Done — ${doneAtShipText}`} data-testid="done-at-ship-option">
-                    <DropdownItem disabled>
-                      <StatusBadge status="done" size="sm" />
-                    </DropdownItem>
-                  </span>
-                </Tooltip>
+                <div data-testid="done-at-ship-option" aria-label={`Done — ${doneAtShipText}`}>
+                  <DropdownItem disabled>
+                    <StatusBadge status="done" size="sm" />
+                  </DropdownItem>
+                  {/* Visible without hovering: this menu sits at the page's right edge,
+                      where a side tooltip would fall off screen. */}
+                  <p className="-mt-1 px-3 pb-1.5 text-[11.5px] leading-snug text-muted-foreground">{doneAtShipText}</p>
+                </div>
               )}
             </>
           )}
