@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 async def dispatch(message: dict[str, Any], client: TelegramClient, db: AsyncSession) -> None:
     """Route an incoming message to the appropriate command handler."""
+    # The bot only talks in private chats. Groups are one-way (Support channel
+    # posts, slice 21): it never answers anything said there.
+    if message["chat"].get("type", "private") != "private":
+        return
+
     text = (message.get("text") or "").strip()
     chat_id: int = message["chat"]["id"]
 

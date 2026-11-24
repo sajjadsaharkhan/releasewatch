@@ -528,3 +528,36 @@ async def test_ac_98_internal_notes_never_reach_a_post(factories, rig, telegram,
 
     assert len(telegram.channel) > 1
     assert all(secret not in text for _, _, text in telegram.channel)
+
+
+# ── One-way: the bot never answers in a group ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_the_bot_ignores_group_messages_but_still_answers_private_chats(db_session):
+    from app.telegram.handlers import dispatch
+
+    class Recorder:
+        def __init__(self):
+            self.sent = []
+
+        async def send_message(self, chat_id, text, parse_mode="HTML", message_thread_id=None):
+            self.sent.append((chat_id, text))
+
+    client = Recorder()
+    for chat_type in ("group", "supergroup", "channel"):
+        await dispatch(
+            {"chat": {"id": -1002809394924, "type": chat_type}, "from": {"id": 5},
+             "text": "/start", "message_thread_id": 7},
+            client, db_session,
+        )
+        await dispatch(
+            {"chat": {"id": -1002809394924, "type": chat_type}, "from": {"id": 5},
+             "text": "hello everyone"},
+            client, db_session,
+        )
+    assert client.sent == []
+
+    await dispatch({"chat": {"id": 5, "type": "private"}, "from": {"id": 5}, "text": "/start"},
+                   client, db_session)
+    assert len(client.sent) == 1
