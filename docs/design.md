@@ -146,16 +146,36 @@ non-pill use.
 | `in_progress` | In Progress | indigo | `loader` |
 | `to_review` | To review | cyan | `clock` |
 | `in_review` | In Review | purple | `eye` |
+| `verified` | Verified | emerald (lighter step than Done: `bg-emerald-50 text-emerald-700`) | `badge-check` |
 | `done` | Done | teal | `shield-check` |
 | `blocked` | Blocked | orange | `circle-slash` |
 | `cancelled` | Cancelled | zinc (dimmed: `text-zinc-500`) | `x-circle` |
 
-`BOARD_STATUSES` (`todo, rejected, in_progress, to_review, in_review, done, blocked`) is the
-board status set; `BOARD_COLUMNS` (`todo, in_progress, to_review, in_review, done, blocked`) is
+`BOARD_STATUSES` (`todo, rejected, in_progress, to_review, in_review, verified, done, blocked`) is the
+board status set; `BOARD_COLUMNS` (`todo, in_progress, to_review, in_review, verified, done, blocked`) is
 what a board draws — Rejected cards sit in the To do column (`BOARD_COLUMN_OF`), so the board
-gained one column (To review), not two (09a). To review means "the developer delivered it,
-waiting for QA"; In review means "QA is checking it". `FIXED_STATUSES` is `to_review, in_review,
-done`.
+gained one column (To review), not two (09a); slice 19 adds **Verified** between In review and Done. To review means "the developer delivered it,
+waiting for QA"; In review means "QA is checking it"; **Verified** means "QA approved it, it is not on
+production yet" and **Done always means on production** (19, BR-67). `FIXED_STATUSES` is `to_review,
+in_review, verified, done`; `DELIVERED_STATUSES` is `verified, done` (the container lock, the queue
+and My Work's Delivered tab). Verified stays in `OPEN_STATUSES` — it isn't on production yet — but is
+not in a backlog (no cycle).
+
+**Verified and On production (slice 19).** A release board's **Done** column is always drawn and
+stays empty until ship — empty text "Done after ship" — because a release item only reaches Done
+when its release ships (the API refuses a move with `done_at_ship`). The status control never
+lists Done for a release item: it shows a *disabled* Done option (`data-testid="done-at-ship-option"`)
+whose tooltip reads "Done when the release ships". On the Stream the deployer selects Verified
+cards or rows — a checkbox on hover (always visible once checked), shift-click for a range — and a
+bottom bar "n selected · **On production**" (primary `rocket` button, `x` clears) appears. The button
+opens a confirm dialog listing the keys and titles; a 409 `not_verified_in_stream` names the refused
+items in a red alert and changes nothing. This is not a generic bulk-status control: the bar only ever
+exists for Verified Stream items. **Verified age marker** (`VerifiedAgeMarker`, FR-42/BR-75): a
+Stream item Verified for 3 days or more gets a small zinc `clock-alert` on cards and rows, tooltip
+"Verified n days ago — not on production yet"; never on a release item. **Phase 1 report notice**
+(`Phase1ReportNotice`, PD-1): a slim amber note — "These numbers are not reliable since Phase 2 and
+will be rebuilt (PD-1)." — at the top of the Dashboard, Regressions and Contributions pages; text
+only, never dismissible. (There is no Release reports page in the frontend yet.)
 `TRIAGE_STATUSES` (`new, needs_info`) are bug-only and kept off boards — untriaged work never
 looks committed. `OPEN_STATUSES` — not `done` and not `cancelled` — is the canonical "still
 needs work" set. Use these; do not re-enumerate the lists at a call site.
@@ -229,7 +249,7 @@ what the item is waiting for. There is no Rejected column: the To do column spli
 |---|---|---|---|
 | `planned` | Planned | `play` | zinc |
 | `review` | Rejected in review / Review | `undo-2` | amber |
-| `release_qa` | Returned from release QA / Release QA | `rotate-ccw` | orange |
+| `release_qa` | Caught before production / Release QA | `rotate-ccw` | orange |
 | `production` | Problem on production / Production | `flame` | red |
 
 Amber → orange → red climbs with how far the problem got (item QA, release QA, production). Red is
@@ -238,7 +258,7 @@ shared with the release-blocker marker on purpose: both mean "this hurts users n
 **The To do column's areas** (`TODO_AREAS` in `lib/constants.js`, drawn by `DroppableColumn`,
 chosen from a prototype 2026-09-30): when anything in the column came back, it splits into three
 collapsible groups, top to bottom — **Rejected** (amber, `undo-2`: rejected in review, from To
-review / In review), **Returned** (orange, `rotate-ccw`: sent back after Done, from release QA or
+review / In review), **Returned** (orange, `rotate-ccw`: sent back after Verified or Done — release QA ("Caught before production") or
 production), then **To do** (new work). Each group header is a button (`aria-expanded`) with a
 chevron, the area icon and label, and a count chip; the hint ("Sent back from review" / "Sent
 back after Done — release QA or production") is its tooltip. Collapsing is per view and not
@@ -289,9 +309,9 @@ hue; the time since the previous reached step sits on it as a small `clock` pill
 left out). Footer: "Took X" or, for the open cycle, "Open for X". Empty state: "No cycles yet" —
 backlog items have none.
 
-**Reject** (`RejectDialog`) is one action on To review, In review and Done items, shown when
+**Reject** (`RejectDialog`) is one action on To review, In review, Verified and Done items, shown when
 `reject` is in `allowed_actions` (Support never sees it). It has two names: **Reject** (`undo-2`)
-on To review / In review, **Return** (`rotate-ccw`) on a Done item — it's already out, so it comes
+on To review / In review / Verified, **Return** (`rotate-ccw`) on a Done item — it's already out, so it comes
 back, matching the board's Returned area. The dialog's title, text and confirm follow the name;
 the comment is required and the destructive confirm stays disabled until it has text. The server
 decides where it was caught. The sidebar's quick actions follow the flow: To do / Rejected → **Start work**,
@@ -347,8 +367,8 @@ technical debt, full due date, project · container (Stream / release / Backlog)
 profile's **Work queue** button). Chosen from prototype variant D, 2026-10-01. Header: `text-xl
 font-bold` title ("My Work", or "Name’s work" with a breadcrumb and "…will be notified of changes"),
 then a **List | Board** `Segmented` (as on All Issues) and a **Queue history** button. Under it,
-`Tabs` that filter: **All · In progress · Overdue · Blockers · Done**, each with a count (Done is
-List-only — on the Board it's a column). Tab, view and the Done range live in the URL (`?tab=`,
+`Tabs` that filter: **All · In progress · Overdue · Blockers · Delivered**, each with a count
+(Delivered is List-only — on the Board Verified and Done are columns; it lists Verified, then the Done range). Tab, view and the Done range live in the URL (`?tab=`,
 `?view=board`, `?done=30d` / `?done_from=&done_to=`, default 7 days).
 
 - **Rows** (`QueueItemRow`, `components/queue`): a bordered `rounded-xl` card per item, in one flat
@@ -369,10 +389,10 @@ List-only — on the Board it's a column). Tab, view and the Done range live in 
   already has 4 pins — unpin one first." A drop across the pin line shows the server's refusal.
 - **`BlockerBadge`:** an outlined red pill "Blocker" with a pulsing dot (the ping stops under
   reduced motion); tooltip "Release blocker — this release can't ship until it's fixed".
-- **Done tab:** the same rows, grouped by the day they finished (Today, Yesterday, date), with a
+- **Delivered tab (`?tab=done`):** Verified items first, then Done; the same rows, grouped by the day they finished (Today, Yesterday, date), with a
   teal check instead of the number, "Finished 2h ago" instead of the due date, and no handle, pin or
   priority menu. `DoneRangePicker` (7/30/90 days or a custom range) sits top right.
-- **Board:** `IssueBoard` with the six board columns and the `WorkItemCard` board cards, in queue
+- **Board:** `IssueBoard` with the seven board columns and the `WorkItemCard` board cards, in queue
   order; the tabs still filter it. Dragging across columns changes status; there's no reorder
   within a column (that's the list's job, so both agree). "Done column shows" + `DoneRangePicker`
   sits above it.
@@ -427,7 +447,7 @@ status is a filled pill, Overdue is a red *outlined* marker beside it. Overdue i
 `<OverdueMarker release>` renders only when the API says `is_overdue`: `border-red-500/80`
 outline, red text, `alarm-clock` icon, a tooltip with the passed target date, focusable.
 `<ReleaseProgress release>` is a 6px teal bar (green once Released), `role="progressbar"`, with
-"N of M done" and the percentage under it — Done ÷ non-cancelled items, "No items yet" when null.
+"N of M verified or done" and the percentage under it — (Verified + Done) ÷ non-cancelled items, "No items yet" when null.
 Go/no-go is `<GoNogoBadge>`: Pending (zinc, `circle-dashed`), Go (green, `thumbs-up`), No-go (red,
 `thumbs-down`).
 
@@ -448,8 +468,9 @@ blockers, a red count, so both signals stay visible while it's closed. A Release
 Both pages share `ContainerWork` (board from `GET /releases/{id}/board`, items table).
 
 **Ship dialog** (`ShipDialog`) is built from `GET /releases/{id}/ship-preview`: the go/no-go badge
-(with an inline red warning on a no-go — shipping is still allowed), "N Done items will be on
-production", the not-Done counts as `StatusBadge`s, and a confirm button that says what moves
+(with an inline red warning on a no-go — shipping is still allowed), then two lines from the
+preview: "**n items go to production**" (Verified items become Done) and "**m items go to the
+backlog** (2 To do, 1 In review, …)", and a confirm button that says what moves
 ("Ship and move 4 items to the backlog"). A toast confirms the ship.
 
 **Time range picker** (`ui/DateTimeRangePicker`, ported from llmeter): a Kibana-style filter in

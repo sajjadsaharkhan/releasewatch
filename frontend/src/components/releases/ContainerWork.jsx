@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { IssueBoard, IssueBoardSkeleton } from '../common/IssueBoard'
@@ -6,6 +6,9 @@ import { IssueTable, IssueTableSkeleton } from '../common/IssueTable'
 import { doneRangeToApi, doneRangeLabel } from '../common/DoneRangePicker'
 import { Button } from '../ui/Button'
 import { Empty } from '../ui/Empty'
+import { WorkContext } from '../common/WorkContext'
+import { ProductionBar } from './ProductionBar'
+import { DONE_AT_SHIP_TEXT } from '../../lib/constants'
 import { releasesApi, issuesApi } from '../../lib/api'
 import { issueSlug } from '../../lib/issueSlug'
 import { useToast } from '../../hooks/useToast'
@@ -45,7 +48,52 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
 
   const open = (issue) => navigate(`/issue/${issueSlug(issue)}`)
 
+  // On production (FR-67): in the Stream only, Verified items can be selected.
+  // Shift-click selects the range between the last click and this one.
+  const isStream = container.kind === 'stream'
+  const [selected, setSelected] = useState(() => new Set())
+  const anchor = useRef(null)
+  const isSelectable = useCallback(
+    (item) => isStream && !readOnly && item.status === 'verified'
+      && (item.allowed_actions ? item.allowed_actions.includes('mark_production') : true),
+    [isStream, readOnly],
+  )
+  const selectableItems = useMemo(() => (data ?? []).filter(isSelectable), [data, isSelectable])
+  // A refresh may have taken items out of Verified — drop them from the selection.
+  useEffect(() => {
+    setSelected((prev) => {
+      const live = new Set(selectableItems.map((i) => i.id))
+      const next = new Set([...prev].filter((id) => live.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [selectableItems])
+  const toggle = useCallback((item, shiftKey) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      const ids = selectableItems.map((i) => i.id)
+      const from = anchor.current != null ? ids.indexOf(anchor.current) : -1
+      const to = ids.indexOf(item.id)
+      if (shiftKey && from >= 0 && to >= 0) {
+        const [a, b] = from < to ? [from, to] : [to, from]
+        ids.slice(a, b + 1).forEach((id) => next.add(id))
+      } else if (next.has(item.id)) next.delete(item.id)
+      else next.add(item.id)
+      return next
+    })
+    anchor.current = item.id
+  }, [selectableItems])
+  const workContext = useMemo(() => ({
+    containerKind: container.kind,
+    selection: isStream && !readOnly ? { selected, isSelectable, toggle } : null,
+  }), [container.kind, isStream, readOnly, selected, isSelectable, toggle])
+  const selectedItems = selectableItems.filter((i) => selected.has(i.id))
+
   const move = useCallback(async (issue, to) => {
+    // Done at ship (BR-67): a release item never gets there by a move.
+    if (to === 'done' && !isStream) {
+      toast.error(DONE_AT_SHIP_TEXT)
+      return
+    }
     // Optimistic: the card lands in its new column, then the server decides.
     setData((prev) => prev.map((i) => (i.id === issue.id ? { ...i, status: to } : i)))
     try {
@@ -56,7 +104,7 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     } finally {
       load()
     }
-  }, [load, onChanged, toast])
+  }, [load, onChanged, toast, isStream])
 
 
   if (error) {
@@ -68,9 +116,18 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     )
   }
 
+  const production = isStream ? (
+    <ProductionBar
+      items={selectedItems}
+      onClear={() => setSelected(new Set())}
+      onDone={() => { setSelected(new Set()); load(); onChanged?.() }}
+      onRefused={(ids) => { setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id)))); load() }}
+    />
+  ) : null
+
   if (view === 'board') {
     return (
-      <>
+      <WorkContext.Provider value={workContext}>
         {loading && !data ? (
           <IssueBoardSkeleton />
         ) : (
@@ -80,11 +137,14 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
               onOpen={open}
               onStatusChange={readOnly ? undefined : move}
               readOnly={readOnly}
-              emptyText={doneRange ? { done: `Nothing done · ${doneRangeLabel(doneRange).toLowerCase()}` } : {}}
+              emptyText={isStream
+                ? (doneRange ? { done: `Nothing done · ${doneRangeLabel(doneRange).toLowerCase()}` } : {})
+                : { done: 'Done after ship' }}
             />
           </div>
         )}
-      </>
+        {production}
+      </WorkContext.Provider>
     )
   }
 
@@ -105,10 +165,11 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     )
   }
   return (
-    <>
+    <WorkContext.Provider value={workContext}>
       <div className={loading ? 'opacity-60 transition-opacity' : undefined} aria-busy={loading}>
         <IssueTable issues={data} onOpen={open} hideRelease />
       </div>
-    </>
+      {production}
+    </WorkContext.Provider>
   )
 }

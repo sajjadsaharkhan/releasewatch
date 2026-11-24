@@ -17,6 +17,9 @@ import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
 import { CycleBadge } from './CycleBadge'
 import { LabelChip } from './LabelChip'
+import { VerifiedAgeMarker } from './VerifiedAgeMarker'
+import { useWorkContext } from './WorkContext'
+import { Checkbox } from '../ui/Checkbox'
 import { Assignee, BlockerPill, InlineLabels, PlacementChip } from './WorkItemMeta'
 
 // Slice 10 (FR-42, P3): one card for every board and the personal queue. By
@@ -147,6 +150,7 @@ function Markers({ item }) {
       <PinMarker item={item} />
       <RejectMarker item={item} />
       <CycleBadge item={item} compact />
+      <VerifiedAgeMarker item={item} />
       <ReportedCount count={item.recurrence_count} className="text-[10.5px]" />
       <DueMarker item={item} />
       <TechDebtMarker item={item} compact />
@@ -305,6 +309,9 @@ const CLICK_SLOP = 5
 export function WorkItemCard({ item: raw, onOpen, dragging = false, className, linkProps = {} }) {
   const item = normalize(raw)
   const hover = useHoverDetails()
+  const { selection } = useWorkContext()
+  const selectable = !!selection?.isSelectable(raw)
+  const picked = selectable && selection.selected.has(raw.id)
   useEffect(() => { if (dragging) hover.close() }, [dragging]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const details = hover.open && !dragging ? createPortal(
@@ -344,10 +351,22 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, l
       ref={hover.ref}
       onMouseEnter={hover.show}
       onMouseLeave={hover.hide}
-      className={cn('w-full', className)}
+      className={cn('group/card relative w-full', className)}
       data-testid="work-item"
       data-item-id={item.id}
     >
+      {/* On production (FR-67): Verified Stream cards only; shift-click selects a range. */}
+      {selectable && (
+        <Checkbox
+          checked={picked}
+          onCheckedChange={(_, e) => selection.toggle(raw, e.shiftKey)}
+          aria-label={`Select ${item.key}`}
+          className={cn(
+            'absolute -left-2 -top-2 z-10 shadow-sm transition-opacity',
+            picked ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100 group-hover/card:opacity-100',
+          )}
+        />
+      )}
       <Link
         to={issuePath(raw)}
         draggable={false}

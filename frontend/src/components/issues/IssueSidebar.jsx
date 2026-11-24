@@ -1,5 +1,5 @@
 import React from 'react'
-import { CheckCheck, Clock, Eye, RotateCcw, Undo2, Play, Unlock } from 'lucide-react'
+import { BadgeCheck, CheckCheck, Clock, Eye, RotateCcw, Undo2, Play, Unlock } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { PriorityBadge, StatusBadge, Badge, RoleBadge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -21,7 +21,7 @@ import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
 import { TimeMetric } from './TimeMetric'
 import { ENVIRONMENT } from './DescriptionSection'
-import { PRIORITIES, RELEASE_STATUS, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
+import { DELIVERED_STATUSES, DONE_AT_SHIP_TEXT, PRIORITIES, RELEASE_STATUS, STATUS, TECH_DEBT, isBug, itemNoun } from '../../lib/constants'
 import { useBacklogCategories } from '../../hooks/useBacklogCategories'
 import { relTime, formatDay } from '../../lib/relTime'
 
@@ -73,6 +73,10 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   const [rejecting, setRejecting] = React.useState(false)
   const place = placementOf(issue)
   const overdue = isOverdue(issue)
+  const delivered = DELIVERED_STATUSES.includes(issue.status)
+  // Done is a release's ship, never a move (BR-67): shown disabled, not hidden.
+  const doneAtShip = place === 'release' && issue.status !== 'done' && !allowedTransitions.includes('done')
+    && !['done', 'cancelled'].includes(issue.status)
   // The Release row's choices: open releases, plus the current one if it's closed.
   const { releases: allReleases, openReleases } = useContainers(issue.project_id)
   const currentRelease = allReleases.find((r) => r.id === issue.release_id)
@@ -117,6 +121,13 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                   <StatusBadge status={s} size="sm" />
                 </DropdownItem>
               ))}
+              {doneAtShip && (
+                <span title={DONE_AT_SHIP_TEXT} className="block" data-testid="done-at-ship-option">
+                  <DropdownItem disabled>
+                    <StatusBadge status="done" size="sm" />
+                  </DropdownItem>
+                </span>
+              )}
             </>
           )}
         </Dropdown>
@@ -224,7 +235,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       {/* Placement: in a release, move it between releases here (like the
           Project row); anywhere else it's the container pill — Move… in the
           header's ⋯ menu changes it. */}
-      {place === 'release' && issue.status !== 'done' ? (
+      {place === 'release' && !delivered ? (
         <MetaRow label="Release">
           <Editable issue={issue} action="edit_item" readOnly={<ContainerBadge item={issue} />}>
             <Dropdown
@@ -261,7 +272,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </MetaRow>
       ) : (
         <MetaRow label="Placement">
-          <span title={issue.status === 'done' ? 'A Done item stays where it shipped.' : 'Use Move… in the ⋯ menu to change it.'}>
+          <span title={delivered ? 'A delivered item stays where it is.' : 'Use Move… in the ⋯ menu to change it.'}>
             <ContainerBadge item={issue} />
           </span>
         </MetaRow>
@@ -333,7 +344,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
       <MetaRow label="Project">
         <span
           className="text-zinc-800 dark:text-zinc-200"
-          title={issue.status === 'done' ? 'A Done item stays in its project.' : 'Use Move… in the ⋯ menu to change it.'}
+          title={delivered ? 'A delivered item stays in its project.' : 'Use Move… in the ⋯ menu to change it.'}
         >
           {issue.project_name || '—'}
         </span>
@@ -468,14 +479,32 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           </ActionButton>
         )}
         {/* A task may skip review (slice 03); a bug's fix is always reviewed. */}
-        {!bug && issue.status === 'in_progress' && offers('done') && (
+        {!bug && issue.status === 'in_progress' && allowedTransitions.includes('verified') && offers('verified') && (
+          <ActionButton action="transition:verified" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('verified')}>
+            <BadgeCheck size={14} className="mr-1" /> Mark as verified
+          </ActionButton>
+        )}
+        {!bug && issue.status === 'in_progress' && allowedTransitions.includes('done') && offers('done') && (
           <ActionButton action="transition:done" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('done')}>
             <CheckCheck size={14} className="mr-1" /> Mark as done
           </ActionButton>
         )}
-        {issue.status === 'in_review' && offers('done') && (
+        {/* QA approves: Verified, not on production yet (BR-67). A Stream item
+            may also go straight to Done — checked on production. A release item
+            only reaches Done at ship. */}
+        {issue.status === 'in_review' && allowedTransitions.includes('verified') && offers('verified') && (
+          <ActionButton action="transition:verified" item={issue} className="w-full" onClick={() => changeStatus('verified')}>
+            <BadgeCheck size={14} className="mr-1" /> Mark as verified
+          </ActionButton>
+        )}
+        {issue.status === 'in_review' && allowedTransitions.includes('done') && offers('done') && (
+          <ActionButton action="transition:done" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('done')}>
+            <CheckCheck size={14} className="mr-1" /> Verified on production — Done
+          </ActionButton>
+        )}
+        {issue.status === 'verified' && allowedTransitions.includes('done') && offers('done') && (
           <ActionButton action="transition:done" item={issue} className="w-full" onClick={() => changeStatus('done')}>
-            <CheckCheck size={14} className="mr-1" /> Mark as done
+            <CheckCheck size={14} className="mr-1" /> On production — Done
           </ActionButton>
         )}
 
@@ -484,7 +513,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
             <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
           </ActionButton>
         )}
-        {/* Reject (09a): one action on To review, In review and Done work —
+        {/* Reject (09a, 19): one action on To review, In review, Verified and Done work —
             named Return on a Done item, as the board's Returned area is —
             comment required; the server decides where it was caught. The
             action only exists in allowed_actions there — Support never sees it. */}

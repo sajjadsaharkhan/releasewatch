@@ -49,10 +49,10 @@ export function OverdueMarker({ release, size = 'md', className }) {
   )
 }
 
-// BR-47 — Done ÷ non-cancelled items. `progress` is null when nothing counts.
+// BR-47 (19) — (Verified + Done) ÷ non-cancelled items. `progress` is null when nothing counts.
 export function ReleaseProgress({ release, showCounts = true, className }) {
   const counts = release?.counts ?? {}
-  const done = counts.done ?? 0
+  const done = (counts.verified ?? 0) + (counts.done ?? 0)
   const total = Object.values(counts).reduce((a, b) => a + b, 0) - (counts.cancelled ?? 0)
   const pct = release?.progress == null ? null : Math.round(release.progress * 100)
   return (
@@ -63,7 +63,7 @@ export function ReleaseProgress({ release, showCounts = true, className }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct ?? undefined}
-        aria-valuetext={pct == null ? 'No items yet' : `${pct}% — ${done} of ${total} done`}
+        aria-valuetext={pct == null ? 'No items yet' : `${pct}% — ${done} of ${total} verified or done`}
         className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden"
       >
         <div
@@ -76,7 +76,7 @@ export function ReleaseProgress({ release, showCounts = true, className }) {
       </div>
       {showCounts && (
         <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
-          <span>{pct == null ? 'No items yet' : `${done} of ${total} done`}</span>
+          <span>{pct == null ? 'No items yet' : `${done} of ${total} verified or done`}</span>
           {pct != null && <span className="font-medium text-foreground">{pct}%</span>}
         </div>
       )}

@@ -10,6 +10,9 @@ import { ReportedCount } from './ReportedCount'
 import { TechDebtMarker } from './TechDebtMarker'
 import { RejectedPill } from './RejectedPill'
 import { CycleBadge } from './CycleBadge'
+import { VerifiedAgeMarker } from './VerifiedAgeMarker'
+import { useWorkContext } from './WorkContext'
+import { Checkbox } from '../ui/Checkbox'
 
 const TITLE_WIDTHS = ['w-48', 'w-64', 'w-56', 'w-40', 'w-72', 'w-52', 'w-60', 'w-44']
 
@@ -67,6 +70,9 @@ function IssueRow({ issue: i, onOpen, hideAssignee, hideReporter, hideRelease, s
   const href = useHref(path)
   const assignee = i.assignee_user
   const reporter = i.reporter_user
+  const { selection } = useWorkContext()
+  const selectable = !!selection?.isSelectable(i)
+  const picked = selectable && selection.selected.has(i.id)
   const labelsList = i.labels_detail ?? []
 
   const openInNewTab = () => window.open(href, '_blank', 'noopener')
@@ -91,8 +97,21 @@ function IssueRow({ issue: i, onOpen, hideAssignee, hideReporter, hideRelease, s
 
   return (
     <tr onClick={onRowClick} onAuxClick={onRowAuxClick} data-testid="issue-row"
-      className="border-b border-border cursor-pointer hover:bg-muted/50">
-      <td className="px-7 py-2 font-mono text-[11.5px] text-muted-foreground">
+      data-selected={picked || undefined}
+      className={`group/row border-b border-border cursor-pointer hover:bg-muted/50 ${picked ? 'bg-primary/5' : ''}`}>
+      {selection && (
+        <td className="w-[28px] pl-7 pr-0 py-2">
+          {selectable && (
+            <Checkbox
+              checked={picked}
+              onCheckedChange={(_, e) => selection.toggle(i, e.shiftKey)}
+              aria-label={`Select ${issueKey(i)}`}
+              className={picked ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100'}
+            />
+          )}
+        </td>
+      )}
+      <td className={`${selection ? 'pl-3 pr-2' : 'px-7'} py-2 font-mono text-[11.5px] text-muted-foreground`}>
         <Link to={path} onClick={onLinkClick} tabIndex={-1} className="inline-flex items-center gap-1">
           <TypeIcon type={i.type} />
           {issueKey(i)}
@@ -115,6 +134,7 @@ function IssueRow({ issue: i, onOpen, hideAssignee, hideReporter, hideRelease, s
           <ReportedCount count={i.recurrence_count} />
           <TechDebtMarker item={i} />
           <CycleBadge item={i} />
+          <VerifiedAgeMarker item={i} />
           {labelsList.slice(0, 1).map(l => <LabelChip key={l.id} label={l} />)}
         </div>
       </td>
@@ -157,6 +177,7 @@ function IssueRow({ issue: i, onOpen, hideAssignee, hideReporter, hideRelease, s
 }
 
 export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideReporter = false, hideRelease = false, showProject = false }) {
+  const { selection } = useWorkContext()
   if (issues.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-muted-foreground">
@@ -169,7 +190,8 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
     <table className="w-full text-[13px]">
       <thead className="text-[10.5px] uppercase tracking-wide text-muted-foreground border-b border-border sticky top-0 bg-background/95 backdrop-blur">
         <tr>
-          <th className="text-left font-medium px-7 py-2.5 w-[130px]">ID</th>
+          {selection && <th className="w-[28px] pl-7 pr-0 py-2.5"><span className="sr-only">Select</span></th>}
+          <th className={`text-left font-medium ${selection ? 'pl-3 pr-2' : 'px-7'} py-2.5 w-[130px]`}>ID</th>
           <th className="text-left font-medium px-2 py-2.5">Title</th>
           <th className="text-left font-medium px-2 py-2.5 w-[150px]">Status</th>
           {!hideAssignee && <th className="text-left font-medium px-2 py-2.5 w-[55px]">Assignee</th>}

@@ -856,11 +856,14 @@ export default function ReleaseDetailPage() {
         open={shipOpen}
         release={release}
         onClose={() => setShipOpen(false)}
-        onShipped={(r, moved) => {
+        onShipped={(r, { production = 0, backlog = 0 } = {}) => {
           setShipOpen(false)
           setRelease(r)
           refreshAll()
-          toast({ title: `Shipped ${r.version}`, body: moved ? `${moved} unfinished item${moved === 1 ? '' : 's'} moved to the backlog.` : 'Every item was Done.' })
+          toast({ title: `Shipped ${r.version}`, body: [
+            `${production} item${production === 1 ? '' : 's'} on production.`,
+            backlog ? `${backlog} moved to the backlog.` : null,
+          ].filter(Boolean).join(' ') })
         }}
       />
     </div>

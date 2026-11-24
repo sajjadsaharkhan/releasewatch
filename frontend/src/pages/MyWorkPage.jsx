@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { issuesApi, queueApi, userApi } from '../lib/api'
 import { issuePath } from '../lib/issueSlug'
-import { PRIORITY } from '../lib/constants'
+import { DELIVERED_STATUSES, PRIORITY } from '../lib/constants'
 import { useApp } from '../hooks/useApp'
 import { useToast } from '../hooks/useToast'
 import { Button, Empty, Icon, Segmented, Tabs } from '../components/ui'
@@ -244,25 +244,29 @@ function QueueList({ items, queue, tab, isOwner, busy, actions, onOpen }) {
   )
 }
 
+// The Delivered tab (19): Verified (approved, not on production yet) first, then
+// what is Done in the range, grouped by the day it finished.
 function DoneList({ board, range, onRange, onOpen }) {
-  const done = board?.columns.find((c) => c.status === 'done')?.items
+  const verified = board?.columns.find((c) => c.status === 'verified')?.items ?? []
+  const finished = board?.columns.find((c) => c.status === 'done')?.items
+  const done = finished == null ? null : [...verified, ...finished]
   return (
     <div className="px-7 pb-24 pt-4" data-testid="done-list">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <p className="text-[12.5px] text-muted-foreground">
-          {done == null ? 'Loading…' : `${done.length} item${done.length === 1 ? '' : 's'} finished · ${doneRangeLabel(range).toLowerCase()}`}
+          {done == null ? 'Loading…' : `${done.length} item${done.length === 1 ? '' : 's'} delivered · Done ${doneRangeLabel(range).toLowerCase()}`}
         </p>
         <DoneRangePicker value={range} onChange={onRange} className="ml-auto" />
       </div>
       {done == null ? <ListSkeleton /> : done.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center">
           <Icon name="circle-check-big" size={22} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" aria-hidden="true" />
-          <p className="text-[13px] font-medium">Nothing finished in this range</p>
+          <p className="text-[13px] font-medium">Nothing delivered in this range</p>
           <p className="mt-1 text-[12px] text-muted-foreground">Widen the range to see older work.</p>
         </div>
       ) : (
         <div className="space-y-5">
-          {groupByDay(done, (i) => i.completed_at).map((g) => (
+          {groupByDay(done, (i) => i.completed_at ?? i.verified_at).map((g) => (
             <section key={g.label} aria-label={g.label}>
               <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {g.label} <span className="font-normal normal-case tracking-normal">· {g.rows.length}</span>
@@ -289,10 +293,10 @@ function QueueBoard({ board, tab, range, onRange, onOpen, onStatusChange }) {
       {!board ? <IssueBoardSkeleton /> : (
         <div className="overflow-x-auto scrollbar-thin">
           <IssueBoard
-            issues={board.columns.flatMap((c) => c.items).filter((i) => i.status === 'done' || filter(i))}
+            issues={board.columns.flatMap((c) => c.items).filter((i) => DELIVERED_STATUSES.includes(i.status) || filter(i))}
             onOpen={onOpen}
             onStatusChange={onStatusChange}
-            emptyText={{ done: `Nothing finished · ${doneRangeLabel(range).toLowerCase()}` }}
+            emptyText={{ done: `Nothing done · ${doneRangeLabel(range).toLowerCase()}` }}
           />
         </div>
       )}
@@ -325,7 +329,9 @@ export default function MyWorkPage() {
   const historyPath = isOwner ? '/my-work/history' : `/u/${username}/work/history`
 
   const items = useMemo(() => (queue ? flatten(queue) : []), [queue])
-  const doneCount = board?.columns.find((c) => c.status === 'done')?.items.length
+  const doneCount = board
+    ? ['verified', 'done'].reduce((n, st) => n + (board.columns.find((c) => c.status === st)?.items.length ?? 0), 0)
+    : undefined
   const count = (key) => (queue ? items.filter(TAB_FILTERS[key]).length : undefined)
 
   if (owner.error) return <Empty icon="user-x" title="User not found" body={`There's no user called “${username}”.`} />
@@ -366,7 +372,7 @@ export default function MyWorkPage() {
             { value: 'in_progress', label: 'In progress', badge: count('in_progress') },
             { value: 'overdue', label: 'Overdue', badge: count('overdue') },
             { value: 'blockers', label: 'Blockers', badge: count('blockers') },
-            ...(view === 'list' ? [{ value: 'done', label: 'Done', badge: doneCount }] : []),
+            ...(view === 'list' ? [{ value: 'done', label: 'Delivered', badge: doneCount }] : []),
           ]}
         />
       </header>

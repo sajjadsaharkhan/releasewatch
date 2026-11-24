@@ -124,7 +124,7 @@ export const CYCLE_REASON = {
     pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   },
   release_qa: {
-    label: 'Returned from release QA', short: 'Release QA', icon: 'rotate-ccw',
+    label: 'Caught before production', short: 'Release QA', icon: 'rotate-ccw',
     pill: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
   },
   production: {
@@ -176,6 +176,11 @@ export const STATUS = {
     pill: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
     icon: 'eye',
   },
+  verified: {
+    label: 'Verified',
+    pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    icon: 'badge-check',
+  },
   done: {
     label: 'Done',
     pill: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
@@ -193,10 +198,10 @@ export const STATUS = {
   },
 }
 
-export const BOARD_STATUSES = ['todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'done', 'blocked']
+export const BOARD_STATUSES = ['todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'verified', 'done', 'blocked']
 // The board's columns (09a): Rejected cards sit in the To do column
 // (`BOARD_COLUMN_OF`) — the board gains one column, To review, not two.
-export const BOARD_COLUMNS = ['todo', 'in_progress', 'to_review', 'in_review', 'done', 'blocked']
+export const BOARD_COLUMNS = ['todo', 'in_progress', 'to_review', 'in_review', 'verified', 'done', 'blocked']
 export const BOARD_COLUMN_OF = { rejected: 'todo' }
 
 // The To do column's areas, top to bottom (09a): work rejected in review,
@@ -218,7 +223,16 @@ export const TRIAGE_STATUSES = ['new', 'needs_info']
 // "Fixed" — delivered: to_review, in_review or done (09a). Use this everywhere
 // a "has this been fixed" count is computed; do not re-enumerate the set at a
 // call site.
-export const FIXED_STATUSES = ['to_review', 'in_review', 'done']
+export const FIXED_STATUSES = ['to_review', 'in_review', 'verified', 'done']
+
+// Delivered (19, BR-67): QA approved it (`verified`, not on production yet) or it
+// is on production (`done`). The statuses a delivered item can hold; they lock
+// its container and leave the queue.
+export const DELIVERED_STATUSES = ['verified', 'done']
+
+// A Stream item verified this long ago and still not on production gets the
+// age marker (FR-42, BR-75). Stream only — a release ships it.
+export const VERIFIED_AGE_DAYS = 3
 
 // Cancel reasons (BR-13), optional for both types. Bugs: any of these except
 // `no_longer_needed`. Tasks: `no_longer_needed` only.
@@ -234,8 +248,15 @@ export const CANCEL_REASON = {
 export const BUG_CANCEL_REASONS = Object.keys(CANCEL_REASON).filter((r) => r !== 'no_longer_needed')
 export const TASK_CANCEL_REASONS = ['no_longer_needed']
 
-// Statuses that still need work — not done and not cancelled.
-export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'blocked']
+// Statuses that still need work — not done and not cancelled. Verified is open:
+// it isn't on production yet (recurrence is allowed on it).
+export const OPEN_STATUSES = ['new', 'needs_info', 'todo', 'rejected', 'in_progress', 'to_review', 'in_review', 'verified', 'blocked']
+
+// Both codes while the backend migrates `done_item_immobile` → `delivered_item_immobile` (19).
+export const IMMOBILE_CODES = ['delivered_item_immobile', 'done_item_immobile']
+
+// Why a release item can't be moved to Done (BR-67): only ship does it.
+export const DONE_AT_SHIP_TEXT = 'Done when the release ships'
 
 // Backlog categories (2026-09-28) are per project, managed in Settings → Backlog
 // categories (CTO/Admin). Each has a name, an icon from CATEGORY_ICONS and a hue

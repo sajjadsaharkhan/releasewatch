@@ -190,15 +190,18 @@ test("locked CTO pin, and the queue history page with its filters", async ({ bro
   await ctoCtx.close()
 })
 
-test('tabs: in progress, blockers, and done with its date range', async ({ browser }) => {
+test('tabs: in progress, blockers, and delivered with its date range', async ({ browser }) => {
   const run = Date.now()
-  const [working, finished, blocker] = [`Working ${run}`, `Finished ${run}`, `Blocking ${run}`]
+  const [working, finished, blocker, verifiedTitle] = [`Working ${run}`, `Finished ${run}`, `Blocking ${run}`, `Verified ${run}`]
   const { ctx: devCtx, page: dev } = await asRole(browser, 'developer')
   const { me, project, make } = await seed(dev)
   const w = await make(working, 'medium')
   const f = await make(finished, 'medium')
   await api(dev, 'POST', `/issues/${w.id}/transition`, { to: 'in_progress' })
   await api(dev, 'POST', `/issues/${f.id}/transition`, { to: 'done' })
+  // Verified (not on production yet) is delivered too (19).
+  const v = await make(verifiedTitle, 'medium')
+  await api(dev, 'POST', `/issues/${v.id}/transition`, { to: 'verified' })
 
   // A release blocker: a bug in a release, accepted onto the developer.
   const { ctx: adminCtx, page: admin } = await asRole(browser, 'admin')
@@ -221,13 +224,14 @@ test('tabs: in progress, blockers, and done with its date range', async ({ brows
   await expect(row(dev, blocker)).toBeVisible()
   await expect(row(dev, working)).toHaveCount(0)
 
-  await dev.getByRole('tab', { name: /^Done/ }).click()
+  await dev.getByRole('tab', { name: /^Delivered/ }).click()
   const doneList = dev.getByTestId('done-list')
   await expect(doneList.getByRole('button', { name: /Done: Last 7 days/ })).toBeVisible()
   const doneRow = doneList.getByTestId('queue-row').filter({ hasText: finished })
   await expect(doneRow).toBeVisible()
   await expect(doneRow).toContainText('Finished')
   await expect(doneRow.getByRole('button', { name: /^Pin / })).toHaveCount(0)
+  await expect(doneList.getByTestId('queue-row').filter({ hasText: verifiedTitle })).toBeVisible()
   await devCtx.close()
   await adminCtx.close()
 })

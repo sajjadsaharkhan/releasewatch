@@ -10,7 +10,7 @@ import { useApp } from '../hooks/useApp'
 import { backlogApi, issuesApi } from '../lib/api'
 import { useContainers } from '../hooks/useContainers'
 import { issueSlug } from '../lib/issueSlug'
-import { parseOrigin } from '../lib/constants'
+import { IMMOBILE_CODES, parseOrigin } from '../lib/constants'
 import { Button, Empty, useToast } from '../components/ui'
 import {
   BACKLOG_FILTERS, BacklogGroupHeader, BacklogHeader, BacklogRail, BacklogRow, BacklogRowsSkeleton,
@@ -270,7 +270,7 @@ export default function BacklogPage() {
       load({ silent: true })
     } catch (err) {
       const body = err.response?.data
-      if ((body?.code === 'bulk_move_failed' || body?.code === 'done_item_immobile') && body.errors) {
+      if ((body?.code === 'bulk_move_failed' || IMMOBILE_CODES.includes(body?.code)) && body.errors) {
         setRowErrors(body.errors)
         const n = Object.keys(body.errors).length
         toast.error('Nothing was moved', `${n} of ${all.length} items can't go to ${target}. They're marked in the list.`)

@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { StatusBadge } from '../ui/Badge'
+import { STATUS } from '../../lib/constants'
 import { releasesApi } from '../../lib/api'
 import { GoNogoBadge } from './GoNogoPanel'
 
 // FR-53 — the ship notice, built from GET /ship-preview: the go/no-go decision,
-// what isn't Done by status, and a confirm button that says what will move.
+// two lines — what goes to production (every Verified item becomes Done, BR-67)
+// and what goes to the backlog, by status — and a confirm button that says what moves.
 export function ShipDialog({ open, release, onClose, onShipped }) {
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -27,7 +28,7 @@ export function ShipDialog({ open, release, onClose, onShipped }) {
     setShipping(true); setError(null)
     try {
       const res = await releasesApi.ship(release.id)
-      onShipped?.(res.data, preview?.total_not_done ?? 0)
+      onShipped?.(res.data, { production: preview?.to_production ?? 0, backlog: preview?.total_to_backlog ?? 0 })
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not ship this release.')
     } finally {
@@ -35,12 +36,14 @@ export function ShipDialog({ open, release, onClose, onShipped }) {
     }
   }
 
-  const moving = preview?.total_not_done ?? 0
-  // The server's order (FR-53: "3 To do, 1 In progress, 1 In review").
-  const notDone = Object.entries(preview?.not_done ?? {}).filter(([, n]) => n > 0)
+  const moving = preview?.total_to_backlog ?? 0
+  const toProduction = preview?.to_production ?? 0
+  // The server's order (FR-53: "2 To do, 1 In review, 1 Rejected").
+  const toBacklog = Object.entries(preview?.to_backlog ?? {}).filter(([, n]) => n > 0)
+  const items = (n) => `${n} item${n === 1 ? '' : 's'}`
   const label = moving === 0
     ? `Ship ${release?.version ?? ''}`
-    : `Ship and move ${moving} item${moving === 1 ? '' : 's'} to the backlog`
+    : `Ship and move ${items(moving)} to the backlog`
 
   return (
     <Dialog open={open} onClose={shipping ? undefined : onClose} title={`Ship ${release?.version ?? ''}`} size="md">
@@ -73,27 +76,25 @@ export function ShipDialog({ open, release, onClose, onShipped }) {
               </p>
             )}
 
-            <div>
-              <p className="font-medium">
-                {preview.done} Done item{preview.done === 1 ? '' : 's'} will be on production.
+            <div className="space-y-2.5">
+              <p className="font-medium" data-testid="ship-to-production">
+                <span className="tabular-nums">{items(toProduction)}</span> go{toProduction === 1 ? 'es' : ''} to production
+                {toProduction > 0 && <span className="font-normal text-muted-foreground"> — Verified items become Done.</span>}
               </p>
               {moving === 0 ? (
-                <p className="mt-1 text-muted-foreground">Every item is Done — nothing moves.</p>
+                <p className="text-muted-foreground" data-testid="ship-to-backlog">Nothing goes to the backlog.</p>
               ) : (
-                <>
-                  <p className="mt-1 text-muted-foreground">
-                    These aren’t Done and will move to the backlog as <b>To do</b> in category <b>Default</b>,
-                    keeping their assignees. Their cycles are cleared.
+                <div data-testid="ship-to-backlog">
+                  <p className="font-medium">
+                    <span className="tabular-nums">{items(moving)}</span> go{moving === 1 ? 'es' : ''} to the backlog
+                    <span className="font-normal text-muted-foreground">
+                      {' '}({toBacklog.map(([st, n]) => `${n} ${STATUS[st]?.label ?? st}`).join(', ')})
+                    </span>
                   </p>
-                  <ul className="mt-2 flex flex-wrap gap-2" aria-label="Items that aren’t Done, by status">
-                    {notDone.map(([s, n]) => (
-                      <li key={s} className="inline-flex items-center gap-1.5">
-                        <span className="tabular-nums font-semibold">{n}</span>
-                        <StatusBadge status={s} />
-                      </li>
-                    ))}
-                  </ul>
-                </>
+                  <p className="mt-1 text-muted-foreground">
+                    They land as <b>To do</b> in category <b>Default</b>, keeping their assignees. Their cycles are cleared.
+                  </p>
+                </div>
               )}
             </div>
           </>

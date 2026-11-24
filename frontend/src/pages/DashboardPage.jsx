@@ -9,6 +9,7 @@ import { reportsApi } from '../lib/api'
 import { relTime } from '../lib/relTime'
 import { useToast } from '../hooks/useToast'
 import { issueSlug, issueKey } from '../lib/issueSlug'
+import { Phase1ReportNotice } from '../components/common/Phase1ReportNotice'
 
 const ACTIVITY_ICONS = {
   filed: { color: 'bg-blue-500', label: 'filed' },
@@ -89,6 +90,8 @@ export default function DashboardPage() {
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
       </div>
+
+      <Phase1ReportNotice />
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -16,6 +16,7 @@ import { InfoTooltip } from '../components/ui/InfoTooltip'
 import { UserHoverCard } from '../components/ui/UserHoverCard'
 import { Avatar } from '../components/ui/Avatar'
 import { cn } from '../lib/cn'
+import { Phase1ReportNotice } from '../components/common/Phase1ReportNotice'
 
 const PRESET_DAYS = { '1d': 1, '7d': 7, '14d': 14, '30d': 30, '90d': 90 }
 
@@ -170,6 +171,8 @@ export default function RegressionsPage() {
           labels={labels}
         />
       </div>
+
+      <Phase1ReportNotice />
 
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -10,9 +10,9 @@ export function mergeEffectSentence(hint) {
     case 'stays_cancelled':
       return 'Stays Cancelled'
     case 'returns_release_qa':
-      return 'Done → back to To do (release QA)'
+      return 'Done → Rejected (release QA)'
     case 'returns_production':
-      return 'Done → back to To do (production)'
+      return 'Done → Rejected (production)'
     default:
       return `Stays ${label}`
   }

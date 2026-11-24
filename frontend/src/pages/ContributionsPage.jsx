@@ -12,6 +12,7 @@ import { SegmentedBarChart } from '../components/common/SegmentedBarChart'
 import { MetricSummaryCard } from '../components/common/MetricSummaryCard'
 import { LabelBarChart } from '../components/common/LabelBarChart'
 import { reportsApi, teamApi } from '../lib/api'
+import { Phase1ReportNotice } from '../components/common/Phase1ReportNotice'
 import { useToast } from '../hooks/useToast'
 import { formatDuration } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
@@ -178,6 +179,8 @@ export default function ContributionsPage() {
           />
         </div>
       </div>
+
+      <Phase1ReportNotice />
 
       {/* Summary cards row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

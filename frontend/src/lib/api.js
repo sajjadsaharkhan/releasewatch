@@ -197,7 +197,7 @@ export const issuesApi = {
   // Generic status change — board drags and the sidebar's status control.
   // `to` is required; `reason`/`comment`/`cancel_reason` are optional.
   transition: (id, data) => api.post(`/issues/${id}/transition`, data),
-  // Reject (09a): To review / In review / Done → Rejected, `{comment}` required.
+  // Reject (09a, 19): To review / In review / Verified / Done → Rejected, `{comment}` required.
   // The server decides review vs release QA vs production.
   reject: (id, data) => api.post(`/issues/${id}/reject`, data),
   // One more occurrence of an open or Cancelled bug (slice 07). `data` is
@@ -207,6 +207,9 @@ export const issuesApi = {
   // bulk_move_failed carries per-item `errors: {id: message}`.
   bulkMove: (issueIds, releaseId) =>
     api.post('/issues/bulk-move', { issue_ids: issueIds, release_id: releaseId }),
+  // On production (19, FR-67): Verified Stream items → Done, all or nothing.
+  // 200 { issues, batch_id }; 409 not_verified_in_stream carries the offending `issue_ids`.
+  bulkProduction: (issueIds) => api.post('/issues/bulk-production', { issue_ids: issueIds }),
 }
 
 // ─── Backlog & technical debt (slice 08) ─────────────────────────────────────

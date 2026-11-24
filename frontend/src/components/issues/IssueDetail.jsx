@@ -11,7 +11,7 @@ import { IssueSidebar } from './IssueSidebar'
 import { ExportMarkdownModal } from './ExportMarkdownModal'
 import { MoveDialog } from './MoveDialog'
 import { actionState } from '../common/ActionButton'
-import { itemNoun } from '../../lib/constants'
+import { DELIVERED_STATUSES, itemNoun } from '../../lib/constants'
 
 export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, adjacent }) {
   const { user: currentUser } = useApp()
@@ -52,7 +52,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   // Move… in the ⋯ menu: open work, for whoever may edit it. Done items stay put (BR-54).
-  const canMove = localIssue.status !== 'done' && actionState(localIssue, 'edit_item').state === 'allowed'
+  const canMove = !DELIVERED_STATUSES.includes(localIssue.status) && actionState(localIssue, 'edit_item').state === 'allowed'
 
   useEffect(() => {
     if (scrolledRef.current) return

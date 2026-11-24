@@ -143,7 +143,7 @@ test('possible duplicate hint merges into the Done Stream bug', async ({ browser
   const hintRow = hints.locator('li').filter({ hasText: streamBug.key })
   await expect(hintRow).toBeVisible()
   await expect(hintRow.getByRole('img', { name: /\d+% similar/ })).toBeVisible()
-  await expect(hintRow.getByText('Done → back to To do (production)')).toBeVisible()
+  await expect(hintRow.getByText('Done → Rejected (production)')).toBeVisible()
 
   // Merge on a card is one decision: it asks first, and Cancel changes nothing.
   await hintRow.getByRole('button', { name: 'Merge', exact: true }).click()

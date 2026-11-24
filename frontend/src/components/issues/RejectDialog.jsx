@@ -17,6 +17,14 @@ const COPY = {
     placeholder: 'What you tested, what happened, what you expected…',
     done: (key) => `${key} is rejected`,
   },
+  // Verified (19): approved, not on production yet — release QA caught a problem.
+  verified: {
+    title: 'Reject',
+    intro: 'This work is Verified but not on production yet. It goes back to its assignee as Rejected, marked “Caught before production”, with your comment as the reason.',
+    label: "What's wrong with it",
+    placeholder: 'What release QA found, what you expected…',
+    done: (key) => `${key} is rejected`,
+  },
   return: {
     title: 'Return',
     intro: "This work is Done, and something's wrong with it. It goes back to its assignee — in the Stream if its release has shipped — with your comment as the reason.",
@@ -38,7 +46,7 @@ export function RejectDialog({ item, open, onClose, onDone }) {
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [composerKey, setComposerKey] = useState(0)
-  const copy = item?.status === 'done' ? COPY.return : COPY.reject
+  const copy = item?.status === 'done' ? COPY.return : item?.status === 'verified' ? COPY.verified : COPY.reject
 
   useEffect(() => {
     if (!open) return
