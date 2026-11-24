@@ -585,7 +585,7 @@ async def test_board_with_release_has_the_header(factories, rig, clock):
         project_id=rig["project"].id, release_id=rid, title="Crash on send",
         is_release_blocker=True,
     )
-    done = await _task(factories, rig, "done", release_id=rid)
+    verified = await _task(factories, rig, "verified", release_id=rid)
     await _task(factories, rig, release_id=rid)
 
     res = await rig["mcp"].call("rw_board", {"project": "chat", "release": "2.4.0"})
@@ -598,7 +598,7 @@ async def test_board_with_release_has_the_header(factories, rig, clock):
     assert header["go_nogo"]["status"]
     assert _keys(header["open_blockers"]) == [blocker.key]
     cols = {c["status"]: _keys(c["items"]) for c in body["columns"]}
-    assert cols["done"] == [done.key] and cols["new"] == [blocker.key]
+    assert cols["verified"] == [verified.key] and cols["new"] == [blocker.key]
     assert "2.4.0" in _text(res)
 
     for project, version in (("chat", "9.9"), ("payments", "2.4.0")):

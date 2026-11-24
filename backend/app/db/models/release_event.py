@@ -28,7 +28,7 @@ class ReleaseEventType(str, enum.Enum):
     item_removed = "item_removed"
     #: meta ``{decision, note}``
     go_nogo = "go_nogo"
-    #: meta ``{moved: int, not_done: {status: count}}``
+    #: meta ``{moved: int, to_production: int, not_done: {status: count}}``
     shipped = "shipped"
     #: meta ``{changes: {field: {from, to}}}`` for version / description / staging_url
     edited = "edited"

@@ -13,6 +13,7 @@ Needs info, Cancelled, Done — to the item's Support subscribers, so every
 path into those statuses notifies Support the same way.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -23,7 +24,8 @@ from app.core.agent_context import current_agent_token_id
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import (
-    CANCEL_REASON_LABELS, REJECTABLE_STATUSES, REVIEW_STATUSES, Issue, IssueCancelReason,
+    CANCEL_REASON_LABELS, DELIVERED_STATUSES, REJECTABLE_STATUSES, REVIEW_STATUSES, Issue,
+    IssueCancelReason,
     IssueSource, IssueStatus, IssueType, issue_type_value,
 )
 from app.db.models.issue_timeline import TimelineEventType
@@ -64,9 +66,13 @@ ENVIRONMENT_FIELDS = (
 #: How the reject popover and the notification name each reason (cycle-model §3).
 RETURN_REASON_LABELS = {
     "review": "Rejected in review",
-    "release_qa": "Returned from release QA",
+    "release_qa": "Caught before production",
     "production": "Problem on production",
 }
+
+
+def _status_value(issue: Issue) -> str:
+    return getattr(issue.status, "value", issue.status)
 
 
 def _required_comment(comment: str | None) -> str:
@@ -251,9 +257,15 @@ class IssueService:
         cancel_reason: str | None = None,
         question: str | None = None,
         notify: bool = True,
+        now: datetime | None = None,
+        event_meta: dict | None = None,
         _internal_context: dict | None = None,
     ) -> Issue:
         """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
+
+        ``now`` stamps the move's timestamps (ship passes ``released_at`` so
+        ``completed_at`` equals it); ``event_meta`` adds keys to the
+        ``status_changed`` event (On production's ``batch_id``).
 
         ``question`` is the Needs info triage outcome's comment — or a Reject's,
         which stands in for its missing reason — carried into the Support notice.
@@ -273,11 +285,13 @@ class IssueService:
 
         has_release = issue.release_id is not None
         release_shipped = False
+        container_kind = None
         if has_release:
             release_result = await db.execute(select(Release).where(Release.id == issue.release_id))
             release = release_result.scalar_one_or_none()
             if release is not None:
                 release_shipped = release.is_shipped
+                container_kind = getattr(release.kind, "value", release.kind)
 
         context = {
             "actor_id": actor.id,
@@ -285,6 +299,7 @@ class IssueService:
             "blocked_from_status": issue.blocked_from_status,
             "has_release": has_release,
             "release_shipped": release_shipped,
+            "container_kind": container_kind,
             "reason": reason,
             "cancel_reason": cancel_reason,
             **(_internal_context or {}),
@@ -295,14 +310,14 @@ class IssueService:
         if not check.ok:
             raise DomainError(status.HTTP_409_CONFLICT, check.detail, check.code, check.allowed)
 
-        now = datetime.now(tz=UTC)
+        now = now or datetime.now(tz=UTC)
 
         issue.status = to_status
 
         if to_status == IssueStatus.in_progress:
             if issue.started_at is None:
                 issue.started_at = now
-            if from_status in (IssueStatus.done, *REVIEW_STATUSES):
+            if from_status in (*DELIVERED_STATUSES, *REVIEW_STATUSES):
                 issue.verified_at = None
                 issue.completed_at = None
             if from_status in REVIEW_STATUSES:
@@ -318,11 +333,16 @@ class IssueService:
                 if ref:
                     issue.time_to_fix_h = round((now - ref).total_seconds() / 3600, 2)
 
-        elif to_status == IssueStatus.done:
-            issue.completed_at = now
-            if from_status in REVIEW_STATUSES:
+        elif to_status in DELIVERED_STATUSES:
+            # Verified is the first of Verified / Done from review (CY-07a): the
+            # stamp is written once and never overwritten. Done is "on production".
+            if to_status == IssueStatus.done:
+                issue.completed_at = now
+            if issue.verified_at is None and (
+                to_status == IssueStatus.verified or from_status in REVIEW_STATUSES
+            ):
                 issue.verified_at = now
-                if issue.fixed_at:
+                if from_status in REVIEW_STATUSES and issue.fixed_at:
                     issue.time_to_verify_h = round((now - issue.fixed_at).total_seconds() / 3600, 2)
 
         elif to_status == IssueStatus.blocked:
@@ -335,11 +355,15 @@ class IssueService:
         if from_status == IssueStatus.blocked and to_status != IssueStatus.blocked:
             issue.blocked_from_status = None
 
-        # Movement is unrestricted, so an item can leave done or cancelled for
-        # any status — it's no longer completed or cancelled once it does.
-        if from_status == IssueStatus.done and to_status != IssueStatus.done:
+        # Movement is unrestricted, so an item can leave Verified/Done or
+        # cancelled for any status — it's no longer completed or verified once it
+        # does. Verified → Done keeps its verification; Done → Verified is no
+        # longer on production.
+        if from_status in DELIVERED_STATUSES and to_status not in DELIVERED_STATUSES:
             issue.completed_at = None
             issue.verified_at = None
+        elif from_status == IssueStatus.done and to_status == IssueStatus.verified:
+            issue.completed_at = None
         if from_status == IssueStatus.cancelled and to_status != IssueStatus.cancelled:
             issue.cancel_reason = None
 
@@ -351,7 +375,7 @@ class IssueService:
 
         db.add(issue)
         await db.flush()
-        # Done → dormant entry, back from Done → its old place (FR-64, slice 10).
+        # Verified / Done → dormant entry, back from them → its old place (FR-64, slice 10).
         await queue_service.sync(db, issue)
 
         timeline_svc = TimelineService()
@@ -364,6 +388,7 @@ class IssueService:
             meta={
                 "from": from_status.value, "to": to_status.value,
                 "reason": cancel_reason or reason,
+                **(event_meta or {}),
             },
             is_internal=False,
         )
@@ -399,7 +424,8 @@ class IssueService:
         """Send the Support notice for ``to_status``, if it has one (§13).
 
         Needs info carries the triager's question; Cancelled carries the
-        human-readable reason; Done says it's fixed. Nothing else is sent.
+        human-readable reason; Done says it's fixed — on production, never at Verified
+        (BR-76). Nothing else is sent.
         """
         from app.services.inbox_service import InboxFanOutService
 
@@ -436,21 +462,23 @@ class IssueService:
     async def reject(
         self, db: AsyncSession, issue: Issue, comment: str | None, actor: User,
     ) -> Issue:
-        """**Reject** (09a): send delivered or Done work back with a required
-        comment. From To review, In review or Done (409 ``not_rejectable`` otherwise).
+        """**Reject** (09a): send delivered, Verified or Done work back with a
+        required comment. From To review, In review, Verified or Done (409
+        ``not_rejectable`` otherwise).
 
         The comment is an ordinary public comment; the item lands in Rejected
         and its next cycle starts. The reason is decided here, never by the
-        client (cycle-model §3): ``review`` from To review or In review; from
-        Done, ``release_qa`` in a Release that hasn't shipped, else
-        ``production`` — and a Released release's item moves to the Stream (CY-03).
+        client (cycle-model §3): ``review`` from To review or In review;
+        ``release_qa`` from Verified, in any container, which the item keeps;
+        ``production`` from Done — and a Released release's item moves to the
+        Stream (CY-03).
         """
         from app.services.timeline_service import TimelineService
 
         if IssueStatus(getattr(issue.status, "value", issue.status)) not in REJECTABLE_STATUSES:
             raise DomainError(
                 status.HTTP_409_CONFLICT,
-                "Only work in review or Done can be rejected.",
+                "Only work in review, Verified or Done can be rejected.",
                 "not_rejectable",
             )
         comment = _required_comment(comment)
@@ -476,17 +504,16 @@ class IssueService:
         ``move_reason="merge"`` on the status change."""
         from app.db.models.issue_cycle import CycleStartReason
         from app.db.models.release import Release
-        from app.services.cycle_service import return_reason_for_done
         from app.services.timeline_service import TimelineService
 
         from_status = IssueStatus(getattr(issue.status, "value", issue.status))
         container = await db.get(Release, issue.release_id) if issue.release_id else None
-        if from_status != IssueStatus.done:
-            reason = CycleStartReason.review
-        elif container is not None:
-            reason = return_reason_for_done(container)
-        else:
+        if from_status == IssueStatus.verified:
+            reason = CycleStartReason.release_qa
+        elif from_status == IssueStatus.done:
             reason = CycleStartReason.production
+        else:
+            reason = CycleStartReason.review
 
         issue = await self.transition(
             db, issue, to=IssueStatus.rejected, actor=actor, reason=move_reason,
@@ -560,6 +587,47 @@ class IssueService:
             },
         )
 
+    # ── On production (FR-67, BR-68) ──────────────────────────────────────────
+
+    async def mark_production(
+        self, db: AsyncSession, issues: dict[int, Issue | None], actor: User,
+    ) -> tuple[list[Issue], str]:
+        """Verified → Done for every item, all or nothing (409
+        ``not_verified_in_stream`` lists each offending id, nothing changes).
+
+        ``issues`` maps each requested id to the visible row, or ``None`` when
+        the caller can't see it. Each item goes through ``transition`` with
+        ``reason = on_production``, so every per-item effect is the ordinary
+        one; one shared ``batch_id`` rides in each event's meta (slice 21).
+        Returns the items and the batch id.
+        """
+        from app.db.models.release import Release
+
+        offending: list[int] = []
+        for issue_id, issue in issues.items():
+            if issue is None or _status_value(issue) != IssueStatus.verified.value:
+                offending.append(issue_id)
+                continue
+            container = await db.get(Release, issue.release_id) if issue.release_id else None
+            if container is None or not container.is_stream:
+                offending.append(issue_id)
+        if offending:
+            raise DomainError(
+                status.HTTP_409_CONFLICT,
+                "Only Verified items in the Stream can be put on production — nothing changed.",
+                "not_verified_in_stream",
+                extra={"issue_ids": offending},
+            )
+        batch_id = str(uuid.uuid4())
+        moved = [
+            await self.transition(
+                db, issue, IssueStatus.done, actor,
+                reason="on_production", event_meta={"batch_id": batch_id},
+            )
+            for issue in issues.values()
+        ]
+        return moved, batch_id
+
     # ── Fix ───────────────────────────────────────────────────────────────────
 
     async def mark_fixed(
@@ -584,10 +652,14 @@ class IssueService:
         outcome: str,  # "pass" | "fail" | "partial"
         current_user: User,
         note: str | None = None,
+        *,
+        on_production: bool = False,
     ) -> Issue:
         """QA verifies a developer's fix.
 
-        - ``pass`` -> transitions to ``done``
+        - ``pass`` -> transitions to ``verified`` (BR-67); with ``on_production``
+          on a Stream item, straight to ``done`` — on a release item the Done
+          gate refuses it (409 ``done_at_ship``)
         - ``fail`` -> refused, 409 ``use_reject`` (09a): Reject is its own action
         - ``partial`` -> stays ``in_review``, just logs a comment
         """
@@ -599,7 +671,8 @@ class IssueService:
             )
 
         if outcome == "pass":
-            return await self.transition(db, issue, to=IssueStatus.done, actor=current_user)
+            to = IssueStatus.done if on_production else IssueStatus.verified
+            return await self.transition(db, issue, to=to, actor=current_user)
         if outcome == "fail":
             raise DomainError(
                 status.HTTP_409_CONFLICT,

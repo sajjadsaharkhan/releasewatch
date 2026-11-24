@@ -10,10 +10,9 @@ replaced wholesale on each computation and never exceed
 
 Two rules keep the hint honest:
 
-- ``merge_effect`` is computed with ``cycle_service.return_reason_for_done``
-  — the function ``MergeService`` reaches through ``IssueService.reject_with``
-  when a merge actually runs — so the hint's sentence and the merge's effect
-  can never disagree (BR-49).
+- ``merge_effect`` follows the same rule ``MergeService`` applies when a merge
+  actually runs (BR-49/50, v3.1): a merge into Done is a Reject with reason
+  ``production``; into Verified or any open status, nothing changes.
 - With Jev off (or failing mid-run) stored hints stay: hidden, not deleted
   (BR-S03), and switching Jev back on shows them again without recomputation.
 
@@ -39,7 +38,9 @@ from app.search.jev import JevItem
 from app.search.normalize import normalize, strip_markdown
 from app.search.retrieval import Filters, same_problem_candidates
 
-#: What "Merge into this" will do to the candidate (BR-49).
+#: What "Merge into this" will do to the candidate (BR-49). ``returns_release_qa``
+#: is no longer produced since v3.1 (Done is always on production); the value
+#: stays listed so older clients keep parsing.
 MERGE_EFFECTS = ("unchanged", "stays_cancelled", "returns_release_qa", "returns_production")
 
 
@@ -47,24 +48,13 @@ def _value(x):
     return getattr(x, "value", x)
 
 
-def merge_effect_of(status: str, container: Release | None) -> str:
-    """The hint's merge effect, from the same reason function the merge uses
-    (``return_reason_for_done`` via ``IssueService.reject_with``): Done returns
-    — release QA in an unshipped Release, production otherwise, a None
-    container included — Cancelled stays cancelled, anything else is untouched."""
-    from app.db.models.issue_cycle import CycleStartReason
-    from app.services.cycle_service import return_reason_for_done
-
+def merge_effect_of(status: str, container: Release | None = None) -> str:
+    """The hint's merge effect: Done returns to the Stream's flow as a Reject
+    (``production``, the only way a merge touches status), Cancelled stays
+    cancelled, anything else — Verified included — is untouched. ``container``
+    is kept for callers; since v3.1 it no longer changes the answer."""
     if status == IssueStatus.done.value:
-        reason = (
-            return_reason_for_done(container) if container is not None
-            else CycleStartReason.production
-        )
-        return (
-            "returns_release_qa"
-            if reason == CycleStartReason.release_qa
-            else "returns_production"
-        )
+        return "returns_production"
     if status == IssueStatus.cancelled.value:
         return "stays_cancelled"
     return "unchanged"

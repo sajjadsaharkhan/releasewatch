@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
 from app.db.models.issue import (
+    DELIVERED_STATUSES,
     TRIAGE_STATUSES,
     Issue,
     IssueCancelReason,
@@ -376,11 +377,11 @@ class TriageService:
             raise DomainError(
                 status.HTTP_409_CONFLICT, "A cancelled item can't be moved.", "item_closed",
             )
-        if _status(issue) == IssueStatus.done.value:
+        if _status(issue) in {s.value for s in DELIVERED_STATUSES}:
             raise DomainError(
                 status.HTTP_409_CONFLICT,
-                "A Done item can't move to another project.",
-                "done_item_immobile",
+                "A Verified or Done item can't move to another project.",
+                "delivered_item_immobile",
             )
         if release_id is not None and backlog_category_id is not None:
             raise DomainError(

@@ -245,7 +245,7 @@ async def test_bulk_move_backlog_items_to_stream_or_release(factories, rig, wher
     assert {i["container_kind"] for i in resp.json()["items"]} == {where}
 
 
-# ── AC-58: a Done item never changes container ────────────────────────────────
+# ── AC-58: a Verified or Done item never changes container ────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -254,12 +254,13 @@ async def test_ac_58_done_item_cannot_change_container(factories, rig):
     task = await factories.issue(
         project_id=rig["project"].id, type="task", release_id=rig["release"].id,
     )
-    await _drive(admin, task.id, "in_progress", "in_review", "done")
+    # A release item is Verified until ship; Verified and Done both stay put.
+    await _drive(admin, task.id, "in_progress", "in_review", "verified")
 
     for target in (rig["stream_id"], None):
         resp = await admin.patch(f"/issues/{task.id}", json={"release_id": target})
         assert resp.status_code == 409, resp.text
-        assert resp.json()["code"] == "done_item_immobile"
+        assert resp.json()["code"] == "delivered_item_immobile"
 
     # Bulk move fails as a whole, the movable item stays where it was.
     movable = await factories.issue(project_id=rig["project"].id, type="task")
@@ -267,7 +268,7 @@ async def test_ac_58_done_item_cannot_change_container(factories, rig):
         "issue_ids": [movable.id, task.id], "release_id": rig["stream_id"],
     })
     assert resp.status_code == 409
-    assert resp.json()["code"] == "done_item_immobile"
+    assert resp.json()["code"] == "delivered_item_immobile"
     assert str(task.id) in resp.json()["errors"]
     assert (await admin.get(f"/issues/{movable.id}")).json()["release_id"] is None
     assert (await admin.get(f"/issues/{task.id}")).json()["release_id"] == rig["release"].id
@@ -282,7 +283,7 @@ async def test_done_item_cannot_move_to_another_project(factories, rig):
 
     resp = await admin.post(f"/issues/{task.id}/move", json={"project_id": other.id})
     assert resp.status_code == 409, resp.text
-    assert resp.json()["code"] == "done_item_immobile"
+    assert resp.json()["code"] == "delivered_item_immobile"
     assert (await admin.get(f"/issues/{task.id}")).json()["project_id"] == rig["project"].id
 
 

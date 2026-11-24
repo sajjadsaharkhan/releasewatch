@@ -35,7 +35,9 @@ async def _assign(factories, item, dev):
 class Flow:
     """Drives items through the fixture. Sending work back is the one step
     whose API changes between Phase 1 and v3 (the regression action → reject
-    and returns), so it lives here."""
+    and returns), so it lives here. Since v3.1 a verified release item is
+    Verified, not Done — it is sent back with Reject; only a Stream item is
+    Done (``to_production``), and then comes back as an escape."""
 
     def __init__(self, factories, dev_client, qa_client):
         self.admin = factories.admin_client
@@ -52,16 +54,22 @@ class Flow:
 
     async def verify(self, item):
         resp = await self.admin.post(f"/issues/{item.id}/verify", json={"outcome": "pass"})
-        assert resp.status_code == 200 and resp.json()["status"] == "done", resp.text
+        assert resp.status_code == 200 and resp.json()["status"] == "verified", resp.text
+
+    async def to_production(self, item):
+        resp = await self.admin.post(f"/issues/{item.id}/transition", json={"to": "done"})
+        assert resp.status_code == 200, resp.text
 
     async def back_from_review(self, item):
         # Phase 1: POST /regression from In review. v3: a Reject (09a).
         resp = await self.qa.post(f"/issues/{item.id}/reject", json={"comment": "Still broken"})
         assert resp.status_code == 200, resp.text
 
-    async def back_from_done(self, item):
-        # Phase 1: POST /regression from Done. v3: POST /returns (08a Part 3).
-        resp = await self.qa.post(f"/issues/{item.id}/returns", json={"comment": "Broke again"})
+    async def back_from_done(self, item, *, by=None):
+        # Phase 1: POST /regression from Done. v3.1: Reject from Verified or Done.
+        resp = await (by or self.qa).post(
+            f"/issues/{item.id}/reject", json={"comment": "Broke again"},
+        )
         assert resp.status_code == 200, resp.text
 
 
@@ -99,7 +107,10 @@ async def _fixture(factories, client_for):
     await flow.deliver(c)
     await flow.verify(c)
 
-    # F — Done in R2, then a new report is merged into it (merge return).
+    # F — Verified in R2, a new report is merged into it, then it is sent back
+    # once. (Before v3.1 the merge itself was the return, made by the admin who
+    # triaged it; a merge into Verified now starts no cycle, so the same return
+    # is an admin's Reject and the pinned numbers hold.)
     f = await _bug(factories, r2.id, priority="low", labels=["db"])
     await _assign(factories, f, dev)
     await flow.deliver(f)
@@ -109,6 +120,7 @@ async def _fixture(factories, client_for):
         "outcome": "duplicate", "duplicate_of_id": f.id,
     })
     assert resp.status_code == 200, resp.text
+    await flow.back_from_done(f, by=factories.admin_client)
 
     return SimpleNamespace(
         dev=dev, qa=qa, project=project, r1=r1, r2=r2, flow=flow,
@@ -201,6 +213,7 @@ async def test_stream_and_task_cycles_do_not_change_phase1_reports(
     await _assign(factories, d, fx.dev)
     await fx.flow.deliver(d)
     await fx.flow.verify(d)
+    await fx.flow.to_production(d)
     await fx.flow.back_from_done(d)
     await fx.flow.deliver(d)
     await fx.flow.back_from_review(d)

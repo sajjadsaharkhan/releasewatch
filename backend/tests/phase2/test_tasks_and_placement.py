@@ -87,7 +87,9 @@ async def test_bug_filed_with_assignee_needs_a_priority(factories, rig):
 
 # ── Task workflow: free movement between task statuses ───────────────────────
 
-TASK_STATUSES = ["todo", "in_progress", "to_review", "in_review", "done", "blocked", "cancelled"]
+TASK_STATUSES = [
+    "todo", "in_progress", "to_review", "in_review", "verified", "done", "blocked", "cancelled",
+]
 
 
 @pytest.mark.asyncio
@@ -436,7 +438,7 @@ async def test_old_placement_filters_are_gone(factories, rig):
 
 
 @pytest.mark.asyncio
-async def test_ac_24_stream_bug_verified_is_done(factories, client_for, rig):
+async def test_ac_24_stream_bug_verify_is_verified_and_deploy_is_done(factories, client_for, rig):
     developer = await factories.user(role="developer")
     admin = factories.admin_client
     stream_id = (await admin.get(f"/projects/id/{rig['project'].id}")).json()["stream_id"]
@@ -462,8 +464,12 @@ async def test_ac_24_stream_bug_verified_is_done(factories, client_for, rig):
     resp = await admin.post(f"/issues/{bug.id}/verify", json={"outcome": "pass"})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["status"] == "done"
+    # v3.1: QA's pass is Verified; Done is a deploy move in the Stream (BR-67/68).
+    assert body["status"] == "verified"
     assert body["release_id"] == stream_id
+    resp = await admin.post(f"/issues/{bug.id}/transition", json={"to": "done"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "done"
 
 
 # ── Deleting a release nulls release_id instead of deleting the issue ───────

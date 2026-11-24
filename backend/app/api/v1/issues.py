@@ -6,6 +6,7 @@ GET    /issues/trash                        — list soft-deleted issues (CTO/ad
 DELETE /issues/trash/clear                  — permanently delete all trashed issues (CTO/admin only)
 POST   /issues                             — file a new issue
 POST   /issues/bulk-move                    — move backlog items to a release, all or nothing
+POST   /issues/bulk-production              — Verified Stream items → Done (On production)
 GET    /issues/{id}                         — get issue detail
 PATCH  /issues/{id}                         — update issue fields
 DELETE /issues/{id}                         — delete issue (CTO, admin, reporter, or triage lead)
@@ -15,8 +16,8 @@ POST   /issues/{id}/triage                  — apply a triage outcome (accept |
 POST   /issues/{id}/move                    — move an open item to another project, with its placement
 POST   /issues/{id}/recurrences             — report a recurrence on an open or Cancelled bug
 POST   /issues/{id}/fix                     — mark as fixed (-> in_review)
-POST   /issues/{id}/verify                  — verify the fix (-> done; fail → 409 use_reject)
-POST   /issues/{id}/reject                  — Reject To review / In review / Done work (09a)
+POST   /issues/{id}/verify                  — verify the fix (-> verified; on_production → done)
+POST   /issues/{id}/reject                  — Reject To review / In review / Verified / Done work
 POST   /issues/{id}/returns                 — alias of /reject for Done items (08a)
 POST   /issues/{id}/reopen                  — alias of /reject for Done items (Phase 1)
 POST   /issues/{id}/transition              — generic status change; used by board drags and menus
@@ -64,6 +65,8 @@ from app.schemas.issue import (
     BlockedTransition,
     BulkMoveRequest,
     BulkMoveResponse,
+    BulkProductionRequest,
+    BulkProductionResponse,
     DuplicateHintsResponse,
     FixRequest,
     IssueCreate,
@@ -231,6 +234,10 @@ def _workflow_fields(issue: Issue, current_user: User) -> dict:
         "blocked_from_status": issue.blocked_from_status,
         "has_release": issue.release_id is not None,
         "release_shipped": release.is_shipped if release is not None else False,
+        # The Done gate (v3.1): a Release item is never listed as moving to Done.
+        "container_kind": (
+            getattr(release.kind, "value", release.kind) if release is not None else None
+        ),
     }
     item_type = issue_type_value(issue.type)
     targets = Workflow.allowed_targets(item_type, issue.status, context)
@@ -622,6 +629,49 @@ async def create_issue(
     return enriched[0]
 
 
+@router.post(
+    "/bulk-production", response_model=BulkProductionResponse,
+    summary="Put Verified Stream items on production",
+)
+async def bulk_production(
+    payload: BulkProductionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BulkProductionResponse:
+    """On production (FR-67, BR-68) — the one multi-item status change: every
+    Verified item becomes Done, each with its own ``on_production`` event and
+    one shared ``batch_id``.
+
+    All or nothing: every id must be a Verified item of a Stream the caller can
+    see, else 409 ``not_verified_in_stream`` with the offending ``issue_ids``.
+    Support gets 403.
+    """
+    authorize(current_user, Action.mark_production)
+    ids = list(dict.fromkeys(payload.issue_ids))
+    rows = (await db.execute(
+        select(Issue).where(
+            Issue.id.in_(ids), Issue.deleted_at.is_(None), visibility_clause(current_user),
+        ).order_by(Issue.id).with_for_update()
+    )).scalars().all()
+    found = {i.id: i for i in rows}
+    moved, batch_id = await issue_service.mark_production(
+        db, {i: found.get(i) for i in ids}, current_user,
+    )
+    await db.commit()
+
+    result = await db.execute(
+        select(Issue).options(
+            selectinload(Issue.assignee),
+            selectinload(Issue.reporter),
+            selectinload(Issue.release),
+            selectinload(Issue.project),
+        ).where(Issue.id.in_(ids)).execution_options(populate_existing=True)
+    )
+    by_id = {i.id: i for i in result.scalars().all()}
+    items = await _build_enriched_responses([by_id[i.id] for i in moved], db, current_user)
+    return BulkProductionResponse(issues=items, batch_id=batch_id)
+
+
 @router.post("/bulk-move", response_model=BulkMoveResponse, summary="Move items to the Stream or a release")
 async def bulk_move(
     payload: BulkMoveRequest,
@@ -633,7 +683,7 @@ async def bulk_move(
 
     All or nothing: if any item can't move, nothing moves and the 409
     ``bulk_move_failed`` lists each failing id under ``errors`` (a Done item
-    fails the request with ``done_item_immobile``, BR-54). Guarded by
+    fails the request with ``delivered_item_immobile``, BR-54). Guarded by
     ``manage_backlog`` on the release's project.
     """
     from app.services.backlog_service import backlog_service, get_release_or_404
@@ -1053,12 +1103,19 @@ async def verify_fix(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> IssueResponse:
-    """QA verifies the developer's fix. Outcome: pass | fail | partial."""
-    to = {"pass": IssueStatus.done, "fail": IssueStatus.in_progress}.get(
+    """QA verifies the developer's fix. Outcome: pass | fail | partial.
+
+    ``pass`` moves to Verified; ``on_production`` on a Stream item goes straight
+    to Done, and on a release item is refused (409 ``done_at_ship``)."""
+    passed = IssueStatus.done if payload.on_production else IssueStatus.verified
+    to = {"pass": passed, "fail": IssueStatus.in_progress}.get(
         payload.outcome, IssueStatus.in_review,
     )
     await authorize_issue(db, issue_id, current_user, transition(to))
-    await issue_service.verify_fix(db, issue_id, payload.outcome, current_user, payload.note)
+    await issue_service.verify_fix(
+        db, issue_id, payload.outcome, current_user, payload.note,
+        on_production=payload.on_production,
+    )
     await db.commit()
     return await _reload_and_enrich(db, issue_id, current_user)
 

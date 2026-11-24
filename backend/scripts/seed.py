@@ -119,7 +119,7 @@ async def seed(session: AsyncSession) -> None:
         (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Crash on checkout with Apple Pay",           reporter_id=qa1.id,      assignee_id=dev1.id, is_release_blocker=True)),
         (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.todo,        title="Push notifications not delivered on iOS 17", reporter_id=qa1.id,      assignee_id=dev2.id)),
         (mobile, qa_rel, dict(priority=Priority.high,     status=IssueStatus.in_review,   title="Pagination breaks on search results",        reporter_id=users[4].id, assignee_id=dev1.id)),
-        (mobile, qa_rel, dict(priority=Priority.medium,   status=IssueStatus.done,        title="Date picker shows wrong timezone",           reporter_id=users[4].id, assignee_id=dev2.id)),
+        (mobile, qa_rel, dict(priority=Priority.medium,   status=IssueStatus.verified,    title="Date picker shows wrong timezone",           reporter_id=users[4].id, assignee_id=dev2.id)),
         (mobile, qa_rel, dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Auth token refresh causes 401 loop",         reporter_id=qa1.id,      assignee_id=dev1.id)),
         (mobile, qa_rel, dict(priority=None,              status=IssueStatus.new,         title="Profile image upload fails >5MB",            reporter_id=qa1.id,      assignee_id=None)),
         # Mobile App — v2.5.0 planned, v2.3.0 shipped
@@ -135,6 +135,9 @@ async def seed(session: AsyncSession) -> None:
         (api, api_rel,    dict(priority=Priority.critical, status=IssueStatus.in_progress, title="Rate limiting not applied on /auth/login", reporter_id=users[4].id, assignee_id=dev2.id, is_release_blocker=True)),
         (api, api_stream, dict(priority=Priority.high,     status=IssueStatus.todo,        title="Webhook retries flood the queue",           reporter_id=qa1.id,      assignee_id=users[4].id)),
         (api, None,       dict(type=IssueType.task, priority=Priority.medium, status=IssueStatus.todo, title="Move request logs to structured JSON", reporter_id=users[7].id, assignee_id=None)),
+        # Verified Stream items wait for the deploy — the On production action's material (v3.1).
+        (mobile, mobile_stream, dict(priority=Priority.medium, status=IssueStatus.verified, title="Settings toggle resets after app restart", reporter_id=qa1.id, assignee_id=dev2.id, verified_at=NOW - timedelta(days=4))),
+        (mobile, mobile_stream, dict(type=IssueType.task, priority=Priority.low, status=IssueStatus.verified, title="Update the privacy policy link in the footer", reporter_id=users[7].id, assignee_id=dev1.id, verified_at=NOW - timedelta(days=1))),
     ]
     issues = []
     for i, (project, container, data) in enumerate(issues_data, start=1):
@@ -163,6 +166,7 @@ async def seed(session: AsyncSession) -> None:
     progressed = {
         IssueStatus.in_progress: ("picked_up_at",),
         IssueStatus.in_review: ("picked_up_at", "submitted_at"),
+        IssueStatus.verified: ("picked_up_at", "submitted_at", "verified_at"),
         IssueStatus.done: ("picked_up_at", "submitted_at", "verified_at"),
     }
     cycles_by_title = {}

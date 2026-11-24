@@ -273,6 +273,9 @@ class VerifyRequest(BaseModel):
 
     outcome: str = Field(pattern=r"^(pass|fail|partial)$")
     note: str | None = None
+    #: Verified on production: a Stream item goes straight to Done (v3.1, BR-68).
+    #: On a release item it is refused — 409 ``done_at_ship``.
+    on_production: bool = False
 
 
 class SubscriberOut(BaseModel):
@@ -423,6 +426,18 @@ class BulkMoveRequest(BaseModel):
 class BulkMoveResponse(BaseModel):
     moved_ids: list[int]
     items: list[IssueResponse]
+
+
+class BulkProductionRequest(BaseModel):
+    """Payload for POST /issues/bulk-production (FR-67) — all or nothing."""
+
+    issue_ids: list[int] = Field(min_length=1, max_length=100)
+
+
+class BulkProductionResponse(BaseModel):
+    issues: list[IssueResponse]
+    #: Shared by every item's ``status_changed`` event of this request (slice 21).
+    batch_id: str
 
 
 class IssueCycleResponse(BaseModel):

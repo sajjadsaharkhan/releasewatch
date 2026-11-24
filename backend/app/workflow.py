@@ -27,6 +27,12 @@ The one exception to free movement (09a, ADR 0004): nothing enters
 never lists it. ``IssueService`` passes ``via_reject`` in the context when the
 Reject action (or a merge into a Done item) moves the item there. Leaving
 ``rejected`` is free.
+
+The second exception (v3.1, BR-67/68, the Done gate): Done means on
+production, so an item whose container is a Release (``container_kind`` in the
+context) never moves to ``done`` by a status move — 409 ``done_at_ship`` — and
+``allowed_targets`` lists ``verified`` instead. Only ship writes Done there,
+passing ``via_ship`` in the context. The Stream and the backlog are unaffected.
 """
 
 from dataclasses import dataclass, field
@@ -75,6 +81,16 @@ def _task_targets(from_status: IssueStatus) -> set[IssueStatus]:
     return {s for s in _TASK_STATUSES if s != from_status and s != IssueStatus.rejected}
 
 
+def _done_gated(context: dict[str, Any] | None) -> bool:
+    """The Done gate applies: the item sits in a Release and this isn't ship."""
+    ctx = context or {}
+    return ctx.get("container_kind") == "release" and not ctx.get("via_ship")
+
+
+def _without_done(allowed: list[str], context: dict[str, Any] | None) -> list[str]:
+    return [s for s in allowed if s != IssueStatus.done.value] if _done_gated(context) else allowed
+
+
 def _cancel_reason_error(item_type: str, context: dict[str, Any] | None) -> TransitionCheck | None:
     """Return a refusal if ``context['cancel_reason']`` isn't valid for ``item_type``.
 
@@ -115,15 +131,15 @@ class Workflow:
         from_st = _as_status(from_status)
         if item_type == "bug":
             return WorkflowTargets(
-                allowed=[
+                allowed=_without_done([
                     s.value for s in IssueStatus
                     if s != from_st and s != IssueStatus.rejected
-                ],
+                ], context),
                 blocked=[],
             )
         if item_type == "task":
             return WorkflowTargets(
-                allowed=[s.value for s in _task_targets(from_st)],
+                allowed=_without_done([s.value for s in _task_targets(from_st)], context),
                 blocked=[],
             )
         return WorkflowTargets(allowed=[], blocked=[])
@@ -151,6 +167,12 @@ class Workflow:
                     allowed=allowed,
                 )
             return TransitionCheck(True, allowed=allowed)
+        if to_st == IssueStatus.done and from_st != to_st and _done_gated(context):
+            return TransitionCheck(
+                False, code="done_at_ship",
+                detail="Done in a release means on production — it happens when the release ships.",
+                allowed=Workflow.allowed_targets(item_type, from_st, context).allowed,
+            )
         if item_type == "bug" and to_st == from_st:
             # A bug can re-enter its own status (e.g. the regression action
             # on an already-in_progress bug) — unrestricted movement (the

@@ -540,7 +540,8 @@ async def test_board_column_order_equals_queue_order(factories, client_for, rig)
     board = (await dev_c.get("/users/me/board")).json()
     columns = {c["status"]: [i["id"] for i in c["items"]] for c in board["columns"]}
     assert list(columns) == [
-        "todo", "rejected", "in_progress", "to_review", "in_review", "done", "blocked",
+        "todo", "rejected", "in_progress", "to_review", "in_review", "verified", "done",
+        "blocked",
     ]
     statuses = {i.id: "todo" for i in items} | {items[1].id: "in_progress", items[4].id: "rejected"}
     for status in ("todo", "rejected", "in_progress"):

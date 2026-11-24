@@ -50,6 +50,8 @@ class Action(str, Enum):
     set_due_date = "set_due_date"
     flag_release_blocker = "flag_release_blocker"
     reject = "reject"
+    #: Verified → Done for Stream items, one or many at once (v3.1, BR-68).
+    mark_production = "mark_production"
     flag_tech_debt = "flag_tech_debt"
     triage = "triage"
     view_duplicate_hints = "view_duplicate_hints"
@@ -99,6 +101,8 @@ class Target:
     item_id: int | None = None
     item_type: str | None = None
     status: str | None = None
+    #: ``stream`` / ``release`` / ``None`` (the backlog) — the item's container (v3.1).
+    container_kind: str | None = None
     source: str | None = None  # internal | support (slice 05)
     #: Who is subscribed to the item's Support notices (slice 06) — a Support
     #: subscriber may view it even when it isn't support-sourced.
@@ -192,13 +196,16 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.flag_release_blocker: frozenset({"qa", "product_manager", "cto", "admin", TRIAGE_LEAD}),
     # 09a: Reject delivered or Done work — every tech role, never Support.
     Action.reject: _T,
+    # v3.1 (BR-68): the person who deploys moves Verified Stream items to Done.
+    Action.mark_production: _T,
 }
 
 #: Actions about a specific item — visibility is checked before the matrix.
 _ITEM_ACTIONS = frozenset({
     Action.view_item, Action.comment_public, Action.comment_internal, Action.edit_item,
     Action.assign, Action.set_priority, Action.set_due_date, Action.flag_release_blocker,
-    Action.reject, Action.flag_tech_debt, Action.triage, Action.report_recurrence,
+    Action.reject, Action.mark_production, Action.flag_tech_debt, Action.triage,
+    Action.report_recurrence,
 })
 
 _QUEUE_ACTIONS = frozenset({Action.view_queue, Action.reorder_queue, Action.pin})
@@ -235,6 +242,7 @@ _LABELS: dict[str, str] = {
     Action.view_releases: "view releases",
     Action.flag_release_blocker: "flag release blockers",
     Action.reject: "reject work",
+    Action.mark_production: "mark work as on production",
 }
 
 _ROLE_LABELS = {
@@ -323,16 +331,30 @@ def _recurrence_denial(target: Target) -> Denied | None:
     return None
 
 
-#: Where Reject is offered (09a) — ``REJECTABLE_STATUSES`` as plain values.
-_REJECTABLE = frozenset({"to_review", "in_review", "done"})
+#: Where Reject is offered (09a, v3.1) — ``REJECTABLE_STATUSES`` as plain values.
+_REJECTABLE = frozenset({"to_review", "in_review", "verified", "done"})
 
 
 def _reject_denial(target: Target) -> Denied | None:
-    """09a — only delivered (To review, In review) or Done work can be rejected;
-    elsewhere the control doesn't exist."""
+    """09a — only delivered (To review, In review), Verified or Done work can be
+    rejected; elsewhere the control doesn't exist."""
     if target.status is not None and target.status not in _REJECTABLE:
         return Denied(
-            "not_rejectable", "Only work in review or Done can be rejected.",
+            "not_rejectable", "Only work in review, Verified or Done can be rejected.",
+            hidden=True, conflict=True,
+        )
+    return None
+
+
+def _production_denial(target: Target) -> Denied | None:
+    """BR-68 — On production applies to Verified items of the Stream; elsewhere
+    the control doesn't exist (a release item becomes Done at ship)."""
+    if (target.status is not None and target.status != "verified") or (
+        target.container_kind is not None and target.container_kind != "stream"
+    ):
+        return Denied(
+            "not_verified_in_stream",
+            "Only a Verified item in the Stream can be put on production.",
             hidden=True, conflict=True,
         )
     return None
@@ -399,6 +421,11 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
         if denial is not None:
             return denial
 
+    if key == Action.mark_production:
+        denial = _production_denial(target)
+        if denial is not None:
+            return denial
+
     if key == Action.flag_tech_debt:
         denial = _tech_debt_denial(target)
         if denial is not None:
@@ -422,6 +449,7 @@ RESPONSE_ITEM_ACTIONS: tuple[str, ...] = (
     Action.triage.value,
     Action.flag_release_blocker.value,
     Action.reject.value,
+    Action.mark_production.value,
     Action.report_recurrence.value,
     # The item page's hints block keys off this, never the role (14, FR-S13).
     Action.view_duplicate_hints.value,

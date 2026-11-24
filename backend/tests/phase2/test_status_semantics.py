@@ -46,9 +46,10 @@ async def test_release_metrics_count_by_new_statuses(factories, client_for):
 
     assert body["total_issues"] == 4
     assert body["blocker_count"] == 1
-    # open = not done and not cancelled: new, todo+blocker, in_review.
-    assert body["open_issues"] == 3
-    # fixed = in_review or done: to_review and to_done.
+    # open = not done and not cancelled: new, todo+blocker, in_review and the
+    # Verified item (it isn't on production yet, v3.1).
+    assert body["open_issues"] == 4
+    # fixed = in_review, verified or done: to_review and to_done (Verified).
     assert body["fixed_issues"] == 2
 
 

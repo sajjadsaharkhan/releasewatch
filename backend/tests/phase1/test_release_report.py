@@ -41,13 +41,13 @@ async def test_release_report_counts(factories, client_for):
 
     assert report["total_issues"] == 4
     assert report["blocker_count"] == 1
-    # open = not done and not cancelled: the new issue, the todo blocker, and
-    # the in_review bug; the done bug doesn't count.
-    assert report["open_issues"] == 3
+    # open = not done and not cancelled: the new issue, the todo blocker, the
+    # in_review bug and the Verified bug (not on production yet, v3.1).
+    assert report["open_issues"] == 4
     assert report["status_breakdown"]["new"] == 1
     assert report["status_breakdown"]["todo"] == 1
     assert report["status_breakdown"]["in_review"] == 1
-    assert report["status_breakdown"]["done"] == 1
+    assert report["status_breakdown"]["verified"] == 1
     # Phase 1's blocker and critical both land on critical (03a mapping).
     assert report["priority_breakdown"]["critical"] == 2
     assert report["priority_breakdown"]["high"] == 1

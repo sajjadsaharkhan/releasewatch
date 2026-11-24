@@ -33,7 +33,7 @@ from sqlalchemy.orm import selectinload
 from app.core.errors import DomainError
 from app.db.models.backlog_category import BacklogCategory
 from app.db.models.issue import (
-    BACKLOG_STATUSES, PRIORITY_ORDER, Issue, IssueType, Origin, origin_clause,
+    BACKLOG_STATUSES, DELIVERED_STATUSES, PRIORITY_ORDER, Issue, IssueType, Origin, origin_clause,
 )
 from app.db.models.project import Project
 from app.db.models.release import Release
@@ -296,13 +296,16 @@ class BacklogService:
                 errors[str(issue_id)] = "Not found."
             elif issue.project_id != release.project_id:
                 errors[str(issue_id)] = "It belongs to a different project than the release."
-            elif _value(issue.status) == "done" and issue.release_id != release.id:
-                immobile[str(issue_id)] = "It's Done — a Done item never moves."
+            elif (
+                _value(issue.status) in {st.value for st in DELIVERED_STATUSES}
+                and issue.release_id != release.id
+            ):
+                immobile[str(issue_id)] = "It's Verified or Done — a delivered item never moves."
         if immobile:
             raise DomainError(
                 status.HTTP_409_CONFLICT,
-                "No items were moved — Done items can't change container.",
-                "done_item_immobile",
+                "No items were moved — Verified and Done items can't change container.",
+                "delivered_item_immobile",
                 errors={**errors, **immobile},
             )
         if errors:

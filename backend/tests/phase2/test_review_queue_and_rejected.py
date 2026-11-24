@@ -145,7 +145,8 @@ async def test_verify_fail_is_refused_with_use_reject(factories, rig):
 @pytest.mark.parametrize("start, container, reason", [
     ("to_review", "stream", "review"),
     ("in_review", "release", "review"),
-    ("done", "release", "release_qa"),
+    ("verified", "release", "release_qa"),
+    ("verified", "stream", "release_qa"),
     ("done", "stream", "production"),
 ])
 async def test_reject_lands_in_rejected_and_starts_the_next_cycle(
@@ -154,6 +155,7 @@ async def test_reject_lands_in_rejected_and_starts_the_next_cycle(
     steps = {
         "to_review": ("in_progress", "to_review"),
         "in_review": ("in_progress", "to_review", "in_review"),
+        "verified": ("in_progress", "in_review", "verified"),
         "done": ("in_progress", "in_review", "done"),
     }[start]
     release_id = rig["stream_id"] if container == "stream" else rig["release"].id
@@ -255,9 +257,9 @@ async def test_support_cannot_reject(factories, rig):
 @pytest.mark.asyncio
 async def test_reject_from_a_released_release_moves_to_the_stream(factories, rig):
     task = await _task_at(
-        factories, rig, "in_progress", "in_review", "done", release_id=rig["release"].id,
+        factories, rig, "in_progress", "in_review", "verified", release_id=rig["release"].id,
     )
-    await factories.set_release_status(rig["release"].id, "released")
+    await factories.set_release_status(rig["release"].id, "released")  # ship: Verified → Done
     resp = await _reject(rig["qa_client"], task.id, "Customers see a blank page.")
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -272,9 +274,7 @@ async def test_reject_from_a_released_release_moves_to_the_stream(factories, rig
 
 @pytest.mark.asyncio
 async def test_merge_into_a_done_item_rejects_it(factories, rig):
-    original = await _task_at(
-        factories, rig, "in_progress", "in_review", "done", release_id=rig["release"].id,
-    )
+    original = await _task_at(factories, rig, "in_progress", "in_review", "done")
     report = await factories.issue(project_id=rig["project"].id)
     resp = await factories.admin_client.post(f"/issues/{report.id}/triage", json={
         "outcome": "duplicate", "duplicate_of_id": original.id,
@@ -282,7 +282,7 @@ async def test_merge_into_a_done_item_rejects_it(factories, rig):
     assert resp.status_code == 200, resp.text
     body = await _item(rig["qa_client"], original.id)
     assert body["status"] == "rejected"
-    assert body["reject_reason"] == "release_qa"
+    assert body["reject_reason"] == "production"
     assert body["cycle_number"] == 2
     assert body["reject_comment_id"] is not None
     # The status change records that a merge caused it, not a manual Reject.

@@ -36,6 +36,7 @@ EXPECTED = {
     Action.manage_search: {"cto", "admin"},
     Action.flag_release_blocker: {"qa", "product_manager", "cto", "admin"},
     Action.reject: {"qa", "developer", "product_manager", "cto", "admin"},
+    Action.mark_production: {"qa", "developer", "product_manager", "cto", "admin"},
     Action.view_reports: {"qa", "developer", "product_manager", "cto", "admin"},
 }
 
@@ -118,7 +119,7 @@ def test_item_actions_builds_allowed_and_blocked_lists():
     assert "reject" not in allowed and "reject" not in blocked_by_action
 
 
-@pytest.mark.parametrize("status", ["to_review", "in_review", "done"])
+@pytest.mark.parametrize("status", ["to_review", "in_review", "verified", "done"])
 def test_reject_on_delivered_or_done_work(status):
     item = Target(item_id=1, item_type="task", status=status)
     for role in ("qa", "developer", "product_manager", "cto", "admin"):
@@ -158,3 +159,20 @@ def test_support_can_mark_in_review_work_done():
 
 def test_unknown_action_is_denied():
     assert decide(Actor(ME, "admin"), "launch_rockets").code == "unknown_action"
+
+
+@pytest.mark.parametrize("status", ["todo", "in_review", "done"])
+def test_mark_production_is_hidden_unless_the_item_is_verified(status):
+    d = decide(Actor(ME, "qa"), Action.mark_production, Target(item_id=1, status=status))
+    assert not d.ok and d.code == "not_verified_in_stream" and d.hidden
+
+
+def test_mark_production_is_for_verified_stream_items_only():
+    verified = Target(item_id=1, status="verified", container_kind="stream")
+    assert decide(Actor(ME, "developer"), Action.mark_production, verified).ok
+    in_release = Target(item_id=1, status="verified", container_kind="release")
+    assert not decide(Actor(ME, "developer"), Action.mark_production, in_release).ok
+    support = decide(Actor(ME, "support"), Action.mark_production, Target(
+        item_id=1, status="verified", container_kind="stream", source="support",
+    ))
+    assert not support.ok and support.hidden

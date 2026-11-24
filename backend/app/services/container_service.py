@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
-from app.db.models.issue import Issue, IssueStatus
+from app.db.models.issue import DELIVERED_STATUSES, Issue
 from app.db.models.release import Release, ReleaseKind
 
 
@@ -56,14 +56,14 @@ async def stream_of(db: AsyncSession, project_id: int) -> Release:
 
 
 def ensure_movable(issue: Issue, new_release_id: int | None) -> None:
-    """A Done item never changes container (BR-54, AC-58)."""
+    """A Verified or Done item never changes container (BR-54, AC-58)."""
     if new_release_id == issue.release_id:
         return
-    if _value(issue.status) == IssueStatus.done.value:
+    if _value(issue.status) in {s.value for s in DELIVERED_STATUSES}:
         raise DomainError(
             status.HTTP_409_CONFLICT,
-            "A Done item can't move to another container.",
-            "done_item_immobile",
+            "A Verified or Done item can't move to another container.",
+            "delivered_item_immobile",
         )
 
 

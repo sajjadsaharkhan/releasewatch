@@ -74,7 +74,8 @@ def can_change(
     """May a container of ``kind`` move from ``from_status`` to ``to_status``?
 
     ``via_ship`` is true only inside ``ReleaseService.ship`` — the one way to Released.
-    ``has_done_items`` is whether the release holds a Done item (BR-55).
+    ``has_done_items`` is whether the release holds a delivered (Verified or Done)
+    item (BR-55); the name and the refusal code ``release_has_done_items`` are kept.
     """
     kind, from_status, to_status = _value(kind), _value(from_status), _value(to_status)
     if kind == "stream":
@@ -108,7 +109,7 @@ def can_change(
         if has_done_items:
             return Check(
                 False, "release_has_done_items",
-                "A release with a Done item can't be cancelled.", allowed,
+                "A release with a Verified or Done item can't be cancelled.", allowed,
             )
         return Check(True)
     if to_status not in _MANUAL.get(from_status, ()):

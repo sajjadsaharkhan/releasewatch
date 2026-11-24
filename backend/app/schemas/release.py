@@ -50,11 +50,12 @@ class ShipPreviewResponse(BaseModel):
     """GET /releases/{id}/ship-preview (FR-53, AC-60)."""
 
     go_nogo: GoNogoDecision
-    #: Not-Done items by board status.
-    not_done: Dict[str, int]
+    #: Verified items that become Done at ship (v3.1, BR-67).
+    to_production: int
+    #: Items that go to the backlog, by status (only statuses with an item).
+    to_backlog: Dict[str, int]
     #: Every item that will move to the backlog (triage statuses included).
-    total_not_done: int
-    done: int
+    total_to_backlog: int
 
 
 class ReleaseEventResponse(BaseModel):

@@ -258,7 +258,7 @@ async def test_self_verification_is_still_allowed(factories, client_for, rig):
         assert (await c.post(f"/issues/{bug_id}/transition", json={"to": to})).status_code == 200
     resp = await c.post(f"/issues/{bug_id}/verify", json={"outcome": "pass"})
     assert resp.status_code == 200, resp.text
-    assert resp.json()["status"] == "done"
+    assert resp.json()["status"] == "verified"
 
 
 # ── AC-47: Support is never assignable ──────────────────────────────────────────

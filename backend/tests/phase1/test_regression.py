@@ -24,9 +24,10 @@ async def test_regression_increments_count_and_records_history(factories, client
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     # AC-27: the developer who moved it to review can't verify their own fix.
     verify_resp = await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
-    assert verify_resp.json()["status"] == "done"
+    # A release item is Verified until the release ships (v3.1); Reject sends it back.
+    assert verify_resp.json()["status"] == "verified"
 
-    regress_resp = await admin.post(f"/issues/{issue.id}/returns", json={"comment": "Broke again"})
+    regress_resp = await admin.post(f"/issues/{issue.id}/reject", json={"comment": "Broke again"})
     assert regress_resp.status_code == 200
     regressed = regress_resp.json()
     assert regressed["status"] == "rejected"
@@ -41,6 +42,6 @@ async def test_regression_increments_count_and_records_history(factories, client
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
-    second = await admin.post(f"/issues/{issue.id}/returns", json={"comment": "And again"})
+    second = await admin.post(f"/issues/{issue.id}/reject", json={"comment": "And again"})
     assert second.status_code == 200
     assert await factories.regression_count(issue.id) == 2

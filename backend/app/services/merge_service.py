@@ -7,8 +7,10 @@ cancellation and the merge commit or fail together.
 
 Effects, in order:
 
-1. ``recurrence_count += 1`` when the original is a bug — an atomic
-   ``UPDATE``, never read-modify-write. Tasks don't count reports (08a).
+1. ``recurrence_count += 1`` when the original is a bug and not Done — an
+   atomic ``UPDATE``, never read-modify-write. Tasks don't count reports (08a).
+   A merge into Done sends the item back as a new cycle instead of counting
+   (BR-50, v3.1).
 2. A public comment on the original carrying the merged content, crediting
    the merged report's reporter by name (plain text, not an @mention). A tech reporter gets the
    mention notice (it tells them where their report went); a Support reporter
@@ -19,13 +21,13 @@ Effects, in order:
 4. A status effect by the original's status:
 
    - ``done`` → a Reject (BR-49, 09a): ``done → rejected`` and the next
-     cycle starts with the merge comment as its reason — ``release_qa`` in a
-     Release that hasn't shipped, else ``production`` (and a Released
-     release's item moves to the Stream). The assignee gets ``item_returned``;
-     Support hears nothing (§13). Same path as ``POST /issues/{id}/reject``.
+     cycle starts with the merge comment as its reason, ``production`` (a
+     Released release's item moves to the Stream). The assignee gets
+     ``item_returned``; Support hears nothing (§13). Same path as
+     ``POST /issues/{id}/reject``. The recurrence count does not change.
    - ``cancelled`` → stays cancelled; the triage lead gets
      ``recurrence_on_cancelled``.
-   - anything else → no status change.
+   - anything else — Verified included — → no status change, no cycle.
 """
 
 from collections.abc import Sequence
@@ -97,7 +99,11 @@ class MergeService:
         # reads the original's status and must not act on a stale one.
         original = await lock_original(db, original.id)
 
-        if getattr(original.type, "value", original.type) == IssueType.bug.value:
+        status = getattr(original.status, "value", original.status)
+        if (
+            getattr(original.type, "value", original.type) == IssueType.bug.value
+            and status != IssueStatus.done.value
+        ):
             await db.execute(
                 update(Issue)
                 .where(Issue.id == original.id)
@@ -134,7 +140,6 @@ class MergeService:
                 meta={"body_snippet": content_md[:200]},
             )
 
-        status = getattr(original.status, "value", original.status)
         if status == IssueStatus.done.value:
             original = await issue_service.reject_with(
                 db, original, actor, comment,

@@ -6,11 +6,12 @@ triage and merges) call it; nothing else touches cycles.
 - A cycle exists only while the item has a container. Placing an item
   (create, triage accept, a move out of the backlog) starts cycle 1,
   ``planned``. Moving it to the backlog deletes every cycle (CY-14).
-- While the item isn't Done, its open cycle follows it between containers (CY-01).
+- While the item isn't Verified or Done, its open cycle follows it between containers (CY-01).
 - Status moves stamp the current cycle: first In progress → ``picked_up_at``;
   first To review or In review, whichever comes first (09a) → ``submitted_at``
   and ``delivered_by_id`` = the assignee, never the actor (CY-05); Done from
-  To review or In review → ``verified_at``; Cancelled → ``closed_at``.
+  Verified, or Done straight from To review / In review (CY-07a) → ``verified_at``,
+  written once and never overwritten; Cancelled → ``closed_at``.
 - ``start_return`` closes the current cycle and opens the next one with the
   reason the work came back.
 
@@ -22,23 +23,13 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.issue import REVIEW_STATUSES, Issue, IssueStatus
+from app.db.models.issue import DELIVERED_STATUSES, REVIEW_STATUSES, Issue, IssueStatus
 from app.db.models.issue_cycle import CycleStartReason, IssueCycle
-from app.db.models.release import Release
 from app.db.models.user import User
 
 
 def _value(v):
     return getattr(v, "value", v)
-
-
-def return_reason_for_done(container: Release) -> CycleStartReason:
-    """Where a problem with a Done item was caught (cycle-model §3): in a Release
-    that hasn't shipped it's release QA; in the Stream, or in a Released release,
-    the work is on production."""
-    if not container.is_stream and not container.is_shipped:
-        return CycleStartReason.release_qa
-    return CycleStartReason.production
 
 
 class CycleService:
@@ -75,11 +66,12 @@ class CycleService:
 
     async def on_container_changed(self, db: AsyncSession, issue: Issue) -> None:
         """Container → container while the cycle is open: the cycle follows the
-        item. A Done item never moves (BR-54), so delivered work keeps its container."""
+        item. A Verified or Done item never moves (BR-54), so delivered work keeps
+        its container."""
         cycle = await self.current(db, issue)
         if cycle is None or issue.release_id is None:
             return
-        if _value(issue.status) == IssueStatus.done.value:
+        if _value(issue.status) in {s.value for s in DELIVERED_STATUSES}:
             return
         cycle.release_id = issue.release_id
         db.add(cycle)
@@ -134,8 +126,10 @@ class CycleService:
             # fallback to the actor when nobody is assigned.
             cycle.delivered_by_id = issue.assignee_id
         elif (
-            to_status == IssueStatus.done
-            and from_status in REVIEW_STATUSES
+            (
+                to_status == IssueStatus.verified
+                or (to_status == IssueStatus.done and from_status in REVIEW_STATUSES)
+            )
             and cycle.verified_at is None
         ):
             cycle.verified_at = now

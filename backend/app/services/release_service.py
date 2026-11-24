@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import release_lifecycle as lifecycle
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import Issue, IssueStatus, issue_key
+from app.db.models.issue import DELIVERED_STATUSES, Issue, IssueStatus, issue_key
 from app.db.models.project import Project
 from app.db.models.release import Release, ReleaseKind, ReleaseStatus
 from app.db.models.release_event import ReleaseEvent, ReleaseEventType
@@ -33,7 +33,8 @@ from app.services.authz import actor_of, project_target
 
 #: Every status an item counts under on the release page (triage statuses included).
 COUNT_STATUSES: tuple[str, ...] = tuple(s.value for s in IssueStatus)
-#: The not-Done statuses the ship notice lists (FR-53).
+#: The statuses the ship notice lists as going to the backlog (FR-53). Verified
+#: isn't here: it becomes Done at ship and is counted as ``to_production``.
 SHIP_NOTICE_STATUSES: tuple[str, ...] = tuple(
     s.value for s in (
         IssueStatus.todo, IssueStatus.rejected, IssueStatus.in_progress,
@@ -45,13 +46,17 @@ SHIP_NOTICE_STATUSES: tuple[str, ...] = tuple(
 BOARD_COLUMNS: tuple[str, ...] = tuple(
     s.value for s in (
         IssueStatus.todo, IssueStatus.rejected, IssueStatus.in_progress,
-        IssueStatus.to_review, IssueStatus.in_review, IssueStatus.blocked, IssueStatus.done,
+        IssueStatus.to_review, IssueStatus.in_review, IssueStatus.verified,
+        IssueStatus.blocked, IssueStatus.done,
     )
 )
 #: The Stream's Done column shows this many days unless a range is given (FR-47).
 STREAM_DONE_DAYS = 7
-#: Open = neither Done nor Cancelled — what ship and cancel move to the backlog.
-_CLOSED_ITEM_STATUSES = (IssueStatus.done.value, IssueStatus.cancelled.value)
+#: Open = not Verified, Done or Cancelled — what ship and cancel move to the
+#: backlog. (Ship turns Verified into Done first; cancel refuses with any.)
+_CLOSED_ITEM_STATUSES = (
+    IssueStatus.verified.value, IssueStatus.done.value, IssueStatus.cancelled.value,
+)
 
 #: Fields whose change is a ``dates_changed`` event; the rest are ``edited``.
 _DATE_FIELDS = ("code_freeze_date", "target_date")
@@ -74,11 +79,11 @@ def is_overdue(release: Release, now: datetime) -> bool:
 
 
 def progress(counts: dict[str, int]) -> float | None:
-    """BR-47: Done ÷ non-cancelled items; ``None`` with no non-cancelled item."""
+    """BR-47: (Verified + Done) ÷ non-cancelled items; ``None`` with no non-cancelled item."""
     denominator = sum(counts.values()) - counts.get("cancelled", 0)
     if denominator <= 0:
         return None
-    return counts.get("done", 0) / denominator
+    return (counts.get("verified", 0) + counts.get("done", 0)) / denominator
 
 
 def _refuse(check: lifecycle.Check) -> None:
@@ -118,12 +123,13 @@ class ReleaseService:
         return out
 
     @staticmethod
-    async def has_done_items(db: AsyncSession, release_id: int) -> bool:
+    async def has_delivered_items(db: AsyncSession, release_id: int) -> bool:
+        """A Verified or Done item — what blocks a cancel (BR-55)."""
         return (await db.execute(
             select(func.count(Issue.id)).where(
                 Issue.release_id == release_id,
                 Issue.deleted_at.is_(None),
-                Issue.status == IssueStatus.done.value,
+                Issue.status.in_([s.value for s in DELIVERED_STATUSES]),
             )
         )).scalar_one() > 0
 
@@ -142,7 +148,7 @@ class ReleaseService:
             actions.append(Action.manage_releases.value)
             transitions = lifecycle.allowed_targets(
                 release.kind, release.status,
-                has_done_items=await self.has_done_items(db, release.id),
+                has_done_items=await self.has_delivered_items(db, release.id),
             )
         if allows(actor, Action.ship_release, target) and lifecycle.can_ship(
             release.kind, release.status,
@@ -217,10 +223,11 @@ class ReleaseService:
     async def cancel(
         self, db: AsyncSession, release: Release, actor: User, *, now: datetime | None = None,
     ) -> Release:
-        """BR-55: refused with a Done item; open items move to the backlog like a ship."""
+        """BR-55: refused with a Verified or Done item; open items move to the
+        backlog like a ship."""
         _refuse(lifecycle.can_change(
             release.kind, release.status, ReleaseStatus.cancelled.value,
-            has_done_items=await self.has_done_items(db, release.id),
+            has_done_items=await self.has_delivered_items(db, release.id),
         ))
         await self._move_open_items_to_backlog(db, release, actor, reason="cancel")
         await self._set_status(db, release, ReleaseStatus.cancelled.value, actor)
@@ -254,30 +261,38 @@ class ReleaseService:
     # ── Ship (FR-53, BR-56) ──────────────────────────────────────────────────
 
     async def ship_preview(self, db: AsyncSession, release: Release) -> dict:
+        """The ship notice (FR-53): how many items go to production (Verified →
+        Done), and how many go to the backlog, by status. Only statuses with an
+        item are listed in ``to_backlog``."""
         _refuse(lifecycle.can_ship(release.kind, release.status))
         counts = await self.counts(db, release.id)
-        not_done = {s: counts.get(s, 0) for s in SHIP_NOTICE_STATUSES}
+        to_backlog = {
+            s: counts[s] for s in SHIP_NOTICE_STATUSES if counts.get(s)
+        }
         # Items still in triage move too — they count toward the total.
         total = sum(
             n for s, n in counts.items() if s not in _CLOSED_ITEM_STATUSES
         )
         return {
+            "to_production": counts.get(IssueStatus.verified.value, 0),
+            "to_backlog": to_backlog,
+            "total_to_backlog": total,
             "go_nogo": {
                 "status": _value(release.go_nogo_status),
                 "note": release.go_nogo_note,
                 "by_id": release.go_nogo_by_id,
                 "at": release.go_nogo_at,
             },
-            "not_done": not_done,
-            "total_not_done": total,
-            "done": counts.get("done", 0),
         }
 
     async def ship(
         self, db: AsyncSession, release: Release, actor: User, *, now: datetime | None = None,
     ) -> Release:
-        """One transaction (the caller commits): Released + ``released_at``, a
-        ``shipped`` event, open items to the backlog, ``release_shipped`` fan-out."""
+        """One transaction (the caller commits): Released + ``released_at``,
+        every Verified item → Done (``completed`` = ``released_at``, one
+        ``status_changed`` event with reason ``ship`` and one ``support_done``
+        each), a ``shipped`` event, the rest to the backlog, ``release_shipped``
+        fan-out."""
         _refuse(lifecycle.can_ship(release.kind, release.status))
         now = now or datetime.now(tz=UTC)
         counts = await self.counts(db, release.id)
@@ -294,10 +309,12 @@ class ReleaseService:
         release.status = ReleaseStatus.released.value
         release.released_at = now
         db.add(release)
+        to_production = await self._deliver_verified_items(db, release, actor, now=now)
         # One ``shipped`` event records the QA → Released move (no separate status_changed).
         moved = await self._move_open_items_to_backlog(db, release, actor, reason="ship")
         self._event(db, release, actor, ReleaseEventType.shipped, {
             "moved": len(moved),
+            "to_production": len(to_production),
             "not_done": {
                 s: n for s, n in counts.items() if s not in _CLOSED_ITEM_STATUSES and n
             },
@@ -316,6 +333,28 @@ class ReleaseService:
             meta={"version": release.version, "moved": len(moved)}, roles=roles,
         )
         return release
+
+    async def _deliver_verified_items(
+        self, db: AsyncSession, release: Release, actor: User, *, now: datetime,
+    ) -> list[int]:
+        """Verified → Done for every Verified item (BR-67), through the one
+        gate bypass (``via_ship``). No per-item ``status_changed`` notice — the
+        ship notice covers it — but Support still hears ``support_done``."""
+        from app.services.issue_service import issue_service
+
+        items = (await db.execute(
+            select(Issue).where(
+                Issue.release_id == release.id,
+                Issue.deleted_at.is_(None),
+                Issue.status == IssueStatus.verified.value,
+            ).order_by(Issue.id)
+        )).scalars().all()
+        for issue in items:
+            await issue_service.transition(
+                db, issue, IssueStatus.done, actor, reason="ship", notify=False, now=now,
+                _internal_context={"via_ship": True},
+            )
+        return [i.id for i in items]
 
     # ── Delete ───────────────────────────────────────────────────────────────
 

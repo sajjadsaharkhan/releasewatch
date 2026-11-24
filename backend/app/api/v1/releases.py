@@ -289,7 +289,8 @@ async def ship_release(
     current_user: User = Depends(get_current_user),
     now: datetime = Depends(get_now),
 ) -> ReleaseResponse:
-    """FR-53: Released now; every item that isn't Done moves to the backlog."""
+    """FR-53: Released now; every Verified item becomes Done, every other open item
+    moves to the backlog."""
     release = await _get_release_or_404(db, release_id)
     refuse_stream(release)
     await _authorize(db, current_user, Action.ship_release, release.project_id)

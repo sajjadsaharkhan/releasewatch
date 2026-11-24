@@ -65,8 +65,16 @@ async def _delivered(factories, rig, *, type="task", release_id, **overrides):
 
 
 async def _done(factories, rig, **kwargs):
+    """Done = on production: an item in the Stream moved there directly."""
     item = await _delivered(factories, rig, **kwargs)
     await _move(rig["qa_client"], item.id, "done")
+    return item
+
+
+async def _verified(factories, rig, **kwargs):
+    """What QA approves in a release: Verified, Done only at ship (BR-68)."""
+    item = await _delivered(factories, rig, **kwargs)
+    await _move(rig["qa_client"], item.id, "verified")
     return item
 
 
@@ -141,10 +149,11 @@ async def test_in_review_to_todo_is_a_plain_move(factories, rig):
 @pytest.mark.asyncio
 async def test_ac_25_return_from_release_qa(factories, rig):
     await factories.set_release_status(rig["release"].id, "qa")
-    bug = await _done(factories, rig, type="bug", release_id=rig["release"].id)
+    bug = await _verified(factories, rig, type="bug", release_id=rig["release"].id)
 
+    # v3.1: release QA rejects a Verified item (the /returns alias is Done-only).
     resp = await rig["qa_client"].post(
-        f"/issues/{bug.id}/returns", json={"comment": "Checkout crashes on the QA build."},
+        f"/issues/{bug.id}/reject", json={"comment": "Checkout crashes on the QA build."},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -170,8 +179,9 @@ async def test_ac_26_problem_on_production_in_stream(factories, rig):
 
 @pytest.mark.asyncio
 async def test_ac_64_production_return_moves_to_stream(factories, rig):
-    bug = await _done(factories, rig, type="bug", release_id=rig["release"].id)
-    await factories.set_release_status(rig["release"].id, "released")
+    bug = await _verified(factories, rig, type="bug", release_id=rig["release"].id)
+    await factories.set_release_status(rig["release"].id, "released")  # ship: Verified → Done
+    assert (await _item(rig["qa_client"], bug.id))["status"] == "done"
 
     resp = await rig["qa_client"].post(
         f"/issues/{bug.id}/returns", json={"comment": "Customers see a blank page."},
@@ -194,10 +204,12 @@ async def test_ac_64_production_return_moves_to_stream(factories, rig):
 
 @pytest.mark.asyncio
 async def test_returns_endpoint_decides_the_reason_server_side(factories, rig):
-    in_release = await _done(factories, rig, release_id=rig["release"].id)
+    in_release = await _verified(factories, rig, release_id=rig["release"].id)
     in_stream = await _done(factories, rig, release_id=rig["stream_id"])
-    for item, expected in ((in_release, "release_qa"), (in_stream, "production")):
-        resp = await rig["qa_client"].post(f"/issues/{item.id}/returns", json={
+    for item, url, expected in (
+        (in_release, "reject", "release_qa"), (in_stream, "returns", "production"),
+    ):
+        resp = await rig["qa_client"].post(f"/issues/{item.id}/{url}", json={
             "comment": "Broken.", "reason": "review",  # the client can't choose
         })
         assert resp.status_code == 200, resp.text
@@ -299,8 +311,8 @@ async def test_ac_27_reviewer_cannot_verify_own_work(factories, rig):
     """Not enforced (2026-09-22 / 2026-09-30 decisions): the developer who sent
     the work to review may verify it."""
     item = await _delivered(factories, rig, release_id=rig["release"].id)
-    body = await _move(rig["dev_client"], item.id, "done")
-    assert body["status"] == "done"
+    body = await _move(rig["dev_client"], item.id, "verified")
+    assert body["status"] == "verified"
 
 
 @pytest.mark.asyncio

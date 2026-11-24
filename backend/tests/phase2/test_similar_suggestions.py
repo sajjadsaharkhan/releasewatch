@@ -321,7 +321,7 @@ async def test_ac_s10_new_bug_gets_possible_duplicate_hint(
     )
 
 
-async def test_ac_s11_hint_on_done_candidate_says_return_and_merge_returns(
+async def test_ac_s11_hint_says_what_a_merge_will_do_and_the_merge_does_it(
     factories, rig, jev, search_jobs,
 ):
     jev.default(judge_by_title)
@@ -340,7 +340,7 @@ async def test_ac_s11_hint_on_done_candidate_says_return_and_merge_returns(
         project_id=rig["project"].id, release_id=release.id, title=PAYMENT_SEEDED,
     )
     await triage(rig["lead_client"], release_bug.id, outcome="accept", priority="high")
-    await to_status(rig["admin"], release_bug.id, "done")
+    await to_status(rig["admin"], release_bug.id, "verified")
     await search_jobs.run()
 
     dup_of_stream = await factories.issue(project_id=rig["project"].id, title=REACTION_DRAFT)
@@ -356,7 +356,8 @@ async def test_ac_s11_hint_on_done_candidate_says_return_and_merge_returns(
         h["candidate"]["id"]: h
         for h in (await hints(rig["qa_client"], dup_of_release.id))["hints"]
     }
-    assert release_hints[release_bug.id]["merge_effect"] == "returns_release_qa"
+    # v3.1: a merge into Verified (a release item before ship) changes nothing.
+    assert release_hints[release_bug.id]["merge_effect"] == "unchanged"
 
     # The merge does what the hint said (PRD AC-50: Stream → production).
     resp = await triage(
@@ -370,18 +371,16 @@ async def test_ac_s11_hint_on_done_candidate_says_return_and_merge_returns(
         "planned", "production",
     ]
 
-    # …and AC-51: a Release that hasn't shipped → release QA.
+    # …and AC-51: a Verified item stays as it is — no cycle, count + 1.
     resp = await triage(
         rig["lead_client"], dup_of_release.id,
         outcome="duplicate", duplicate_of_id=release_bug.id,
     )
     assert resp.status_code == 200, resp.text
     after = (await rig["admin"].get(f"/issues/{release_bug.id}")).json()
-    assert after["status"] == "rejected" and after["reject_reason"] == "release_qa"
+    assert after["status"] == "verified" and after["reject_reason"] is None
     assert after["release_id"] == release.id
-    assert [c["start_reason"] for c in await factories.cycles(release_bug.id)] == [
-        "planned", "release_qa",
-    ]
+    assert [c["start_reason"] for c in await factories.cycles(release_bug.id)] == ["planned"]
 
 
 async def test_ac_s12_dismissed_pair_never_returns_after_reindex(

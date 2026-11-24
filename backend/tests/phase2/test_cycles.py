@@ -95,7 +95,9 @@ async def test_move_stream_to_release_updates_open_cycle(factories, rig):
 async def test_done_item_cycle_container_never_changes(factories, rig):
     admin = factories.admin_client
     task = await _task(factories, rig, release_id=rig["release"].id)
-    for to in ("in_progress", "in_review", "done"):
+    # A release item reaches Verified (Done only at ship, BR-68): delivered work
+    # keeps its container either way.
+    for to in ("in_progress", "in_review", "verified"):
         await _move(admin, task.id, to)
     resp = await admin.patch(f"/issues/{task.id}", json={"release_id": rig["stream_id"]})
     assert resp.status_code == 409
@@ -261,7 +263,7 @@ async def test_current_cycle_iff_container_over_every_mutation_path(factories, r
     await check(streamed.id)
 
     # a merge into a Done item
-    original = await _task(factories, rig, release_id=rig["release"].id)
+    original = await _task(factories, rig, release_id=rig["stream_id"])
     for to in ("in_progress", "in_review", "done"):
         await _move(admin, original.id, to)
     await check(original.id)
@@ -274,7 +276,7 @@ async def test_current_cycle_iff_container_over_every_mutation_path(factories, r
     # a production return out of a Released release (moves to the Stream)
     shipped = await factories.release(project_id=rig["project"].id)
     item = await _task(factories, rig, release_id=shipped.id)
-    for to in ("in_progress", "in_review", "done"):
+    for to in ("in_progress", "in_review", "verified"):
         await _move(admin, item.id, to)
     await factories.set_release_status(shipped.id, "released")
     await admin.post(f"/issues/{item.id}/returns", json={"comment": "Crashes on prod"})

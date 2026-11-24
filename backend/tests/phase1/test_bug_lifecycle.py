@@ -50,7 +50,7 @@ async def test_file_triage_fix_verify_pass(factories, client_for, telegram):
     verify_resp = await qa_client.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
     assert verify_resp.status_code == 200
     verified = verify_resp.json()
-    assert verified["status"] == "done"
+    assert verified["status"] == "verified"
     assert verified["verified_at"] is not None
 
 
@@ -84,21 +84,24 @@ async def test_verify_fail_then_reopen(factories, client_for):
     assert reject_resp.json()["status"] == "rejected"
 
     # Fix again, then verify pass from a different actor (AC-27: reviewer
-    # can't verify their own fix), then reopen from done.
-    # reopen is an alias of Reject for Done items (09a; the release hasn't shipped → release QA).
+    # can't verify their own fix), then reopen once it is Done.
+    # reopen is an alias of Reject for Done items (09a). A release item is only
+    # Verified until the release ships (v3.1), so ship it first; it is then on
+    # production and comes back as an escape.
     await dev_client.post(f"/issues/{issue.id}/transition", json={"to": "in_progress"})
     await dev_client.post(f"/issues/{issue.id}/fix", json={"mr_url": None})
     verify_ok = await admin.post(f"/issues/{issue.id}/verify", json={"outcome": "pass"})
-    assert verify_ok.json()["status"] == "done"
+    assert verify_ok.json()["status"] == "verified"
+    await factories.set_release_status(release.id, "released")
 
     reopen_resp = await admin.post(f"/issues/{issue.id}/reopen", json={"comment": "Back again"})
     assert reopen_resp.status_code == 200
     reopened = reopen_resp.json()
     assert reopened["status"] == "rejected"
     assert reopened["verified_at"] is None
-    # The reject from review and the return from release QA are both cycles
-    # Phase 1 reports count (08a).
-    assert await factories.regression_count(issue.id) == 2
+    # Phase 1's regression count reads returns from review or release QA (08a);
+    # a return from production (an escape, v3.1) is not one of them.
+    assert await factories.regression_count(issue.id) == 1
 
 
 @pytest.mark.asyncio

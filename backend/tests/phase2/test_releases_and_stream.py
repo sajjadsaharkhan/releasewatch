@@ -181,12 +181,14 @@ async def test_qa_user_cannot_manage_releases(factories, client_for, rig):
 @pytest.mark.asyncio
 async def test_ac_45_progress_excludes_cancelled(factories, rig):
     rid, pid = rig["release"].id, rig["project"].id
-    for status, n in (("cancelled", 2), ("done", 4), ("todo", 3), ("in_progress", 1)):
+    # A release item is Verified, not Done, until the release ships (BR-67/68);
+    # progress counts both (BR-47).
+    for status, n in (("cancelled", 2), ("verified", 4), ("todo", 3), ("in_progress", 1)):
         for _ in range(n):
             await _item(factories, rid, pid, status)
     body = await _release(factories.admin_client, rid)
     assert body["progress"] == pytest.approx(0.5)
-    assert body["counts"]["done"] == 4
+    assert body["counts"]["verified"] == 4
     assert body["counts"]["cancelled"] == 2
     assert body["counts"]["todo"] == 3
 
@@ -236,7 +238,7 @@ async def test_released_or_cancelled_release_is_never_overdue(factories, rig, cl
 async def test_ac_59_release_with_done_item_cannot_be_cancelled(factories, client_for, rig):
     product_manager = await factories.user(role="product_manager")
     c = await client_for(product_manager)
-    await _item(factories, rig["release"].id, rig["project"].id, "done")
+    await _item(factories, rig["release"].id, rig["project"].id, "verified")
     before = await _release(factories.admin_client, rig["release"].id)
     assert "cancelled" not in before["allowed_transitions"]
 
@@ -280,7 +282,7 @@ async def _ac_60_release(factories, rig):
     rid, pid = rig["release"].id, rig["project"].id
     assignee = await factories.user(role="developer")
     items = {}
-    for status, n in (("done", 5), ("todo", 2), ("in_progress", 1), ("in_review", 1)):
+    for status, n in (("verified", 5), ("todo", 2), ("in_progress", 1), ("in_review", 1)):
         items[status] = [
             await _item(factories, rid, pid, status, assignee_id=assignee.id) for _ in range(n)
         ]
@@ -301,10 +303,9 @@ async def test_ac_60_ship_preview_counts_not_done_by_status(factories, client_fo
     resp = await c.get(f"/releases/{rig['release'].id}/ship-preview")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["not_done"] == {
-        "todo": 2, "rejected": 0, "in_progress": 1, "to_review": 0, "in_review": 1, "blocked": 0,
-    }
-    assert body["total_not_done"] == 4
+    assert body["to_production"] == 5
+    assert body["to_backlog"] == {"todo": 2, "in_progress": 1, "in_review": 1}
+    assert body["total_to_backlog"] == 4
     assert body["go_nogo"]["status"] == "approved"
     assert body["go_nogo"]["note"] == "LGTM"
 
@@ -328,8 +329,9 @@ async def test_ac_61_ship_moves_open_items_to_backlog_default_without_cycles(
     assert body["status"] == "released"
     assert body["released_at"] is not None
 
-    for done in items["done"]:
-        item = (await admin.get(f"/issues/{done.id}")).json()
+    for verified in items["verified"]:
+        # Ship turns every Verified item into Done, in its release.
+        item = (await admin.get(f"/issues/{verified.id}")).json()
         assert item["release_id"] == rid and item["status"] == "done"
     for status in ("todo", "in_progress", "in_review"):
         for it in items[status]:
@@ -426,7 +428,7 @@ async def test_ship_notifies_item_assignees_and_the_cto(factories, client_for, r
     dev = await factories.user(role="developer")
     cto = await factories.user(role="cto")
     bystander = await factories.user(role="developer")
-    await _item(factories, rig["release"].id, rig["project"].id, "done", assignee_id=dev.id)
+    await _item(factories, rig["release"].id, rig["project"].id, "verified", assignee_id=dev.id)
     await _to_qa(factories.admin_client, rig["release"].id)
     await factories.admin_client.post(f"/releases/{rig['release'].id}/ship", json={"confirm": True})
 
@@ -494,19 +496,20 @@ async def test_item_removed_writes_release_changed_on_the_item(factories, rig):
 async def test_release_board_and_items(factories, rig):
     admin = factories.admin_client
     rid, pid = rig["release"].id, rig["project"].id
-    old_done = await _item(factories, rid, pid, "done")
-    await _backdate_completed(old_done.id, datetime.now(UTC) - timedelta(days=400))
+    verified = await _item(factories, rid, pid, "verified")
     todo = await _item(factories, rid, pid, "todo")
     await _item(factories, rid, pid, "cancelled")
 
     board = (await admin.get(f"/releases/{rid}/board")).json()
     cols = {c["status"]: [i["id"] for i in c["items"]] for c in board["columns"]}
     assert list(cols) == [
-        "todo", "rejected", "in_progress", "to_review", "in_review", "blocked", "done",
+        "todo", "rejected", "in_progress", "to_review", "in_review", "verified", "blocked",
+        "done",
     ]
     assert cols["todo"] == [todo.id]
-    # A release's Done column is unbounded by default.
-    assert cols["done"] == [old_done.id]
+    assert cols["verified"] == [verified.id]
+    # A release's Done column is empty until ship (the Done gate, BR-68).
+    assert cols["done"] == []
     assert board["done_from"] is None
 
     items = (await admin.get(f"/releases/{rid}/items")).json()

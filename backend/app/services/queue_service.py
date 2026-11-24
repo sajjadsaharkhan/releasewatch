@@ -22,7 +22,7 @@ from sqlalchemy.orm import selectinload
 from app import queue_order
 from app.core.errors import DomainError
 from app.db.models.inbox_item import InboxEventType
-from app.db.models.issue import BOARD_STATUSES, Issue, IssueStatus
+from app.db.models.issue import BOARD_STATUSES, DELIVERED_STATUSES, Issue, IssueStatus
 from app.db.models.issue_cycle import IssueCycle
 from app.db.models.label import Label
 from app.db.models.queue import QueueAction, QueueEntry, QueueHistory
@@ -39,10 +39,12 @@ from app.schemas.queue import (
     WorkloadRow,
 )
 
-#: Statuses an assigned item is queued in (BR-38): the board, minus Done.
-#: New/Needs info (triage) and Cancelled are never queued.
-QUEUE_STATUSES = tuple(s for s in BOARD_STATUSES if s != IssueStatus.done)
+#: Statuses an assigned item is queued in (BR-38): the board, minus Verified
+#: and Done (delivered work leaves the queue, CY-13). New/Needs info (triage)
+#: and Cancelled are never queued.
+QUEUE_STATUSES = tuple(s for s in BOARD_STATUSES if s not in DELIVERED_STATUSES)
 _QUEUE_VALUES = frozenset(s.value for s in QUEUE_STATUSES)
+_DELIVERED_VALUES = frozenset(s.value for s in DELIVERED_STATUSES)
 
 #: Namespace for the per-owner advisory lock (``_lock_queue``) — any constant
 #: unique to queues; the second key is the owner's user id.
@@ -197,11 +199,13 @@ class QueueService:
 
         - Assignee changed, or the item left the board (triage, Cancelled,
           unassigned, deleted): the entry leaves the old queue, pin released (BR-45).
-        - Done: the pin is released (BR-46) and the entry goes dormant, keeping
-          its rest-group position; a pinned one moves to the top of the rest
-          first, so a return lands directly below the pins (FR-64).
-        - Back from Done to the same assignee: the dormant entry wakes at its
-          old position — always in the rest group, so never above a pin (BR-61).
+        - Verified or Done: the pin is released (BR-46) and the entry goes
+          dormant, keeping its rest-group position; a pinned one moves to the
+          top of the rest first, so a return lands directly below the pins
+          (FR-64). Verified → Done leaves the dormant entry as it is.
+        - Back from Verified or Done to the same assignee (a Reject, or a move
+          back): the dormant entry wakes at its old position — always in the
+          rest group, so never above a pin (BR-61).
         - Newly queued (no entry, or a new assignee): default rule (FR-39).
         - Priority changed on an unpinned entry: re-placed by the default rule.
         A reject from To review / In review changes nothing: it never left.
@@ -228,7 +232,7 @@ class QueueService:
                 db.add(entry)
             elif priority_changed and not entry.is_pinned:
                 await self._place_by_default(db, entry, issue)
-        elif live and current == IssueStatus.done.value:
+        elif live and current in _DELIVERED_VALUES:
             if entry is not None and entry.left_at is None:
                 if entry.is_pinned:
                     self._clear_pin(entry)
@@ -334,7 +338,9 @@ class QueueService:
         self, db: AsyncSession, owner: User, *, done_from: datetime, done_to: datetime | None,
     ) -> list[tuple[str, list[Issue], dict[int, QueueEntry]]]:
         """One group per board status. Open columns follow queue order (AC-41);
-        Done lists the owner's items completed in ``[done_from, done_to]``, newest first."""
+        Verified lists all the owner's Verified items (they're not on production
+        yet and wait for the deploy); Done lists the owner's items completed in
+        ``[done_from, done_to]``, newest first."""
         active = await self._active(db, owner.id)
         entries = {i.id: e for e, i in active}
         done_q = select(Issue).where(
@@ -349,10 +355,20 @@ class QueueService:
             done_q.options(*card_load_options())
             .order_by(Issue.completed_at.desc(), Issue.id.desc())
         )).scalars().all()
+        verified = (await db.execute(
+            select(Issue).where(
+                Issue.assignee_id == owner.id,
+                Issue.deleted_at.is_(None),
+                Issue.status == IssueStatus.verified.value,
+            ).options(*card_load_options())
+            .order_by(Issue.verified_at.desc().nulls_last(), Issue.id.desc())
+        )).scalars().all()
         columns = []
         for s in BOARD_STATUSES:
             if s == IssueStatus.done:
                 columns.append((s.value, list(done), {}))
+            elif s == IssueStatus.verified:
+                columns.append((s.value, list(verified), {}))
             else:
                 in_column = [i for _, i in active if _value(i.status) == s.value]
                 columns.append((s.value, in_column, entries))

@@ -84,6 +84,9 @@ class IssueStatus(str, enum.Enum):
     #: The developer has delivered; the work waits for QA to pick it up (09a).
     to_review = "to_review"
     in_review = "in_review"
+    #: QA approved the work; it isn't on production yet (v3.1, BR-67).
+    verified = "verified"
+    #: On production — in a Release, reached only by ship (``done_at_ship``).
     done = "done"
     blocked = "blocked"
     cancelled = "cancelled"
@@ -96,6 +99,7 @@ BOARD_STATUSES = (
     IssueStatus.in_progress,
     IssueStatus.to_review,
     IssueStatus.in_review,
+    IssueStatus.verified,
     IssueStatus.done,
     IssueStatus.blocked,
 )
@@ -104,12 +108,14 @@ BOARD_STATUSES = (
 #: never looks committed.
 TRIAGE_STATUSES = (IssueStatus.new, IssueStatus.needs_info)
 
-#: Statuses a backlog member can hold (BR-04): a board status that isn't Done.
+#: Statuses a backlog member can hold (BR-04): a board status that isn't Done or
+#: Verified (a backlog item has no cycle, so it can't have been verified).
 #: New/Needs info are triage, not backlog; Cancelled is never on a board.
 #: Rejected isn't either — it means nothing without a cycle, and the backlog
 #: has none (09a): a rejected item entering the backlog becomes To do.
 BACKLOG_STATUSES = tuple(
-    s for s in BOARD_STATUSES if s not in (IssueStatus.done, IssueStatus.rejected)
+    s for s in BOARD_STATUSES
+    if s not in (IssueStatus.verified, IssueStatus.done, IssueStatus.rejected)
 )
 
 #: Still needs work — neither Done nor Cancelled (triage included), as in the frontend.
@@ -118,9 +124,15 @@ OPEN_STATUSES = tuple(
 )
 
 #: Phase 1's "fixed": the developer has delivered the work (09a).
-FIXED_STATUSES = (IssueStatus.to_review, IssueStatus.in_review, IssueStatus.done)
+FIXED_STATUSES = (
+    IssueStatus.to_review, IssueStatus.in_review, IssueStatus.verified, IssueStatus.done,
+)
 
-#: Where Reject is allowed from (09a): delivered or finished work.
+#: Delivered work (v3.1): verified or on production. Such an item never changes
+#: container (BR-54), blocks a release cancel (BR-55) and leaves the queue (CY-13).
+DELIVERED_STATUSES = (IssueStatus.verified, IssueStatus.done)
+
+#: Where Reject is allowed from (09a, v3.1): delivered, verified or finished work.
 REJECTABLE_STATUSES = FIXED_STATUSES
 
 #: Delivery statuses — the first move into one stamps ``submitted_at`` (CY-05, 09a).
@@ -317,7 +329,8 @@ class Issue(Base):
     fixed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
-        doc="Set when done is reached from in_review (a verify pass). Non-null == \"Verified\"."
+        doc="Set on the first move into verified (or into done straight from review); "
+            "never overwritten."
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, doc="Set when the item reaches done."

@@ -477,7 +477,9 @@ async def test_ac_50_merge_into_done_stream_item_is_production_return(factories,
     after_b = await get(rig["admin"], b.id)
     assert after_b["status"] == "rejected"
     assert after_b["release_id"] == stream_id
-    assert after_b["recurrence_count"] == 2
+    # v3.1 (BR-50): a merge into Done sends the item back as a new cycle and
+    # does not change the recurrence count.
+    assert after_b["recurrence_count"] == 1
     assert after_b["reject_reason"] == "production"
     cycles = await factories.cycles(b.id)
     assert [c["start_reason"] for c in cycles] == ["planned", "production"]
@@ -495,22 +497,22 @@ async def test_ac_50_merge_into_done_stream_item_is_production_return(factories,
 
 
 @pytest.mark.asyncio
-async def test_ac_51_merge_into_done_in_release_in_qa_is_release_qa(factories, rig):
+async def test_ac_51_merge_into_verified_in_release_changes_nothing_but_the_count(
+    factories, rig,
+):
     release = await factories.release(project_id=rig["project"].id)
     await factories.set_release_status(release.id, "qa")
     b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
     await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
-    await to_status(rig["admin"], b.id, "done")
+    await to_status(rig["admin"], b.id, "verified")
 
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
     after = await get(rig["admin"], b.id)
-    assert after["status"] == "rejected" and after["release_id"] == release.id
+    assert after["status"] == "verified" and after["release_id"] == release.id
+    assert after["recurrence_count"] == 2 and after["reject_reason"] is None
     cycles = await factories.cycles(b.id)
-    assert [(c["start_reason"], c["release_id"]) for c in cycles] == [
-        ("planned", release.id), ("release_qa", release.id),
-    ]
-    assert cycles[1]["start_merged_issue_id"] == a.id
+    assert [(c["start_reason"], c["release_id"]) for c in cycles] == [("planned", release.id)]
 
 
 @pytest.mark.asyncio
@@ -519,8 +521,8 @@ async def test_merge_into_done_item_of_released_release_moves_to_stream(factorie
     release = await factories.release(project_id=rig["project"].id)
     b = await factories.issue(project_id=rig["project"].id, release_id=release.id)
     await triage(rig["lead_client"], b.id, outcome="accept", priority="high")
-    await to_status(rig["admin"], b.id, "done")
-    await factories.set_release_status(release.id, "released")
+    await to_status(rig["admin"], b.id, "verified")
+    await factories.set_release_status(release.id, "released")  # ship: Verified → Done
 
     a = await factories.issue(project_id=rig["project"].id)
     assert (await triage(rig["lead_client"], a.id, outcome="duplicate", duplicate_of_id=b.id)).status_code == 200
@@ -671,7 +673,7 @@ async def test_move_refusals(factories, rig):
 
 @pytest.mark.asyncio
 async def test_support_subscriber_hears_progress_notices_and_mentions(factories, rig, telegram):
-    """filed → needs info → replied → accepted → in progress → in review → done.
+    """filed → needs info → replied → accepted → in progress → in review → verified → done.
 
     Support hears the three Support notices, a public @mention (the 2026-09-24
     decision) and every other status change (2026-10-14) — never plain
@@ -699,15 +701,17 @@ async def test_support_subscriber_hears_progress_notices_and_mentions(factories,
     await rig["dev_client"].post(f"/issues/{bug.id}/transition", json={"to": "in_progress"})
     await rig["dev_client"].post(f"/issues/{bug.id}/fix", json={"mr_url": None})
     await rig["qa_client"].post(f"/issues/{bug.id}/verify", json={"outcome": "pass"})
-    assert (await get(rig["admin"], bug.id))["status"] == "done"
+    # Verified is a plain status change for Support; "fixed" waits for Done (BR-76).
+    assert (await get(rig["admin"], bug.id))["status"] == "verified"
+    await to_status(rig["admin"], bug.id, "done")
 
     assert await support_feed(rig["support_client"]) == [
-        "support_done", "status_changed:in_review", "status_changed:in_progress", "mention",
-        "status_changed:todo", "support_needs_info",
+        "support_done", "status_changed:verified", "status_changed:in_review",
+        "status_changed:in_progress", "mention", "status_changed:todo", "support_needs_info",
     ]
     assert [t for t, _ in telegram.sent_to(rig["support"])] == [
         "support_needs_info", "status_changed", "mention", "status_changed", "status_changed",
-        "support_done",
+        "status_changed", "support_done",
     ]
 
     # The third event, on a second report.

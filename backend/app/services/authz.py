@@ -45,10 +45,14 @@ def issue_target(issue: Issue, project: Project | None = None, **extra: Any) -> 
     if project is None:
         project = issue.__dict__.get("project")  # never trigger a lazy load in async code
     subscriptions = issue.__dict__.get("subscriptions") or ()
+    release = issue.__dict__.get("release")
     return Target(
         item_id=issue.id,
         item_type=getattr(issue.type, "value", issue.type),
         status=getattr(issue.status, "value", issue.status),
+        container_kind=(
+            getattr(release.kind, "value", release.kind) if release is not None else None
+        ),
         source=getattr(issue.source, "value", issue.source),
         subscriber_ids=frozenset(s.user_id for s in subscriptions),
         assignee_id=issue.assignee_id,
