@@ -218,8 +218,9 @@ test('reject takes a comment and no reason', async ({ browser }) => {
   await submit.click()
 
   await expect(lead.getByTestId('triage-queue').getByRole('button', { name: new RegExp(title) })).toHaveCount(0)
+  // The row can leave the list before the request has landed — wait for the outcome.
+  await expect.poll(async () => (await api(lead, 'GET', `/issues/${bug.id}`)).status).toBe('cancelled')
   const after = await api(lead, 'GET', `/issues/${bug.id}`)
-  expect(after.status).toBe('cancelled')
   expect(after.cancel_reason).toBeNull()
 
   await leadCtx.close()
