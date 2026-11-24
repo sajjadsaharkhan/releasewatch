@@ -68,10 +68,13 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     })
   }, [selectableItems])
   const toggle = useCallback((item, shiftKey) => {
+    // Read the anchor now: the updater below runs later, after it moves.
+    const anchorId = anchor.current
+    anchor.current = item.id
     setSelected((prev) => {
       const next = new Set(prev)
       const ids = selectableItems.map((i) => i.id)
-      const from = anchor.current != null ? ids.indexOf(anchor.current) : -1
+      const from = anchorId != null ? ids.indexOf(anchorId) : -1
       const to = ids.indexOf(item.id)
       if (shiftKey && from >= 0 && to >= 0) {
         const [a, b] = from < to ? [from, to] : [to, from]
@@ -80,7 +83,6 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
       else next.add(item.id)
       return next
     })
-    anchor.current = item.id
   }, [selectableItems])
   const workContext = useMemo(() => ({
     containerKind: container.kind,

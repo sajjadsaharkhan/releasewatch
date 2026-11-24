@@ -85,7 +85,7 @@ test('verify one, select Verified Stream items, On production makes them Done', 
 
   // ── The confirm dialog lists the keys; confirm → both are Done ───────────
   await bar.getByRole('button', { name: 'On production' }).click()
-  const dialog = page.getByRole('dialog')
+  const dialog = page.locator('.dialog-enter')
   await expect(dialog).toContainText(items[0].key)
   await expect(dialog).toContainText(items[1].key)
   await expect(dialog).not.toContainText(items[2].key)
@@ -114,7 +114,7 @@ test('a refused On production names the item and changes nothing', async ({ page
   // Another session moves it out of Verified before the confirm.
   await api(page, 'POST', `/issues/${task.id}/transition`, { to: 'in_progress' })
   await page.getByTestId('production-bar').getByRole('button', { name: 'On production' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'On production' }).click()
+  await page.locator('.dialog-enter').getByRole('button', { name: 'On production' }).click()
   await expect(page.getByRole('alert')).toContainText(task.key)
   await expect(page.getByRole('alert')).toContainText('Nothing was changed')
   expect((await api(page, 'GET', `/issues/${task.id}`)).status).toBe('in_progress')
@@ -188,7 +188,7 @@ test('release: Done is empty until ship, the status control says why, ship makes
 
   // ── Ship: two lines, then the Verified item is Done ──────────────────────
   await page.getByRole('button', { name: 'Ship', exact: true }).click()
-  const dialog = page.getByRole('dialog')
+  const dialog = page.locator('.dialog-enter')
   await expect(dialog.getByTestId('ship-to-production')).toContainText('1 item goes to production')
   await expect(dialog.getByTestId('ship-to-backlog')).toContainText('1 item goes to the backlog (1 To do)')
   await dialog.getByRole('button', { name: /^Ship and move 1 item/ }).click()
@@ -218,7 +218,7 @@ for (const [route, heading] of [
 ] as const) {
   test(`${route}: the Phase 1 report notice (PD-1) is shown and cannot be dismissed`, async ({ page }) => {
     await page.goto(route)
-    await expect(page.getByRole('heading', { name: heading })).toBeVisible()
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
     const notice = page.getByTestId('pd1-notice')
     await expect(notice).toContainText('These numbers are not reliable since Phase 2 and will be rebuilt (PD-1).')
     await expect(notice.getByRole('button')).toHaveCount(0)
