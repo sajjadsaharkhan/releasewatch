@@ -9,7 +9,7 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
   // Only the pointer listeners go on the card's link: the board has no keyboard
   // drag, and dnd-kit's attributes (role="button" and its instructions) would
   // hide that the card is a link.
-  const { listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { listeners, setNodeRef, isDragging } = useDraggable({
     id: issue.id,
     disabled: readOnly,
     data: {
@@ -18,23 +18,17 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
     },
   })
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      }
-    : undefined
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={cn(
         "w-full text-left rounded-lg border border-border bg-card p-3",
         readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing touch-none",
         "transition-all duration-200 ease-out hover:border-zinc-300 dark:hover:border-zinc-600",
-        // `relative` makes z-50 count: the card must stay above the columns it crosses,
-        // including a dimmed, locked one.
-        isDragging && "relative opacity-50 shadow-xl rotate-1 scale-105 z-50"
+        // The moving copy is the board's DragOverlay (above every column, locked
+        // or not); what stays behind is a faint placeholder.
+        isDragging && "opacity-30"
       )}
     >
       <WorkItemCard
@@ -43,6 +37,15 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
         dragging={isDragging}
         linkProps={listeners}
       />
+    </div>
+  )
+}
+
+/** The card that follows the pointer: rendered by the board's `DragOverlay`, so it sits above every column. */
+export function DragPreview({ issue }) {
+  return (
+    <div className="w-full cursor-grabbing rounded-lg border border-border bg-card p-3 shadow-xl rotate-1 scale-105">
+      <WorkItemCard item={issue} dragging />
     </div>
   )
 }

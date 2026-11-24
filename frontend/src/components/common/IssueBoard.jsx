@@ -1,5 +1,7 @@
 import React from 'react'
-import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { createPortal } from 'react-dom'
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DragPreview } from './DraggableIssueCard'
 import { DroppableColumn } from './DroppableColumn'
 import { StatusBadge } from '../ui/Badge'
 import { BOARD_COLUMNS, BOARD_COLUMN_OF } from '../../lib/constants'
@@ -71,8 +73,12 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
     })
   )
 
+  const [activeId, setActiveId] = React.useState(null)
+  const activeIssue = activeId != null ? issues.find((i) => i.id === activeId) : null
+
   const handleDragEnd = (event) => {
     const { active, over } = event
+    setActiveId(null)
     // The release that ends a drag still fires a click on whatever link is under
     // the pointer — often a card the board has just re-rendered, which React can
     // no longer intercept, so the browser follows its href. Swallow that one click.
@@ -89,7 +95,7 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={(e) => setActiveId(e.active.id)} onDragCancel={() => setActiveId(null)} onDragEnd={handleDragEnd}>
       <div className="px-7 py-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, minmax(220px, 1fr))` }}>
         {BOARD_COLUMNS.map(status => (
           <DroppableColumn
@@ -104,6 +110,13 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
           />
         ))}
       </div>
+      {/* In a portal on <body>: no column's stacking context can cover the card. */}
+      {createPortal(
+        <DragOverlay dropAnimation={null} zIndex={10000}>
+          {activeIssue ? <DragPreview issue={activeIssue} /> : null}
+        </DragOverlay>,
+        document.body,
+      )}
     </DndContext>
   )
 }
