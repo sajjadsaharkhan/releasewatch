@@ -39,11 +39,16 @@ class InboxEventType(str, enum.Enum):
     needs_info_replied = "needs_info_replied"
     moved_into_project = "moved_into_project"
     recurrence_on_cancelled = "recurrence_on_cancelled"
+    #: A new Pending return request — to the project's triage lead (slice 20, §13).
+    return_requested = "return_requested"
     # The only three events Support ever receives (§13), sent to the item's
     # Support-role subscribers. ``fan_out`` drops Support from everything else.
     support_needs_info = "support_needs_info"
     support_cancelled = "support_cancelled"
     support_done = "support_done"
+    #: A return request was confirmed or dismissed — to its requesters (slice 20).
+    #: meta ``{outcome, comment}``.
+    support_return_decided = "support_return_decided"
     # Slice 09 — about a release, not an item (``issue_id`` null, ``release_id`` set).
     release_shipped = "release_shipped"
     release_overdue = "release_overdue"
@@ -65,6 +70,7 @@ SUPPORT_EVENTS = frozenset({
     InboxEventType.support_needs_info,
     InboxEventType.support_cancelled,
     InboxEventType.support_done,
+    InboxEventType.support_return_decided,
 })
 
 #: Everything a Support user may be notified of: the three Support notices,

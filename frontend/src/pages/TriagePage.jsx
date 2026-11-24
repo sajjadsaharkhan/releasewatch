@@ -12,8 +12,9 @@ import { SourceBadge } from '../components/common/SourceBadge'
 import { ReportedCount } from '../components/common/ReportedCount'
 import { PossibleDuplicates } from '../components/common/PossibleDuplicates'
 import { AgentBadge, OriginFilter } from '../components/common'
-import { TriageDetail } from '../components/triage'
-import { issuesApi, teamApi, attachmentsApi } from '../lib/api'
+import { TriageDetail, ReturnRequestDetail } from '../components/triage'
+import { Requesters } from '../components/issues'
+import { issuesApi, teamApi, attachmentsApi, returnRequestsApi } from '../lib/api'
 import { issueKey } from '../lib/issueSlug'
 import { normalizeAttachment } from '../lib/attachments'
 import { relTime, fullTime } from '../lib/relTime'
@@ -42,6 +43,23 @@ function QueueSkeleton() {
   )
 }
 
+// The reports behind the selected return request (every Support user's entry, with its
+// comment) — the queue row carries only the first.
+function useReturnEntries(row) {
+  const [entries, setEntries] = useState([])
+  const requestId = row?.id
+  const issueId = row?.issue?.id
+  useEffect(() => {
+    if (!requestId) { setEntries([]); return undefined }
+    let cancelled = false
+    returnRequestsApi.forIssue(issueId)
+      .then(r => { if (!cancelled) setEntries(r.data.find(x => x.id === requestId)?.entries ?? []) })
+      .catch(() => { if (!cancelled) setEntries([]) })
+    return () => { cancelled = true }
+  }, [requestId, issueId])
+  return entries
+}
+
 export default function TriagePage() {
   const [issues, setIssues] = useState([])
   const [assignable, setAssignable] = useState([])
@@ -52,6 +70,9 @@ export default function TriagePage() {
   // All · Agent · People (slice 17, FR-M30) — '' is all.
   const [origin, setOrigin] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  // Pending return requests (slice 20) — a request isn't an issue, so it has its own list.
+  const [returns, setReturns] = useState([])
+  const [selectedReturnId, setSelectedReturnId] = useState(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -61,8 +82,12 @@ export default function TriagePage() {
     const params = { statuses: TRIAGE_STATUSES.join(','), sort, size: 500 }
     if (activeProjectId) params.project_id = activeProjectId
     if (origin) params.origin = origin
-    const res = await issuesApi.list(params)
+    const [res, pending] = await Promise.all([
+      issuesApi.list(params),
+      returnRequestsApi.pending(activeProjectId).catch(() => ({ data: { items: [] } })),
+    ])
     setIssues(res.data.items)
+    setReturns(pending.data.items)
   }, [activeProjectId, sort, origin])
 
   useEffect(() => {
@@ -78,8 +103,12 @@ export default function TriagePage() {
     new: issues.filter(i => i.status === 'new').length,
     needs_info: issues.filter(i => i.status === 'needs_info').length,
   }), [issues])
-  // The sidebar count is the whole queue's, so a filtered view leaves it alone.
-  useEffect(() => { if (!loading && !origin) setTriageCount(counts.new) }, [counts.new, loading, origin, setTriageCount])
+  // The sidebar count is the whole queue's — New plus pending return requests — so a filtered view leaves it alone.
+  useEffect(() => {
+    if (!loading && !origin) setTriageCount(counts.new + returns.length)
+  }, [counts.new, returns.length, loading, origin, setTriageCount])
+  const selectedReturn = returns.find(r => r.id === selectedReturnId) ?? returns[0] ?? null
+  const returnEntries = useReturnEntries(selectedReturn)
   const queue = useMemo(() => issues.filter(i => i.status === tab), [issues, tab])
   const selected = queue.find(i => i.id === selectedId) ?? null
   const project = projects.find(p => String(p.id) === String(selected?.project_id))
@@ -167,11 +196,53 @@ export default function TriagePage() {
             options={[
               { value: 'new', label: 'New', badge: counts.new },
               { value: 'needs_info', label: 'Needs info', badge: counts.needs_info },
+              { value: 'returns', label: 'Return requests', badge: returns.length },
             ]}
           />
         </div>
 
-        {loading ? <QueueSkeleton /> : queue.length === 0 ? (
+        {loading ? <QueueSkeleton /> : tab === 'returns' ? (
+          returns.length === 0 ? (
+            <Empty icon="rotate-ccw" title="No return requests" body="When Support says a Done item's problem is back, it waits here for a decision." />
+          ) : (
+            <ul data-testid="return-requests-queue">
+              {returns.map(r => (
+                <li key={r.id}>
+                  <button onClick={() => setSelectedReturnId(r.id)}
+                    aria-current={selectedReturn?.id === r.id ? 'true' : undefined}
+                    className={cn('w-full text-left px-7 py-3 border-b border-border hover:bg-muted/50 transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                      selectedReturn?.id === r.id && 'bg-muted/80')}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="font-mono text-[11px] text-muted-foreground">{r.issue.key}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        <Icon name="rotate-ccw" size={10} strokeWidth={2.5} aria-hidden="true" />
+                        {r.entry_count === 1 ? 'Problem is back' : `${r.entry_count} reports`}
+                      </span>
+                      <span className="ml-auto text-[11px] text-muted-foreground" title={fullTime(r.requested_at)}>
+                        asked {relTime(r.requested_at)}
+                      </span>
+                    </div>
+                    <div className="text-[13.5px] font-medium text-foreground leading-snug">{r.issue.title}</div>
+                    {r.first_comment?.body && (
+                      <p className="mt-1 line-clamp-2 text-[12.5px] text-muted-foreground">{r.first_comment.body}</p>
+                    )}
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                      <Requesters users={r.requesters} />
+                      <span>·</span>
+                      <span title={r.issue.done_at ? fullTime(r.issue.done_at) : undefined}>
+                        Done {r.issue.done_at ? relTime(r.issue.done_at) : ''}
+                      </span>
+                      <span>·</span>
+                      <span>{r.issue.container_kind === 'stream' ? 'Stream' : r.issue.release_version}</span>
+                      {!activeProjectId && r.issue.project_name && <span className="ml-auto truncate">{r.issue.project_name}</span>}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : queue.length === 0 ? (
           tab === 'new'
             ? <Empty icon="check-check" title="Triage zero" body="No new bugs are waiting for a decision." />
             : <Empty icon="help-circle" title="Nothing waiting on reporters" body="Bugs you ask for more information land here until the reporter replies." />
@@ -214,7 +285,11 @@ export default function TriagePage() {
 
       {/* Right: the selected bug, its possible duplicates, and its outcomes */}
       <div className="min-h-0 bg-muted/40">
-        {!selected ? (
+        {tab === 'returns' ? (
+          selectedReturn
+            ? <ReturnRequestDetail key={selectedReturn.id} row={selectedReturn} entries={returnEntries} onDecided={() => loadQueue()} />
+            : !loading && <Empty icon="inbox" title="No request selected" body="Pick a return request from the queue to decide it." />
+        ) : !selected ? (
           !loading && <Empty icon="inbox" title="No bug selected" body="Pick a bug from the queue to triage it." />
         ) : (
           <TriageDetail

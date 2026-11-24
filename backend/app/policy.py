@@ -56,6 +56,10 @@ class Action(str, Enum):
     triage = "triage"
     view_duplicate_hints = "view_duplicate_hints"
     report_recurrence = "report_recurrence"
+    #: Problem is back (v3.1, FR-68): Support's request on a Done item.
+    request_return = "request_return"
+    #: Confirm or dismiss a return request (FR-69) — anyone who can triage.
+    decide_return_request = "decide_return_request"
     submit_support_report = "submit_support_report"
     manage_templates = "manage_templates"
     manage_backlog_categories = "manage_backlog_categories"
@@ -161,6 +165,8 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.comment_public: ALL_ROLES,
     Action.comment_internal: _T,
     Action.report_recurrence: ALL_ROLES,
+    Action.request_return: frozenset({"support"}),
+    Action.decide_return_request: _T,
     Action.triage: _T,
     # 14: triage merge hints are tech-only; Support never sees them (FR-S13).
     Action.view_duplicate_hints: _T,
@@ -208,7 +214,7 @@ _ITEM_ACTIONS = frozenset({
     Action.view_item, Action.comment_public, Action.comment_internal, Action.edit_item,
     Action.assign, Action.set_priority, Action.set_due_date, Action.flag_release_blocker,
     Action.reject, Action.mark_production, Action.flag_tech_debt, Action.triage,
-    Action.report_recurrence,
+    Action.report_recurrence, Action.request_return, Action.decide_return_request,
 })
 
 _QUEUE_ACTIONS = frozenset({Action.view_queue, Action.reorder_queue, Action.pin})
@@ -247,6 +253,8 @@ _LABELS: dict[str, str] = {
     Action.flag_release_blocker: "flag release blockers",
     Action.reject: "reject work",
     Action.mark_production: "mark work as on production",
+    Action.request_return: "ask for a Done item to come back",
+    Action.decide_return_request: "decide return requests",
 }
 
 _ROLE_LABELS = {
@@ -318,8 +326,7 @@ def _deny_role(actor: Actor, action: str, roles: frozenset[str]) -> Denied:
 
 #: FR-16 / BR-23 — shown on the disabled Report recurrence button of a Done bug.
 RECURRENCE_ON_DONE_DETAIL = (
-    "Fixed items can't take a recurrence. File a new report; "
-    "triage will merge it into this item and send it back for a fix."
+    "This item is Done. Use Problem is back to ask for it to come back."
 )
 
 
@@ -346,6 +353,45 @@ def _reject_denial(target: Target) -> Denied | None:
         return Denied(
             "not_rejectable", "Only work in review, Verified or Done can be rejected.",
             hidden=True, conflict=True,
+        )
+    return None
+
+
+#: Statuses where Support verifies or rejects a support-sourced item (BR-71).
+_SUPPORT_REVIEW_STATUSES = frozenset({"to_review", "in_review"})
+
+
+def _support_status_move(actor: Actor, action: str, target: Target) -> Decision:
+    """BR-71 — the only status moves Support makes: on a support-sourced item in
+    To review / In review, Verified (or Done in the Stream) and Reject. Anything
+    else is a hidden denial, like every tech-only control (§7.3)."""
+    denied = Denied("forbidden_role", "Support can't change status.", hidden=True)
+    if target.source != "support" or target.status not in _SUPPORT_REVIEW_STATUSES:
+        return denied
+    if action == Action.reject.value:
+        return ALLOWED
+    to = action[len(TRANSITION_PREFIX):]
+    if to == "verified":
+        return ALLOWED
+    if to == "done":
+        if target.container_kind == "stream":
+            return ALLOWED
+        if target.container_kind == "release":
+            return Denied(
+                "done_at_ship", "Done when the release ships.", hidden=True, conflict=True,
+            )
+    return denied
+
+
+def _request_return_denial(actor: Actor, target: Target) -> Denied | None:
+    """FR-68 — Problem is back is Support's, on a Done item; no control for tech roles."""
+    if _role(actor.role) != Role.support.value:
+        return Denied(
+            "forbidden_role", "Only Support can ask for a Done item to come back.", hidden=True,
+        )
+    if target.status != "done":
+        return Denied(
+            "not_done", "Problem is back applies to Done items only.", hidden=True, conflict=True,
         )
     return None
 
@@ -397,13 +443,14 @@ def decide(actor: Actor, action: Any, target: Target | None = None) -> Decision:
     if key in _QUEUE_ACTIONS and target.queue_owner_id not in (None, actor.id):
         roles = _CTO_ADMIN
 
-    # Support may close out a fix it can see: In review → Done, and no other move.
-    if (
-        _role(actor.role) == Role.support.value
-        and action == transition("done")
-        and target.status == "in_review"
+    if key == Action.request_return:
+        return _request_return_denial(actor, target) or ALLOWED
+
+    # Support verifies and rejects what it filed (BR-71) and makes no other move.
+    if _role(actor.role) == Role.support.value and (
+        key == TRANSITION_PREFIX or key == Action.reject
     ):
-        return ALLOWED
+        return _support_status_move(actor, action, target)
 
     if not _matrix_allows(actor, roles, target):
         return _deny_role(actor, action, roles)
@@ -455,6 +502,8 @@ RESPONSE_ITEM_ACTIONS: tuple[str, ...] = (
     Action.reject.value,
     Action.mark_production.value,
     Action.report_recurrence.value,
+    Action.request_return.value,
+    Action.decide_return_request.value,
     # The item page's hints block keys off this, never the role (14, FR-S13).
     Action.view_duplicate_hints.value,
 )

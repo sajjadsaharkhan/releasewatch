@@ -613,6 +613,21 @@ never mute either to grey helper text. A `duplicate_of_duplicate` refusal shows 
 notice with "Use BUG-n instead". While an item is in Needs info, the item page pins the
 triager's question above the tabs (`issues/NeedsInfoQuestion`, orange, `role="note"`).
 
+**Return requests (slice 20, `issues/ReturnRequest.jsx`, `triage/ReturnRequestDetail.jsx`).** A pending
+request is amber (the Rejected/review hue, `rotate-ccw`): `ReturnRequestBanner` sits above the item
+page's tabs — "Return requested · n reports · waiting for triage", the requesters and when, and for
+whoever has `decide_return_request` the first report's quote with **Confirm** (primary) and
+**Dismiss** (outline; its dialog needs a comment). Support sees the same banner without the
+buttons, and **Problem is back** / **Add to pending request** in the sidebar (`request_return` in
+`allowed_actions`; the icon-only form is in the Support reports row). Support's status control is a
+plain badge plus one **Verify** button — a two-item menu (Verified · Done tested on production) in
+the Stream — and Reject; no other status control is drawn for it. The Triage page's third tab,
+**Return requests**, counts toward the sidebar badge; rows show key, title, an amber "Problem is back"
+/ "n reports" pill, the first report, the requesters, Done-since and the container. The Support
+reports list marks a row with the amber "Return requested" pill and has a filter chip for it
+(`?returns=1`). Timeline events: `return_requested` / `return_request_added` (amber), `return_confirmed`
+(red), `return_dismissed` (zinc), each with a "see comment" jump to the public comment.
+
 Tech users also get `components/triage/DuplicateHintsPanel` on the item page under the title
 meta row: an amber section **collapsed to its header** ("Possible duplicates (2) · best match 94%",
 chevron, `aria-expanded`) that **opens by itself when the best match is 90% or more**; the reader's

@@ -32,6 +32,7 @@ from app.api.v1 import (
     review_queue,
     mcp,
     whats_new,
+    return_requests,
 )
 
 api_router = APIRouter()
@@ -46,6 +47,8 @@ api_router.include_router(backlog_categories.router, prefix="/projects", tags=["
 # but a dedicated releases router handles actions that don't need the slug context
 api_router.include_router(releases.router, prefix="/releases", tags=["releases"])
 api_router.include_router(issues.router, prefix="/issues", tags=["issues"])
+# /issues/{id}/return-requests, /projects/{ref}/return-requests, /return-requests/{id}/* (slice 20).
+api_router.include_router(return_requests.router, tags=["return-requests"])
 api_router.include_router(timeline.router, prefix="/issues", tags=["timeline"])
 api_router.include_router(attachments.router, prefix="/issues", tags=["attachments"])
 api_router.include_router(pre_upload.router, prefix="/attachments", tags=["attachments"])

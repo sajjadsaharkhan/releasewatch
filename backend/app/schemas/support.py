@@ -121,6 +121,8 @@ class SupportReportRow(BaseModel):
     #: list's Report recurrence button takes its state and reason from the API.
     allowed_actions: list[str] = Field(default_factory=list)
     blocked_actions: list[BlockedAction] = Field(default_factory=list)
+    #: A Pending return request (slice 20) — the "Return requested" badge.
+    return_requested: bool = False
     created_at: datetime
     updated_at: datetime
 

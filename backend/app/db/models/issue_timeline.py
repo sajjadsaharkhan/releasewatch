@@ -55,6 +55,12 @@ class TimelineEventType(str, enum.Enum):
     #: A user started / stopped tracking the item (the Subscribe button).
     subscribed = "subscribed"
     unsubscribed = "unsubscribed"
+    #: Return requests (slice 20, §8.10): the first press, a later press by
+    #: another Support user, and the two decisions. ``meta.request_id`` on each.
+    return_requested = "return_requested"
+    return_request_added = "return_request_added"
+    return_confirmed = "return_confirmed"
+    return_dismissed = "return_dismissed"
 
 
 #: The default timeline of the MCP tool ``rw_get_item`` (slice 16, FR-M03): comments

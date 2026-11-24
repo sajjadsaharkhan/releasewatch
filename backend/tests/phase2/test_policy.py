@@ -127,7 +127,15 @@ def test_reject_on_delivered_or_done_work(status):
     support = decide(Actor(ME, "support"), Action.reject, Target(
         item_id=1, item_type="bug", status=status, source="support",
     ))
-    assert not support.ok and support.hidden
+    # BR-71: Support rejects only from To review / In review, and only what it filed.
+    assert support.ok == (status in ("to_review", "in_review"))
+    if not support.ok:
+        assert support.hidden
+    internal = decide(Actor(ME, "support"), Action.reject, Target(
+        item_id=1, item_type="bug", status=status, source="internal",
+        subscriber_ids=frozenset({ME}),
+    ))
+    assert not internal.ok and internal.hidden
 
 
 @pytest.mark.parametrize("status", ["todo", "rejected", "in_progress", "blocked", "cancelled"])
@@ -142,17 +150,27 @@ def test_item_actions_hide_tech_controls_from_support():
     allowed, blocked = item_actions(support, target, ["in_progress"])
     assert set(allowed) == {"comment_public", "report_recurrence"}
     assert blocked == []
+    # Problem is back appears only on a Done item (slice 20).
+    done = Target(item_id=1, item_type="bug", status="done", source="support")
+    assert "request_return" in item_actions(support, done, [])[0]
 
 
-def test_support_can_mark_in_review_work_done():
+def test_support_can_verify_and_close_out_what_it_filed():
+    """BR-71 — Verified from To review / In review; Done only in the Stream (slice 20)."""
     support = Actor(ME, "support")
-    item = Target(item_id=1, item_type="bug", status="in_review", source="support")
+    item = Target(item_id=1, item_type="bug", status="in_review", source="support",
+                  container_kind="stream")
     assert decide(support, transition("done"), item).ok
-    allowed, _ = item_actions(support, item, ["done", "in_progress"])
-    assert "transition:done" in allowed and "transition:in_progress" not in allowed
-    # Only from In review, and only on items Support can see.
-    for status in ("todo", "in_progress", "to_review", "blocked"):
-        d = decide(support, transition("done"), Target(item_id=1, status=status, source="support"))
+    assert decide(support, transition("verified"), item).ok
+    allowed, _ = item_actions(support, item, ["verified", "done", "in_progress"])
+    assert {"transition:done", "transition:verified"} <= set(allowed)
+    assert "transition:in_progress" not in allowed
+    # Not in a release (Done is at ship), and only from To review / In review.
+    release = Target(item_id=1, status="in_review", source="support", container_kind="release")
+    assert not decide(support, transition("done"), release).ok
+    for status in ("todo", "in_progress", "blocked", "verified"):
+        d = decide(support, transition("done"), Target(
+            item_id=1, status=status, source="support", container_kind="stream"))
         assert not d.ok and d.hidden
     assert decide(support, transition("done"), Target(item_id=1, status="in_review")).not_found
 

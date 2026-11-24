@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authApi, projectsApi, releasesApi, inboxApi, issuesApi, searchApi } from '../lib/api'
+import { authApi, projectsApi, releasesApi, inboxApi, issuesApi, searchApi, returnRequestsApi } from '../lib/api'
 import { isSupport } from '../lib/roles'
 
 const AppContext = createContext(null)
@@ -191,7 +191,7 @@ export function AppProvider({ children }) {
     return () => clearInterval(interval)
   }, [isAuthenticated])
 
-  // Poll the number of items awaiting a triage decision (status New) for the
+  // Poll the number of items awaiting a triage decision (New bugs, return requests) for the
   // sidebar badge; TriagePage pushes fresh values via setTriageCount.
   useEffect(() => {
     if (!isAuthenticated || isSupport(user?.role)) {
@@ -201,8 +201,12 @@ export function AppProvider({ children }) {
     const fetchCount = () => {
       const params = { statuses: 'new', size: 1 }
       if (activeProjectId) params.project_id = activeProjectId
-      issuesApi.list(params)
-        .then((r) => setTriageCount(r.data.total))
+      // New bugs plus pending return requests (slice 20) — both wait for a triage decision.
+      Promise.all([
+        issuesApi.list(params).then((r) => r.data.total),
+        returnRequestsApi.pending(activeProjectId).then((r) => r.data.total).catch(() => 0),
+      ])
+        .then(([news, returns]) => setTriageCount(news + returns))
         .catch(() => {})
     }
     fetchCount()

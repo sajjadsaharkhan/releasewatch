@@ -20,6 +20,8 @@ class SubscriptionReason(str, enum.Enum):
     reporter = "reporter"
     recurrence = "recurrence"
     duplicate = "duplicate"
+    #: Pressed Problem is back on a Done item (slice 20, FR-68).
+    return_request = "return_request"
     #: Chosen by the user — the Subscribe button on the item.
     manual = "manual"
 

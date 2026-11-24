@@ -52,6 +52,11 @@ const EVENT_STYLES = {
   due_date_changed:    { dot: 'bg-amber-500',  label: (e) => null },
   subscribed:          { dot: 'bg-blue-500',   label: (e, item) => `subscribed to this ${itemNoun(item)}` },
   unsubscribed:        { dot: 'bg-zinc-400',   label: (e, item) => `unsubscribed from this ${itemNoun(item)}` },
+  // Slice 20 — return requests (Problem is back).
+  return_requested:    { dot: 'bg-amber-500',  label: 'said the problem is back — return requested' },
+  return_request_added: { dot: 'bg-amber-400', label: 'added to the pending return request' },
+  return_confirmed:    { dot: 'bg-red-500',    label: (e) => (e.meta?.via === 'item_left_done' ? 'return request closed — the item came back' : 'confirmed the return request — sent back for a fix') },
+  return_dismissed:    { dot: 'bg-zinc-400',   label: 'dismissed the return request — it stays Done' },
 }
 
 // A category as a timeline entry recorded it: `{id, name, icon, color}` since
@@ -144,6 +149,10 @@ const EVENT_ICONS = {
   due_date_changed:    'calendar',
   subscribed:          'bell',
   unsubscribed:        'bell-off',
+  return_requested:    'rotate-ccw',
+  return_request_added: 'rotate-ccw',
+  return_confirmed:    'undo-2',
+  return_dismissed:    'circle-check',
   tech_debt_cleared:   'construction',
 }
 
@@ -683,6 +692,20 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                   <span className="font-medium text-zinc-700 dark:text-zinc-200">{actor?.name ?? actorId}</span>
                   <AgentBadge show={item.via_agent} className="self-center" />
                   <span>{getLabel(item)}</span>
+                  {/* Return-request events point at the public comment that came with them (slice 20). */}
+                  {item.meta?.comment_id && (
+                    <button
+                      type="button"
+                      className="text-[11.5px] text-blue-600 hover:underline dark:text-blue-400"
+                      onClick={() => {
+                        const el = document.getElementById(`comment-${item.meta.comment_id}`)
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        el?.classList.add('timeline-highlighted')
+                      }}
+                    >
+                      see comment
+                    </button>
+                  )}
                   <span className="text-zinc-400 dark:text-zinc-500 text-[11px] ml-auto" title={fullTime(time)}>
                     {formatEventTime(time)}
                   </span>

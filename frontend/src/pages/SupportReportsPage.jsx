@@ -18,7 +18,7 @@ import { issueSlug } from '../lib/issueSlug'
 import { relTime, fullTime } from '../lib/relTime'
 import { useApp } from '../hooks/useApp'
 import { SupportReportModal } from '../components/support'
-import { ReportRecurrenceButton, referenceDescription } from '../components/issues'
+import { ReportRecurrenceButton, ProblemIsBackButton } from '../components/issues'
 import { canSubmitSupportReport } from '../lib/roles'
 
 // Every support-sourced item across all projects (slice 05, FR-11). Support works
@@ -59,8 +59,8 @@ export default function SupportReportsPage({ newReportOpen = false }) {
   const page = Number(searchParams.get('page') ?? 1)
   // 'me', a user id, or absent for everyone.
   const reporter = searchParams.get('reporter') ?? 'all'
-  // `?ref=<key>` — "New report referencing this" from a Done bug (slice 07, FR-16).
-  const refKey = searchParams.get('ref')
+  // `?returns=1` — only items with a Pending return request (slice 20).
+  const returnsOnly = searchParams.get('returns') === '1'
 
   const [query, setQuery] = useState(q)
   const [projects, setProjects] = useState([])
@@ -104,13 +104,14 @@ export default function SupportReportsPage({ newReportOpen = false }) {
       project_id: projectId === 'all' ? undefined : projectId,
       status: statuses.length ? statuses : undefined,
       reporter_id: reporterId,
+      return_requested: returnsOnly || undefined,
       page,
       size: PAGE_SIZE,
     })
       .then((res) => { if (!cancelled) setData(res.data) })
       .catch(() => { if (!cancelled) setError(true) })
     return () => { cancelled = true }
-  }, [q, projectId, statuses, reporterId, page, reloadKey])
+  }, [q, projectId, statuses, reporterId, returnsOnly, page, reloadKey])
 
   const projectOptions = [
     { value: 'all', label: 'All projects' },
@@ -125,7 +126,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
       .map((u) => ({ value: String(u.id), label: u.name })),
   ]
   const reporterLabel = reporterOptions.find((o) => o.value === reporter)?.label ?? 'Anyone'
-  const filtered = Boolean(q || projectId !== 'all' || statuses.length || reporter !== 'all')
+  const filtered = Boolean(q || projectId !== 'all' || statuses.length || reporter !== 'all' || returnsOnly)
   const lastPage = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
 
   return (
@@ -177,6 +178,22 @@ export default function SupportReportsPage({ newReportOpen = false }) {
           options={STATUS_OPTIONS}
           onChange={(v) => updateParams({ status: v })}
         />
+        {/* Return requested (slice 20): Done items Support has asked to come back. */}
+        <button
+          type="button"
+          aria-pressed={returnsOnly}
+          onClick={() => updateParams({ returns: returnsOnly ? null : '1' })}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border text-[12px] font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            returnsOnly
+              ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300'
+              : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <Icon name="rotate-ccw" size={12} aria-hidden />
+          Return requested
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -218,6 +235,12 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                       <span className="font-mono text-[12px] text-muted-foreground shrink-0">{r.key}</span>
                       <span className="truncate text-foreground">{r.title}</span>
                       <ReportedCount count={r.recurrence_count} />
+                      {r.return_requested && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          <Icon name="rotate-ccw" size={10} strokeWidth={2.5} aria-hidden />
+                          Return requested
+                        </span>
+                      )}
                     </Link>
                   </td>
                   <td className="px-3 py-2.5 hidden md:table-cell">
@@ -238,7 +261,8 @@ export default function SupportReportsPage({ newReportOpen = false }) {
                       <span>{relTime(r.updated_at)}</span>
                     </Tooltip>
                   </td>
-                  <td className="px-5 py-1.5 text-right">
+                  <td className="px-5 py-1.5 text-right whitespace-nowrap">
+                    <ProblemIsBackButton compact item={r} onSaved={() => setReloadKey((k) => k + 1)} />
                     <ReportRecurrenceButton
                       compact
                       item={r}
@@ -271,7 +295,6 @@ export default function SupportReportsPage({ newReportOpen = false }) {
       {canSubmitSupportReport(user?.role) && (
         <SupportReportModal
           open={newReportOpen}
-          initialDescription={refKey ? referenceDescription(refKey) : ''}
           onClose={() => navigate('/support/reports')}
           onSubmitted={() => setReloadKey((k) => k + 1)}
         />

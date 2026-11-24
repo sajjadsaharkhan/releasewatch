@@ -10,10 +10,7 @@ import asyncio
 import pytest
 import pytest_asyncio
 
-FR_16 = (
-    "Fixed items can't take a recurrence. File a new report; "
-    "triage will merge it into this item and send it back for a fix."
-)
+FR_16 = "This item is Done. Use Problem is back to ask for it to come back."
 
 
 @pytest_asyncio.fixture
@@ -314,7 +311,7 @@ async def test_support_reports_rows_carry_recurrence_action(factories, rig):
     rows = {r["id"]: r for r in (await rig["support_client"].get("/support/reports")).json()["items"]}
     assert rows[open_bug.id]["allowed_actions"] == ["report_recurrence"]
     assert rows[open_bug.id]["blocked_actions"] == []
-    assert rows[done_bug.id]["allowed_actions"] == []
+    assert rows[done_bug.id]["allowed_actions"] == ["request_return"]  # Problem is back (slice 20)
     assert rows[done_bug.id]["blocked_actions"] == [
         {"action": "report_recurrence", "code": "recurrence_on_done", "detail": FR_16},
     ]

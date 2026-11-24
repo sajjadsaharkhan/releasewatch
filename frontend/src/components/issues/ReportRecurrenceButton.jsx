@@ -5,9 +5,6 @@ import { Tooltip } from '../ui/Tooltip'
 import { GatedButton } from '../common/ActionButton'
 import { RecurrenceDialog } from './RecurrenceDialog'
 
-/** The description a new report referencing `key` starts with (FR-16). */
-export const referenceDescription = (key) => `Previously reported as ${key}.`
-
 /**
  * The Report recurrence control for one bug (slice 07). Its state and reason
  * come from the API (`report_recurrence` in allowed_actions / blocked_actions):

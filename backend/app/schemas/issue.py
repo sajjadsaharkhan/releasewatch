@@ -287,6 +287,24 @@ class SubscriberOut(BaseModel):
     subscribed_at: datetime
 
 
+class ReturnRequestEntryResponse(BaseModel):
+    """One press of Problem is back (slice 20) — the first included."""
+
+    id: int
+    user: UserSummary | None = None
+    comment_id: int | None = None
+    body: str | None = None
+    created_at: datetime
+
+
+class PendingReturnRequest(BaseModel):
+    """What an item carries while a return request is Pending."""
+
+    id: int
+    requested_at: datetime
+    entries: list[ReturnRequestEntryResponse] = Field(default_factory=list)
+
+
 class IssueResponse(IssueBase):
     """Full issue representation."""
 
@@ -332,6 +350,8 @@ class IssueResponse(IssueBase):
     #: Whether the current user is on the item's subscriber list, and how many are.
     is_subscribed: bool = False
     subscriber_count: int = 0
+    #: The item's Pending return request (slice 20, FR-68), else null.
+    pending_return_request: PendingReturnRequest | None = None
     environment_name: str | None = None
     parent_issue_id: int | None = None
     backlog_category_id: int

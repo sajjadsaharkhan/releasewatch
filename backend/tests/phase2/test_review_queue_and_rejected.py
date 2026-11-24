@@ -247,11 +247,16 @@ async def test_support_cannot_reject(factories, rig):
         "outcome": "accept", "priority": "high", "release_id": rig["stream_id"],
     })
     await _move(admin, report.id, "in_progress", "in_review")
+    # BR-71: Support may reject what it filed from In review (with a comment) …
+    seen = await _item(rig["support_client"], report.id)
+    assert "reject" in seen["allowed_actions"]
+    # … but never from Verified or Done.
+    await _move(admin, report.id, "verified")
     seen = await _item(rig["support_client"], report.id)
     assert "reject" not in seen["allowed_actions"]
     assert "reject" not in [b["action"] for b in seen["blocked_actions"]]
     resp = await _reject(rig["support_client"], report.id)
-    assert resp.status_code == 403, resp.text
+    assert resp.status_code in (403, 409), resp.text
 
 
 @pytest.mark.asyncio

@@ -152,7 +152,10 @@ async def authorize_issue(
     """Load a visible issue with its project and check ``action`` on it."""
     from sqlalchemy.orm import selectinload
 
-    issue = await load_visible_issue(db, issue_id, user, selectinload(Issue.project))
+    # The release too: Policy reads the container's kind (Support's Done is Stream-only).
+    issue = await load_visible_issue(
+        db, issue_id, user, selectinload(Issue.project), selectinload(Issue.release),
+    )
     authorize(user, action, issue_target(issue, issue.project, **extra))
     return issue
 

@@ -24,6 +24,8 @@ due_date_changed     → assignee + reporter
 needs_info_replied   → triage leads (slice 06, FR-19)
 moved_into_project   → the new project's triage leads (slice 06, FR-20)
 recurrence_on_cancelled → triage leads (a merge or recurrence on a Cancelled item)
+return_requested     → triage leads (a new Pending return request, slice 20)
+support_return_decided → the request's requesters (confirmed or dismissed, slice 20)
 support_needs_info   → Support-role subscribers (slice 06, §13)
 support_cancelled    → Support-role subscribers
 support_done         → Support-role subscribers
@@ -258,6 +260,7 @@ class InboxFanOutService:
             InboxEventType.needs_info_replied,
             InboxEventType.moved_into_project,
             InboxEventType.recurrence_on_cancelled,
+            InboxEventType.return_requested,
         ):
             # moved_into_project: issue.project_id is already the new project.
             leads = await self._triage_recipients(db, issue)
@@ -266,6 +269,13 @@ class InboxFanOutService:
         elif trigger in ASSIGNEE_EVENTS:
             if issue.assignee_id:
                 recipients.add(str(issue.assignee_id))
+
+        elif trigger == InboxEventType.support_return_decided:
+            # Only the people who pressed Problem is back (slice 20) — the caller
+            # names them; other Support subscribers of the item hear nothing.
+            recipients.update(
+                str(uid) for uid in (extra_meta or {}).get("recipient_ids", [])
+            )
 
         elif trigger in SUPPORT_EVENTS:
             from app.services.subscriber_service import subscriber_ids
@@ -744,6 +754,7 @@ class InboxFanOutService:
             priority_val = getattr(issue.priority, "value", issue.priority) or "unrated"
             context = {
                 "issue_number": issue.issue_number,
+                "issue_key": issue_key(issue.type, issue.issue_number),
                 "title": _esc(issue.title),
                 "issue_url": issue_url,
                 "comment_url": comment_url,
@@ -801,6 +812,11 @@ class InboxFanOutService:
                 template_key = "support_report_filed"
             elif trigger == InboxEventType.support_cancelled and _meta.get("merged_into_key"):
                 template_key = "support_merged"
+            elif (
+                trigger == InboxEventType.support_return_decided
+                and _meta.get("outcome") == "dismissed"
+            ):
+                template_key = "support_return_dismissed"
             if template_key not in MESSAGE_TEMPLATES:
                 logger.warning("No Telegram template for event: %s", template_key)
                 return

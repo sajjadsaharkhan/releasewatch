@@ -347,6 +347,8 @@ async def _build_enriched_responses(
             duplicates = {issue_id: (count, top) for issue_id, count, top in rows.all()}
 
     subscriptions = await subscription_state(db, [i.id for i in issues], current_user.id)
+    from app.services.return_request_service import return_request_service
+    pending_returns = await return_request_service.pending_map(db, [i.id for i in issues])
 
     responses = []
     for issue in issues:
@@ -376,6 +378,7 @@ async def _build_enriched_responses(
             "possible_duplicates_top": duplicates.get(issue.id, (0, None))[1],
             "subscriber_count": subscriptions.get(issue.id, (0, False))[0],
             "is_subscribed": subscriptions.get(issue.id, (0, False))[1],
+            "pending_return_request": pending_returns.get(issue.id),
         })
         responses.append(enriched)
     return responses

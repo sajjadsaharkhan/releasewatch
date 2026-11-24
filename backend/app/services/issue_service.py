@@ -312,6 +312,12 @@ class IssueService:
 
         now = now or datetime.now(tz=UTC)
 
+        if from_status == IssueStatus.done and to_status != IssueStatus.done:
+            # A Pending return request is answered by the item coming back (slice 20).
+            from app.services.return_request_service import return_request_service
+
+            await return_request_service.close_when_item_leaves_done(db, issue, actor)
+
         issue.status = to_status
 
         if to_status == IssueStatus.in_progress:

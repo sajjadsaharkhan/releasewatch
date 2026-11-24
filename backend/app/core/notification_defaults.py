@@ -36,10 +36,12 @@ DEFAULT_NOTIFICATION_MATRIX: dict[str, dict[str, bool]] = {
     "needs_info_replied":      _row(triage=True),
     "moved_into_project":      _row(triage=True),
     "recurrence_on_cancelled": _row(triage=True),
+    "return_requested":        _row(triage=True),
     # Slice 06 — to Support subscribers, the only events Support receives (§13).
     "support_needs_info":  _row(subscriber=True),
     "support_cancelled":   _row(subscriber=True),
     "support_done":        _row(subscriber=True),
+    "support_return_decided": _row(subscriber=True),
     # Slice 09 — about a release, not an item.
     "release_shipped":     _row(assignee=True, cto=True),
     "release_overdue":     _row(cto=True),

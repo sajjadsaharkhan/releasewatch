@@ -16,6 +16,10 @@ import { CycleBadge } from '../common/CycleBadge'
 import { ActionButton, actionState } from '../common/ActionButton'
 import { ReportRecurrenceButton } from './ReportRecurrenceButton'
 import { RejectDialog } from './RejectDialog'
+import { ProblemIsBackButton } from './ReturnRequest'
+import { Button } from '../ui/Button'
+import { useApp } from '../../hooks/useApp'
+import { isSupport } from '../../lib/roles'
 import { placementOf } from './MoveDialog'
 import { Tooltip } from '../ui/Tooltip'
 import { MetaRow } from './MetaRow'
@@ -62,7 +66,48 @@ function OverdueTag() {
   )
 }
 
-export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, applyUpdate, onSentBack, onRecurrenceReported, onConfirm, onOpenLabelPicker }) {
+// Support's Verify (slice 20, BR-71): the one status move it makes, on a support-sourced
+// item in To review or In review. In the Stream it may also go straight to Done —
+// tested on production — so the button becomes a two-item menu.
+function SupportVerify({ issue, onVerify }) {
+  const stream = (issue.allowed_transitions || []).includes('done')
+  if (!stream) {
+    return (
+      <ActionButton action="transition:verified" item={issue} className="w-full" onClick={() => onVerify('verified')}>
+        <BadgeCheck size={14} className="mr-1" /> Verify
+      </ActionButton>
+    )
+  }
+  return (
+    <Dropdown
+      width={250}
+      trigger={
+        <Button className="w-full" aria-haspopup="menu">
+          <BadgeCheck size={14} className="mr-1" /> Verify <Icon name="chevron-down" size={13} className="ml-1" aria-hidden="true" />
+        </Button>
+      }
+    >
+      {({ close }) => (
+        <>
+          <DropdownItem onClick={() => { onVerify('verified'); close() }}>
+            <StatusBadge status="verified" size="sm" />
+          </DropdownItem>
+          <DropdownItem onClick={() => { onVerify('done'); close() }}>
+            <span className="inline-flex items-center gap-1.5 text-[12.5px]">
+              <StatusBadge status="done" size="sm" /> tested on production
+            </span>
+          </DropdownItem>
+        </>
+      )}
+    </Dropdown>
+  )
+}
+
+export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, applyUpdate, onSentBack, onRecurrenceReported, onReturnRequestChanged, onConfirm, onOpenLabelPicker }) {
+  const { user } = useApp()
+  // Support's controls differ from tech's (BR-71). What it may do still comes from
+  // the API; the role only chooses which controls to draw for those actions.
+  const support = isSupport(user?.role)
   const assignee = issue.assignee_user
   const reporter = issue.reporter_user
   const labels = issue.labels_detail || []
@@ -117,7 +162,7 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
   return (
     <aside data-testid="issue-sidebar" className="border-l border-border overflow-y-auto bg-muted/40 px-4 py-5 text-[13px]">
       <MetaRow label="Status">
-        {allowedTransitions.length === 0 ? <StatusBadge status={issue.status} /> : (
+        {allowedTransitions.length === 0 || support ? <StatusBadge status={issue.status} /> : (
         <Dropdown width={190} trigger={<button className="w-full text-left"><StatusBadge status={issue.status} /></button>}>
           {({ close }) => (
             <>
@@ -482,17 +527,17 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           above. Each button still renders only what the API allows
           (allowed_actions / blocked_actions) — never re-derived here. */}
       <div className="mt-5 pt-3 border-t border-border space-y-2">
-        {(issue.status === 'todo' || issue.status === 'rejected') && offers('in_progress') && (
+        {!support && (issue.status === 'todo' || issue.status === 'rejected') && offers('in_progress') && (
           <ActionButton action="transition:in_progress" item={issue} className="w-full" onClick={() => changeStatus('in_progress')}>
             <Play size={14} className="mr-1" /> Start work
           </ActionButton>
         )}
-        {issue.status === 'in_progress' && offers('to_review') && (
+        {!support && issue.status === 'in_progress' && offers('to_review') && (
           <ActionButton action="transition:to_review" item={issue} className="w-full" onClick={() => changeStatus('to_review')}>
             <Clock size={14} className="mr-1" /> Send to review
           </ActionButton>
         )}
-        {issue.status === 'to_review' && offers('in_review') && (
+        {!support && issue.status === 'to_review' && offers('in_review') && (
           <ActionButton action="transition:in_review" item={issue} className="w-full" onClick={() => changeStatus('in_review')}>
             <Eye size={14} className="mr-1" /> Start review
           </ActionButton>
@@ -511,26 +556,29 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         {/* QA approves: Verified, not on production yet (BR-67). A Stream item
             may also go straight to Done — checked on production. A release item
             only reaches Done at ship. */}
-        {issue.status === 'in_review' && allowedTransitions.includes('verified') && offers('verified') && (
+        {!support && issue.status === 'in_review' && allowedTransitions.includes('verified') && offers('verified') && (
           <ActionButton action="transition:verified" item={issue} className="w-full" onClick={() => changeStatus('verified')}>
             <BadgeCheck size={14} className="mr-1" /> Mark as verified
           </ActionButton>
         )}
-        {issue.status === 'in_review' && allowedTransitions.includes('done') && offers('done') && (
+        {!support && issue.status === 'in_review' && allowedTransitions.includes('done') && offers('done') && (
           <ActionButton action="transition:done" item={issue} variant="outline" className="w-full" onClick={() => changeStatus('done')}>
             <CheckCheck size={14} className="mr-1" /> Verified on production — Done
           </ActionButton>
         )}
-        {issue.status === 'verified' && allowedTransitions.includes('done') && offers('done') && (
+        {!support && issue.status === 'verified' && allowedTransitions.includes('done') && offers('done') && (
           <ActionButton action="transition:done" item={issue} className="w-full" onClick={() => changeStatus('done')}>
             <CheckCheck size={14} className="mr-1" /> On production — Done
           </ActionButton>
         )}
 
-        {issue.status === 'blocked' && offers(unblockTo) && (
+        {!support && issue.status === 'blocked' && offers(unblockTo) && (
           <ActionButton action={`transition:${unblockTo}`} item={issue} className="w-full" onClick={() => changeStatus(unblockTo)}>
             <Unlock size={14} className="mr-1" /> Unblock — back to {STATUS[unblockTo]?.label ?? unblockTo}
           </ActionButton>
+        )}
+        {support && ['to_review', 'in_review'].includes(issue.status) && allowedTransitions.includes('verified') && (
+          <SupportVerify issue={issue} onVerify={changeStatus} />
         )}
         {/* Reject (09a, 19): one action on To review, In review, Verified and Done work —
             named Return on a Done item, as the board's Returned area is —
@@ -543,6 +591,8 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
         </ActionButton>
         {/* Bug-only; disabled with guidance on Done (FR-16), absent on tasks. */}
         <ReportRecurrenceButton item={issue} className="w-full" onReported={onRecurrenceReported} />
+        {/* Support only, on a Done item (slice 20): asks triage to send it back. */}
+        <ProblemIsBackButton item={issue} className="w-full" onSaved={onReturnRequestChanged} />
       </div>
       <RejectDialog
         item={issue}

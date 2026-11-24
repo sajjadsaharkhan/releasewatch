@@ -212,6 +212,23 @@ export const issuesApi = {
   bulkProduction: (issueIds) => api.post('/issues/bulk-production', { issue_ids: issueIds }),
 }
 
+// ─── Return requests (slice 20) — Support's "Problem is back" ────────────────
+export const returnRequestsApi = {
+  // Press Problem is back on a Done item, or add to its Pending request. `data` is
+  // {comment, pending_attachments?}; 409 not_done, 422 without a comment.
+  request: (issueId, data) => api.post(`/issues/${issueId}/return-requests`, data),
+  /** The item's requests, newest first: [{ id, status, entries: [{ user, body, comment_id }], decided_by, … }] */
+  forIssue: (issueId) => api.get(`/issues/${issueId}/return-requests`),
+  /** Pending requests for the triage queue — one project's, or every project's with no id.
+   *  { items: [{ id, requested_at, issue, requesters, first_comment, entry_count }], total } */
+  pending: (projectId) => (projectId
+    ? api.get(`/projects/${projectId}/return-requests`, { params: { status: 'pending' } })
+    : api.get('/return-requests', { params: { status: 'pending' } })),
+  // Confirm = the ordinary Reject from Done. Dismiss needs a public comment (422 reason_required).
+  confirm: (id) => api.post(`/return-requests/${id}/confirm`),
+  dismiss: (id, comment) => api.post(`/return-requests/${id}/dismiss`, { comment }),
+}
+
 // ─── Backlog & technical debt (slice 08) ─────────────────────────────────────
 export const backlogApi = {
   // params: { include_tech_debt, group_by: 'category' }

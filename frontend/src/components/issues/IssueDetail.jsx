@@ -36,6 +36,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
     moveToProject,
     sentBack,
     recurrenceReported,
+    returnRequestChanged,
     addComment,
     updateComment,
     deleteComment,
@@ -119,6 +120,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           timelineLoadingMore={timelineLoadingMore}
           loadMoreTimeline={loadMoreTimeline}
           fetchAttachments={fetchAttachments}
+          onReturnRequestChanged={returnRequestChanged}
         />
 
         <MoveDialog
@@ -137,6 +139,7 @@ export function IssueDetail({ issue, onUpdate, onClose, backLabel, onNavigate, a
           applyUpdate={applyUpdate}
           onSentBack={sentBack}
           onRecurrenceReported={recurrenceReported}
+          onReturnRequestChanged={returnRequestChanged}
           onConfirm={confirm}
           onOpenLabelPicker={() => setLabelPickerOpen(true)}
         />

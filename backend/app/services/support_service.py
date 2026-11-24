@@ -49,10 +49,12 @@ def template_spec(template: SupportTemplate) -> TemplateSpec:
 
 
 #: The item actions a Support reports row reports on.
-ROW_ACTIONS = (Action.report_recurrence,)
+ROW_ACTIONS = (Action.report_recurrence, Action.request_return)
 
 
-def report_row(issue: Issue, actor: User) -> SupportReportRow:
+def report_row(
+    issue: Issue, actor: User, *, return_requested: bool = False,
+) -> SupportReportRow:
     """One Support reports row. Needs ``project``, ``reporter`` and ``assignee`` loaded."""
     allowed: list[str] = []
     blocked: list[BlockedAction] = []
@@ -78,6 +80,7 @@ def report_row(issue: Issue, actor: User) -> SupportReportRow:
         assignee_user=UserSummary.model_validate(issue.assignee) if issue.assignee else None,
         allowed_actions=allowed,
         blocked_actions=blocked,
+        return_requested=return_requested,
         created_at=issue.created_at,
         updated_at=issue.updated_at,
     )
@@ -194,9 +197,13 @@ class SupportService:
         project_id: int | None = None,
         statuses: list[IssueStatus] | None = None,
         reporter_id: int | None = None,
+        return_requested: bool | None = None,
         page: int = 1,
         size: int = 50,
     ) -> SupportReportList:
+        from app.db.models.return_request import ReturnRequest, ReturnRequestStatus
+        from app.services.return_request_service import return_request_service
+
         base = visible_issues(actor).where(Issue.source == IssueSource.support.value)
         if reporter_id:
             base = base.where(Issue.reporter_id == reporter_id)
@@ -204,6 +211,11 @@ class SupportService:
             base = base.where(Issue.project_id == project_id)
         if statuses:
             base = base.where(Issue.status.in_([s.value for s in statuses]))
+        if return_requested:
+            base = base.where(Issue.id.in_(
+                select(ReturnRequest.issue_id)
+                .where(ReturnRequest.status == ReturnRequestStatus.pending.value)
+            ))
         if q and q.strip():
             term = f"%{q.strip()}%"
             base = base.where(or_(
@@ -223,8 +235,9 @@ class SupportService:
             .limit(size)
         )).scalars().all()
 
+        pending = await return_request_service.pending_issue_ids(db, [i.id for i in rows])
         return SupportReportList(
-            items=[report_row(i, actor) for i in rows],
+            items=[report_row(i, actor, return_requested=i.id in pending) for i in rows],
             total=total,
             page=page,
             size=size,

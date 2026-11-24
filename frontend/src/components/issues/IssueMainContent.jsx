@@ -10,6 +10,7 @@ import { AttachmentsSection } from './AttachmentsSection'
 import { CycleHistorySection } from './CycleHistorySection'
 import { IssueTimeline } from './IssueTimeline'
 import { NeedsInfoQuestion } from './NeedsInfoQuestion'
+import { ReturnRequestBanner } from './ReturnRequest'
 import { DuplicateHintsPanel } from '../triage/DuplicateHintsPanel'
 import { relTime } from '../../lib/relTime'
 import { isBug } from '../../lib/constants'
@@ -37,6 +38,7 @@ export function IssueMainContent({
   timelineLoadingMore,
   loadMoreTimeline,
   fetchAttachments,
+  onReturnRequestChanged,
 }) {
   // The open tab lives in `?tab=` (Activity, the default, is left out) so a
   // link or reload lands on it — the same pattern as the Stream and Release pages.
@@ -116,6 +118,9 @@ export function IssueMainContent({
       )}
 
       <NeedsInfoQuestion issue={issue} comments={comments} />
+
+      {/* A Pending return request on a Done item (slice 20, FR-68/69). */}
+      <ReturnRequestBanner item={issue} onChanged={onReturnRequestChanged} />
 
       <div className="mt-4">
         <Tabs

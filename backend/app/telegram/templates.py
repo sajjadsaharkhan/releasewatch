@@ -71,6 +71,16 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "\n"
         "<i>Reported by <a href=\"{actor_url}\">{actor}</a> — it stays cancelled.</i>"
     ),
+    # Slice 20 (§13) — a Support user says a Done item's problem is back.
+    "return_requested": (
+        "↩️ <b>Problem is back</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "📦 <b>{project_name}</b>\n"
+        "\n"
+        "<i>Requested by <a href=\"{actor_url}\">{actor}</a>:</i> \"{excerpt}\"\n"
+        "\n"
+        "<a href=\"{issue_url}\">Decide in the triage queue →</a>"
+    ),
     # Slice 06 — the only three messages Support receives (§13).
     "support_needs_info": (
         "❓ <b>Your report needs more information</b>\n"
@@ -99,6 +109,18 @@ MESSAGE_TEMPLATES: dict[str, str] = {
         "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
         "\n"
         "<i>You can let the customer know.</i>"
+    ),
+    "support_return_decided": (
+        "↩️ <b>{issue_key} is going back for a fix</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "<i>You can let the customer know.</i>"
+    ),
+    "support_return_dismissed": (
+        "✅ <b>{issue_key} stays Done</b>\n"
+        "<a href=\"{issue_url}\">#{issue_number} — {title}</a>\n"
+        "\n"
+        "<blockquote>{excerpt}</blockquote>"
     ),
     "assigned": (
         "👋 <b>You've been assigned!</b>\n"

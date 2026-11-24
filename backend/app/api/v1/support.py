@@ -77,6 +77,7 @@ async def list_reports(
     project_id: int | None = Query(None),
     status_: list[IssueStatus] | None = Query(None, alias="status"),
     reporter_id: int | None = Query(None, description="Only reports filed by this user (the list's \"Me\" filter)"),
+    return_requested: bool | None = Query(None, description="Only items with a Pending return request"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -84,5 +85,5 @@ async def list_reports(
 ) -> SupportReportList:
     return await support_service.list_reports(
         db, current_user, q=q, project_id=project_id, statuses=status_, reporter_id=reporter_id,
-        page=page, size=size,
+        return_requested=return_requested, page=page, size=size,
     )

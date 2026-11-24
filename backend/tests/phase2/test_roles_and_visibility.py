@@ -218,19 +218,20 @@ async def test_support_item_response_hides_tech_actions(rig):
 
 
 @pytest.mark.asyncio
-async def test_support_can_mark_in_review_work_done(rig):
+async def test_support_can_verify_in_review_work(rig):
     c, bug_id = rig["support_client"], rig["support_bug"].id
     # Not before review, and never other field edits alongside the status.
-    assert (await c.patch(f"/issues/{bug_id}", json={"status": "done"})).status_code == 403
+    assert (await c.patch(f"/issues/{bug_id}", json={"status": "verified"})).status_code == 403
     resp = await rig["admin"].post(f"/issues/{bug_id}/transition", json={"to": "in_review"})
     assert resp.status_code == 200
     item = (await c.get(f"/issues/{bug_id}")).json()
-    assert "transition:done" in item["allowed_actions"] and item["allowed_transitions"] == ["done"]
-    resp = await c.patch(f"/issues/{bug_id}", json={"status": "done", "priority": "low"})
+    assert "transition:verified" in item["allowed_actions"]
+    assert "verified" in item["allowed_transitions"]
+    resp = await c.patch(f"/issues/{bug_id}", json={"status": "verified", "priority": "low"})
     assert resp.status_code == 403
-    # The sidebar's Mark as done sends a status-only PATCH.
-    resp = await c.patch(f"/issues/{bug_id}", json={"status": "done"})
-    assert resp.status_code == 200 and resp.json()["status"] == "done"
+    # The sidebar's Verify sends a status-only PATCH.
+    resp = await c.patch(f"/issues/{bug_id}", json={"status": "verified"})
+    assert resp.status_code == 200 and resp.json()["status"] == "verified"
 
 
 # ── allowed_actions / blocked_actions for tech users ────────────────────────────

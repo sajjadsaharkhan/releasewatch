@@ -252,6 +252,20 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     await fetchTimeline(issueIdRef.current)
   }
 
+  // After Problem is back, or a decision on a return request (slice 20): the item
+  // gains or loses its banner, and a confirm also moves it to Rejected with a new cycle.
+  const returnRequestChanged = async () => {
+    const id = issueIdRef.current
+    const res = await issuesApi.get(id)
+    setLocalIssue(prev => ({
+      ...res.data,
+      attachments: res.data.attachments ?? prev?.attachments ?? [],
+    }))
+    onUpdate?.(res.data)
+    await fetchTimeline(id)
+    await fetchCycles(id)
+  }
+
   // The Subscribe button: server is the source of truth, so no optimistic flip —
   // the response carries the new state and the timeline gains its entry.
   const [subscribing, setSubscribing] = useState(false)
@@ -440,6 +454,7 @@ export function useIssueDetail(initialIssue, { onUpdate } = {}) {
     moveToProject,
     sentBack,
     recurrenceReported,
+    returnRequestChanged,
     addComment,
     updateComment,
     deleteComment,
