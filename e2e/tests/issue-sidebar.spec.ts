@@ -64,3 +64,25 @@ test('the assignee is picked by searching people, after a confirm', async ({ bro
 
   await ctx.close()
 })
+
+test('the assignee can be removed (made blank), after a confirm', async ({ browser }) => {
+  const ctx = await browser.newContext({ storageState: auth('cto') })
+  const page = await ctx.newPage()
+  await page.goto('/inbox')
+  const projects = await api(page, 'GET', '/projects')
+  const project = projects.find((p: { slug: string }) => p.slug === 'e2e-product')
+  const dev = (await api(page, 'GET', '/team?assignable=true')).find((u: { username: string }) => u.username === 'e2e-developer')
+  const task = await api(page, 'POST', '/issues', {
+    type: 'task', title: `Remove assignee ${Date.now()}`, project_id: project.id,
+    release_id: project.stream_id, assignee_id: dev.id,
+  })
+
+  await page.goto(`/issue/task-${task.issue_number}`)
+  const sidebar = page.getByTestId('issue-sidebar')
+  await sidebar.getByRole('button', { name: /E2E Developer/ }).click()
+  await page.getByRole('option', { name: /Unassigned/ }).click()
+  await expect(page.getByRole('heading', { name: 'Remove the assignee?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Unassign' }).click()
+  await expect(sidebar.getByRole('button', { name: /Unassigned/ })).toBeVisible()
+  expect((await api(page, 'GET', `/issues/${task.id}`)).assignee_id).toBeNull()
+})

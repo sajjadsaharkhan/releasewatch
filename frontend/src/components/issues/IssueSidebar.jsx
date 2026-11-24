@@ -184,9 +184,20 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
           // A current assignee who's no longer assignable is still named on the trigger.
           users={assignee && !teamUsers.some((u) => String(u.id) === String(assignee.id)) ? [assignee, ...teamUsers] : teamUsers}
           value={issue.assignee_id ?? null}
-          emptyLabel={null}
+          emptyLabel="Unassigned"
           placeholder="Unassigned"
           onChange={(id) => {
+            // The "Unassigned" option clears the assignee.
+            if (id == null) {
+              if (!assignee) return
+              onConfirm({
+                title: `Remove the assignee?`,
+                body: <span>This {noun} will have no assignee (currently <strong>{assignee.name}</strong>).</span>,
+                confirmLabel: 'Unassign',
+                onConfirm: () => applyUpdate({ assignee_id: null }, 'Assignee removed'),
+              })
+              return
+            }
             const u = teamUsers.find((x) => String(x.id) === String(id))
             if (!u || String(u.id) === String(issue.assignee_id)) return
             onConfirm({
