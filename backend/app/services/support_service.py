@@ -27,6 +27,7 @@ from app.schemas.support import (
 )
 from app.policy import Action, decide
 from app.services.authz import actor_of, issue_target, visible_issues
+from app.services.support_channel_service import support_channel_service
 from app.support_report import FieldSpec, TemplateSpec, compose_report
 
 
@@ -175,7 +176,7 @@ class SupportService:
             description=composed.markdown,
             pending_attachments=payload.pending_attachments,
         )
-        return await issue_service.create(
+        issue = await issue_service.create(
             db, data, actor,
             source=IssueSource.support,
             # Forensic copy only — the UI never reads it (BR-34).
@@ -185,6 +186,8 @@ class SupportService:
                 "values": composed.values,
             },
         )
+        await support_channel_service.record(db, issue, "new_report", {})
+        return issue
 
     # ── Support reports list (FR-11) ────────────────────────────────────────
 

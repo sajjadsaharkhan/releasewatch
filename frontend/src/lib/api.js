@@ -477,3 +477,13 @@ export const templatesApi = {
   activate: (projectId, id) => api.post(`/projects/${projectId}/templates/${id}/activate`),
   deactivate: (projectId, id) => api.post(`/projects/${projectId}/templates/${id}/deactivate`),
 }
+
+// ─── Support channel (slice 21, CTO + Admin) ──────────────────────────────────
+export const supportChannelApi = {
+  // → { chat_id, thread_id, enabled, tested, tested_at, pending_posts, failed_posts, last_error }
+  get: (projectId) => api.get(`/projects/${projectId}/support-channel`),
+  // 409 `support_channel_untested` when enabling without a passing test.
+  save: (projectId, data) => api.put(`/projects/${projectId}/support-channel`, data),
+  // → { ok, error? } — Telegram's own description on failure.
+  test: (projectId) => api.post(`/projects/${projectId}/support-channel/test`),
+}

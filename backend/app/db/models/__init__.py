@@ -19,6 +19,7 @@ from app.db.models.support_template import SupportTemplate, SupportTemplateField
 from app.db.models.issue_subscriber import IssueSubscriber
 from app.db.models.issue_recurrence import IssueRecurrence
 from app.db.models.return_request import ReturnRequest, ReturnRequestEntry
+from app.db.models.support_channel_post import SupportChannelPost
 from app.db.models.backlog_category import BacklogCategory, register_default_category_hook
 from app.db.models.queue import QueueEntry, QueueHistory
 from app.db.models.mcp_token import McpToken
@@ -31,6 +32,7 @@ register_default_category_hook(Project, Issue)
 register_stream_hooks(Project)
 
 __all__ = [
+    "SupportChannelPost",
     "ReturnRequest",
     "ReturnRequestEntry",
     "User",

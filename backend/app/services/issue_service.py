@@ -259,6 +259,7 @@ class IssueService:
         notify: bool = True,
         now: datetime | None = None,
         event_meta: dict | None = None,
+        channel_text: str | None = None,
         _internal_context: dict | None = None,
     ) -> Issue:
         """Move ``issue`` to status ``to``, or raise ``DomainError`` (409).
@@ -266,6 +267,9 @@ class IssueService:
         ``now`` stamps the move's timestamps (ship passes ``released_at`` so
         ``completed_at`` equals it); ``event_meta`` adds keys to the
         ``status_changed`` event (On production's ``batch_id``).
+
+        ``channel_text`` is the public comment a Reject wrote, for the Support
+        channel post (slice 21); only public text is ever passed in.
 
         ``question`` is the Needs info triage outcome's comment — or a Reject's,
         which stands in for its missing reason — carried into the Support notice.
@@ -407,6 +411,10 @@ class IssueService:
             )
         if to_status != from_status:
             await self.notify_support(db, issue, to_status, actor, question=question)
+            await self._post_to_support_channel(
+                db, issue, from_status, to_status, reason or cancel_reason,
+                channel_text or question or comment, event_meta,
+            )
 
         search_index.enqueue(db, issue.id)
         if (
@@ -417,6 +425,29 @@ class IssueService:
             # Back in New (e.g. a Needs-info answer): hints may have changed.
             search_index.enqueue_hints(db, issue.id)
         return issue
+
+    async def _post_to_support_channel(
+        self, db: AsyncSession, issue: Issue, from_status: IssueStatus, to_status: IssueStatus,
+        reason: str | None, text: str | None, event_meta: dict | None,
+    ) -> None:
+        """Queue the Support channel post for this status change (slice 21). Only
+        public text goes in; the outbox does nothing for an internal item or a
+        project without an enabled channel, and never raises."""
+        from app.services.support_channel_service import support_channel_service
+
+        # FR-71: a reason line only for Needs info, Cancelled and Rejected. Any other
+        # move's comment (a merge request link on To review, say) is not a reason.
+        if to_status not in (IssueStatus.needs_info, IssueStatus.cancelled, IssueStatus.rejected):
+            text = None
+        if not text and to_status == IssueStatus.cancelled:
+            raw = getattr(issue.cancel_reason, "value", issue.cancel_reason)
+            label = CANCEL_REASON_LABELS.get(IssueCancelReason(raw)) if raw else None
+            text = label
+        await support_channel_service.record(
+            db, issue, "status",
+            {"from": from_status.value, "to": to_status.value, "reason": reason, "text": text},
+            batch_id=(event_meta or {}).get("batch_id"),
+        )
 
     async def notify_support(
         self,
@@ -523,6 +554,10 @@ class IssueService:
 
         issue = await self.transition(
             db, issue, to=IssueStatus.rejected, actor=actor, reason=move_reason,
+            channel_text=(
+                comment_event.body
+                if comment_event is not None and not comment_event.is_internal else None
+            ),
             _internal_context={"via_reject": True},
         )
 

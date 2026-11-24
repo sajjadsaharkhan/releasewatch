@@ -62,6 +62,8 @@ class Action(str, Enum):
     decide_return_request = "decide_return_request"
     submit_support_report = "submit_support_report"
     manage_templates = "manage_templates"
+    #: A project's Support channel — the Telegram topic (v3.1, FR-70).
+    manage_support_channel = "manage_support_channel"
     manage_backlog_categories = "manage_backlog_categories"
     view_backlog = "view_backlog"
     manage_backlog = "manage_backlog"
@@ -185,6 +187,7 @@ MATRIX: dict[str, frozenset[str]] = {
     Action.view_team_overview: _CTO_ADMIN,
     Action.go_nogo: frozenset({"product_manager", "cto", "admin"}),  # PM added 2026-11-22
     Action.manage_templates: _CTO_ADMIN,
+    Action.manage_support_channel: _CTO_ADMIN,
     Action.manage_backlog_categories: _CTO_ADMIN,  # Settings → Backlog categories (2026-09-28)
     # CTO has everything Admin has in Settings (2026-10-05).
     Action.manage_users: _CTO_ADMIN,
@@ -238,6 +241,7 @@ _LABELS: dict[str, str] = {
     Action.view_team_overview: "view the team overview",
     Action.go_nogo: "make the release go/no-go call",
     Action.manage_templates: "manage templates",
+    Action.manage_support_channel: "manage the Support channel",
     Action.manage_backlog_categories: "manage backlog categories",
     Action.manage_users: "manage users",
     Action.manage_projects: "manage projects",

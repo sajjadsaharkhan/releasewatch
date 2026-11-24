@@ -19,6 +19,7 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
     include=[
         "app.tasks.notifications",
+        "app.tasks.support_channel",
         "app.tasks.attachments",
         "app.tasks.reports",
         "app.tasks.search_index",
@@ -65,6 +66,12 @@ celery_app.conf.beat_schedule = {
     "flush-telegram-notifications": {
         "task": "app.tasks.notifications.flush_telegram_notifications",
         "schedule": timedelta(seconds=60),
+        "options": {"queue": "notifications"},
+    },
+    # Slice 21 (FR-71): the Support channel outbox — rows that are due, oldest first.
+    "send-support-channel-posts": {
+        "task": "app.tasks.support_channel.send_support_channel_posts",
+        "schedule": timedelta(seconds=15),
         "options": {"queue": "notifications"},
     },
     "detect-regression-patterns-nightly": {

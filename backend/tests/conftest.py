@@ -265,6 +265,11 @@ class TelegramOutbox:
         self._db = db_session
         self.sent: list[tuple[int, str, dict]] = []
         self._chat_ids: dict[int, int] = {}
+        # Support channel posts (slice 21) go through TelegramClient.send_message
+        # directly, not the inbox outbox: recorded as (chat_id, thread_id, text).
+        self.channel: list[tuple[int, int | None, str]] = []
+        #: Set to a message to make every channel send fail with that Telegram error.
+        self.channel_error: str | None = None
 
     async def link_telegram(self, user) -> int:
         chat_id = 1_000_000 + len(self._chat_ids) + 1
@@ -316,6 +321,15 @@ async def telegram(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) ->
         outbox.sent.append((chat_id, template_name, context))
 
     monkeypatch.setattr(send_telegram_notification, "apply_async", _fake_apply_async)
+
+    from app.telegram.client import TelegramAPIError, TelegramClient
+
+    async def _fake_send_message(self, chat_id, text, parse_mode="HTML", message_thread_id=None):
+        if outbox.channel_error is not None:
+            raise TelegramAPIError(f"sendMessage failed: {outbox.channel_error}")
+        outbox.channel.append((chat_id, message_thread_id, text))
+
+    monkeypatch.setattr(TelegramClient, "send_message", _fake_send_message)
     return outbox
 
 
@@ -454,9 +468,13 @@ class Clock:
 
 @pytest.fixture
 def clock() -> Iterator[Clock]:
+    from app.core import clock as clock_module
+
     c = Clock()
     fastapi_app.dependency_overrides[get_now] = c
+    clock_module.now_override = c
     yield c
+    clock_module.now_override = None
     fastapi_app.dependency_overrides.pop(get_now, None)
 
 

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, false, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +39,16 @@ class Project(Base):
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
         doc="Set when the project is archived; NULL means active."
+    )
+    # Support channel (slice 21, §8.11): a Telegram chat, optionally one topic of it.
+    support_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    support_thread_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    support_channel_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false(),
+    )
+    support_channel_tested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        doc="Last passing Send test message; cleared when the chat or topic changes.",
     )
     created_by_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True

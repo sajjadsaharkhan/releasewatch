@@ -25,6 +25,7 @@ from app.api.v1 import (
     ws,
     search,
     support,
+    support_channel,
     support_templates,
     backlog,
     backlog_categories,
@@ -40,6 +41,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(support_templates.router, prefix="/projects", tags=["support"])
+api_router.include_router(support_channel.router, prefix="/projects", tags=["support"])
 # /projects/{id}/backlog(/order) and /tech-debt (slice 08).
 api_router.include_router(backlog.router, tags=["backlog"])
 api_router.include_router(backlog_categories.router, prefix="/projects", tags=["backlog"])

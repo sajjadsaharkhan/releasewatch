@@ -14,6 +14,7 @@ BR-48, BR-55–BR-57, §13).
 - Progress and Overdue are computed on read, never stored.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import status
@@ -309,9 +310,16 @@ class ReleaseService:
         release.status = ReleaseStatus.released.value
         release.released_at = now
         db.add(release)
-        to_production = await self._deliver_verified_items(db, release, actor, now=now)
+        # One id for every status change the ship makes: the Support channel
+        # posts the ship as one message per project (slice 21, FR-71).
+        batch_id = str(uuid.uuid4())
+        to_production = await self._deliver_verified_items(
+            db, release, actor, now=now, batch_id=batch_id,
+        )
         # One ``shipped`` event records the QA → Released move (no separate status_changed).
-        moved = await self._move_open_items_to_backlog(db, release, actor, reason="ship")
+        moved = await self._move_open_items_to_backlog(
+            db, release, actor, reason="ship", batch_id=batch_id,
+        )
         self._event(db, release, actor, ReleaseEventType.shipped, {
             "moved": len(moved),
             "to_production": len(to_production),
@@ -336,6 +344,7 @@ class ReleaseService:
 
     async def _deliver_verified_items(
         self, db: AsyncSession, release: Release, actor: User, *, now: datetime,
+        batch_id: str | None = None,
     ) -> list[int]:
         """Verified → Done for every Verified item (BR-67), through the one
         gate bypass (``via_ship``). No per-item ``status_changed`` notice — the
@@ -352,6 +361,7 @@ class ReleaseService:
         for issue in items:
             await issue_service.transition(
                 db, issue, IssueStatus.done, actor, reason="ship", notify=False, now=now,
+                event_meta={"batch_id": batch_id} if batch_id else None,
                 _internal_context={"via_ship": True},
             )
         return [i.id for i in items]
@@ -468,6 +478,7 @@ class ReleaseService:
 
     async def _move_open_items_to_backlog(
         self, db: AsyncSession, release: Release, actor: User, *, reason: str,
+        batch_id: str | None = None,
     ) -> list[int]:
         """Every item that is neither Done nor Cancelled → To do, in the backlog
         with category Default; assignee kept; cycles deleted (BR-62) by
@@ -490,6 +501,7 @@ class ReleaseService:
             if _value(issue.status) != IssueStatus.todo.value:
                 await issue_service.transition(
                     db, issue, IssueStatus.todo, actor, reason=reason, notify=False,
+                    event_meta={"batch_id": batch_id} if batch_id else None,
                 )
             await issue_service.update(
                 db, issue.id,

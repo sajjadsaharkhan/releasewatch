@@ -36,6 +36,7 @@ from app.schemas.return_request import (
     ReturnRequestQueueRow, ReturnRequestResponse,
 )
 from app.services.merge_service import lock_original
+from app.services.support_channel_service import support_channel_service
 
 
 def _snippet(body: str | None) -> str | None:
@@ -129,6 +130,9 @@ class ReturnRequestService:
                 timeline_event=comment,
                 meta={"body_snippet": _snippet(payload.comment), "request_id": request.id},
             )
+            await support_channel_service.record(
+                db, locked, "return_requested", {"text": payload.comment},
+            )
         await db.refresh(request, ["entries"])
         return request
 
@@ -180,6 +184,7 @@ class ReturnRequestService:
             event_type=TimelineEventType.return_confirmed, body=None,
             meta={"request_id": request.id}, is_internal=False,
         )
+        await support_channel_service.record(db, issue, "return_confirmed", {})
         request.item_already_returned = False
         if getattr(issue.status, "value", issue.status) == IssueStatus.done.value:
             start = await db.get(IssueTimeline, request.start_comment_id)
@@ -219,6 +224,7 @@ class ReturnRequestService:
             meta={"request_id": request.id, "comment_id": decision.id}, is_internal=False,
         )
         await self._notify_requesters(db, request, issue, actor, "dismissed", decision)
+        await support_channel_service.record(db, issue, "return_dismissed", {"text": text})
         await db.flush()
         return request
 
@@ -239,6 +245,7 @@ class ReturnRequestService:
             event_type=TimelineEventType.return_confirmed, body=None,
             meta={"request_id": request.id, "via": "item_left_done"}, is_internal=False,
         )
+        await support_channel_service.record(db, issue, "return_confirmed", {})
 
     # ── Response shapes ───────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import { Icon } from '../ui/Icon'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
 import { Tooltip } from '../ui/Tooltip'
 import { FieldShell } from './TemplateFields'
+import { SupportChannelPanel } from './SupportChannelPanel'
 import { TemplateEditor, fieldsPayload } from './TemplateEditor'
 import { templatesApi } from '../../lib/api'
 import { relTime, fullTime } from '../../lib/relTime'
@@ -246,6 +247,8 @@ function ProjectTemplates({ project, templateId, onOpenTemplate, onBack, onChang
           ))}
         </ul>
       )}
+
+      <SupportChannelPanel project={project} />
 
       <NewTemplateDialog
         open={creating}

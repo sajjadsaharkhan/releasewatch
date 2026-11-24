@@ -60,3 +60,28 @@ async def load_proxy_url() -> str | None:
     except Exception:
         logger.warning("Could not read proxy settings from DB")
     return None
+
+
+async def load_runtime(db) -> tuple[str | None, str | None]:
+    """``(bot_token, proxy_url)`` read through ``db`` — for code that already holds
+    a session (the Support channel sender and its test message). Same precedence
+    as ``flush_telegram_notifications``: the DB setting first, then the env token."""
+    from app.config import settings
+    from app.db.models.system_setting import SystemSetting
+
+    async def _setting(category: str) -> dict:
+        row = (await db.execute(
+            select(SystemSetting).where(
+                SystemSetting.category == category,
+                SystemSetting.key == "config",
+                SystemSetting.is_active.is_(True),
+            )
+        )).scalar_one_or_none()
+        return (row.value or {}) if row else {}
+
+    token = (await _setting("telegram")).get("bot_token") or settings.TELEGRAM_BOT_TOKEN or None
+    proxy = await _setting("proxy")
+    proxy_url = None
+    if proxy.get("enabled"):
+        proxy_url = proxy.get("socks5") or proxy.get("http") or proxy.get("https") or None
+    return token, proxy_url

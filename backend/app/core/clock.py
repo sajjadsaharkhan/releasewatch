@@ -8,7 +8,17 @@ code keeps its own ``datetime.now()`` calls; convert them only where a
 Phase 2 slice touches that code.
 """
 
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timezone
+
+#: Tests set this (the ``clock`` fixture) so service-level code that has no
+#: request to take ``now`` from — the Support channel outbox — sees frozen time.
+now_override: Callable[[], datetime] | None = None
+
+
+def utcnow() -> datetime:
+    """The current UTC time, or the test clock's when one is installed."""
+    return now_override() if now_override is not None else datetime.now(UTC)
 
 
 async def get_now() -> datetime:

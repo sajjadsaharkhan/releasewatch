@@ -68,13 +68,17 @@ class TelegramClient:
         chat_id: int,
         text: str,
         parse_mode: str = "HTML",
+        message_thread_id: int | None = None,
     ) -> None:
-        r = await self._http.post(
-            f"{self._base}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
-        )
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
+        r = await self._http.post(f"{self._base}/sendMessage", json=payload)
+        data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        if not data.get("ok") and data.get("description"):
+            # Telegram explains itself on a 4xx ("chat not found"): surface that.
+            raise TelegramAPIError(f"sendMessage failed: {data['description']}")
         r.raise_for_status()
-        data = r.json()
         if not data.get("ok"):
             raise TelegramAPIError(f"sendMessage failed: {data.get('description')}")
 

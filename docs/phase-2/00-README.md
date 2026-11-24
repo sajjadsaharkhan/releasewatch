@@ -121,7 +121,7 @@ Include `allowed` only when it is meaningful (for example, allowed transitions).
 
 ### Notifications
 
-Every notification goes through `InboxFanOutService.fan_out`. It creates `InboxItem` rows, and those rows drive Telegram delivery through the notification matrix. New notification events are added as new `InboxEventType` values with a row in `DEFAULT_NOTIFICATION_MATRIX`. Nothing sends Telegram messages directly. There is still no email.
+Every notification goes through `InboxFanOutService.fan_out`. It creates `InboxItem` rows, and those rows drive Telegram delivery through the notification matrix. New notification events are added as new `InboxEventType` values with a row in `DEFAULT_NOTIFICATION_MATRIX`. Nothing sends Telegram messages directly, with one named exception: the **Support channel** (slice 21) posts to a project's group topic through its own outbox, `support_channel_posts`, because an inbox row belongs to a user and a chat topic is not a user (`SupportChannelService.record`; sent by the `send_support_channel_posts` beat task). There is still no email.
 
 ### Migrations
 
