@@ -182,6 +182,7 @@ export default function SupportReportsPage({ newReportOpen = false }) {
         <button
           type="button"
           aria-pressed={returnsOnly}
+          data-tour="support-returns-filter"
           onClick={() => updateParams({ returns: returnsOnly ? null : '1' })}
           className={cn(
             'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border text-[12px] font-medium transition-colors',
@@ -224,10 +225,11 @@ export default function SupportReportsPage({ newReportOpen = false }) {
               </tr>
             </thead>
             <tbody>
-              {data.items.map((r) => (
+              {data.items.map((r, rowIndex) => (
                 <tr key={r.id} className="border-b border-border hover:bg-muted/50">
                   <td className="px-7 py-2.5 min-w-0">
                     <Link
+                      {...(rowIndex === 0 ? { 'data-tour': 'support-report-row' } : {})}
                       to={`/issue/${issueSlug({ type: 'bug', issue_number: r.issue_number })}`}
                       className="flex items-center gap-2 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                     >

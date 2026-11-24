@@ -206,6 +206,8 @@ def test_every_shipped_note_parses():
 def test_every_tour_anchor_exists_in_the_frontend():
     code = "\n".join(p.read_text(encoding="utf-8") for p in _FRONTEND_SRC.rglob("*.jsx"))
     found = set(re.findall(r"""data-tour=["']([a-z0-9-]+)["']""", code))
+    # Anchors that exist on one element only, set through a spread: { 'data-tour': 'id' }.
+    found |= set(re.findall(r"""['"]data-tour['"]:\s*['"]([a-z0-9-]+)['"]""", code))
     for note in load_notes(NOTES_DIR):
         missing = note.anchors() - found
         assert not missing, f"{note.id}.md points at anchors no element carries: {sorted(missing)}"

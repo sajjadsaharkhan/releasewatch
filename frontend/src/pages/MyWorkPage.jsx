@@ -382,7 +382,7 @@ export default function MyWorkPage() {
           )}
         </div>
         {reviewAvailable && (
-          <div data-testid="work-mode" className="mt-3">
+          <div data-testid="work-mode" data-tour="my-work-mode" className="mt-3">
           <Segmented
             value={mode}
             onValueChange={(m) => setParam('mode', m, fallbackMode)}

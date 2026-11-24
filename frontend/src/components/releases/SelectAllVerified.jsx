@@ -19,6 +19,7 @@ export function SelectAllVerified() {
     <motion.button
       type="button"
       data-testid="select-all-verified"
+      data-tour="select-all-verified"
       aria-label={label}
       title={label}
       onClick={all ? selection.clear : selection.selectAll}

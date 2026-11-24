@@ -44,6 +44,7 @@ export function SettingsSideNav({ activeTab, onSelect }) {
             return (
               <button
                 key={tab}
+                {...(tab === 'support' ? { 'data-tour': 'settings-nav-support' } : {})}
                 onClick={() => onSelect(tab)}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(

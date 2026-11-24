@@ -187,7 +187,7 @@ export function SupportChannelPanel({ project }) {
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button onClick={sendTest} disabled={busy !== null}>
+        <Button data-tour="support-channel-test" onClick={sendTest} disabled={busy !== null}>
           <Icon name="send" size={14} aria-hidden />
           {busy === 'test' ? 'Sending…' : 'Send test message'}
         </Button>
@@ -227,6 +227,7 @@ function Section({ children }) {
   return (
     <section
       aria-label="Support channel"
+      data-tour="support-channel"
       className={cn('mt-8 rounded-xl border border-border bg-card p-5')}
     >
       {children}

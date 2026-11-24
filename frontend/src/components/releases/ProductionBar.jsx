@@ -79,7 +79,7 @@ export function ProductionBar({ items, total = 0, onSelectAll, onClear, onDone, 
                   <Icon name="check-check" size={14} aria-hidden="true" />Select all {total}
                 </Button>
               )}
-              <Button size="sm" onClick={() => { setError(null); setFrozen(items); setConfirming(true) }}>
+              <Button size="sm" data-tour="production-submit" onClick={() => { setError(null); setFrozen(items); setConfirming(true) }}>
                 <Icon name="rocket" size={14} aria-hidden="true" />On production
               </Button>
               <Button size="sm" variant="ghost" onClick={onClear} aria-label="Clear selection">

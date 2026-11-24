@@ -102,9 +102,9 @@ function Waiting({ since }) {
   )
 }
 
-function ReviewRow({ item, onOpen }) {
+function ReviewRow({ item, onOpen, tour = false }) {
   return (
-    <li data-testid="review-row" data-item-id={item.id}>
+    <li data-testid="review-row" data-item-id={item.id} {...(tour ? { 'data-tour': 'review-row' } : {})}>
       <div className="group flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 transition-[border-color] hover:border-zinc-300 dark:hover:border-zinc-700">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
@@ -302,7 +302,7 @@ export function ReviewQueue({ data, error, onReload, filters, onFilters, project
 
   return (
     <div className="px-7 pb-24 pt-4" data-testid="review-queue">
-      <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="review-filters">
+      <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="review-filters" data-tour="review-filters">
         <ProjectFilter projects={projects} value={filters.project_ids} onChange={(v) => onFilters({ ...filters, project_ids: v })} />
         <TypeFilter value={filters.type} onChange={(v) => onFilters({ ...filters, type: v })} />
         {filtered && (
@@ -330,7 +330,7 @@ export function ReviewQueue({ data, error, onReload, filters, onFilters, project
         />
       ) : (
         <div className="space-y-6">
-          {groups.map(({ project, statuses }) => {
+          {groups.map(({ project, statuses }, groupIndex) => {
             const open = !collapsed.has(project.id)
             const count = statuses.reduce((n, s) => n + s.rows.length, 0)
             return (
@@ -347,14 +347,14 @@ export function ReviewQueue({ data, error, onReload, filters, onFilters, project
                   <span className="font-normal normal-case tracking-normal">· {count}</span>
                   <span className="h-px flex-1 bg-border" />
                 </button>
-                {open && statuses.map(({ status, rows }) => (
+                {open && statuses.map(({ status, rows }, statusIndex) => (
                   <div key={status} className="mb-3" data-testid={`review-group-${status}`}>
                     <h3 className="mb-1.5 px-1 text-[12px] font-medium text-foreground/80">
                       {STATUS_GROUP_LABEL[status] ?? status}
                       <span className="font-normal text-muted-foreground"> · {rows.length}</span>
                     </h3>
                     <ol className="space-y-2">
-                      {rows.map((item) => <ReviewRow key={item.id} item={item} onOpen={(i) => navigate(issuePath(i))} />)}
+                      {rows.map((item, rowIndex) => <ReviewRow key={item.id} item={item} tour={groupIndex === 0 && statusIndex === 0 && rowIndex === 0} onOpen={(i) => navigate(issuePath(i))} />)}
                     </ol>
                   </div>
                 ))}

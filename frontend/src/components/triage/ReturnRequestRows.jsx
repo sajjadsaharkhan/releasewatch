@@ -80,7 +80,7 @@ function ReturnRequestRow({ row, selected, onSelect }) {
 export function ReturnRequestRows({ rows, selectedId, onSelect }) {
   if (rows.length === 0) return null
   return (
-    <section aria-label="Return requests" data-testid="return-requests-queue" className="border-b border-border pb-3">
+    <section aria-label="Return requests" data-testid="return-requests-queue" data-tour="triage-returns" className="border-b border-border pb-3">
       <h2 className="flex items-center gap-1.5 px-7 pt-3 text-[11px] font-bold text-red-700 dark:text-red-300">
         <Icon name="rotate-ccw" size={13} aria-hidden="true" />
         <span className="uppercase tracking-wider">Came back from production · {rows.length}</span>
