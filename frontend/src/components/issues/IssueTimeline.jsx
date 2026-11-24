@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 import { useToast } from '../../hooks/useToast'
 import { Avatar, UserHoverCard } from '../ui'
 import { Icon } from '../ui/Icon'
+import { Tooltip } from '../ui/Tooltip'
 import { Badge, StatusBadge, PriorityBadge, RoleBadge } from '../ui/Badge'
 import { ENVIRONMENT } from './DescriptionSection'
 import { Dropdown, DropdownItem, DropdownSep } from '../ui/Dropdown'
@@ -694,17 +695,20 @@ export function IssueTimeline({ events = [], comments = [], issue, users = [], l
                   <span>{getLabel(item)}</span>
                   {/* Return-request events point at the public comment that came with them (slice 20). */}
                   {item.meta?.comment_id && (
-                    <button
-                      type="button"
-                      className="text-[11.5px] text-blue-600 hover:underline dark:text-blue-400"
-                      onClick={() => {
-                        const el = document.getElementById(`comment-${item.meta.comment_id}`)
-                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                        el?.classList.add('timeline-highlighted')
-                      }}
-                    >
-                      see comment
-                    </button>
+                    <Tooltip content="See comment" wrapperClassName="self-center">
+                      <button
+                        type="button"
+                        aria-label="See comment"
+                        className="p-0.5 rounded text-zinc-400 hover:text-blue-600 hover:bg-zinc-100 dark:hover:text-blue-400 dark:hover:bg-zinc-800"
+                        onClick={() => {
+                          const el = document.getElementById(`comment-${item.meta.comment_id}`)
+                          el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          el?.classList.add('timeline-highlighted')
+                        }}
+                      >
+                        <MessageSquare size={13} />
+                      </button>
+                    </Tooltip>
                   )}
                   <span className="text-zinc-400 dark:text-zinc-500 text-[11px] ml-auto" title={fullTime(time)}>
                     {formatEventTime(time)}

@@ -2,6 +2,7 @@ import React from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { cn } from '../../lib/cn'
 import { WorkItemCard } from './WorkItemCard'
+import { useWorkContext } from './WorkContext'
 
 // A board card (Stream, release and personal boards): `WorkItemCard` made
 // draggable between columns (slice 10, P3 — cards look the same everywhere).
@@ -17,7 +18,9 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
       currentStatus: issue.status,
     },
   })
-
+  const { selection } = useWorkContext()
+  // Selected for On production (19): the whole card takes the primary tint.
+  const picked = !!selection?.isSelectable(issue) && selection.selected.has(issue.id)
 
   return (
     <div
@@ -26,6 +29,7 @@ export function DraggableIssueCard({ issue, onOpen, readOnly = false }) {
         "w-full text-left rounded-lg border border-border bg-card p-3",
         readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing touch-none",
         "transition-all duration-200 ease-out hover:border-zinc-300 dark:hover:border-zinc-600",
+        picked && "border-primary bg-primary/[0.04] ring-2 ring-primary/20 hover:border-primary dark:hover:border-primary",
         // The moving copy is the board's DragOverlay (above every column, locked
         // or not); what stays behind is a faint placeholder.
         isDragging && "opacity-30"

@@ -374,8 +374,10 @@ then a **List | Board** `Segmented` (as on All Issues) and a **Queue history** b
 **To review mode (slice 22).** A page-level `Segmented` under the title — "My queue · n" | "To review · n"
 (`?mode=`; QA's default is To review, everyone else's My queue; not stored). To review hides the
 List | Board switch, Queue history and the filter `Tabs`, which belong to My queue. Body
-(`ReviewQueue`, `components/queue`): filters — a project multi-select popover, All types | Bugs | Tasks
-and All | To review | In review `Segmented`s — then collapsible project groups (colour square, name,
+(`ReviewQueue`, `components/queue`): one filter row — outline `Button` dropdowns for Projects
+(multi-select popover) and Type, a "Clear filters" link only while one is on, and right-aligned status
+segments in an inset `bg-muted` track (All · To review · In review: a status-hue dot, the label, a live count; the
+active segment lifts to `bg-background` with `shadow-sm`) — then collapsible project groups (colour square, name,
 count), each sub-grouped "To review" then "In review". A row is a read-only `QueueItemRow` sibling:
 type, title link, key, `PlacementChip`, cycle pill from 2, "waiting 2d" (zinc, amber past 2 days),
 status, a read-only priority pill and the assignee avatar (dashed circle when unassigned). No row

@@ -190,7 +190,18 @@ export function IssueTable({ issues = [], onOpen, hideAssignee = false, hideRepo
     <table className="w-full text-[13px]">
       <thead className="text-[10.5px] uppercase tracking-wide text-muted-foreground border-b border-border sticky top-0 bg-background/95 backdrop-blur">
         <tr>
-          {selection && <th className="w-[28px] pl-7 pr-0 py-2.5"><span className="sr-only">Select</span></th>}
+          {selection && (
+            <th className="w-[28px] pl-7 pr-0 py-2.5">
+              {selection.total > 0 ? (
+                <Checkbox
+                  checked={selection.selected.size >= selection.total}
+                  indeterminate={selection.selected.size > 0 && selection.selected.size < selection.total}
+                  onCheckedChange={() => (selection.selected.size >= selection.total ? selection.clear() : selection.selectAll())}
+                  aria-label="Select all Verified"
+                />
+              ) : <span className="sr-only">Select</span>}
+            </th>
+          )}
           <th className={`text-left font-medium ${selection ? 'pl-3 pr-2' : 'px-7'} py-2.5 w-[130px]`}>ID</th>
           <th className="text-left font-medium px-2 py-2.5">Title</th>
           <th className="text-left font-medium px-2 py-2.5 w-[150px]">Status</th>

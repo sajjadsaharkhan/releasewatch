@@ -19,7 +19,7 @@ import { CycleBadge } from './CycleBadge'
 import { LabelChip } from './LabelChip'
 import { VerifiedAgeMarker } from './VerifiedAgeMarker'
 import { useWorkContext } from './WorkContext'
-import { Checkbox } from '../ui/Checkbox'
+import { SelectAffordance } from './SelectAffordance'
 import { Assignee, BlockerPill, InlineLabels, PlacementChip } from './WorkItemMeta'
 
 // Slice 10 (FR-42, P3): one card for every board and the personal queue. By
@@ -339,6 +339,12 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, l
       return
     }
     hover.close()
+    // Once something is selected, a click anywhere on a card toggles it.
+    if (selectable && selection.selected.size > 0) {
+      e.preventDefault()
+      selection.toggle(raw, e.shiftKey)
+      return
+    }
     if (!onOpen || !isPlainClick(e)) return
     e.preventDefault()
     onOpen(raw)
@@ -357,14 +363,11 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, l
     >
       {/* On production (FR-67): Verified Stream cards only; shift-click selects a range. */}
       {selectable && (
-        <Checkbox
-          checked={picked}
-          onCheckedChange={(_, e) => selection.toggle(raw, e.shiftKey)}
-          aria-label={`Select ${item.key}`}
-          className={cn(
-            'absolute -left-3 -top-3 z-10 shadow-sm transition-opacity',
-            picked ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100 group-hover/card:opacity-100',
-          )}
+        <SelectAffordance
+          picked={picked}
+          anyPicked={selection.selected.size > 0}
+          onToggle={(shift) => selection.toggle(raw, shift)}
+          label={`Select ${item.key}`}
         />
       )}
       <Link

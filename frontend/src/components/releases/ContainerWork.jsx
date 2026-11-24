@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 import { Empty } from '../ui/Empty'
 import { WorkContext } from '../common/WorkContext'
 import { ProductionBar } from './ProductionBar'
+import { SelectAllVerified } from './SelectAllVerified'
 import { DONE_AT_SHIP_TEXT } from '../../lib/constants'
 import { releasesApi, issuesApi } from '../../lib/api'
 import { issueSlug } from '../../lib/issueSlug'
@@ -84,10 +85,14 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
       return next
     })
   }, [selectableItems])
+  const selectAll = useCallback(() => setSelected(new Set(selectableItems.map((i) => i.id))), [selectableItems])
+  const clear = useCallback(() => setSelected(new Set()), [])
   const workContext = useMemo(() => ({
     containerKind: container.kind,
-    selection: isStream && !readOnly ? { selected, isSelectable, toggle } : null,
-  }), [container.kind, isStream, readOnly, selected, isSelectable, toggle])
+    selection: isStream && !readOnly
+      ? { selected, isSelectable, toggle, selectAll, clear, total: selectableItems.length }
+      : null,
+  }), [container.kind, isStream, readOnly, selected, isSelectable, toggle, selectAll, clear, selectableItems.length])
   const selectedItems = selectableItems.filter((i) => selected.has(i.id))
 
   const move = useCallback(async (issue, to) => {
@@ -121,7 +126,9 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
   const production = isStream ? (
     <ProductionBar
       items={selectedItems}
-      onClear={() => setSelected(new Set())}
+      total={selectableItems.length}
+      onSelectAll={selectAll}
+      onClear={clear}
       onDone={() => { setSelected(new Set()); load(); onChanged?.() }}
       onRefused={(ids) => { setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id)))); load() }}
     />
@@ -139,6 +146,7 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
               onOpen={open}
               onStatusChange={readOnly ? undefined : move}
               readOnly={readOnly}
+              columnHeaderExtra={isStream && !readOnly ? { verified: <SelectAllVerified /> } : {}}
               lockedColumns={isStream ? {} : { done: DONE_AT_SHIP_TEXT }}
               emptyText={isStream
                 ? (doneRange ? { done: `Nothing done · ${doneRangeLabel(doneRange).toLowerCase()}` } : {})
@@ -176,3 +184,4 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
     </WorkContext.Provider>
   )
 }
+

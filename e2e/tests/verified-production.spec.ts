@@ -101,6 +101,50 @@ test('verify one, select Verified Stream items, On production makes them Done', 
   expect((await api(page, 'GET', `/issues/${items[2].id}`)).status).toBe('verified')
 })
 
+test('select all Verified from the column header, the bar and the table header', async ({ page }) => {
+  await page.goto('/inbox')
+  const stamp = Date.now()
+  for (const t of [`Sel A ${stamp}`, `Sel B ${stamp}`]) {
+    const { task } = await inReview(page, t)
+    await api(page, 'POST', `/issues/${task.id}/transition`, { to: 'verified' })
+  }
+  await page.goto(`/projects/${SLUG}/stream`)
+  const verified = page.getByTestId('board-column-verified')
+  const cards = verified.getByTestId('work-item')
+  await expect(cards.first()).toBeVisible()
+  const total = await cards.count()
+  expect(total).toBeGreaterThanOrEqual(2)
+  const checked = verified.locator('[role=checkbox][aria-checked=true]')
+
+  // Column header: select all → every Verified card is checked, the bar counts them.
+  await page.getByTestId('select-all-verified').click()
+  await expect(checked).toHaveCount(total)
+  const bar = page.getByTestId('production-bar')
+  await expect(bar).toContainText(`${total} selected`)
+  // Everything is selected, so the bar offers no "Select all".
+  await expect(page.getByTestId('select-all-bar')).toHaveCount(0)
+
+  // Pressed again it clears; the bar goes away.
+  await page.getByTestId('select-all-verified').click()
+  await expect(checked).toHaveCount(0)
+  await expect(bar).toHaveCount(0)
+
+  // One card selected → the bar offers "Select all n".
+  await cards.first().hover()
+  await cards.first().getByRole('checkbox').click()
+  await page.getByTestId('select-all-bar').click()
+  await expect(checked).toHaveCount(total)
+
+  // Items table: the header checkbox mirrors the selection (all → mixed → none).
+  await bar.getByRole('button', { name: 'Clear selection' }).click()
+  await page.getByRole('tab', { name: 'Items' }).click()
+  const head = page.getByRole('checkbox', { name: 'Select all Verified' })
+  await head.click()
+  await expect(head).toHaveAttribute('aria-checked', 'true')
+  await head.click()
+  await expect(head).toHaveAttribute('aria-checked', 'false')
+})
+
 test('a refused On production names the item and changes nothing', async ({ page }) => {
   await page.goto('/inbox')
   const title = `Prod refused ${Date.now()}`

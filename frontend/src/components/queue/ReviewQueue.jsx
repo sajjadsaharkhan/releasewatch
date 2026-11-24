@@ -7,10 +7,10 @@ import { isPlainClick } from '../../lib/linkClick'
 import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { Checkbox } from '../ui/Checkbox'
+import { Dropdown, DropdownItem } from '../ui/Dropdown'
 import { Empty } from '../ui/Empty'
 import { Icon } from '../ui/Icon'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
-import { Segmented } from '../ui/Segmented'
 import { StatusBadge } from '../ui/Badge'
 import { Tooltip } from '../ui/Tooltip'
 import { CyclesPill, PlacementChip, TypeMark } from './QueueMarks'
@@ -25,15 +25,17 @@ const DAY = 86400000
 /** Past this the wait turns amber, as the overdue marker does. */
 const SLOW_AFTER_MS = 2 * DAY
 
+const NO_FILTERS = { project_ids: [], type: '', status: '' }
+
 const TYPE_OPTIONS = [
-  { value: '', label: 'All types' },
-  { value: 'bug', label: 'Bugs' },
-  { value: 'task', label: 'Tasks' },
+  { value: '', label: 'All types', icon: 'layers' },
+  { value: 'bug', label: 'Bugs', icon: 'bug' },
+  { value: 'task', label: 'Tasks', icon: 'square-check' },
 ]
-const STATUS_OPTIONS = [
-  { value: '', label: 'All' },
-  { value: 'to_review', label: 'To review' },
-  { value: 'in_review', label: 'In review' },
+const STATUS_CHIPS = [
+  { value: '', label: 'All', count: 'total' },
+  { value: 'to_review', label: 'To review', count: 'to_review' },
+  { value: 'in_review', label: 'In review', count: 'in_review' },
 ]
 const STATUS_GROUP_LABEL = { to_review: 'To review', in_review: 'In review' }
 
@@ -179,6 +181,79 @@ function ProjectFilter({ projects, value, onChange }) {
   )
 }
 
+function TypeFilter({ value, onChange }) {
+  const current = TYPE_OPTIONS.find((o) => o.value === value) ?? TYPE_OPTIONS[0]
+  return (
+    <Dropdown
+      width={160}
+      trigger={
+        <Button variant="outline" size="sm" aria-label={`Type: ${current.label}`} data-testid="review-type-filter">
+          <Icon name={current.icon} size={14} aria-hidden="true" />{current.label}
+          <Icon name="chevron-down" size={12} className="opacity-50" aria-hidden="true" />
+        </Button>
+      }
+    >
+      {({ close }) => TYPE_OPTIONS.map((o) => (
+        <DropdownItem key={o.value} onClick={() => { onChange(o.value); close() }}>
+          <span className="flex w-full items-center gap-2">
+            <Icon name={o.icon} size={13} aria-hidden="true" />{o.label}
+            {o.value === value && <Icon name="check" size={13} className="ml-auto text-primary" aria-label="Current" />}
+          </span>
+        </DropdownItem>
+      ))}
+    </Dropdown>
+  )
+}
+
+/**
+ * Status filter: an inset track like `Segmented`, with each status's own hue as
+ * a dot and its live count beside it. The active segment lifts onto the page
+ * background; nothing is filled solid, so it stays quiet next to the rows.
+ */
+const STATUS_DOT = {
+  '': 'bg-zinc-400 dark:bg-zinc-500',
+  to_review: 'bg-cyan-500',
+  in_review: 'bg-purple-500',
+}
+
+function StatusChips({ value, counts, onChange }) {
+  return (
+    <div
+      role="group"
+      aria-label="Status"
+      className="ml-auto inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted p-0.5"
+    >
+      {STATUS_CHIPS.map((c) => {
+        const active = c.value === value
+        const n = counts?.[c.count]
+        return (
+          <button
+            key={c.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(c.value)}
+            className={cn(
+              'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-[background-color,color,box-shadow]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              active
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[c.value])} aria-hidden="true" />
+            {c.label}
+            {n != null && (
+              <span className={cn('min-w-[1ch] text-[11.5px] tabular-nums', active ? 'text-muted-foreground' : 'text-zinc-400 dark:text-zinc-500')}>
+                {n}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function ReviewSkeleton() {
   return (
     <div className="space-y-2 px-7 pt-4" aria-hidden="true" data-testid="review-skeleton">
@@ -227,10 +302,19 @@ export function ReviewQueue({ data, error, onReload, filters, onFilters, project
 
   return (
     <div className="px-7 pb-24 pt-4" data-testid="review-queue">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="review-filters">
         <ProjectFilter projects={projects} value={filters.project_ids} onChange={(v) => onFilters({ ...filters, project_ids: v })} />
-        <Segmented value={filters.type} onValueChange={(v) => onFilters({ ...filters, type: v })} options={TYPE_OPTIONS} />
-        <Segmented value={filters.status} onValueChange={(v) => onFilters({ ...filters, status: v })} options={STATUS_OPTIONS} />
+        <TypeFilter value={filters.type} onChange={(v) => onFilters({ ...filters, type: v })} />
+        {filtered && (
+          <button
+            type="button"
+            onClick={() => onFilters(NO_FILTERS)}
+            className="rounded px-1 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Clear filters
+          </button>
+        )}
+        <StatusChips value={filters.status} counts={data?.counts} onChange={(v) => onFilters({ ...filters, status: v })} />
       </div>
 
       {error ? (

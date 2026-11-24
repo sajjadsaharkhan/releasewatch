@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -15,7 +16,8 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
  * a 409 `not_verified_in_stream` names the refused items and changes none.
  * `items` are the selected issues, in the order shown.
  */
-export function ProductionBar({ items, onClear, onDone, onRefused }) {
+export function ProductionBar({ items, total = 0, onSelectAll, onClear, onDone, onRefused }) {
+  const reduce = useReducedMotion()
   const { toast } = useToast()
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -57,24 +59,36 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
 
   return (
     <>
-      {items.length > 0 && (
-        <div
-          role="region"
-          aria-label="Selection"
-          data-testid="production-bar"
-          className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4"
-        >
-          <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-card py-2 pl-4 pr-2 shadow-lg">
-            <span className="text-[13px] tabular-nums">{items.length} selected</span>
-            <Button size="sm" onClick={() => { setError(null); setFrozen(items); setConfirming(true) }}>
-              <Icon name="rocket" size={14} aria-hidden="true" />On production
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onClear} aria-label="Clear selection">
-              <Icon name="x" size={14} aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {items.length > 0 && (
+          <motion.div
+            key="bar"
+            role="region"
+            aria-label="Selection"
+            data-testid="production-bar"
+            className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4"
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          >
+            <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-card py-2 pl-4 pr-2 shadow-lg">
+              <span className="text-[13px] tabular-nums">{items.length} selected</span>
+              {onSelectAll && items.length < total && (
+                <Button size="sm" variant="ghost" onClick={onSelectAll} data-testid="select-all-bar">
+                  <Icon name="check-check" size={14} aria-hidden="true" />Select all {total}
+                </Button>
+              )}
+              <Button size="sm" onClick={() => { setError(null); setFrozen(items); setConfirming(true) }}>
+                <Icon name="rocket" size={14} aria-hidden="true" />On production
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onClear} aria-label="Clear selection">
+                <Icon name="x" size={14} aria-hidden="true" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Dialog open={confirming} onClose={busy ? undefined : close} title="Mark as on production" size="md">
         <div className="space-y-3 px-5 pb-5 pt-3 text-sm">
           <p className="text-[13px] text-muted-foreground">

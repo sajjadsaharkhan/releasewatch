@@ -1,6 +1,11 @@
 import React from 'react'
-import { Check, Minus } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '../../lib/cn'
+
+// Press feedback on a spring; the tick draws itself in. Both are skipped under
+// reduced motion — the state still changes, nothing moves.
+const PRESS = { type: 'spring', stiffness: 520, damping: 32 }
+const DRAW = { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
 
 /**
  * A token-styled checkbox — `role="checkbox"` with `aria-checked` true, false,
@@ -18,18 +23,21 @@ export function Checkbox({
   ...props
 }) {
   const on = checked || indeterminate
+  const reduce = useReducedMotion()
   return (
-    <button
+    <motion.button
       type="button"
       role="checkbox"
       aria-checked={indeterminate ? 'mixed' : checked}
       disabled={disabled}
+      whileTap={disabled || reduce ? undefined : { scale: 0.88 }}
+      transition={PRESS}
       onClick={(e) => {
         e.stopPropagation()
         if (!disabled) onCheckedChange?.(!checked, e)
       }}
       className={cn(
-        'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+        'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-[background-color,border-color,box-shadow] duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         'disabled:cursor-not-allowed disabled:opacity-50',
         on
@@ -39,9 +47,13 @@ export function Checkbox({
       )}
       {...props}
     >
-      {indeterminate
-        ? <Minus className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
-        : checked && <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />}
-    </button>
+      <svg viewBox="0 0 16 16" className="h-[75%] w-[75%]" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {indeterminate ? (
+          <motion.path key="minus" d="M3.5 8h9" initial={reduce ? false : { pathLength: 0 }} animate={{ pathLength: 1 }} transition={DRAW} />
+        ) : checked ? (
+          <motion.path key="tick" d="M3 8.6l3.3 3.2L13 4.6" initial={reduce ? false : { pathLength: 0 }} animate={{ pathLength: 1 }} transition={DRAW} />
+        ) : null}
+      </svg>
+    </motion.button>
   )
 }
