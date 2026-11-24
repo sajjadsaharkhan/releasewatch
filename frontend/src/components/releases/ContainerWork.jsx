@@ -139,6 +139,7 @@ export function ContainerWork({ container, view, readOnly = false, doneRange = n
               onOpen={open}
               onStatusChange={readOnly ? undefined : move}
               readOnly={readOnly}
+              lockedColumns={isStream ? {} : { done: DONE_AT_SHIP_TEXT }}
               emptyText={isStream
                 ? (doneRange ? { done: `Nothing done · ${doneRangeLabel(doneRange).toLowerCase()}` } : {})
                 : { done: 'Done after ship' }}

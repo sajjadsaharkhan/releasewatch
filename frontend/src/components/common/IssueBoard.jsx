@@ -61,7 +61,8 @@ const columnOf = (issue) => BOARD_COLUMN_OF[issue.status] ?? issue.status
 
 // `readOnly` (a Released release, FR-54) turns off dragging. `columnHeaderExtra`
 // and `emptyText` are per-status (e.g. the Stream's Done-range note).
-export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = false, columnHeaderExtra = {}, emptyText = {} }) {
+// `lockedColumns` maps a status to why it takes no drops (shown while dragging).
+export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = false, columnHeaderExtra = {}, emptyText = {}, lockedColumns = {} }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -72,6 +73,12 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
 
   const handleDragEnd = (event) => {
     const { active, over } = event
+    // The release that ends a drag still fires a click on whatever link is under
+    // the pointer — often a card the board has just re-rendered, which React can
+    // no longer intercept, so the browser follows its href. Swallow that one click.
+    const swallow = (e) => { e.preventDefault(); e.stopPropagation() }
+    document.addEventListener('click', swallow, true)
+    setTimeout(() => document.removeEventListener('click', swallow, true), 250)
     if (!over) return
     const issue = issues.find(i => i.id === active.id)
     if (!issue) return
@@ -93,6 +100,7 @@ export function IssueBoard({ issues = [], onOpen, onStatusChange, readOnly = fal
             readOnly={readOnly}
             headerExtra={columnHeaderExtra[status] ?? null}
             emptyText={emptyText[status] ?? 'No issues'}
+            lockedReason={lockedColumns[status] ?? null}
           />
         ))}
       </div>

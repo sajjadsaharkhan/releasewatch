@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { useDroppable } from '@dnd-kit/core'
+import { useDndContext, useDroppable } from '@dnd-kit/core'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { cn } from '../../lib/cn'
 import { StatusBadge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
@@ -53,8 +54,31 @@ function TodoAreas({ groups, onOpen, readOnly }) {
   })
 }
 
-export function DroppableColumn({ status, issues, onOpen, readOnly = false, emptyText = 'No issues', headerExtra = null }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status, disabled: readOnly })
+// A column that can't take drops (a release's Done, BR-67): while a card is being
+// dragged it dims and says why, so the drop never ends in an error.
+function LockedNote({ reason }) {
+  const reduce = useReducedMotion()
+  return (
+    <motion.div
+      role="note"
+      data-testid="column-locked-note"
+      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+      animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+      transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+      className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-lg px-3 text-center text-[12px] font-medium text-zinc-600 dark:text-zinc-300"
+    >
+      <Icon name="lock" size={14} aria-hidden="true" />
+      {reason}
+    </motion.div>
+  )
+}
+
+export function DroppableColumn({ status, issues, onOpen, readOnly = false, emptyText = 'No issues', headerExtra = null, lockedReason = null }) {
+  const locked = !!lockedReason
+  const { setNodeRef, isOver } = useDroppable({ id: status, disabled: readOnly || locked })
+  const { active } = useDndContext()
+  const refusing = locked && !!active
 
   const groups = status === 'todo'
     ? TODO_AREAS.map((area) => ({ area, issues: issues.filter(area.match) })).filter((g) => g.issues.length)
@@ -76,9 +100,10 @@ export function DroppableColumn({ status, issues, onOpen, readOnly = false, empt
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 space-y-2 min-h-[120px] rounded-lg p-2",
+          "relative flex-1 space-y-2 min-h-[120px] rounded-lg p-2",
           "transition-all duration-200 ease-in-out",
-          isOver
+          refusing && "cursor-not-allowed border border-dashed border-zinc-300 bg-zinc-100/70 dark:border-zinc-700 dark:bg-zinc-900/70 [&>*:not([role=note])]:opacity-40",
+          !refusing && isOver
             ? "bg-zinc-200/60 dark:bg-zinc-800/70 ring-2 ring-blue-400 dark:ring-blue-500 scale-[1.02]"
             : "bg-zinc-50 dark:bg-zinc-900/40"
         )}
@@ -91,6 +116,7 @@ export function DroppableColumn({ status, issues, onOpen, readOnly = false, empt
             {emptyText}
           </div>
         )}
+        <AnimatePresence>{refusing && <LockedNote reason={lockedReason} />}</AnimatePresence>
       </div>
     </div>
   )

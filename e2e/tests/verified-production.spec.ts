@@ -224,3 +224,37 @@ for (const [route, heading] of [
     await expect(notice.getByRole('button')).toHaveCount(0)
   })
 }
+
+test('release board: Done is locked while dragging and refuses the drop', async ({ page }) => {
+  await page.goto('/inbox')
+  const stamp = Date.now()
+  const projects = await api(page, 'GET', '/projects')
+  const project = projects.find((p: { slug: string }) => p.slug === SLUG)
+  const release = await api(page, 'POST', '/releases', { project_id: project.id, version: `20.${stamp % 1000}.0` })
+  const title = `Locked drop ${stamp}`
+  const item = await api(page, 'POST', '/issues', {
+    title, type: 'task', project_id: project.id, release_id: release.id,
+  })
+  await page.goto(`/releases/${release.id}`)
+  const done = page.getByTestId('board-column-done')
+  await expect(done).toContainText('Done after ship')
+  await expect(page.getByTestId('column-locked-note')).toHaveCount(0)
+
+  const card = page.getByTestId('board-column-todo').getByTestId('work-item').filter({ hasText: title })
+  const from = (await card.boundingBox())!
+  const to = (await done.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 })
+  await page.mouse.move(to.x + 30, to.y + 60, { steps: 15 })
+  // While dragging, Done says why it takes no drop.
+  await expect(done.getByTestId('column-locked-note')).toContainText('Done when the release ships')
+
+  let sent = false
+  page.on('request', (r) => { if (r.url().includes('/transition')) sent = true })
+  await page.mouse.up()
+  await expect(page.getByTestId('column-locked-note')).toHaveCount(0)
+  await page.waitForTimeout(500)
+  expect(sent).toBe(false)
+  expect((await api(page, 'GET', `/issues/${item.id}`)).status).toBe('todo')
+})
