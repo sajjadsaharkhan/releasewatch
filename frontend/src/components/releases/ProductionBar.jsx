@@ -20,16 +20,22 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // What the dialog was opened with: a refusal prunes the live selection, but the
+  // person still needs to read which items were refused.
+  const [frozen, setFrozen] = useState([])
 
-  // Nothing selected (a refresh pruned it) — nothing to confirm.
-  useEffect(() => { if (items.length === 0) { setConfirming(false); setError(null) } }, [items.length])
+  // Nothing selected (a refresh pruned it) and nothing to explain — close.
+  useEffect(() => { if (items.length === 0 && !error) setConfirming(false) }, [items.length, error])
 
   if (items.length === 0 && !confirming) return null
+
+  const close = () => { setConfirming(false); setError(null) }
+  const listed = confirming ? frozen : items
 
   async function submit() {
     setBusy(true); setError(null)
     try {
-      const res = await issuesApi.bulkProduction(items.map((i) => i.id))
+      const res = await issuesApi.bulkProduction(frozen.map((i) => i.id))
       const n = res.data?.issues?.length ?? items.length
       toast({ title: `${plural(n, 'item')} on production`, body: 'Marked Done.' })
       setConfirming(false)
@@ -37,7 +43,7 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
     } catch (err) {
       const body = err.response?.data
       if (body?.code === 'not_verified_in_stream' && Array.isArray(body.issue_ids)) {
-        const refused = items.filter((i) => body.issue_ids.includes(i.id))
+        const refused = frozen.filter((i) => body.issue_ids.includes(i.id))
         const names = refused.map(issueKey).join(', ') || plural(body.issue_ids.length, 'item')
         setError(`Nothing was changed. ${names} ${refused.length === 1 ? 'is' : 'are'} not Verified in the Stream.`)
         onRefused?.(body.issue_ids)
@@ -60,7 +66,7 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
         >
           <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-card py-2 pl-4 pr-2 shadow-lg">
             <span className="text-[13px] tabular-nums">{items.length} selected</span>
-            <Button size="sm" onClick={() => { setError(null); setConfirming(true) }}>
+            <Button size="sm" onClick={() => { setError(null); setFrozen(items); setConfirming(true) }}>
               <Icon name="rocket" size={14} aria-hidden="true" />On production
             </Button>
             <Button size="sm" variant="ghost" onClick={onClear} aria-label="Clear selection">
@@ -69,13 +75,13 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
           </div>
         </div>
       )}
-      <Dialog open={confirming} onClose={busy ? undefined : () => setConfirming(false)} title="Mark as on production" size="md">
+      <Dialog open={confirming} onClose={busy ? undefined : close} title="Mark as on production" size="md">
         <div className="space-y-3 px-5 pb-5 pt-3 text-sm">
           <p className="text-[13px] text-muted-foreground">
-            {plural(items.length, 'item')} will become <b>Done</b>, each with its own record. Support is told the fix is on production.
+            {plural(listed.length, 'item')} will become <b>Done</b>, each with its own record. Support is told the fix is on production.
           </p>
           <ul className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border p-2" aria-label="Items going to production">
-            {items.map((i) => (
+            {listed.map((i) => (
               <li key={i.id} className="flex items-baseline gap-2 text-[13px]">
                 <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground">{issueKey(i)}</span>
                 <span className="truncate">{i.title}</span>
@@ -88,8 +94,8 @@ export function ProductionBar({ items, onClear, onDone, onRefused }) {
             </div>
           )}
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={() => setConfirming(false)} disabled={busy}>Cancel</Button>
-            <Button size="sm" onClick={submit} loading={busy} disabled={items.length === 0}>
+            <Button variant="outline" size="sm" onClick={close} disabled={busy}>{error ? 'Close' : 'Cancel'}</Button>
+            <Button size="sm" onClick={submit} loading={busy} disabled={listed.length === 0 || !!error}>
               <Icon name="rocket" size={14} aria-hidden="true" />On production
             </Button>
           </div>

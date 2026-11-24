@@ -250,6 +250,7 @@ function DoneList({ board, range, onRange, onOpen }) {
   const verified = board?.columns.find((c) => c.status === 'verified')?.items ?? []
   const finished = board?.columns.find((c) => c.status === 'done')?.items
   const done = finished == null ? null : [...verified, ...finished]
+  // Verified has no finish time: it is its own group, above the Done days.
   return (
     <div className="px-7 pb-24 pt-4" data-testid="done-list">
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -266,7 +267,7 @@ function DoneList({ board, range, onRange, onOpen }) {
         </div>
       ) : (
         <div className="space-y-5">
-          {groupByDay(done, (i) => i.completed_at ?? i.verified_at).map((g) => (
+          {[...(verified.length ? [{ label: 'Verified · not on production', rows: verified }] : []), ...groupByDay(finished, (i) => i.completed_at)].map((g) => (
             <section key={g.label} aria-label={g.label}>
               <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {g.label} <span className="font-normal normal-case tracking-normal">· {g.rows.length}</span>

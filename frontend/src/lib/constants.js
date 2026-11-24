@@ -211,7 +211,7 @@ export const TODO_AREAS = [
   { key: 'rejected', label: 'Rejected', icon: 'undo-2', hint: 'Sent back from review',
     text: 'text-amber-700 dark:text-amber-300',
     match: (i) => i.status === 'rejected' && (i.reject_reason ?? 'review') === 'review' },
-  { key: 'returned', label: 'Returned', icon: 'rotate-ccw', hint: 'Sent back after Done — release QA or production',
+  { key: 'returned', label: 'Returned', icon: 'rotate-ccw', hint: 'Sent back after Verified or Done — release QA or production',
     text: 'text-orange-700 dark:text-orange-300',
     match: (i) => i.status === 'rejected' && (i.reject_reason === 'release_qa' || i.reject_reason === 'production') },
   { key: 'todo', label: 'To do', icon: 'circle-dashed', hint: 'New work',

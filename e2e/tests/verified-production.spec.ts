@@ -160,8 +160,10 @@ test('release: Done is empty until ship, the status control says why, ship makes
   // ── The status control: Verified yes, Done disabled with the reason ──────
   await page.goto(`/issue/task-${task.issue_number}`)
   await page.getByTestId('issue-sidebar').getByRole('button', { name: 'In Review' }).click()
-  await expect(page.getByTestId('done-at-ship-option')).toHaveAttribute('title', 'Done when the release ships')
-  await expect(page.getByTestId('done-at-ship-option').getByRole('button')).toBeDisabled()
+  const doneOption = page.getByTestId('done-at-ship-option')
+  await expect(doneOption.getByRole('button')).toBeDisabled()
+  await doneOption.hover()
+  await expect(page.getByText('Done when the release ships', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Mark as verified' }).click()
   await expect(page.getByTestId('issue-sidebar').getByRole('button', { name: 'Verified' })).toBeVisible()

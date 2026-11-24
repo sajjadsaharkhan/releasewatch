@@ -122,11 +122,13 @@ export function IssueSidebar({ issue, currentCycle, teamUsers, availableLabels, 
                 </DropdownItem>
               ))}
               {doneAtShip && (
-                <span title={DONE_AT_SHIP_TEXT} className="block" data-testid="done-at-ship-option">
-                  <DropdownItem disabled>
-                    <StatusBadge status="done" size="sm" />
-                  </DropdownItem>
-                </span>
+                <Tooltip content={DONE_AT_SHIP_TEXT} side="right" wrapperClassName="flex w-full">
+                  <span className="block w-full" tabIndex={0} aria-label={`Done — ${DONE_AT_SHIP_TEXT}`} data-testid="done-at-ship-option">
+                    <DropdownItem disabled>
+                      <StatusBadge status="done" size="sm" />
+                    </DropdownItem>
+                  </span>
+                </Tooltip>
               )}
             </>
           )}

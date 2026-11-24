@@ -182,7 +182,11 @@ export function QueueItemRow({
           </button>
         ) : <span className="w-5 shrink-0" />}
 
-        {done ? (
+        {done && item.status === 'verified' ? (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <Icon name="badge-check" size={14} strokeWidth={2.4} aria-label="Verified" />
+          </span>
+        ) : done ? (
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-300">
             <Icon name="check" size={14} strokeWidth={2.6} aria-label="Done" />
           </span>
@@ -227,7 +231,11 @@ export function QueueItemRow({
               <Icon name="clock" size={11} aria-hidden="true" />
               {age === 'today' ? 'Opened today' : `${age} old`}
             </span>
-            {done && item.completed_at ? (
+            {done && item.status === 'verified' ? (
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                <Icon name="badge-check" size={11} aria-hidden="true" />Verified · not on production yet
+              </span>
+            ) : done && item.completed_at ? (
               <span className="inline-flex items-center gap-1 text-teal-700 dark:text-teal-300" title={new Date(item.completed_at).toLocaleString()}>
                 <Icon name="circle-check-big" size={11} aria-hidden="true" />Finished {relTime(item.completed_at)}
               </span>

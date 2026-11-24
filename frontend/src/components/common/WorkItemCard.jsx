@@ -362,7 +362,7 @@ export function WorkItemCard({ item: raw, onOpen, dragging = false, className, l
           onCheckedChange={(_, e) => selection.toggle(raw, e.shiftKey)}
           aria-label={`Select ${item.key}`}
           className={cn(
-            'absolute -left-2 -top-2 z-10 shadow-sm transition-opacity',
+            'absolute -left-3 -top-3 z-10 shadow-sm transition-opacity',
             picked ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100 group-hover/card:opacity-100',
           )}
         />
