@@ -36,6 +36,16 @@ export function AttachmentsSection({
 
   const attachments = issue?.attachments ?? []
 
+  // Uploads run concurrently, so each one must build on the latest list rather
+  // than the `attachments` its closure captured — otherwise a multi-file pick
+  // overwrites itself and only one file survives.
+  const latestRef = useRef(attachments)
+  latestRef.current = attachments
+  const updateAttachments = (fn) => {
+    latestRef.current = fn(latestRef.current)
+    onAttachmentsChange?.(latestRef.current)
+  }
+
   const linkedId = linkable ? searchParams.get('attachment') : null
   const previewAttachment = linkable
     ? (linkedId && attachments.find(a => String(a.id) === linkedId)) || null
@@ -83,8 +93,7 @@ export function AttachmentsSection({
     setActiveUploads(prev => new Set(prev).add(attId))
 
     // Add to attachments immediately
-    const updatedAttachments = [...attachments, tempAttachment]
-    onAttachmentsChange?.(updatedAttachments)
+    updateAttachments(list => [...list, tempAttachment])
 
     const attachmentType = type === 'image' ? 'screenshot' : 'other'
     const progressCallback = (progress) => {
@@ -111,13 +120,13 @@ export function AttachmentsSection({
             url: result.attachment.public_url || result.attachment.download_url || tempAttachment.url,
             uploading: false,
           }
-          onAttachmentsChange?.(updatedAttachments.map(a =>
+          updateAttachments(list => list.map(a =>
             a.id === attId ? completedAttachment : a
           ))
           onUploadComplete?.()
         } else {
           setUploadProgress(prev => ({ ...prev, [attId]: -1 }))
-          onAttachmentsChange?.(updatedAttachments.map(a =>
+          updateAttachments(list => list.map(a =>
             a.id === attId ? { ...a, uploading: false, error: result.error } : a
           ))
         }
@@ -132,14 +141,14 @@ export function AttachmentsSection({
           // Notify parent with pending metadata so it can include in IssueCreate
           onPendingAttachment?.(result.pending)
           // Mark temp attachment as done (keep blob URL for preview)
-          onAttachmentsChange?.(updatedAttachments.map(a =>
+          updateAttachments(list => list.map(a =>
             a.id === attId
               ? { ...a, s3_key: result.pending.s3_key, uploading: false }
               : a
           ))
         } else {
           setUploadProgress(prev => ({ ...prev, [attId]: -1 }))
-          onAttachmentsChange?.(updatedAttachments.map(a =>
+          updateAttachments(list => list.map(a =>
             a.id === attId ? { ...a, uploading: false, error: result.error } : a
           ))
         }
@@ -157,7 +166,7 @@ export function AttachmentsSection({
     } catch (err) {
       console.error('Upload error:', err)
       setUploadProgress(prev => ({ ...prev, [attId]: -1 }))
-      onAttachmentsChange?.(updatedAttachments.map(a =>
+      updateAttachments(list => list.map(a =>
         a.id === attId ? { ...a, uploading: false, error: err.message } : a
       ))
     } finally {
