@@ -29,6 +29,7 @@ from app.api.v1 import (
     backlog,
     backlog_categories,
     queue,
+    review_queue,
     mcp,
     whats_new,
 )
@@ -55,6 +56,7 @@ api_router.include_router(team.router, prefix="/team", tags=["team"])
 api_router.include_router(user.router, tags=["user"])
 api_router.include_router(users.router, tags=["users"])
 api_router.include_router(queue.router, tags=["queue"])
+api_router.include_router(review_queue.router, tags=["queue"])
 # /me/mcp* and /settings/mcp* (slice 15) — before the /settings router.
 api_router.include_router(mcp.router, tags=["mcp"])
 api_router.include_router(settings_router.router, prefix="/settings", tags=["settings"])

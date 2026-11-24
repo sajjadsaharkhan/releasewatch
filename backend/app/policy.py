@@ -64,6 +64,8 @@ class Action(str, Enum):
     manage_releases = "manage_releases"
     ship_release = "ship_release"
     view_queue = "view_queue"
+    #: The To review tab: every item in review, in every project (v3.1, FR-73).
+    view_review_queue = "view_review_queue"
     reorder_queue = "reorder_queue"
     pin = "pin"
     view_team_overview = "view_team_overview"
@@ -171,6 +173,7 @@ MATRIX: dict[str, frozenset[str]] = {
     # PM added 2026-11-22.
     Action.ship_release: frozenset({"product_manager", "cto", "admin", TRIAGE_LEAD}),
     Action.view_queue: _T,  # own queue; someone else's is CTO/Admin (decide)
+    Action.view_review_queue: _T,
     Action.reorder_queue: _T,
     Action.pin: _T,
     Action.view_team_overview: _CTO_ADMIN,
@@ -223,6 +226,7 @@ _LABELS: dict[str, str] = {
     Action.ship_release: "ship releases",
     # Only reached for someone else's queue — every tech role has their own (slice 10).
     Action.view_queue: "view other people's queues",
+    Action.view_review_queue: "see what is waiting for review",
     Action.reorder_queue: "reorder other people's queues",
     Action.pin: "pin items in other people's queues",
     Action.view_team_overview: "view the team overview",

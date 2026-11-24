@@ -28,3 +28,6 @@ export const canManageUsersAndProjects = (role) => role === 'admin' || role === 
 
 export const ONLY_ADMINS_MANAGE_PROJECTS = 'Only admins and CTOs can manage projects.'
 export const ONLY_ADMINS_MANAGE_USERS = 'Only admins and CTOs can manage users.'
+
+/** My Work opens on To review for QA, on My queue for everyone else (FR-72). */
+export const defaultWorkMode = (role) => (role === 'qa' ? 'review' : 'queue')

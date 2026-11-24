@@ -177,3 +177,23 @@ class WorkloadRow(BaseModel):
     #: The first three queue items that aren't already In progress.
     next: list[WorkItemCard]
     counts: WorkloadCounts
+
+
+class ReviewQueueRow(WorkItemCard):
+    """A card plus how long it has waited in its current review status (slice 22)."""
+
+    waiting_since: datetime
+
+
+class ReviewQueueCounts(BaseModel):
+    to_review: int
+    in_review: int
+    total: int
+
+
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewQueueRow]
+    #: The tab counter — follows the project filter only.
+    counts: ReviewQueueCounts
+    #: True when more than the first 500 rows matched.
+    truncated: bool = False

@@ -368,6 +368,11 @@ export const queueApi = {
   history: (owner, params) => api.get(`/users/${owner}/queue/history`, { params }),
 }
 
+/** The To review tab (slice 22): `params` = { project_ids: [], type, status }. */
+export const reviewQueueApi = {
+  get: (params) => api.get('/review-queue', { params, paramsSerializer: { indexes: null } }),
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 export const searchApi = {
   /** `params`: { q, scope: 'project'|'all', project_id, type, status, mode: 'page'|'palette' }.

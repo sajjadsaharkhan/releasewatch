@@ -10,7 +10,10 @@ import { IssueBoard, IssueBoardSkeleton } from '../components/common/IssueBoard'
 import {
   DoneRangePicker, doneRangeLabel, doneRangeToApi, readDoneRange, writeDoneRange,
 } from '../components/common/DoneRangePicker'
-import { PinSlots, QueueItemRow, SortableQueue, groupByDay } from '../components/queue'
+import {
+  PinSlots, QueueItemRow, ReviewQueue, SortableQueue, groupByDay, useReviewQueue,
+} from '../components/queue'
+import { defaultWorkMode, isTech } from '../lib/roles'
 
 // My Work (slice 10; redesigned 2026-10-01 from prototype variant D): one
 // person's queue across every project. Tabs filter it — All, In progress,
@@ -20,11 +23,17 @@ import { PinSlots, QueueItemRow, SortableQueue, groupByDay } from '../components
 // refuses everyone else. `/my-work` is your own; CTO and Admin open anyone's
 // at `/u/:username/work`. State lives in the URL: `?tab=`, `?view=board`, and
 // the Done range (`?done=30d` or `?done_from=&done_to=`, default 7 days).
+// Two modes (slice 22, FR-72): **My queue** (all of the above) and **To review**
+// (everything in review, every project). QA opens on To review, everyone else on
+// My queue; `?mode=review|queue` picks one for that visit and is never stored.
+// To review is not per person, so `/u/:username/work` is My queue only.
 
 const VIEW_OPTIONS = [
   { value: 'list', label: 'List' },
   { value: 'board', label: 'Board' },
 ]
+
+const NO_REVIEW_FILTERS = { project_ids: [], type: '', status: '' }
 
 const TAB_FILTERS = {
   all: () => true,
@@ -320,6 +329,18 @@ export default function MyWorkPage() {
   const doneRange = readDoneRange(searchParams)
   const { queue, board, error, busy, actions, reload } = useMyWork(owner.ref, doneRange)
 
+  // To review is only for your own page; the default depends on who you are.
+  const { projects } = useApp()
+  const reviewAvailable = isOwner && isTech(user?.role)
+  const fallbackMode = defaultWorkMode(user?.role)
+  const rawMode = searchParams.get('mode')
+  const mode = !reviewAvailable ? 'queue' : (rawMode === 'review' || rawMode === 'queue') ? rawMode : fallbackMode
+  const [reviewFilters, setReviewFilters] = useState(NO_REVIEW_FILTERS)
+  const reviewParams = useMemo(() => Object.fromEntries(
+    Object.entries(reviewFilters).filter(([, v]) => (Array.isArray(v) ? v.length : v)),
+  ), [reviewFilters])
+  const review = useReviewQueue(reviewAvailable, reviewParams)
+
   const setParam = (key, value, fallback) => {
     const next = new URLSearchParams(searchParams)
     if (value === fallback) next.delete(key); else next.set(key, value)
@@ -330,6 +351,7 @@ export default function MyWorkPage() {
   const historyPath = isOwner ? '/my-work/history' : `/u/${username}/work/history`
 
   const items = useMemo(() => (queue ? flatten(queue) : []), [queue])
+  const reviewing = mode === 'review'
   const doneCount = board
     ? ['verified', 'done'].reduce((n, st) => n + (board.columns.find((c) => c.status === st)?.items.length ?? 0), 0)
     : undefined
@@ -350,13 +372,27 @@ export default function MyWorkPage() {
         )}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold">{title}</h1>
-          <div className="ml-auto flex items-center gap-2">
-            <Segmented value={view} onValueChange={(v) => setParam('view', v, 'list')} options={VIEW_OPTIONS} />
-            <Button variant="outline" size="sm" onClick={() => navigate(historyPath)} disabled={owner.ref == null}>
-              <Icon name="history" size={14} aria-hidden="true" />Queue history
-            </Button>
-          </div>
+          {!reviewing && (
+            <div className="ml-auto flex items-center gap-2">
+              <Segmented value={view} onValueChange={(v) => setParam('view', v, 'list')} options={VIEW_OPTIONS} />
+              <Button variant="outline" size="sm" onClick={() => navigate(historyPath)} disabled={owner.ref == null}>
+                <Icon name="history" size={14} aria-hidden="true" />Queue history
+              </Button>
+            </div>
+          )}
         </div>
+        {reviewAvailable && (
+          <div data-testid="work-mode" className="mt-3">
+          <Segmented
+            value={mode}
+            onValueChange={(m) => setParam('mode', m, fallbackMode)}
+            options={[
+              { value: 'queue', label: `My queue${queue ? ` · ${items.length}` : ''}` },
+              { value: 'review', label: `To review${review.data ? ` · ${review.data.counts.total}` : ''}` },
+            ]}
+          />
+          </div>
+        )}
         {!isOwner && queue && (
           <p className="mt-1 text-[12.5px] text-muted-foreground">
             {queue.can_reorder
@@ -364,7 +400,7 @@ export default function MyWorkPage() {
               : 'View only.'}
           </p>
         )}
-        <Tabs
+        {!reviewing && <Tabs
           className="mt-3"
           value={tab}
           onValueChange={(t) => setParam('tab', t, 'all')}
@@ -375,10 +411,16 @@ export default function MyWorkPage() {
             { value: 'blockers', label: 'Blockers', badge: count('blockers') },
             ...(view === 'list' ? [{ value: 'done', label: 'Delivered', badge: doneCount }] : []),
           ]}
-        />
+        />}
       </header>
 
-      {error ? (
+      {reviewing ? (
+        <ReviewQueue
+          data={review.data} error={review.error} onReload={review.reload}
+          filters={reviewFilters} onFilters={setReviewFilters}
+          projects={(projects ?? []).filter((p) => !p.archived_at)}
+        />
+      ) : error ? (
         <div role="alert" className="py-16 text-center text-sm text-muted-foreground">
           {error}
           <Button variant="outline" size="sm" className="ml-3" onClick={reload}>Retry</Button>

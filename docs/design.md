@@ -371,6 +371,16 @@ then a **List | Board** `Segmented` (as on All Issues) and a **Queue history** b
 (Delivered is List-only — on the Board Verified and Done are columns; it lists Verified, then the Done range). Tab, view and the Done range live in the URL (`?tab=`,
 `?view=board`, `?done=30d` / `?done_from=&done_to=`, default 7 days).
 
+**To review mode (slice 22).** A page-level `Segmented` under the title — "My queue · n" | "To review · n"
+(`?mode=`; QA's default is To review, everyone else's My queue; not stored). To review hides the
+List | Board switch, Queue history and the filter `Tabs`, which belong to My queue. Body
+(`ReviewQueue`, `components/queue`): filters — a project multi-select popover, All types | Bugs | Tasks
+and All | To review | In review `Segmented`s — then collapsible project groups (colour square, name,
+count), each sub-grouped "To review" then "In review". A row is a read-only `QueueItemRow` sibling:
+type, title link, key, `PlacementChip`, cycle pill from 2, "waiting 2d" (zinc, amber past 2 days),
+status, a read-only priority pill and the assignee avatar (dashed circle when unassigned). No row
+actions: the status move, Verify and Reject are on the item page. Empty: "Nothing waiting for review".
+
 - **Rows** (`QueueItemRow`, `components/queue`): a bordered `rounded-xl` card per item, in one flat
   list. Left: grip handle (a real button; `@dnd-kit/sortable`, pointer + keyboard — Space, arrows,
   Space; only on All, where the whole queue shows), then the queue position in large muted digits.
